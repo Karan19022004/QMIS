@@ -1,29 +1,32 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 12 October 2026 — admissions A1–A8 unblock  
-Result: **admissions pytest 2 passed**; full suite not re-run this slice
+Last run: 12 October 2026 — P1-4 parents/me/children  
+Result: **3 passed** (admissions + e2e); live smoke parent children **PASS**
 
 ## Commands
 
 ```
 cd backend
-python -m pytest tests/test_admissions.py -q
+python -m pytest tests/test_admissions.py tests/test_e2e_campus_flow.py -q
+python scripts/smoke_parent_login.py
 ```
 
-## Admissions (A1–A8) API
+## Results
 
-| Case | Result | Evidence |
-|---|---|---|
-| GET `/admissions/enquiries` | PASS | Was 500 (null enquiry_code); fixed + migrate backfill |
-| POST `/admissions/enquiries` | PASS | Was 500 (guardian_name NOT NULL); default + migrate |
-| Convert enquiry → admission | PASS | Live probe ADM-0002 |
-| Enroll + parent login create | PASS | Live probe 200; clash with legacy ADM-0001 handled |
-| Browser manual A1–A8 | NOT CLAIMED | User retest required |
+| Case | Result |
+|---|---|
+| Enquiry → convert → enroll → parent login | PASS |
+| `GET /parents/me/children` returns enrolled child | PASS (pytest + live smoke) |
+| Browser Select Child UI | Fix shipped — user retest |
+
+## Latest smoke parent (for UI)
+
+```
+email:    smoke.parent.311139e0@example.com
+password: parent12
+```
 
 ## Honesty
 
-| Item | Status |
-|---|---|
-| Root cause of “nothing works” on Admin admissions | API 500s from Phase-0 schema drift |
-| Manual UI Pass/Fail | Awaiting user |
+Manual browser Pass not claimed until user confirms child card appears on `/parent/select-child`.

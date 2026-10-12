@@ -110,6 +110,14 @@ def test_phase0_through_finance_campus_journey(client):
     assert enrolled.json()["admission"]["status"] == "Enrolled"
     assert enrolled.json()["parent_created"] is True
 
+    parent = _login(client, "parent.diya@example.com", "parent123")
+    parent_me = client.get("/api/v1/auth/me", headers=parent)
+    assert parent_me.status_code == 200
+    assert parent_me.json()["role"] == "parent"
+    children = client.get("/api/v1/parents/me/children", headers=parent)
+    assert children.status_code == 200, children.text
+    assert any(row["id"] == student_id for row in children.json())
+
     # --- Partner HR: staff + approved concession + paid payroll ---
     hr = _login(client, "hr@qmis.edu", "hr12345")
     staff = client.post(

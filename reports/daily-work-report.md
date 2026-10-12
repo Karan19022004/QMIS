@@ -23,11 +23,14 @@ New days go at the top. Older days stay below so the history is in one file.
    - Fixes: schema migrate (nullable legacy cols + backfill codes), default guardian name, unique ADM code across admissions+students, enroll remaps colliding codes
 4. **API verify** — create enquiry → convert → enroll returns 200; parent user can be created.
 
+4. **Automation without school data** — pytest admissions + e2e; live smoke parent login.
+5. **P1-4 Select Child** — implemented `GET /api/v1/parents/me/children`; ParentChildContext loads API children when API auth on; empty-state message on Select Child. Live smoke PASS.
+
 ### Still open
 
-- User retest A1–A8 in browser (not claimed PASS)
-- Parent P1–P5 after enroll
+- User confirm Select Child shows child card in browser
 - Phase 2 not started
+
 
 ---
 

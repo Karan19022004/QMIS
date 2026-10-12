@@ -11,12 +11,12 @@ import {
     convertEnquiryToAdmission,
     deleteAdmissionEnquiry,
     filterAdmissionEnquiries,
-    getAddAdmissionPath,
     getAllAdmissionEnquiries,
     getEnquiryProfileImage,
     getEnquiryRouteBase,
     statusBadgeColor,
 } from './admissionEnquiryData'
+import { getAdmissionEditPath } from '../AdminssionList/admissionListData'
 
 const AdmissionEnquiry = () => {
     const navigate = useNavigate()
@@ -70,12 +70,18 @@ const AdmissionEnquiry = () => {
             return
         }
         await refresh()
-        toast.success('Enquiry converted. Continue on the admission form.')
-        navigate(getAddAdmissionPath(pathname), {
+        const admissionId = result.admission?.id
+        if (!admissionId) {
+            toast.error('Convert created no admission id. Open Admission List and edit the new row.')
+            return
+        }
+        toast.success('Enquiry converted. Save parent email, then Enroll as Student from Admission List.')
+        // Use edit URL (not add + location.state) so refresh still updates the converted row.
+        navigate(getAdmissionEditPath(pathname, admissionId), {
             state: {
                 fromEnquiryId: record.id,
                 enquiry: record,
-                admissionId: result.admission?.id,
+                admissionId,
                 admission: result.admission,
             },
         })

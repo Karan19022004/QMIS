@@ -10,6 +10,7 @@ from app.api.v1.endpoints.files import router as files_router
 from app.api.v1.endpoints.finance import router as finance_router
 from app.api.v1.endpoints.hr import router as hr_router
 from app.api.v1.endpoints.masters import router as masters_router
+from app.api.v1.endpoints.parents import router as parents_router
 from app.core.config import settings
 from app.core.database import SessionLocal, engine
 from app.models import Base
@@ -49,6 +50,7 @@ app.include_router(auth_router)
 app.include_router(audit_router)
 app.include_router(masters_router)
 app.include_router(admissions_router)
+app.include_router(parents_router)
 app.include_router(finance_router)
 app.include_router(hr_router)
 app.include_router(files_router)

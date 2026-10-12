@@ -10,7 +10,7 @@ import { PORTAL_LOGO, PORTAL_LOGO_ALT } from '../../constants/portalLogo'
 const ChildSelection = () => {
     const navigate = useNavigate()
     const { logout } = useAuth()
-    const { parentAccount, mappedChildren, selectChild } = useParentChild()
+    const { parentAccount, mappedChildren, selectChild, loadError } = useParentChild()
 
     const handleSelect = (studentId) => {
         const ok = selectChild(studentId)
@@ -50,6 +50,19 @@ const ChildSelection = () => {
 
                     <h2 className='text-lg font-semibold text-[#1E1E1E] mb-4'>Select Child</h2>
 
+                    {loadError && (
+                        <p className='mb-4 text-sm text-[#B42318] bg-[#FF57221A] border border-[#FF5722] rounded-xl p-3'>
+                            {loadError}
+                        </p>
+                    )}
+
+                    {!loadError && mappedChildren.length === 0 && (
+                        <p className='mb-4 text-sm text-[#667085] bg-white border border-[#EEF0F6] rounded-xl p-4'>
+                            No enrolled children are linked to this parent yet. Ask Admin to complete
+                            Admission → Enroll as Student with this parent email.
+                        </p>
+                    )}
+
                     <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                         {mappedChildren.map((child) => (
                             <div
@@ -63,7 +76,9 @@ const ChildSelection = () => {
                                     <div>
                                         <h3 className='text-lg font-semibold text-[#0C1E5B]'>{child.name}</h3>
                                         <p className='text-sm text-[#667085] mt-1'>{formatGradeSection(child)}</p>
-                                        <p className='text-xs text-[#808080] mt-1'>Student ID: {child.id}</p>
+                                        <p className='text-xs text-[#808080] mt-1'>
+                                            Admission: {child.admissionNumber || child.id}
+                                        </p>
                                     </div>
                                 </div>
                                 <button

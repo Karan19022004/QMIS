@@ -113,3 +113,20 @@ def ensure_admissions_schema() -> None:
             for name, column_type in _STUDENT_COLUMNS:
                 if name not in student_cols:
                     connection.execute(text(f"ALTER TABLE students ADD COLUMN {name} {column_type}"))
+            if connection.dialect.name == "postgresql":
+                # Align legacy varchar UUID columns with ORM UUID FKs when safe.
+                for col in ("parent_user_id", "admission_id"):
+                    meta = next(
+                        (c for c in inspect(engine).get_columns("students") if c["name"] == col),
+                        None,
+                    )
+                    if not meta:
+                        continue
+                    col_type = str(meta.get("type") or "").lower()
+                    if "char" in col_type or col_type == "text":
+                        connection.execute(
+                            text(
+                                f"ALTER TABLE students ALTER COLUMN {col} TYPE UUID "
+                                f"USING NULLIF({col}, '')::uuid"
+                            )
+                        )

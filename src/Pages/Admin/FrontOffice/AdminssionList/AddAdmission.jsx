@@ -11,6 +11,7 @@ import {
     buildInitialAdmissionForm,
     createAdmission,
     getAdmissionById,
+    getAdmissionEditPath,
     toAdmissionFormState,
     updateAdmission,
 } from './admissionListData'
@@ -38,6 +39,13 @@ const AddAdmission = () => {
     const [error, setError] = useState('')
     const [notFound, setNotFound] = useState(false)
     const apiAdmissionId = locationState?.admissionId || locationState?.admission?.id || null
+
+    // If convert landed on /add-admission with only location.state, bounce to durable edit URL.
+    useEffect(() => {
+        if (isEdit || !apiAdmissionId) return undefined
+        navigate(getAdmissionEditPath(pathname, apiAdmissionId), { replace: true, state: locationState })
+        return undefined
+    }, [apiAdmissionId, isEdit, locationState, navigate, pathname])
 
     useEffect(() => {
         const loadId = isEdit ? id : apiAdmissionId
