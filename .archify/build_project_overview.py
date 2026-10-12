@@ -313,7 +313,9 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 + [
                     "Flags: AUTH + ADMISSIONS + FINANCE",
                     "HR + Finance: API is SoT (no silent localStorage)",
-                    "Verified: 39 pytest",
+                    "Phase 1: Head/Assistant perms + FY Apr–Mar",
+                    "Gateway/SMTP/WA: env-gated (demo/stub)",
+                    "Verified: 45 pytest",
                 ],
             },
             {
@@ -334,11 +336,10 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "dot": "rose",
                 "title": "Still open",
                 "items": [
-                    "HR↔Finance browser click-through (concessions + payroll voucher)",
-                    "RFID / eSSL punch import (if school wants)",
-                    "Real Razorpay/Paytm · SMTP · WhatsApp (replace stubs)",
-                    "Ops: Transport, Gate, Stores, IT, Canteen",
-                    "Parent /me/children · Academics router",
+                    "Live keys when school ready (mode=live)",
+                    "Manual Vite UI pass vs demo API",
+                    "RFID / eSSL if school confirms (still off)",
+                    "Ops · Parent /me/children · Academics",
                 ],
             },
         ],

@@ -22,9 +22,10 @@ def _file_url(file_id: UUID | None) -> str | None:
 
 
 def enquiry_to_out(row: AdmissionEnquiry) -> dict:
+    code = (row.enquiry_code or "").strip() or f"AE-{str(row.id).split('-')[0]}"
     return {
         "id": row.id,
-        "enquiry_code": row.enquiry_code,
+        "enquiry_code": code,
         "name": row.name or row.student_name or "",
         "mobile_number": row.mobile_number or row.guardian_phone or "",
         "email": row.email,
@@ -108,9 +109,37 @@ def admission_to_out(row: Admission) -> dict:
     }
 
 
+def _code_max_suffix(codes: list[str | None], prefix: str) -> int:
+    max_n = 0
+    needle = f"{prefix}-"
+    for raw in codes:
+        text = str(raw or "").strip().upper()
+        if not text.startswith(needle):
+            continue
+        suffix = text[len(needle) :]
+        if suffix.isdigit():
+            max_n = max(max_n, int(suffix))
+    return max_n
+
+
 def _next_code(db: Session, model, prefix: str, campus_id: UUID) -> str:
-    count = db.scalar(select(func.count()).select_from(model).where(model.campus_id == campus_id)) or 0
-    return f"{prefix}-{int(count) + 1:04d}"
+    """Allocate AE-/ADM- codes without colliding with legacy student admission numbers."""
+    if model is AdmissionEnquiry:
+        column = AdmissionEnquiry.enquiry_code
+    elif model is Admission:
+        column = Admission.admission_code
+    else:
+        count = db.scalar(select(func.count()).select_from(model).where(model.campus_id == campus_id)) or 0
+        return f"{prefix}-{int(count) + 1:04d}"
+
+    codes = list(db.scalars(select(column).where(model.campus_id == campus_id)).all())
+    max_n = _code_max_suffix(codes, prefix)
+    if prefix == "ADM":
+        student_codes = list(
+            db.scalars(select(Student.admission_number).where(Student.campus_id == campus_id)).all()
+        )
+        max_n = max(max_n, _code_max_suffix(student_codes, prefix))
+    return f"{prefix}-{max_n + 1:04d}"
 
 
 def _get_enquiry(db: Session, actor: User, enquiry_id: UUID) -> AdmissionEnquiry:
@@ -172,7 +201,8 @@ def create_enquiry(db: Session, actor: User, payload: EnquiryCreate) -> dict:
         profile_image_file_id=payload.profile_image_file_id,
         status=payload.status or "Active",
         student_name=name,
-        guardian_name=(payload.guardian_name or payload.assigned_to),
+        # Legacy Phase-0 columns may still be NOT NULL on older Postgres schemas.
+        guardian_name=(payload.guardian_name or payload.assigned_to or "Parent"),
         guardian_phone=mobile,
     )
     db.add(row)
@@ -447,11 +477,18 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
         skip=payload.skip_parent_account,
     )
 
+    admission_number = row.admission_code
+    clash = db.scalar(select(Student.id).where(Student.admission_number == admission_number))
+    if clash is not None:
+        # Legacy Phase-0 students may already own ADM-0001 etc.
+        admission_number = _next_code(db, Admission, "ADM", actor.campus_id)
+        row.admission_code = admission_number
+
     student = Student(
         campus_id=actor.campus_id,
         enquiry_id=row.enquiry_id,
         admission_id=row.id,
-        admission_number=row.admission_code,
+        admission_number=admission_number,
         full_name=_full_name(row),
         class_name=row.class_name,
         parent_user_id=parent_user.id if parent_user else None,

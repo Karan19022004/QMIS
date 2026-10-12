@@ -7,9 +7,9 @@ import { ROLES } from '../../../constants/roles'
 import { DEPARTMENTS, EMPLOYEE_CATEGORIES, EMPLOYEE_STATUSES } from '../domain/hrStatus'
 import { getEmployees, nextId, saveEmployees } from '../domain/hrStore'
 import { createStaff } from '../../../services/hrApi'
+import { HrExport, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, Badge, inputClass, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
 
 const STAFF_ROLES = Object.values(ROLES).filter((code) => !['superadmin', 'admin', 'student', 'parent'].includes(code))
-import { HrExport, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, Badge, inputClass, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
 
 const emptyForm = {
     name: '', gender: 'Female', dateOfBirth: '', contact: '', email: '', address: '',

@@ -22,9 +22,15 @@ import Notifications from '../Pages/HR/Notifications/Notifications'
 import Announcements from '../Pages/HR/Announcements/Announcements'
 import AddAnnouncement from '../Pages/HR/Announcements/AddAnnouncement'
 import ViewAnnouncement from '../Pages/HR/Announcements/ViewAnnouncement'
-import { EMPLOYEES } from '../Pages/HR/EmployeeManagement/employeeData'
+import { getEmployees, isHrRemoteReady } from '../Pages/HR/domain/hrStore'
 
-const defaultEmployeeId = EMPLOYEES[0]?.id ?? 'EMP-2026-001'
+const FALLBACK_EMPLOYEE_ID = 'EMP-2026-001'
+
+/** Resolve after HR hydrate — never touch the store at module load (eager App import). */
+const DefaultEmployeeProfileRedirect = () => {
+    const firstId = isHrRemoteReady() ? getEmployees()[0]?.id : null
+    return <Navigate to={`/hr/employee-management/employee-profile/${firstId || FALLBACK_EMPLOYEE_ID}`} replace />
+}
 
 const HRRoutes = () => {
     return (
@@ -32,7 +38,7 @@ const HRRoutes = () => {
             <Route path="/hr/dashboard" element={<Dashboard />} />
             <Route path="/hr/employee-management/employees" element={<EmployeesList />} />
             <Route path="/hr/employee-management/employee-profile/:id" element={<EmployeeProfile />} />
-            <Route path="/hr/employee-management/employee-profile" element={<Navigate to={`/hr/employee-management/employee-profile/${defaultEmployeeId}`} replace />} />
+            <Route path="/hr/employee-management/employee-profile" element={<DefaultEmployeeProfileRedirect />} />
             <Route path="/hr/employee-management/documents" element={<EmployeeDocuments />} />
             <Route path="/hr/employee-management" element={<Navigate to="/hr/employee-management/employees" replace />} />
             <Route path="/hr/recruitment/job-openings" element={<JobOpenings />} />

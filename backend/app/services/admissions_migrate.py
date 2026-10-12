@@ -67,6 +67,47 @@ def ensure_admissions_schema() -> None:
                 text("UPDATE admission_enquiries SET status = 'Success' WHERE lower(status) = 'enrolled'")
             )
 
+        # Phase-0 NOT NULL leftovers block rich-form creates / list validation (Postgres only).
+        if connection.dialect.name == "postgresql":
+            for legacy_col in ("student_name", "guardian_name", "guardian_phone"):
+                if legacy_col in cols:
+                    connection.execute(
+                        text(
+                            f"ALTER TABLE admission_enquiries ALTER COLUMN {legacy_col} DROP NOT NULL"
+                        )
+                    )
+            if "guardian_name" in cols:
+                connection.execute(
+                    text(
+                        "UPDATE admission_enquiries SET guardian_name = 'Parent' "
+                        "WHERE guardian_name IS NULL OR guardian_name = ''"
+                    )
+                )
+            if "enquiry_code" in cols:
+                connection.execute(
+                    text(
+                        "UPDATE admission_enquiries "
+                        "SET enquiry_code = 'AE-' || upper(substr(replace(id::text, '-', ''), 1, 8)) "
+                        "WHERE enquiry_code IS NULL OR enquiry_code = ''"
+                    )
+                )
+            if "name" in cols:
+                connection.execute(
+                    text(
+                        "UPDATE admission_enquiries "
+                        "SET name = COALESCE(NULLIF(name, ''), student_name, 'Unknown') "
+                        "WHERE name IS NULL OR name = ''"
+                    )
+                )
+            if "mobile_number" in cols:
+                connection.execute(
+                    text(
+                        "UPDATE admission_enquiries "
+                        "SET mobile_number = COALESCE(NULLIF(mobile_number, ''), guardian_phone, '0000000000') "
+                        "WHERE mobile_number IS NULL OR mobile_number = ''"
+                    )
+                )
+
         if "students" in tables:
             student_cols = {column["name"] for column in inspect(engine).get_columns("students")}
             for name, column_type in _STUDENT_COLUMNS:

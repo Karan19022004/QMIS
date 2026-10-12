@@ -10,7 +10,7 @@
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "0d1e5c87eb7185d3d9d6d21a6c2ff2ffb08e6510"
+      "revision": "cdf52be29591cbe18f8e25f3739a19aa11ea4ea3"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -531,7 +531,8 @@
         "Files \u2014 upload stub",
         "Flags: AUTH + ADMISSIONS + FINANCE",
         "HR + Finance: API is SoT (no silent localStorage)",
-        "Verified: 39 pytest"
+        "Gateway/SMTP/WA: env-gated (stub without keys)",
+        "Verified: 41 pytest"
       ]
     },
     {
@@ -559,11 +560,10 @@
       "dot": "rose",
       "title": "Still open",
       "items": [
-        "HR\u2194Finance browser click-through (concessions + payroll voucher)",
-        "RFID / eSSL punch import (if school wants)",
-        "Real Razorpay/Paytm \u00b7 SMTP \u00b7 WhatsApp (replace stubs)",
-        "Ops: Transport, Gate, Stores, IT, Canteen",
-        "Parent /me/children \u00b7 Academics router"
+        "Live keys when school ready (mode=live)",
+        "Manual Vite UI pass vs demo API",
+        "RFID / eSSL if school confirms (still off)",
+        "Ops \u00b7 Parent /me/children \u00b7 Academics"
       ]
     }
   ]
