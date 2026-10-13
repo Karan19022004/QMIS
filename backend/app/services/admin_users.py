@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.core.passwords import generate_temporary_password, password_problems
 from app.core.security import hash_password
-from app.models import Permission, Role, RolePermission, User, UserProfile
+from app.models import HrEmployee, Permission, Role, RolePermission, User, UserProfile
 from app.permissions.matrix import PERMISSIONS
 from app.services.audit import write_audit
 from app.services.errors import fail
@@ -137,6 +137,43 @@ def _next_staff_code(db: Session, campus_id, prefix: str) -> str:
 def _actor_role(db: Session, actor: User) -> str:
     role = db.get(Role, actor.role_id)
     return role.code if role else ""
+
+
+_HR_INACTIVE = {"Inactive", "Relieved", "Terminated"}
+
+
+def _sync_hr_status(db: Session, actor: User, user: User, active: bool) -> bool:
+    """Keep a linked HR employee record in step with the login's active flag.
+
+    HR's bulk save derives login activity from the HR status (``_sync_login_active``). If the HR
+    record stayed "Active" after an administrator deactivated the login, the next HR save would
+    silently switch the login back on. The link is by email, the same fallback HR itself uses
+    (``hr._own_employee``); the ``user_id`` column is not compared because it is a different type
+    in some existing databases. "Relieved" and "Terminated" are HR decisions and are never
+    overwritten, and activation only reverses an "Inactive" record. Returns True if HR changed.
+    """
+    employee = db.scalar(
+        select(HrEmployee).where(HrEmployee.campus_id == actor.campus_id, HrEmployee.email == user.email)
+    )
+    if employee is None:
+        return False
+    current = employee.status or "Active"
+    if active and current == "Inactive":
+        employee.status = "Active"
+    elif not active and current not in _HR_INACTIVE:
+        employee.status = "Inactive"
+    else:
+        return False
+    write_audit(
+        db,
+        action="HR_EMPLOYEE_STATUS_SYNCED",
+        entity_type="hr_employee",
+        entity_id=str(employee.id),
+        actor_id=actor.id,
+        campus_id=actor.campus_id,
+        details=f"{employee.employee_code} {current} -> {employee.status} (login {'activated' if active else 'deactivated'})",
+    )
+    return True
 
 
 def _load_managed(db: Session, actor: User, user_id: str) -> tuple[User, UserProfile, Role]:
@@ -332,6 +369,8 @@ def update_user(db: Session, actor: User, user_id: str, changes: dict) -> dict:
             user.is_active = wanted
             action = "admin.user.activate" if wanted else "admin.user.deactivate"
             audit_bits.append(f"status={'Active' if wanted else 'Inactive'}")
+            if _sync_hr_status(db, actor, user, wanted):
+                audit_bits.append("hr_status_synced")
 
     profile.updated_at = datetime.now(timezone.utc)
     write_audit(
