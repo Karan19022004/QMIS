@@ -82,6 +82,19 @@ export const isApiEmployeeDirectoryEnabled = () => {
     return isApiAuthEnabled()
 }
 
+/**
+ * Administrator Class Details reads and writes classes, sections and academic years through the
+ * masters API. Defaults on whenever API sign-in is on; set VITE_USE_API_CLASSES=false for the
+ * browser-only class catalog.
+ */
+export const isApiClassDetailsEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_CLASSES
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAuthEnabled()
+}
+
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {
     if (token) sessionStorage.setItem(TOKEN_KEY, token)

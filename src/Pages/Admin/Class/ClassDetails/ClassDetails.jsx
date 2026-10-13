@@ -12,6 +12,7 @@ import {
     getClassDetails,
     removeClassDetails,
 } from '../../../../Common/RBAC/academicsCatalogData'
+import { useClassDirectory } from './useClassDirectory'
 
 const ClassDetails = () => {
     const [fromDate, setFromDate] = useState(new Date())
@@ -22,13 +23,18 @@ const ClassDetails = () => {
     const [search, setSearch] = useState('')
     const [records, setRecords] = useState(() => getClassDetails())
     const [pendingDeleteId, setPendingDeleteId] = useState(null)
+    const [yearId, setYearId] = useState('')
+    // API mode: classes, sections and years come from the server. Local mode: the browser catalog.
+    const directory = useClassDirectory(yearId)
+    const apiMode = directory.apiMode
+    const sourceRecords = apiMode ? directory.records : records
 
     const refresh = () => setRecords(getClassDetails())
 
     const filteredRecords = useMemo(() => {
         const query = search.trim().toLowerCase()
-        if (!query) return records
-        return records.filter((item) => {
+        if (!query) return sourceRecords
+        return sourceRecords.filter((item) => {
             const sectionNames = (item.sections || []).map((section) => section.name).join(', ')
             return (
                 item.className.toLowerCase().includes(query)
@@ -37,7 +43,7 @@ const ClassDetails = () => {
                 || (item.classTeacher || '').toLowerCase().includes(query)
             )
         })
-    }, [records, search])
+    }, [sourceRecords, search])
 
     const confirmDelete = () => {
         if (!pendingDeleteId) return
@@ -54,7 +60,10 @@ const ClassDetails = () => {
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
                     <button
                         type='button'
-                        onClick={() => setSearch('')}
+                        onClick={() => {
+                            setSearch('')
+                            setYearId('')
+                        }}
                         className='bg-[#515DEF] text-white uppercase text-sm px-6 py-2 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'
                     >
                         Clear Filters
@@ -71,17 +80,36 @@ const ClassDetails = () => {
                             type='text'
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder='Class, section, teacher...'
+                            placeholder={apiMode ? 'Class or section...' : 'Class, section, teacher...'}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         />
                     </div>
-                    <div className='flex flex-col gap-y-2'>
-                        <label htmlFor='status' className='text-base font-medium text-[#808080]'>Status</label>
-                        <select id='status' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
-                            <option value=''>All</option>
-                        </select>
-                    </div>
-                    <div className='flex flex-col gap-y-2'>
+                    {apiMode ? (
+                        <div className='flex flex-col gap-y-2'>
+                            <label htmlFor='academic-year' className='text-base font-medium text-[#808080]'>Academic Year</label>
+                            <select
+                                id='academic-year'
+                                value={yearId}
+                                onChange={(e) => setYearId(e.target.value)}
+                                className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                            >
+                                <option value=''>All years</option>
+                                {directory.years.map((year) => (
+                                    <option key={year.id} value={year.id}>
+                                        {year.name}{year.isCurrent ? ' (current)' : ''}{year.isActive ? '' : ' - inactive'}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    ) : (
+                        <div className='flex flex-col gap-y-2'>
+                            <label htmlFor='status' className='text-base font-medium text-[#808080]'>Status</label>
+                            <select id='status' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
+                                <option value=''>All</option>
+                            </select>
+                        </div>
+                    )}
+                    <div className={apiMode ? 'hidden' : 'flex flex-col gap-y-2'}>
                         <label className='text-base font-medium text-[#808080]'>From</label>
                         <div className='relative w-full'>
                             <DatePicker
@@ -93,7 +121,7 @@ const ClassDetails = () => {
                             <Calendar size={16} className='absolute right-3 top-1/2 -translate-y-1/2 text-[#808080] pointer-events-none' />
                         </div>
                     </div>
-                    <div className='flex flex-col gap-y-2'>
+                    <div className={apiMode ? 'hidden' : 'flex flex-col gap-y-2'}>
                         <label className='text-base font-medium text-[#808080]'>To</label>
                         <div className='relative'>
                             <DatePicker
@@ -130,11 +158,37 @@ const ClassDetails = () => {
                     </div>
                 </div>
 
-                {filteredRecords.length === 0 ? (
+                {apiMode && (
+                    <p className='text-xs text-[#667085] mb-3'>
+                        Classes, sections and academic years are saved on the server. Class capacity, class teacher and
+                        room number are not stored by the server yet, so they are not shown here. Classes cannot be
+                        edited or deleted yet; add sections from Add New Class.
+                    </p>
+                )}
+
+                {apiMode && directory.status === 'loading' ? (
+                    <div role='status' className='py-16 text-center text-sm text-[#667085]'>Loading classes…</div>
+                ) : apiMode && directory.status === 'error' ? (
+                    <div role='alert' className='py-16 text-center'>
+                        <h3 className='text-lg font-semibold text-[#B42318]'>Could not load classes</h3>
+                        <p className='text-sm text-[#667085] mt-2 max-w-md mx-auto'>{directory.error}</p>
+                        <button
+                            type='button'
+                            onClick={directory.reload}
+                            className='mt-4 bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 cursor-pointer'
+                        >
+                            Retry
+                        </button>
+                    </div>
+                ) : filteredRecords.length === 0 ? (
                     <div className='py-16 text-center'>
-                        <h3 className='text-lg font-semibold text-[#0C1E5B]'>No class details yet</h3>
+                        <h3 className='text-lg font-semibold text-[#0C1E5B]'>
+                            {apiMode && (search || yearId) ? 'No classes match these filters' : 'No class details yet'}
+                        </h3>
                         <p className='text-sm text-[#667085] mt-2 max-w-md mx-auto'>
-                            Create classes and sections here. They will appear in Mark Entry and student creation dropdowns.
+                            {apiMode && (search || yearId)
+                                ? 'Clear the filters to see every class.'
+                                : 'Create classes and sections here. They will appear in Mark Entry and student creation dropdowns.'}
                         </p>
                     </div>
                 ) : (
@@ -155,11 +209,17 @@ const ClassDetails = () => {
                                     <tr className='rounded-lg'>
                                         <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-s-lg'>Class</th>
                                         <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Section</th>
-                                        <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Section Capacity</th>
-                                        <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Capacity</th>
-                                        <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Teacher</th>
-                                        <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Room Number</th>
-                                        <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Actions</th>
+                                        {apiMode ? (
+                                            <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Academic Year</th>
+                                        ) : (
+                                            <>
+                                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Section Capacity</th>
+                                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Capacity</th>
+                                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Teacher</th>
+                                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Room Number</th>
+                                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Actions</th>
+                                            </>
+                                        )}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -173,6 +233,10 @@ const ClassDetails = () => {
                                             <tr key={record.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
                                                 <td className='px-2 py-4 rounded-s-lg'>{record.className || record.displayName}</td>
                                                 <td className='px-2 py-4'>{sectionNames || '—'}</td>
+                                                {apiMode ? (
+                                                    <td className='px-2 py-4 rounded-e-lg'>{record.academicYear}</td>
+                                                ) : (
+                                                    <>
                                                 <td className='px-2 py-4'>{sectionCapacities || '—'}</td>
                                                 <td className='px-2 py-4'>{record.classCapacity || '—'}</td>
                                                 <td className='px-2 py-4'>{record.classTeacher || '—'}</td>
@@ -198,6 +262,8 @@ const ClassDetails = () => {
                                                         </button>
                                                     </Dropdown>
                                                 </td>
+                                                    </>
+                                                )}
                                             </tr>
                                         )
                                     })}

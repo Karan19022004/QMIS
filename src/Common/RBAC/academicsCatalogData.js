@@ -133,6 +133,55 @@ export const saveClassDetails = (payload) => {
     return { success: true, record }
 }
 
+/**
+ * Mirrors the server's classes and sections into this browser catalog so the screens that still
+ * read it (student allocation, assigned classes, activities, lesson plans, documents) offer the
+ * same classes. Server wins on the class and its section names; fields only the browser knows
+ * (teacher, capacities, room) are kept when a local entry has the same class name. Classes cannot
+ * be deleted through the API, so nothing is removed here. Writes only when something changed.
+ */
+export const mirrorApiClassDetails = (records) => {
+    const catalog = loadCatalog()
+    const before = JSON.stringify(catalog)
+
+    ;(records || []).forEach((record) => {
+        const className = String(record.className || '').trim()
+        if (!className) return
+        const index = catalog.classDetails.findIndex(
+            (item) => String(item.className).toLowerCase() === className.toLowerCase(),
+        )
+        const local = index >= 0 ? catalog.classDetails[index] : null
+        const capacityByName = new Map(
+            (local?.sections || []).map((section) => [String(section.name).toUpperCase(), section.capacity || '']),
+        )
+        const now = new Date().toISOString()
+        const next = {
+            classTeacher: '',
+            classTeacherEmail: '',
+            classCapacity: '',
+            classRoomNumber: '',
+            ...local,
+            id: local?.id || `CD-API-${String(record.id).slice(0, 8)}`,
+            className,
+            displayName: local?.displayName || className,
+            sections: (record.sections || []).map((section) => ({
+                name: String(section.name).toUpperCase(),
+                capacity: capacityByName.get(String(section.name).toUpperCase()) || '',
+            })),
+            source: 'api',
+            apiId: record.id,
+            academicYearId: record.academicYearId || '',
+            createdAt: local?.createdAt || now,
+            updatedAt: local?.updatedAt || now,
+        }
+        if (index >= 0) catalog.classDetails[index] = next
+        else catalog.classDetails = [...catalog.classDetails, next]
+    })
+
+    syncClassAndSectionLists(catalog)
+    if (JSON.stringify(catalog) !== before) saveCatalog(catalog)
+}
+
 export const removeClassDetails = (id) => {
     const catalog = loadCatalog()
     const target = catalog.classDetails.find((item) => item.id === id)

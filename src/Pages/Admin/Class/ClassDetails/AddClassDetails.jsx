@@ -5,6 +5,8 @@ import ClassInfo from './Components/ClassInfo'
 import SectionInfo from './Components/SectionInfo'
 import { saveClassDetails } from '../../../../Common/RBAC/academicsCatalogData'
 import { getCreatedUsersByRole, syncCreatedUsersFromApi } from '../../../../Common/RBAC/createdUsersData'
+import { saveClassWithSections } from '../../../../services/classDetailsApi'
+import { useClassDirectory } from './useClassDirectory'
 
 const emptyForm = {
     className: '',
@@ -16,6 +18,12 @@ const emptyForm = {
 
 const AddClassDetails = () => {
     const navigate = useNavigate()
+    // API mode: the server stores the class, its sections and its academic year. Capacity, class
+    // teacher and room number have no server field yet, so those inputs are not shown.
+    const directory = useClassDirectory('')
+    const apiMode = directory.apiMode
+    const [saving, setSaving] = useState(false)
+    const [academicYearId, setAcademicYearId] = useState('')
     const [teacherRecords, setTeacherRecords] = useState(() => getCreatedUsersByRole('teacher'))
     const teachers = useMemo(
         () => teacherRecords.filter((user) => user.status === 'Active'),
@@ -24,6 +32,7 @@ const AddClassDetails = () => {
 
     // In API mode the server owns the user list; refresh the local mirror before showing teachers.
     useEffect(() => {
+        if (apiMode) return undefined // teachers are not picked in API mode
         let cancelled = false
         syncCreatedUsersFromApi()
             .then((mapped) => {
@@ -31,7 +40,7 @@ const AddClassDetails = () => {
             })
             .catch(() => { /* keep whatever is already mirrored */ })
         return () => { cancelled = true }
-    }, [])
+    }, [apiMode])
     const [form, setForm] = useState(emptyForm)
     const [sections, setSections] = useState([{ name: '', capacity: '' }])
     const [error, setError] = useState('')
@@ -65,7 +74,55 @@ const AddClassDetails = () => {
         navigate('/admin/class/class-details')
     }
 
+    const handleSaveApi = async () => {
+        setError('')
+        if (!form.className) {
+            setError('Class is required.')
+            return
+        }
+        if (!sections.some((section) => String(section.name || '').trim())) {
+            setError('Add at least one section.')
+            return
+        }
+        setSaving(true)
+        try {
+            const result = await saveClassWithSections({
+                className: form.className,
+                sections,
+                academicYearId,
+            })
+            if (result.failures.length > 0) {
+                // The class exists now; saving again only adds what is still missing.
+                const listed = result.failures.map((item) => `${item.name} (${item.message})`).join('; ')
+                setError(
+                    `Class ${result.className} was saved, but these sections were not: ${listed}. `
+                    + 'Press Save Changes again to retry only the missing sections.',
+                )
+                return
+            }
+            const parts = []
+            if (result.classCreated) parts.push(`Class ${result.className} created`)
+            else parts.push(`Class ${result.className} already existed`)
+            if (result.sectionsCreated.length) parts.push(`sections added: ${result.sectionsCreated.join(', ')}`)
+            if (result.sectionsExisting.length) parts.push(`already present: ${result.sectionsExisting.join(', ')}`)
+            toast.success(`${parts.join('; ')}.`)
+            navigate('/admin/class/class-details')
+        } catch (saveError) {
+            setError(
+                saveError?.status === 403
+                    ? 'You do not have permission to create classes.'
+                    : saveError?.message || 'Could not save the class.',
+            )
+        } finally {
+            setSaving(false)
+        }
+    }
+
     const handleSave = () => {
+        if (apiMode) {
+            handleSaveApi()
+            return
+        }
         setError('')
         const result = saveClassDetails({
             ...form,
@@ -89,7 +146,21 @@ const AddClassDetails = () => {
                 <p className='text-sm text-[#667085] mt-1'>
                     Selected class and sections feed Mark Entry and student assignment dropdowns.
                 </p>
-                <ClassInfo form={form} teachers={teachers} onChange={updateForm} />
+                <ClassInfo
+                    form={form}
+                    teachers={teachers}
+                    onChange={updateForm}
+                    apiMode={apiMode}
+                    years={directory.years}
+                    academicYearId={academicYearId}
+                    onAcademicYearChange={setAcademicYearId}
+                />
+                {apiMode && (
+                    <p className='text-xs text-[#667085] mt-4'>
+                        Choosing a class that already exists adds only the new sections to it. Class capacity, class
+                        teacher and room number are not stored by the server yet.
+                    </p>
+                )}
             </div>
 
             <div className='bg-white rounded-2xl shadow-md p-4 mt-6'>
@@ -99,6 +170,7 @@ const AddClassDetails = () => {
                     onChangeSection={updateSection}
                     onAddSection={addSectionRow}
                     onRemoveSection={removeSectionRow}
+                    showCapacity={!apiMode}
                 />
             </div>
 
@@ -115,9 +187,10 @@ const AddClassDetails = () => {
                 <button
                     type='button'
                     onClick={handleSave}
-                    className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'
+                    disabled={saving}
+                    className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full disabled:opacity-60 disabled:cursor-not-allowed'
                 >
-                    Save Changes
+                    {saving ? 'Saving…' : 'Save Changes'}
                 </button>
             </div>
         </section>
