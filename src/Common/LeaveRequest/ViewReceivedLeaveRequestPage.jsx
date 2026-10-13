@@ -1,14 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
 import {
     canApproverAccessRequest,
+    decideLeaveRequestViaApi,
     getLeaveRequestById,
+    hydrateLeaveRequestsFromApi,
+    isAwaitingApprover,
     statusBadgeColor,
     updateLeaveRequestStatus,
 } from './leaveRequestData'
+import { canUseLeaveApi } from '../../services/leaveApi'
 import { APPROVER_DECISION_TITLES, getLeaveRoutes, resolveRoleKey } from './leaveRequestConfigs'
 
 const Section = ({ title, children }) => (
@@ -35,27 +39,53 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
         const item = getLeaveRequestById(id)
         return canApproverAccessRequest(item, roleKey) ? item : null
     })
-    const [approverRemarks, setApproverRemarks] = useState(request?.approverRemarks ?? '')
+    // While a request is still pending, existing remarks belong to the previous approver in the chain.
+    const [approverRemarks, setApproverRemarks] = useState(
+        request?.status === 'Pending' && request?.fromApi ? '' : request?.approverRemarks ?? '',
+    )
     const decisionTitle = APPROVER_DECISION_TITLES[roleKey] || 'Approver Decision'
 
-    const handleApprove = () => {
-        const updated = updateLeaveRequestStatus(id, 'Approved', approverRemarks, roleKey)
+    // With the API on, the server may hold newer data than the local cache.
+    useEffect(() => {
+        let cancelled = false
+        hydrateLeaveRequestsFromApi().then((used) => {
+            if (!used || cancelled) return
+            const fresh = getLeaveRequestById(id)
+            setRequest(canApproverAccessRequest(fresh, roleKey) ? fresh : null)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [id, roleKey])
+
+    const decide = async (status, successMessage, failMessage) => {
+        if (canUseLeaveApi()) {
+            try {
+                const updated = await decideLeaveRequestViaApi(id, status, approverRemarks)
+                if (updated) setRequest(updated)
+                toast.success(successMessage)
+            } catch (error) {
+                toast.error(error?.message || failMessage)
+            }
+            return
+        }
+        const updated = updateLeaveRequestStatus(id, status, approverRemarks, roleKey)
         if (!updated) {
-            toast.error('Unable to approve this leave request.')
+            toast.error(failMessage)
             return
         }
         setRequest(updated)
-        toast.success('Leave request approved.')
+        toast.success(successMessage)
     }
 
+    const handleApprove = () => decide('Approved', 'Leave request approved.', 'Unable to approve this leave request.')
+
     const handleReject = () => {
-        const updated = updateLeaveRequestStatus(id, 'Rejected', approverRemarks, roleKey)
-        if (!updated) {
-            toast.error('Unable to reject this leave request.')
+        if (canUseLeaveApi() && !approverRemarks.trim()) {
+            toast.error('Add a remark explaining the rejection.')
             return
         }
-        setRequest(updated)
-        toast.success('Leave request rejected.')
+        return decide('Rejected', 'Leave request rejected.', 'Unable to reject this leave request.')
     }
 
     return (
@@ -98,7 +128,7 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
                         </div>
                     </Section>
 
-                    {request.status === 'Pending' ? (
+                    {isAwaitingApprover(request, roleKey) ? (
                         <Section title={decisionTitle}>
                             <div className='space-y-4'>
                                 <div className='flex flex-col gap-y-2'>

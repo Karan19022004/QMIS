@@ -1,5 +1,10 @@
 from app.models.academics import AcademicYear, FinancialYear, SchoolClass, Section, Subject
 from app.models.admission import Admission, AdmissionEnquiry, Guardian, Student
+from app.models.approval import ApprovalEvent, ApprovalRequest, Notification
+from app.models.escalation import Escalation, Task
+from app.models.exams import Exam, ExamType, ExamWeightage, MarkEntry, MarksBatch
+from app.models.leave import LeaveRequest
+from app.models.lesson_plan import LessonPlan
 from app.models.attendance import StudentAttendance
 from app.models.audit import AuditLog
 from app.models.base import Base
@@ -17,6 +22,8 @@ __all__ = [
     "FinancialYear",
     "Admission",
     "AdmissionEnquiry",
+    "ApprovalEvent",
+    "ApprovalRequest",
     "AuditLog",
     "Base",
     "Campus",
@@ -24,7 +31,16 @@ __all__ = [
     "FinanceRecord",
     "Guardian",
     "HrEmployee",
+    "Escalation",
+    "Exam",
+    "ExamType",
+    "ExamWeightage",
     "HrRecord",
+    "LeaveRequest",
+    "LessonPlan",
+    "MarkEntry",
+    "MarksBatch",
+    "Notification",
     "OtpChallenge",
     "Permission",
     "Role",
@@ -34,5 +50,6 @@ __all__ = [
     "Student",
     "StudentAttendance",
     "Subject",
+    "Task",
     "User",
 ]

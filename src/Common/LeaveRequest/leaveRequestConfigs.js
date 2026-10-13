@@ -66,6 +66,11 @@ export const LEAVE_ROUTE_CONFIG = {
         receivedList: '/transport-manager/leave-request',
         receivedView: '/transport-manager/leave-request/view',
     },
+    // HR is the final step of every staff leave chain (Academics doc 4.9)
+    hr: {
+        receivedList: '/hr/leave-request/received',
+        receivedView: '/hr/leave-request/received/view',
+    },
 }
 
 export const LEAVE_APPROVER_CONFIG = {
@@ -181,6 +186,7 @@ export const APPROVER_DECISION_TITLES = {
     [ROLES.TEACHER]: 'Teacher Decision',
     [ROLES.DIRECTOR]: 'Director Decision',
     [ROLES.TRANSPORT_MANAGER]: 'Transport Manager Decision',
+    [ROLES.HR]: 'HR Decision',
 }
 
 export const resolveRoleKey = (roleKey) => {

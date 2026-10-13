@@ -5,7 +5,14 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
-import { calculateTotalDays, createLeaveRequest, LEAVE_REQUESTS_UPDATED_EVENT, LEAVE_TYPES } from './leaveRequestData'
+import {
+    calculateTotalDays,
+    createLeaveRequest,
+    createLeaveRequestViaApi,
+    LEAVE_REQUESTS_UPDATED_EVENT,
+    LEAVE_TYPES,
+} from './leaveRequestData'
+import { canUseLeaveApi } from '../../services/leaveApi'
 import { getLeaveApproverConfig, getLeaveRoutes, getSubmitterProfile, resolveRoleKey } from './leaveRequestConfigs'
 
 const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
@@ -27,7 +34,7 @@ export default function AddLeaveRequestForm({ roleKey: roleKeyProp }) {
 
     const totalDays = useMemo(() => calculateTotalDays(fromDate, toDate), [fromDate, toDate])
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!leaveType) {
             toast.error('Please select a leave type.')
             return
@@ -40,6 +47,7 @@ export default function AddLeaveRequestForm({ roleKey: roleKeyProp }) {
             toast.error('Please select valid from and to dates.')
             return
         }
+        let permissionHours = null
         if (leaveType === 'Permission') {
             const [fromHour, fromMinute] = fromTime.split(':').map(Number)
             const [toHour, toMinute] = toTime.split(':').map(Number)
@@ -48,6 +56,25 @@ export default function AddLeaveRequestForm({ roleKey: roleKeyProp }) {
                 toast.error('Permission cannot exceed 2 hours.')
                 return
             }
+            permissionHours = minutes / 60
+        }
+
+        if (canUseLeaveApi()) {
+            try {
+                await createLeaveRequestViaApi({
+                    leaveType,
+                    fromDate,
+                    // Permission is a single-day request
+                    toDate: leaveType === 'Permission' ? fromDate : toDate,
+                    hours: permissionHours,
+                    reason: reason.trim(),
+                })
+                toast.success(`Leave request submitted to ${approverConfig.requestedToLabel}.`)
+                navigate(routes.myList)
+            } catch (error) {
+                toast.error(error?.message || 'Could not submit the leave request.')
+            }
+            return
         }
 
         createLeaveRequest(

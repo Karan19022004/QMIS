@@ -78,3 +78,38 @@ Parent smoke includes `/parents/me/children`.
 - Production SMTP / WhatsApp / payment gateway keys
 - Browser click-through against Postgres-backed API on `:8000`
 - Academics emergency period reassignment
+
+
+---
+
+## Backend ↔ frontend coordination (audited 13 Oct 2026)
+
+Method: every `apiRequest(...)` path in `src/` was compared to the live OpenAPI schema of the backend.
+
+| Module | Backend | Frontend today | Coordinated? |
+|---|---|---|---|
+| Auth (login, me, change-password) | live | `authApi.js` | Yes |
+| Auth logout | `POST /auth/logout` added 13 Oct | `apiLogout()` already called it | Yes (was a miss) |
+| Admissions / enroll | live | `admissionsApi.js` | Yes |
+| Parents (select child) | live | `parentsApi.js` | Yes |
+| Students (list, detail) | live | `studentsApi.js` | Yes |
+| Class attendance | live | `attendanceApi.js` | Yes |
+| Finance | live | `financeApi.js` | Yes (snapshot + actions) |
+| HR | live (generic collections) | `hrApi.js` / `hrStore.js` | Yes, whole-collection sync, not per-record |
+| Files | live | `filesApi.js` | Yes |
+| Masters (classes, sections, subjects, years) | live | none | No — FE uses local data |
+| Audit log | live | none | No |
+| Notifications (Y-0) | live | `notificationsApi.js` (header bell: badge, list, mark read, 30 s poll; flag `VITE_USE_API_NOTIFICATIONS`) | Yes (checked in browser for principal and HR; teacher confirmed via API) |
+| Approvals inbox (Y-0) | live | none (leave uses its own endpoints) | No |
+| Lesson plans (Y-2) | live | `lessonPlanApprovalData.js` (localStorage) | No — shape differs (FE: grouped weekly template; API: monthly plan with JSON content) |
+| Exams / marks / results (Y-3) | live | `markEntryApprovalData.js` (localStorage) | No — FE exam list and statuses differ; exam types are now seeded from the FE list |
+| Leave (Y-4) | live | `leaveApi.js` + `leaveRequestData.js` (localStorage is only a cache of the API; flag `VITE_USE_API_LEAVE`, defaults to the students flag); HR screen added at `/hr/leave-request/received` | Yes — verified in browser: teacher applies → principal approves → HR approves → teacher sees Approved. Dates converted ISO ↔ dd-mm-yyyy in `mapApiLeave`. Not browser-checked: rejection path, Permission with times |
+| Escalations + tasks (Y-5) | live | none; `escalationData.js` / `taskManagementData.js` still localStorage | No — FE already assumes the same ladder and 24h rule; needs an API client and mapping |
+
+Known gaps in the wired modules:
+
+- `connectHrApi` and `connectFinanceApi` sign in with hard-coded seeded accounts when no token exists, instead of using the signed-in user. Fine for demo, must change before production.
+- Logout cannot revoke a JWT (stateless); the client discards the token.
+- Backend approval states are Pending / Approved / Denied (leave maps to the FE's Pending / Approved / Rejected).
+
+Next frontend work, in order: escalations + tasks (client + mapping, no new screens needed), then lesson plans and marks (blocked on product decisions: weekly vs monthly plans, and an exam-schedule screen), each behind its own `VITE_USE_API_*` flag.

@@ -43,6 +43,17 @@ def change_password_route(
     return change_password(db, user, body.current_password, body.new_password)
 
 
+@router.post("/logout")
+def logout_route(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
+    """Audit the sign-out. Tokens are stateless JWTs, so the client must discard its token."""
+    from app.services.audit import write_audit
+
+    write_audit(db, action="LOGOUT", entity_type="user", entity_id=str(user.id), actor_id=user.id,
+                campus_id=user.campus_id)
+    db.commit()
+    return {"ok": True}
+
+
 @router.get("/me", response_model=MeResponse)
 def me_route(user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> dict:
     return me_payload(db, user)

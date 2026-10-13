@@ -1859,6 +1859,7 @@ export const hrSidebarLinks = [
         subLinks: [
             { icon: CalendarCheck, title: "Attendance", to: "/hr/attendance" },
             { icon: CalendarOff, title: "Leave Management", to: "/hr/leave-management" },
+            { icon: ListChecks, title: "Staff Leave Requests", to: "/hr/leave-request/received" },
             { icon: FileText, title: "Leave Policies", to: "/hr/leave-management/policies" },
         ],
     },

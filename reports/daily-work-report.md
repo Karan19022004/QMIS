@@ -8,6 +8,44 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 13 October 2026
+
+**Status:** Backend modules Y-0 to Y-4 built; leave and notifications now wired to the frontend and checked end to end in a browser; Y-5 (escalations with 24h clock, tasks) built on the backend.
+
+### Done
+
+1. **Audit against client docs** — enumerated the 185 live endpoints from OpenAPI. Found P0-6 (RBAC CRUD) and P0-7 (audit middleware) code exists but is not mounted; backlog corrected to PARTIAL.
+2. **Y-0 Approval engine** — `approval_requests`, append-only `approval_events`, `notifications`; chains per doc (lesson plan / marks: Coordinator→Principal→Director). Rules: role must match current level, initiator cannot self-approve, denial needs a reason and ends the request (resubmit creates a new row, history kept), one pending per item.
+3. **Notifications** — in-app, fan-out by user or role; list + mark read.
+4. **Permissions** — `approvals.submit/decide/read`, `notifications.read` for academic staff, HR, stationery manager.
+5. **Y-2 Lesson plans** (Academics doc 4.5) — monthly plan per teacher/class/subject; submit goes into the approval engine (Coordinator→Principal→Director); late flag if submitted after the 25th of the previous month; reminders from the 18th to the 25th (once per teacher per month); plan locks on submit; a denied plan is revised as a new version; teachers see approval status and events; approvers see all plans.
+6. **Y-3 Exams, marks and results** (Academics doc 4.6 / 4.18) — configurable exam types (CA, RCT, Midterm, Final seeded); exam schedule created by Principal, approved by DA; marks entered per exam/subject/class as a draft (preview, editable), submit locks it; chain Coordinator→Principal→DA then published; denied batch revised as new version; validation (0..max, class match, absent flag, no duplicates); auto ranks and class-high per subject; DA-set weightage per class and exam type (must total 100, locked once an exam cycle starts) with weighted final percentage; parents see published results for their own child only.
+7. **Backend ↔ frontend coordination audit** — compared every frontend API call with the live backend schema. Wired and matching: auth, admissions, parents, students, attendance, finance, HR, files. Fixed: frontend called `POST /auth/logout` which did not exist (now added and audited). Fixed: exam types now seeded from the frontend's own list. Not coordinated yet (backend only, frontend still on local demo data): masters, audit, approvals/notifications, lesson plans, marks, leave. Full table in `backend/docs/FRONTEND_INTEGRATION.md`.
+8. **Y-4 Leave and permission** (Academics doc 4.9) — any staff role files a request; department head (same approver map as the frontend) then HR must approve; Permission is one day, max 2 hours; overlap check; reason required for denial; no edit/cancel; approved leave is exposed through an on-leave lookup so attendance can auto-mark Leave/Permission.
+9. **Security fix** — generic `POST /approvals` can no longer open approvals for lesson plans, marks, exam schedules or leave (only their own endpoints can).
+10. **Frontend integration of existing modules (leave + notifications)** — before adding more backend, the leave screens now read and write through the API (`leaveApi.js`, flag `VITE_USE_API_LEAVE`): apply (including Permission with hours), My Requests, Received, view, approve/reject (rejection needs remarks). The Received list shows a request to every approver in its chain, and the Approve/Reject box shows only to the role it is waiting on. HR had no leave screen, so one was added (HR sidebar "Staff Leave Requests"). The header bell now reads real notifications (`notificationsApi.js`): unread badge, dropdown, click to mark read, refreshes every 30 s.
+11. **Manual browser check of the leave workflow (live backend + frontend)** — Teacher applied Casual Leave: success message, redirect, request LR-0001 shown as Pending, stored on the server with chain Principal → HR. Principal logged in: bell showed 1, request listed under Received, approved with remarks in the UI → moved to HR. HR logged in: bell showed 1, opened the request, approved in the UI → status Approved. Server confirmed the final state and the teacher received an "Approved: Casual Leave" notification. Bug found and fixed during the check: HR's remarks box was pre-filled with the Principal's remark. Not re-checked in the UI: the teacher's own bell dropdown after approval (confirmed through the API only) and the rejection path.
+12. **Y-5 Escalations with the 24h clock** — a person raises an escalation one level up (student→teacher→coordinator→principal/director…→admin→super admin, same ladder as the frontend). The receiver has 24 hours: In Review, then Resolved/Rejected (note required). If nothing happens in 24 hours the clock moves it one level up per elapsed day, tells the old owner, the new owner and the raiser, and keeps the whole trail; earlier owners keep read access. At the top level a single overdue alert is sent. Only the person who raised it can close a resolved/rejected one. The clock runs whenever escalation/task lists are read and through an admin-only sweep endpoint (no scheduler yet).
+13. **Y-5 Tasks** — staff assign a task (title, priority, due date) to another staff user; content cannot be edited or deleted; only the assignee moves Incomplete → In Progress → Completed (no reopening); assigner is told on completion; an overdue task alerts both people once. Assignee lookup endpoint added.
+14. **Pytest** — **79 passed** (71 earlier + 8 new for escalations/tasks). Frontend production build passes.
+
+### Not integrated on purpose (needs a decision first)
+
+- **Lesson plans** — the frontend plans are weekly and approved by the Director only, with fixed names; the document and backend use monthly plans with Coordinator → Principal → Director. Needs: your decision (weekly vs monthly) and new review screens for Coordinator and Principal.
+- **Marks / exams** — the frontend has no exam-schedule screen (exam names are a fixed list); backend needs Principal-creates / Director-approves. Needs a new screen before wiring.
+
+### Still open / next build
+
+- Escalations and tasks have no frontend wiring yet; the existing Escalation Management and Task Management screens still use local storage (the escalation screens already assume the same 24h rule and ladder, so wiring is mostly mapping).
+- Leave: no balances/quota yet; attendance table does not yet read the on-leave lookup (student table only); emergency substitution not built. Decision: document says HR and department head both approve; the frontend used a single approver before. Backend and the frontend leave screens now follow the document (head, then HR).
+- 24h clock needs a scheduler (cron) in production; today it runs when lists are read or the sweep endpoint is called.
+- Exams: marks bulk is a JSON list (no CSV/Excel upload yet); question bank / key notes not built; no notification to all users when an exam schedule is published; student self-login view not possible until student users exist.
+- Lesson plans: no attachment upload UI yet (fileId accepted), reminders must be triggered (no scheduler yet), frontend not wired.
+- Not yet built from docs: immutability enforcement (attendance upsert and masters DELETE conflict with doc rule), RFID/iClock, refresh/logout/role switch, student user auto-create on admission fee payment.
+- Doc conflict to decide: doc says no parent login; code has parent login.
+
+---
+
 ## 12 October 2026
 
 **Status:** Phase 1 identity journey closed (P1-1…P1-5). Docs + Archify refreshed. Manual browser Pass not claimed.

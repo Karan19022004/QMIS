@@ -6,7 +6,7 @@ import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon } from 'luc
 import { useAuth } from '../../context/AuthContext'
 import Dropdown from '../CommonComponents/Dropdown'
 import ExportModal from '../CommonComponents/ExportModal'
-import { getReceivedLeaveRequestsForRole, LEAVE_REQUESTS_UPDATED_EVENT, LEAVE_STATUSES, parseLeaveDate, statusBadgeColor } from './leaveRequestData'
+import { getReceivedLeaveRequestsForRole, hydrateLeaveRequestsFromApi, LEAVE_REQUESTS_UPDATED_EVENT, LEAVE_STATUSES, parseLeaveDate, statusBadgeColor } from './leaveRequestData'
 import { getLeaveReceivedViewPath, getLeaveRoutes, resolveRoleKey } from './leaveRequestConfigs'
 
 export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, description }) {
@@ -22,6 +22,7 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
 
     useEffect(() => {
         setRefreshKey((value) => value + 1)
+        hydrateLeaveRequestsFromApi() // no-op without an API session; emits the update event when done
     }, [location.pathname])
 
     useEffect(() => {

@@ -10,7 +10,7 @@
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "3878ae53e2c462f1147d73e575395c2315df78b4"
+      "revision": "983b2502cc48fde28e0ea04c048d061f84c41b49"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -48,6 +48,7 @@
           "mod_parents",
           "mod_students",
           "mod_attendance",
+          "mod_workflows",
           "mod_finance",
           "mod_hr",
           "mod_files"
@@ -59,10 +60,9 @@
         "label": "Planned",
         "focus": [
           "api",
-          "mod_academics",
           "mod_ops"
         ],
-        "note": "Phase 2 / 3+"
+        "note": "Phase 3+"
       },
       {
         "id": "path",
@@ -125,7 +125,7 @@
       "id": "client",
       "type": "frontend",
       "label": "API clients",
-      "sublabel": "admissionsApi, attendanceApi, authApi\u2026",
+      "sublabel": "11 *Api.js clients",
       "pos": [
         400,
         280
@@ -326,9 +326,9 @@
       ],
       "sources": [
         {
-          "path": "backend/app/main.py",
-          "line": 56,
-          "end_line": 56
+          "path": "backend/app/api/v1/endpoints/students.py",
+          "line": 11,
+          "end_line": 31
         }
       ]
     },
@@ -347,9 +347,30 @@
       ],
       "sources": [
         {
+          "path": "backend/app/api/v1/endpoints/attendance.py",
+          "line": 13,
+          "end_line": 55
+        }
+      ]
+    },
+    {
+      "id": "mod_workflows",
+      "type": "backend",
+      "label": "Workflows",
+      "sublabel": "approvals \u00b7 leave \u00b7 exams \u00b7 tasks",
+      "pos": [
+        1250,
+        380
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
           "path": "backend/app/main.py",
-          "line": 57,
-          "end_line": 57
+          "line": 43,
+          "end_line": 48
         }
       ]
     },
@@ -359,8 +380,8 @@
       "label": "Finance",
       "sublabel": "snapshot + actions",
       "pos": [
-        1250,
-        380
+        1080,
+        480
       ],
       "size": [
         150,
@@ -380,7 +401,7 @@
       "label": "HR",
       "sublabel": "partner vertical",
       "pos": [
-        1080,
+        1250,
         480
       ],
       "size": [
@@ -401,8 +422,8 @@
       "label": "Files",
       "sublabel": "upload stub",
       "pos": [
-        1250,
-        480
+        1080,
+        580
       ],
       "size": [
         150,
@@ -417,35 +438,13 @@
       ]
     },
     {
-      "id": "mod_academics",
-      "type": "cloud",
-      "label": "Academics",
-      "sublabel": "Phase 2",
-      "pos": [
-        1080,
-        600
-      ],
-      "size": [
-        150,
-        64
-      ],
-      "sources": [
-        {
-          "path": "backend/app/main.py",
-          "line": 43,
-          "end_line": 48
-        }
-      ],
-      "tag": "planned"
-    },
-    {
       "id": "mod_ops",
       "type": "cloud",
       "label": "Ops",
       "sublabel": "Phase 3+",
       "pos": [
-        1250,
-        600
+        1080,
+        700
       ],
       "size": [
         150,
@@ -482,6 +481,7 @@
         "mod_parents",
         "mod_students",
         "mod_attendance",
+        "mod_workflows",
         "mod_finance",
         "mod_hr",
         "mod_files"
@@ -491,7 +491,6 @@
       "kind": "region",
       "label": "Planned departments",
       "wraps": [
-        "mod_academics",
         "mod_ops"
       ]
     },
@@ -574,6 +573,11 @@
       "to": "mod_attendance"
     },
     {
+      "id": "api-mod_workflows",
+      "from": "api",
+      "to": "mod_workflows"
+    },
+    {
       "id": "api-mod_finance",
       "from": "api",
       "to": "mod_finance"
@@ -587,12 +591,6 @@
       "id": "api-mod_files",
       "from": "api",
       "to": "mod_files"
-    },
-    {
-      "id": "api-mod_academics",
-      "from": "api",
-      "to": "mod_academics",
-      "variant": "dashed"
     },
     {
       "id": "api-mod_ops",
@@ -613,6 +611,7 @@
         "Parents \u2014 me/children",
         "Students \u2014 list \u00b7 detail",
         "Attendance \u2014 class marks",
+        "Workflows \u2014 approvals \u00b7 leave \u00b7 exams \u00b7 tasks",
         "Finance \u2014 snapshot + actions",
         "HR \u2014 partner vertical",
         "Files \u2014 upload stub",
@@ -621,7 +620,8 @@
         "HR + Finance: API is SoT",
         "Phase 1: Head/Assistant + FY Apr\u2013Mar",
         "Gateway/SMTP/WA: env-gated (demo/stub)",
-        "Verified: 45 pytest"
+        "Leave + bell notifications wired to UI (leaveApi, notificationsApi); leave flow checked in browser",
+        "Y-0..Y-5 backend built; Verified: 79 pytest"
       ]
     },
     {
@@ -643,6 +643,8 @@
         "filesApi.js",
         "financeApi.js",
         "hrApi.js",
+        "leaveApi.js",
+        "notificationsApi.js",
         "parentsApi.js",
         "studentsApi.js",
         "apiClient.js"
@@ -652,8 +654,8 @@
       "dot": "rose",
       "title": "Still open",
       "items": [
-        "P1-5 student list/detail (UIS) \u2014 next",
-        "Phase 2 Y-1 Teacher class attendance SoT",
+        "UI not wired yet: lesson plans, marks (need decisions/screens), escalations, tasks",
+        "24h clock needs a scheduler (runs on list reads + admin sweep today)",
         "Live SMTP/WhatsApp/Paytm when school ready",
         "RFID / eSSL if school confirms (still off)"
       ]

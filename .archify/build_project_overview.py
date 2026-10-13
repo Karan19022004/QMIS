@@ -1,4 +1,4 @@
-"""
+﻿"""
 Build / refresh the ONE project-wide Archify overview.
 
 Always overwrite the same folder — never create timestamped or extra Archify folders:
@@ -76,7 +76,7 @@ ROUTER_META = {
         "sublabel": "list · detail",
         "path": "backend/app/api/v1/endpoints/students.py",
         "line": 11,
-        "end_line": 32,
+        "end_line": 31,
     },
     "attendance_router": {
         "id": "mod_attendance",
@@ -85,6 +85,46 @@ ROUTER_META = {
         "path": "backend/app/api/v1/endpoints/attendance.py",
         "line": 13,
         "end_line": 55,
+    },
+    "approvals_router": {
+        "id": "mod_workflows",
+        "label": "Workflows",
+        "sublabel": "approvals · leave · exams · tasks",
+        "path": "backend/app/api/v1/endpoints/approvals.py",
+        "line": 1,
+        "end_line": 10,
+    },
+    "lesson_plans_router": {
+        "id": "mod_workflows",
+        "label": "Workflows",
+        "sublabel": "approvals · leave · exams · tasks",
+        "path": "backend/app/api/v1/endpoints/lesson_plans.py",
+        "line": 1,
+        "end_line": 10,
+    },
+    "exams_router": {
+        "id": "mod_workflows",
+        "label": "Workflows",
+        "sublabel": "approvals · leave · exams · tasks",
+        "path": "backend/app/api/v1/endpoints/exams.py",
+        "line": 1,
+        "end_line": 10,
+    },
+    "leave_router": {
+        "id": "mod_workflows",
+        "label": "Workflows",
+        "sublabel": "approvals · leave · exams · tasks",
+        "path": "backend/app/api/v1/endpoints/leave.py",
+        "line": 1,
+        "end_line": 10,
+    },
+    "escalations_router": {
+        "id": "mod_workflows",
+        "label": "Workflows",
+        "sublabel": "approvals · leave · exams · tasks",
+        "path": "backend/app/api/v1/endpoints/escalations.py",
+        "line": 1,
+        "end_line": 10,
     },
     "hr_router": {
         "id": "mod_hr",
@@ -114,15 +154,6 @@ ROUTER_META = {
 
 # Not mounted yet — shown dashed until include_router appears in main.py
 PLANNED = [
-    {
-        "id": "mod_academics",
-        "label": "Academics",
-        "sublabel": "Phase 2",
-        "tag": "planned",
-        "path": "backend/app/main.py",
-        "line": 43,
-        "end_line": 48,
-    },
     {
         "id": "mod_ops",
         "label": "Ops",
@@ -166,9 +197,12 @@ def scan_routers() -> list[dict]:
             item = dict(meta)
             # Uncommitted endpoint files cannot be cited at HEAD — fall back to main.py mount.
             if not path_at_head(item["path"]):
+                # main.py at HEAD may be shorter than the worktree; cite a range that exists there.
                 item["path"] = "backend/app/main.py"
-                item["line"] = line
-                item["end_line"] = line
+                item["line"] = 43
+                item["end_line"] = 48
+            if any(m["id"] == item["id"] for m in modules):
+                continue  # several routers share one diagram node (Y-0..Y-5 workflows)
             modules.append(item)
         else:
             slug = re.sub(r"_?router$", "", name)
@@ -228,10 +262,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
     live_nodes = place_grid(live, 1080, 80, cols=2, gap_x=170, gap_y=100)
     planned_y = 80 + 100 * ((len(live) + 1) // 2)
     planned_nodes = place_grid(planned, 1080, planned_y + 20, cols=2, gap_x=170, gap_y=100)
-
-    client_label = ", ".join(c.replace(".js", "") for c in clients[:3])
-    if len(clients) > 3:
-        client_label += "…"
+    client_label = f"{len(clients)} *Api.js clients"  # full list is on the "Clients found" card
 
     components = [
         {
@@ -336,7 +367,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             },
             "views": [
                 {"id": "live", "label": "Live API", "focus": ["api", *live_ids], "note": "Routers mounted in main.py"},
-                {"id": "planned", "label": "Planned", "focus": ["api", *planned_ids], "note": "Phase 2 / 3+"},
+                {"id": "planned", "label": "Planned", "focus": ["api", *planned_ids], "note": "Phase 3+"},
                 {"id": "path", "label": "User path", "focus": ["users", "web", "client", "api", "db"]},
             ],
         },
@@ -359,7 +390,8 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                     "HR + Finance: API is SoT",
                     "Phase 1: Head/Assistant + FY Apr–Mar",
                     "Gateway/SMTP/WA: env-gated (demo/stub)",
-                    "Verified: 45 pytest",
+                    "Leave + bell notifications wired to UI (leaveApi, notificationsApi); leave flow checked in browser",
+                    "Y-0..Y-5 backend built; Verified: 79 pytest",
                 ],
             },
             {
@@ -380,8 +412,8 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "dot": "rose",
                 "title": "Still open",
                 "items": [
-                    "P1-5 student list/detail (UIS) — next",
-                    "Phase 2 Y-1 Teacher class attendance SoT",
+                    "UI not wired yet: lesson plans, marks (need decisions/screens), escalations, tasks",
+                    "24h clock needs a scheduler (runs on list reads + admin sweep today)",
                     "Live SMTP/WhatsApp/Paytm when school ready",
                     "RFID / eSSL if school confirms (still off)",
                 ],
@@ -417,3 +449,8 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+

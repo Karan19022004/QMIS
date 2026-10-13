@@ -1,7 +1,13 @@
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
-import { canSubmitterAccessRequest, getLeaveRequestById, statusBadgeColor } from './leaveRequestData'
+import {
+    canSubmitterAccessRequest,
+    getLeaveRequestById,
+    hydrateLeaveRequestsFromApi,
+    statusBadgeColor,
+} from './leaveRequestData'
 import { getLeaveRoutes, resolveRoleKey } from './leaveRequestConfigs'
 
 const Section = ({ title, children }) => (
@@ -24,6 +30,10 @@ export default function ViewMyLeaveRequestPage({ roleKey: roleKeyProp }) {
     const { role: authRole } = useAuth()
     const roleKey = resolveRoleKey(authRole || roleKeyProp)
     const routes = getLeaveRoutes(roleKey)
+    const [, setTick] = useState(0)
+    useEffect(() => {
+        hydrateLeaveRequestsFromApi().then((used) => used && setTick((value) => value + 1))
+    }, [id])
     const request = getLeaveRequestById(id)
     const isOwnRequest = canSubmitterAccessRequest(request, roleKey)
 

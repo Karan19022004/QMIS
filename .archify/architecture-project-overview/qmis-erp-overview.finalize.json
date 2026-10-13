@@ -5,16 +5,16 @@
   "status": "pass",
   "type": "architecture",
   "quality": "showcase",
-  "startedAt": "2026-10-12T17:03:49.594Z",
+  "startedAt": "2026-10-13T08:27:55.868Z",
   "specification": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
-    "sha256": "2b2a97aab82e7e76532bb122839e39ad9c2b68a027ea12b82a8826695003b499",
-    "bytes": 12786
+    "sha256": "eead3d17c479cf602ec9f044d06819da7997bde110ce7bc4f8ae772e872a714f",
+    "bytes": 13747
   },
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "c5c0be43b505c2f036a1196d5df3b14982fc24f3cf0331ece9acc7b9ed2869dd",
-    "bytes": 782806
+    "sha256": "43f3397e34bd8e1680ab6aabc9d19a28eb210fcc8b0824dd596bce8f2865a44e",
+    "bytes": 784958
   },
   "stages": {
     "validate": {
@@ -40,8 +40,8 @@
         "ok": true,
         "command": "validate",
         "specification": {
-          "sha256": "2b2a97aab82e7e76532bb122839e39ad9c2b68a027ea12b82a8826695003b499",
-          "bytes": 12786
+          "sha256": "eead3d17c479cf602ec9f044d06819da7997bde110ce7bc4f8ae772e872a714f",
+          "bytes": 13747
         },
         "validation": {
           "checksPassed": 9,
@@ -56,7 +56,7 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 2257,
+      "durationMs": 2111,
       "command": [
         "C:\\Program Files\\nodejs\\node.exe",
         "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
@@ -72,19 +72,19 @@
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "fcd3195e-7a96-4e7b-9de7-759dbfa35764",
+        "receiptId": "f6e7c968-5f7c-43bc-aa1d-d5bbeda995ce",
         "ok": true,
         "command": "deliver",
         "type": "architecture",
         "input": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
         "output": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
         "specification": {
-          "sha256": "2b2a97aab82e7e76532bb122839e39ad9c2b68a027ea12b82a8826695003b499",
-          "bytes": 12786
+          "sha256": "eead3d17c479cf602ec9f044d06819da7997bde110ce7bc4f8ae772e872a714f",
+          "bytes": 13747
         },
         "artifact": {
-          "sha256": "c5c0be43b505c2f036a1196d5df3b14982fc24f3cf0331ece9acc7b9ed2869dd",
-          "bytes": 782806
+          "sha256": "43f3397e34bd8e1680ab6aabc9d19a28eb210fcc8b0824dd596bce8f2865a44e",
+          "bytes": 784958
         },
         "validation": {
           "checksPassed": 9,
@@ -97,8 +97,8 @@
         "evidence": {
           "verified": true,
           "repository": "https://github.com/karan4533/ERP-dev",
-          "revision": "3878ae53e2c462f1147d73e575395c2315df78b4",
-          "references": 17
+          "revision": "983b2502cc48fde28e0ea04c048d061f84c41b49",
+          "references": 18
         },
         "update": {
           "status": "unavailable",
@@ -116,7 +116,7 @@
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 628,
+      "durationMs": 373,
       "command": [
         "C:\\Program Files\\nodejs\\node.exe",
         "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
@@ -128,8 +128,8 @@
         "ok": true,
         "file": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
         "artifact": {
-          "sha256": "c5c0be43b505c2f036a1196d5df3b14982fc24f3cf0331ece9acc7b9ed2869dd",
-          "bytes": 782806
+          "sha256": "43f3397e34bd8e1680ab6aabc9d19a28eb210fcc8b0824dd596bce8f2865a44e",
+          "bytes": 784958
         },
         "checks": [
           {
@@ -190,7 +190,7 @@
           },
           "metrics": {
             "properCrossings": 0,
-            "resolvedCrossovers": 9,
+            "resolvedCrossovers": 11,
             "ambiguousCorridors": 0,
             "arrowheadCollisions": 0,
             "containerBorderRuns": 0,
@@ -199,15 +199,15 @@
             "minLabelRouteClearance": 20,
             "desktopReadabilityIssues": 0,
             "viewportHeightIssues": 0,
-            "minProjectedNodeTextPx": 6.95891156462585,
+            "minProjectedNodeTextPx": 6.501088435374149,
             "maxBends": 3,
             "routesOverSuggestedBends": 5,
             "maxStretch": 1.175,
             "routesOverSuggestedStretch": 0,
-            "minSegmentPx": 8,
-            "minInteriorSegmentPx": 20,
-            "shortSegmentCount": 2,
-            "shortEndpointSegmentCount": 2,
+            "minSegmentPx": 20,
+            "minInteriorSegmentPx": 52,
+            "shortSegmentCount": 0,
+            "shortEndpointSegmentCount": 0,
             "shortInteriorSegmentCount": 0,
             "microSegmentCount": 0
           },
@@ -219,29 +219,6 @@
           },
           "routeReview": {
             "crossings": [
-              {
-                "left": {
-                  "id": "api-mod_masters",
-                  "from": "api",
-                  "to": "mod_masters",
-                  "label": "",
-                  "collectionIndex": 7,
-                  "artifactIndex": 8
-                },
-                "right": {
-                  "id": "api-mod_admissions",
-                  "from": "api",
-                  "to": "mod_admissions",
-                  "label": "",
-                  "collectionIndex": 8,
-                  "artifactIndex": 9
-                },
-                "point": [
-                  920.1538461538462,
-                  218
-                ],
-                "sharedNode": "api"
-              },
               {
                 "left": {
                   "id": "api-mod_parents",
@@ -261,7 +238,53 @@
                 },
                 "point": [
                   920,
-                  260
+                  253
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_parents",
+                  "from": "api",
+                  "to": "mod_parents",
+                  "label": "",
+                  "collectionIndex": 9,
+                  "artifactIndex": 10
+                },
+                "right": {
+                  "id": "api-mod_workflows",
+                  "from": "api",
+                  "to": "mod_workflows",
+                  "label": "",
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
+                },
+                "point": [
+                  920,
+                  281
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_parents",
+                  "from": "api",
+                  "to": "mod_parents",
+                  "label": "",
+                  "collectionIndex": 9,
+                  "artifactIndex": 10
+                },
+                "right": {
+                  "id": "api-mod_finance",
+                  "from": "api",
+                  "to": "mod_finance",
+                  "label": "",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "point": [
+                  920,
+                  295
                 ],
                 "sharedNode": "api"
               },
@@ -279,43 +302,66 @@
                   "from": "api",
                   "to": "mod_hr",
                   "label": "",
-                  "collectionIndex": 12,
-                  "artifactIndex": 13
+                  "collectionIndex": 14,
+                  "artifactIndex": 15
                 },
                 "point": [
-                  920,
-                  288
+                  921.2222222222222,
+                  309
                 ],
                 "sharedNode": "api"
               },
               {
                 "left": {
-                  "id": "api-mod_parents",
+                  "id": "api-mod_attendance",
                   "from": "api",
-                  "to": "mod_parents",
+                  "to": "mod_attendance",
                   "label": "",
-                  "collectionIndex": 9,
-                  "artifactIndex": 10
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
                 },
                 "right": {
-                  "id": "api-mod_files",
+                  "id": "api-mod_workflows",
                   "from": "api",
-                  "to": "mod_files",
+                  "to": "mod_workflows",
+                  "label": "",
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
+                },
+                "point": [
+                  784,
+                  281
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_attendance",
+                  "from": "api",
+                  "to": "mod_attendance",
+                  "label": "",
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
+                },
+                "right": {
+                  "id": "api-mod_finance",
+                  "from": "api",
+                  "to": "mod_finance",
                   "label": "",
                   "collectionIndex": 13,
                   "artifactIndex": 14
                 },
                 "point": [
-                  920,
-                  302
+                  784,
+                  295
                 ],
                 "sharedNode": "api"
               },
               {
                 "left": {
-                  "id": "api-mod_finance",
+                  "id": "api-mod_attendance",
                   "from": "api",
-                  "to": "mod_finance",
+                  "to": "mod_attendance",
                   "label": "",
                   "collectionIndex": 11,
                   "artifactIndex": 12
@@ -324,67 +370,44 @@
                   "id": "api-mod_hr",
                   "from": "api",
                   "to": "mod_hr",
-                  "label": "",
-                  "collectionIndex": 12,
-                  "artifactIndex": 13
-                },
-                "point": [
-                  784,
-                  288
-                ],
-                "sharedNode": "api"
-              },
-              {
-                "left": {
-                  "id": "api-mod_finance",
-                  "from": "api",
-                  "to": "mod_finance",
-                  "label": "",
-                  "collectionIndex": 11,
-                  "artifactIndex": 12
-                },
-                "right": {
-                  "id": "api-mod_files",
-                  "from": "api",
-                  "to": "mod_files",
-                  "label": "",
-                  "collectionIndex": 13,
-                  "artifactIndex": 14
-                },
-                "point": [
-                  784,
-                  302
-                ],
-                "sharedNode": "api"
-              },
-              {
-                "left": {
-                  "id": "api-mod_finance",
-                  "from": "api",
-                  "to": "mod_finance",
-                  "label": "",
-                  "collectionIndex": 11,
-                  "artifactIndex": 12
-                },
-                "right": {
-                  "id": "api-mod_academics",
-                  "from": "api",
-                  "to": "mod_academics",
                   "label": "",
                   "collectionIndex": 14,
                   "artifactIndex": 15
                 },
                 "point": [
                   784,
-                  316
+                  309
                 ],
                 "sharedNode": "api"
               },
               {
                 "left": {
-                  "id": "api-mod_finance",
+                  "id": "api-mod_attendance",
                   "from": "api",
-                  "to": "mod_finance",
+                  "to": "mod_attendance",
+                  "label": "",
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
+                },
+                "right": {
+                  "id": "api-mod_files",
+                  "from": "api",
+                  "to": "mod_files",
+                  "label": "",
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
+                },
+                "point": [
+                  784,
+                  323
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_attendance",
+                  "from": "api",
+                  "to": "mod_attendance",
                   "label": "",
                   "collectionIndex": 11,
                   "artifactIndex": 12
@@ -394,35 +417,58 @@
                   "from": "api",
                   "to": "mod_ops",
                   "label": "",
-                  "collectionIndex": 15,
-                  "artifactIndex": 16
+                  "collectionIndex": 16,
+                  "artifactIndex": 17
                 },
                 "point": [
                   784,
-                  330
+                  337
                 ],
                 "sharedNode": "api"
               },
               {
                 "left": {
-                  "id": "api-mod_hr",
+                  "id": "api-mod_workflows",
                   "from": "api",
-                  "to": "mod_hr",
+                  "to": "mod_workflows",
                   "label": "",
                   "collectionIndex": 12,
                   "artifactIndex": 13
                 },
                 "right": {
-                  "id": "api-mod_files",
+                  "id": "api-mod_finance",
                   "from": "api",
-                  "to": "mod_files",
+                  "to": "mod_finance",
                   "label": "",
                   "collectionIndex": 13,
                   "artifactIndex": 14
                 },
                 "point": [
-                  1034,
-                  302
+                  1042,
+                  295
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_finance",
+                  "from": "api",
+                  "to": "mod_finance",
+                  "label": "",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "right": {
+                  "id": "api-mod_hr",
+                  "from": "api",
+                  "to": "mod_hr",
+                  "label": "",
+                  "collectionIndex": 14,
+                  "artifactIndex": 15
+                },
+                "point": [
+                  1056,
+                  456
                 ],
                 "sharedNode": "api"
               }
@@ -462,7 +508,7 @@
                   "artifactIndex": 7
                 },
                 "bends": 3,
-                "stretch": 1
+                "stretch": 1.072
               },
               {
                 "relationship": {
@@ -478,24 +524,24 @@
               },
               {
                 "relationship": {
-                  "id": "api-mod_hr",
+                  "id": "api-mod_workflows",
                   "from": "api",
-                  "to": "mod_hr",
+                  "to": "mod_workflows",
                   "label": "",
                   "collectionIndex": 12,
                   "artifactIndex": 13
                 },
                 "bends": 3,
-                "stretch": 1.067
+                "stretch": 1
               },
               {
                 "relationship": {
-                  "id": "api-mod_ops",
+                  "id": "api-mod_hr",
                   "from": "api",
-                  "to": "mod_ops",
+                  "to": "mod_hr",
                   "label": "",
-                  "collectionIndex": 15,
-                  "artifactIndex": 16
+                  "collectionIndex": 14,
+                  "artifactIndex": 15
                 },
                 "bends": 3,
                 "stretch": 1
@@ -505,10 +551,10 @@
           "leadingSpace": {
             "measured": true,
             "emptyTopPx": 50,
-            "emptyTopRatio": 0.066,
+            "emptyTopRatio": 0.059,
             "occupiedTop": 50,
             "viewBoxTop": 0,
-            "canvasHeight": 752,
+            "canvasHeight": 852,
             "typicalNodeHeight": 64,
             "reviewSuggested": false
           },
@@ -518,7 +564,7 @@
             "availableDiagramWidth": 1346,
             "actualBudgetPx": 1346,
             "actualReaderWidth": 1376,
-            "desiredReaderWidth": 1480.6578947368423,
+            "desiredReaderWidth": 1500,
             "viewportCap": 1376,
             "limit": "viewport-cap",
             "requestedTargetPx": 7.5,
@@ -527,22 +573,22 @@
             "hardFloorMet": true,
             "minimumOwner": {
               "kind": "node",
-              "id": "client"
+              "id": "mod_workflows"
             },
-            "minimumSourceTextPx": 7.6,
-            "minimumProjectedTextPx": 6.95891156462585,
-            "semanticTextCount": 43
+            "minimumSourceTextPx": 7.1,
+            "minimumProjectedTextPx": 6.501088435374149,
+            "semanticTextCount": 45
           },
           "issues": []
         },
         "provenance": "current",
-        "deliveryReceiptId": "fcd3195e-7a96-4e7b-9de7-759dbfa35764"
+        "deliveryReceiptId": "f6e7c968-5f7c-43bc-aa1d-d5bbeda995ce"
       }
     },
     "browser-check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 2801,
+      "durationMs": 3872,
       "command": [
         "C:\\Program Files\\nodejs\\node.exe",
         "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
@@ -560,11 +606,11 @@
         "status": "pass",
         "visualReview": "not-requested",
         "provenance": "current",
-        "deliveryReceiptId": "fcd3195e-7a96-4e7b-9de7-759dbfa35764",
+        "deliveryReceiptId": "f6e7c968-5f7c-43bc-aa1d-d5bbeda995ce",
         "artifact": {
           "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-          "sha256": "c5c0be43b505c2f036a1196d5df3b14982fc24f3cf0331ece9acc7b9ed2869dd",
-          "bytes": 782806
+          "sha256": "43f3397e34bd8e1680ab6aabc9d19a28eb210fcc8b0824dd596bce8f2865a44e",
+          "bytes": 784958
         },
         "state": {
           "detail": "read",
@@ -586,13 +632,13 @@
               "innerWidth": 1440,
               "innerHeight": 900,
               "scrollWidth": 1440,
-              "scrollHeight": 900,
+              "scrollHeight": 948,
               "overflowX": false,
-              "overflowY": false,
-              "verticalScrollAccepted": false,
-              "overflowDisposition": "contained",
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
               "readerLayout": "adaptive",
-              "readerOverflow": null,
+              "readerOverflow": "authored",
               "readerFit": "intrinsic-height",
               "ok": true,
               "readerWidth": 1376,
@@ -601,19 +647,19 @@
                 "bodyPaddingPx": 12,
                 "headerPx": 78,
                 "diagramChromePx": 78,
-                "svgPx": 689,
+                "svgPx": 780,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 6.95891156462585,
-              "minimumProjectedNonEdgeTextPx": 6.95891156462585,
+              "minimumProjectedNodeTextPx": 6.501088435374149,
+              "minimumProjectedNonEdgeTextPx": 6.501088435374149,
               "minimumProjectedEdgeTextPx": 7.3251700680272105,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -636,34 +682,34 @@
               "innerWidth": 1600,
               "innerHeight": 1000,
               "scrollWidth": 1600,
-              "scrollHeight": 1000,
+              "scrollHeight": 1086,
               "overflowX": false,
-              "overflowY": false,
-              "verticalScrollAccepted": false,
-              "overflowDisposition": "contained",
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
               "readerLayout": "adaptive",
-              "readerOverflow": null,
+              "readerOverflow": "authored",
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1505,
-              "diagramWidth": 1475,
+              "readerWidth": 1500,
+              "diagramWidth": 1470,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 86,
                 "diagramChromePx": 84,
-                "svgPx": 755,
+                "svgPx": 852,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 7.6,
-              "minimumProjectedNonEdgeTextPx": 7.6,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -686,34 +732,34 @@
               "innerWidth": 1920,
               "innerHeight": 1080,
               "scrollWidth": 1920,
-              "scrollHeight": 1080,
+              "scrollHeight": 1086,
               "overflowX": false,
-              "overflowY": false,
-              "verticalScrollAccepted": false,
-              "overflowDisposition": "contained",
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
               "readerLayout": "adaptive",
-              "readerOverflow": null,
+              "readerOverflow": "authored",
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1661,
-              "diagramWidth": 1631,
+              "readerWidth": 1500,
+              "diagramWidth": 1470,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 86,
                 "diagramChromePx": 84,
-                "svgPx": 834,
+                "svgPx": 852,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 7.6,
-              "minimumProjectedNonEdgeTextPx": 7.6,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -745,25 +791,25 @@
               "readerOverflow": null,
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1920,
-              "diagramWidth": 1870,
+              "readerWidth": 1873,
+              "diagramWidth": 1823,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 94,
                 "diagramChromePx": 94,
-                "svgPx": 957,
+                "svgPx": 1057,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 7.6,
-              "minimumProjectedNonEdgeTextPx": 7.6,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -839,13 +885,13 @@
               "innerWidth": 1440,
               "innerHeight": 900,
               "scrollWidth": 1440,
-              "scrollHeight": 900,
+              "scrollHeight": 948,
               "overflowX": false,
-              "overflowY": false,
-              "verticalScrollAccepted": false,
-              "overflowDisposition": "contained",
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
               "readerLayout": "adaptive",
-              "readerOverflow": null,
+              "readerOverflow": "authored",
               "readerFit": "intrinsic-height",
               "ok": true,
               "readerWidth": 1376,
@@ -854,19 +900,19 @@
                 "bodyPaddingPx": 12,
                 "headerPx": 78,
                 "diagramChromePx": 78,
-                "svgPx": 689,
+                "svgPx": 780,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 6.95891156462585,
-              "minimumProjectedNonEdgeTextPx": 6.95891156462585,
+              "minimumProjectedNodeTextPx": 6.501088435374149,
+              "minimumProjectedNonEdgeTextPx": 6.501088435374149,
               "minimumProjectedEdgeTextPx": 7.3251700680272105,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -889,34 +935,34 @@
               "innerWidth": 1600,
               "innerHeight": 1000,
               "scrollWidth": 1600,
-              "scrollHeight": 1000,
+              "scrollHeight": 1086,
               "overflowX": false,
-              "overflowY": false,
-              "verticalScrollAccepted": false,
-              "overflowDisposition": "contained",
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
               "readerLayout": "adaptive",
-              "readerOverflow": null,
+              "readerOverflow": "authored",
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1505,
-              "diagramWidth": 1475,
+              "readerWidth": 1500,
+              "diagramWidth": 1470,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 86,
                 "diagramChromePx": 84,
-                "svgPx": 755,
+                "svgPx": 852,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 7.6,
-              "minimumProjectedNonEdgeTextPx": 7.6,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -939,34 +985,34 @@
               "innerWidth": 1920,
               "innerHeight": 1080,
               "scrollWidth": 1920,
-              "scrollHeight": 1080,
+              "scrollHeight": 1086,
               "overflowX": false,
-              "overflowY": false,
-              "verticalScrollAccepted": false,
-              "overflowDisposition": "contained",
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
               "readerLayout": "adaptive",
-              "readerOverflow": null,
+              "readerOverflow": "authored",
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1661,
-              "diagramWidth": 1631,
+              "readerWidth": 1500,
+              "diagramWidth": 1470,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 86,
                 "diagramChromePx": 84,
-                "svgPx": 834,
+                "svgPx": 852,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 7.6,
-              "minimumProjectedNonEdgeTextPx": 7.6,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -998,25 +1044,25 @@
               "readerOverflow": null,
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1920,
-              "diagramWidth": 1870,
+              "readerWidth": 1873,
+              "diagramWidth": 1823,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 94,
                 "diagramChromePx": 94,
-                "svgPx": 957,
+                "svgPx": 1057,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 7.6,
-              "minimumProjectedNonEdgeTextPx": 7.6,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1044,13 +1090,13 @@
               "innerWidth": 1440,
               "innerHeight": 900,
               "scrollWidth": 1440,
-              "scrollHeight": 900,
+              "scrollHeight": 948,
               "overflowX": false,
-              "overflowY": false,
-              "verticalScrollAccepted": false,
-              "overflowDisposition": "contained",
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
               "readerLayout": "adaptive",
-              "readerOverflow": null,
+              "readerOverflow": "authored",
               "readerFit": "intrinsic-height",
               "ok": true,
               "readerWidth": 1376,
@@ -1059,19 +1105,19 @@
                 "bodyPaddingPx": 12,
                 "headerPx": 78,
                 "diagramChromePx": 78,
-                "svgPx": 689,
+                "svgPx": 780,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 6.95891156462585,
-              "minimumProjectedNonEdgeTextPx": 6.95891156462585,
+              "minimumProjectedNodeTextPx": 6.501088435374149,
+              "minimumProjectedNonEdgeTextPx": 6.501088435374149,
               "minimumProjectedEdgeTextPx": 7.3251700680272105,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1094,34 +1140,34 @@
               "innerWidth": 1600,
               "innerHeight": 1000,
               "scrollWidth": 1600,
-              "scrollHeight": 1000,
+              "scrollHeight": 1086,
               "overflowX": false,
-              "overflowY": false,
-              "verticalScrollAccepted": false,
-              "overflowDisposition": "contained",
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
               "readerLayout": "adaptive",
-              "readerOverflow": null,
+              "readerOverflow": "authored",
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1505,
-              "diagramWidth": 1475,
+              "readerWidth": 1500,
+              "diagramWidth": 1470,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 86,
                 "diagramChromePx": 84,
-                "svgPx": 755,
+                "svgPx": 852,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 7.6,
-              "minimumProjectedNonEdgeTextPx": 7.6,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1144,34 +1190,34 @@
               "innerWidth": 1920,
               "innerHeight": 1080,
               "scrollWidth": 1920,
-              "scrollHeight": 1080,
+              "scrollHeight": 1086,
               "overflowX": false,
-              "overflowY": false,
-              "verticalScrollAccepted": false,
-              "overflowDisposition": "contained",
+              "overflowY": true,
+              "verticalScrollAccepted": true,
+              "overflowDisposition": "readable-vertical-scroll",
               "readerLayout": "adaptive",
-              "readerOverflow": null,
+              "readerOverflow": "authored",
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1661,
-              "diagramWidth": 1631,
+              "readerWidth": 1500,
+              "diagramWidth": 1470,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 86,
                 "diagramChromePx": 84,
-                "svgPx": 834,
+                "svgPx": 852,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 7.6,
-              "minimumProjectedNonEdgeTextPx": 7.6,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1203,25 +1249,25 @@
               "readerOverflow": null,
               "readerFit": "intrinsic-height",
               "ok": true,
-              "readerWidth": 1920,
-              "diagramWidth": 1870,
+              "readerWidth": 1873,
+              "diagramWidth": 1823,
               "pageComposition": {
                 "bodyPaddingPx": 64,
                 "headerPx": 94,
                 "diagramChromePx": 94,
-                "svgPx": 957,
+                "svgPx": 1057,
                 "cardsPx": 0,
-                "viewBoxHeight": 752
+                "viewBoxHeight": 852
               },
               "viewBoxWidth": 1470,
-              "minimumProjectedNodeTextPx": 7.6,
-              "minimumProjectedNonEdgeTextPx": 7.6,
+              "minimumProjectedNodeTextPx": 7.1,
+              "minimumProjectedNonEdgeTextPx": 7.1,
               "minimumProjectedEdgeTextPx": 8,
-              "minimumProjectedNodeText": "admissionsApi, authApi, filesApi…",
+              "minimumProjectedNodeText": "approvals · leave · exams · tasks",
               "minimumProjectedNodeTextDetail": "context",
               "minimumProjectedNodeTextOwner": {
                 "kind": "node",
-                "id": "client"
+                "id": "mod_workflows"
               },
               "minimumRequiredNodeTextPx": 6,
               "readabilityOk": true,
@@ -1258,8 +1304,8 @@
     "browserCheckReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-10-12T17:03:56.650Z",
-  "durationMs": 7056,
+  "finishedAt": "2026-10-13T08:28:03.556Z",
+  "durationMs": 7688,
   "update": {
     "status": "current",
     "installedVersion": "3.0.1",

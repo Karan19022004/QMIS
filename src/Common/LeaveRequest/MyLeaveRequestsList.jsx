@@ -6,7 +6,7 @@ import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus } fro
 import { useAuth } from '../../context/AuthContext'
 import Dropdown from '../CommonComponents/Dropdown'
 import ExportModal from '../CommonComponents/ExportModal'
-import { getMyLeaveRequestsForRole, LEAVE_REQUESTS_UPDATED_EVENT, LEAVE_STATUSES, parseLeaveDate, statusBadgeColor } from './leaveRequestData'
+import { getMyLeaveRequestsForRole, hydrateLeaveRequestsFromApi, LEAVE_REQUESTS_UPDATED_EVENT, LEAVE_STATUSES, parseLeaveDate, statusBadgeColor } from './leaveRequestData'
 import { getLeaveMyViewPath, getLeaveRoutes, resolveRoleKey } from './leaveRequestConfigs'
 
 export default function MyLeaveRequestsList({ roleKey: roleKeyProp }) {
@@ -23,6 +23,7 @@ export default function MyLeaveRequestsList({ roleKey: roleKeyProp }) {
 
     useEffect(() => {
         setRefreshKey((value) => value + 1)
+        hydrateLeaveRequestsFromApi() // no-op without an API session; emits the update event when done
     }, [location.pathname])
 
     useEffect(() => {

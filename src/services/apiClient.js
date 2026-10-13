@@ -25,6 +25,23 @@ export const isApiAttendanceEnabled = () => {
     return isApiStudentsEnabled()
 }
 
+/** Leave requests SoT — defaults on when the admissions/students API is on. */
+export const isApiLeaveEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_LEAVE
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiStudentsEnabled()
+}
+/** Notifications + approvals inbox — defaults on when the admissions/students API is on. */
+export const isApiNotificationsEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_NOTIFICATIONS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiStudentsEnabled()
+}
+
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {
     if (token) sessionStorage.setItem(TOKEN_KEY, token)

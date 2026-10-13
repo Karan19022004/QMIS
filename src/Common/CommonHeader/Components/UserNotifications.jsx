@@ -1,11 +1,52 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BellIcon } from "../../CommonIcons/CommonIcons"
+import {
+    canUseNotificationsApi,
+    listNotificationsApi,
+    markNotificationReadApi,
+} from "../../../services/notificationsApi"
+
+const POLL_MS = 30000
 
 const UserNotifications = () => {
     const [open, setOpen] = useState(false);
+    const [items, setItems] = useState([]);
     const dropdownRef = useRef(null);
 
-    const toggleDropdown = () => setOpen((prev) => !prev);
+    const unreadCount = items.filter((item) => !item.read).length
+
+    const refresh = useCallback(async () => {
+        if (!canUseNotificationsApi()) {
+            setItems([])
+            return
+        }
+        try {
+            setItems(await listNotificationsApi())
+        } catch {
+            // keep the last list; the bell must never break the header
+        }
+    }, [])
+
+    useEffect(() => {
+        refresh()
+        const timer = setInterval(refresh, POLL_MS)
+        return () => clearInterval(timer)
+    }, [refresh])
+
+    const toggleDropdown = () => {
+        setOpen((prev) => !prev)
+        if (!open) refresh()
+    };
+
+    const markRead = async (item) => {
+        if (item.read) return
+        setItems((current) => current.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry)))
+        try {
+            await markNotificationReadApi(item.id)
+        } catch {
+            refresh()
+        }
+    }
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -23,21 +64,43 @@ const UserNotifications = () => {
             <button
                 type="button"
                 onClick={toggleDropdown}
-                className="p-2 bg-[#EBEBEB] border border-[#E4E7EC] rounded-xl hover:text-gray-900 hover:bg-gray-100 focus:ring-2 focus:ring-gray-300 cursor-pointer"
+                className="relative p-2 bg-[#EBEBEB] border border-[#E4E7EC] rounded-xl hover:text-gray-900 hover:bg-gray-100 focus:ring-2 focus:ring-gray-300 cursor-pointer"
             >
                 <span className="sr-only">View notifications</span>
                 <BellIcon color="#667085" size={18} />
+                {unreadCount > 0 && (
+                    <span
+                        data-testid="notification-badge"
+                        className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-[#FF0000] text-white text-[10px] leading-4 text-center"
+                    >
+                        {unreadCount}
+                    </span>
+                )}
             </button>
 
             {/* Dropdown */}
             {open && (
-                <div className="absolute right-0 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-100 divide-y divide-gray-100 z-50">
+                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-100 divide-y divide-gray-100 z-50 max-h-96 overflow-y-auto">
                     <div className="py-2 px-4 font-semibold text-gray-700 bg-gray-50">
                         Notifications
                     </div>
-                    <div className="py-3 px-4 text-sm text-gray-600">
-                        No new notifications!
-                    </div>
+                    {items.length === 0 ? (
+                        <div className="py-3 px-4 text-sm text-gray-600">
+                            No new notifications!
+                        </div>
+                    ) : (
+                        items.map((item) => (
+                            <button
+                                key={item.id}
+                                type="button"
+                                onClick={() => markRead(item)}
+                                className={`w-full text-left py-3 px-4 text-sm cursor-pointer hover:bg-gray-50 ${item.read ? "text-gray-500" : "text-gray-900 bg-[#F4F5FF]"}`}
+                            >
+                                <span className="block font-medium">{item.title}</span>
+                                {item.body ? <span className="block text-xs mt-0.5">{item.body}</span> : null}
+                            </button>
+                        ))
+                    )}
                 </div>
             )}
         </div>

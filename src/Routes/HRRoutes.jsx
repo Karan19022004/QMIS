@@ -11,6 +11,8 @@ import Onboarding from '../Pages/HR/Onboarding/Onboarding'
 import Offers from '../Pages/HR/Onboarding/Offers'
 import Attendance from '../Pages/HR/Attendance/Attendance'
 import LeaveManagement from '../Pages/HR/LeaveManagement/LeaveManagement'
+import ReceivedLeaveRequestsList from '../Common/LeaveRequest/ReceivedLeaveRequestsList'
+import ViewReceivedLeaveRequestPage from '../Common/LeaveRequest/ViewReceivedLeaveRequestPage'
 import Training from '../Pages/HR/Training/Training'
 import Performance from '../Pages/HR/Performance/Performance'
 import Payroll from '../Pages/HR/Payroll/Payroll'
@@ -55,6 +57,11 @@ const HRRoutes = () => {
             <Route path="/hr/attendance" element={<Attendance />} />
             <Route path="/hr/leave-management/policies" element={<LeaveManagement />} />
             <Route path="/hr/leave-management" element={<LeaveManagement />} />
+            <Route
+                path="/hr/leave-request/received"
+                element={<ReceivedLeaveRequestsList roleKey="hr" description="Staff leave requests that reached HR after the department head." />}
+            />
+            <Route path="/hr/leave-request/received/view/:id" element={<ViewReceivedLeaveRequestPage roleKey="hr" />} />
             <Route path="/hr/training-records" element={<Training />} />
             <Route path="/hr/training-feedback" element={<Training />} />
             <Route path="/hr/training" element={<Training />} />

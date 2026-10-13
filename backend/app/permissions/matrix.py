@@ -49,6 +49,28 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("students.read", "View students and guardians"),
     ("attendance.read", "View class attendance"),
     ("attendance.write", "Mark class attendance"),
+    ("lessonplans.read", "View lesson plans (own, or all for approvers)"),
+    ("lessonplans.write", "Create, edit, submit and revise own lesson plans"),
+    ("lessonplans.remind", "Trigger lesson-plan deadline reminders"),
+    ("exams.read", "View exam types, schedules, weightage and published results"),
+    ("exams.write", "Create and submit exam schedules"),
+    ("exams.configure", "Configure exam types and weightage (DA)"),
+    ("marks.read", "View marks batches"),
+    ("marks.write", "Enter, submit and revise marks"),
+    ("results.read", "View published results of a student"),
+    ("leave.read", "View own leave requests and requests received for approval"),
+    ("leave.write", "File leave and permission requests"),
+    ("leave.decide", "Approve or deny leave requests at your level"),
+    ("escalations.read", "View escalations you raised or received"),
+    ("escalations.write", "Raise an escalation to the next level"),
+    ("escalations.resolve", "Move received escalations to In Review / Resolved / Rejected / Closed"),
+    ("escalations.sweep", "Run the 24h escalation clock (auto-escalate overdue items)"),
+    ("tasks.read", "View tasks assigned to you or by you"),
+    ("tasks.write", "Assign tasks and update the status of your own tasks"),
+    ("approvals.submit", "Submit items into the approval chain"),
+    ("approvals.decide", "Approve or deny items at your level"),
+    ("approvals.read", "View approval inbox and history"),
+    ("notifications.read", "View own in-app notifications"),
     ("finance.read", "View finance fees, receipts, and books"),
     ("finance.collect", "Collect fees and send receipts (operational)"),
     ("finance.write", "Change finance masters, fee structures, and snapshot config"),
@@ -86,21 +108,65 @@ _STAFF_ATTENDANCE = list(
     dict.fromkeys([*_STAFF_STUDENTS, "attendance.read", "attendance.write"])
 )
 
+_APPROVALS = ["approvals.submit", "approvals.decide", "approvals.read", "notifications.read"]
+_STAFF_ACADEMIC = list(
+    dict.fromkeys(
+        [
+            *_STAFF_ATTENDANCE,
+            *_APPROVALS,
+            "lessonplans.read",
+            "lessonplans.write",
+            "exams.read",
+            "marks.read",
+            "marks.write",
+            "results.read",
+        ]
+    )
+)
+
 ROLE_PERMISSIONS: dict[str, list[str]] = {code: list(_CORE) for code, _ in ALL_ROLES}
 ROLE_PERMISSIONS.update(
     {
         "superadmin": list(_ADMIN),
         "admin": list(_ADMIN),
         "managing_director": list(_ADMIN),
-        "hr": list(_HR),
         "prm": list(_ADMISSIONS),
         "accounthead": list(_FINANCE_HEAD),
         "finance_assistant": list(_FINANCE_ASSISTANT),
         # Staff UIS + class attendance (P1-5 / Y-1)
-        "teacher": list(_STAFF_ATTENDANCE),
-        "coordinator": list(_STAFF_ATTENDANCE),
-        "principal": list(_STAFF_ATTENDANCE),
-        "director": list(_STAFF_ATTENDANCE),
-        "jointdirector": list(_STAFF_ATTENDANCE),
+        "teacher": list(_STAFF_ACADEMIC),
+        "coordinator": [*_STAFF_ACADEMIC, "exams.write"],
+        "principal": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.write"],
+        "director": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.configure"],
+        "parent": [*_CORE, "results.read"],
+        "jointdirector": list(_STAFF_ACADEMIC),
+        "stationerystoremanager": list(dict.fromkeys([*_CORE, *_APPROVALS])),
+        "hr": list(dict.fromkeys([*_HR, "approvals.submit", "approvals.read", "notifications.read"])),
     }
 )
+
+# Leave (Y-4): every staff role files and views its own requests; department heads and HR decide.
+_NON_STAFF_ROLES = {"student", "parent"}
+_LEAVE_DECIDERS = {
+    "coordinator", "principal", "director", "jointdirector", "hr", "gatekeepermanager", "transportmanager",
+}
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code in _NON_STAFF_ROLES:
+        continue
+    for _p in ("leave.read", "leave.write", "notifications.read"):
+        if _p not in _perms:
+            _perms.append(_p)
+    if _code in _LEAVE_DECIDERS and "leave.decide" not in _perms:
+        _perms.append("leave.decide")
+
+# Escalations + tasks (Y-5): the escalation hierarchy includes students (-> teacher); parents have no escalation path.
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code == "parent":
+        continue
+    for _p in ("escalations.read", "escalations.write", "escalations.resolve", "notifications.read"):
+        if _p not in _perms:
+            _perms.append(_p)
+    if _code not in _NON_STAFF_ROLES:
+        for _p in ("tasks.read", "tasks.write"):
+            if _p not in _perms:
+                _perms.append(_p)
