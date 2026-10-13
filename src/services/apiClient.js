@@ -58,6 +58,43 @@ export const isApiNotificationsEnabled = () => {
     return isApiStudentsEnabled()
 }
 
+/**
+ * Admin user creation + roles SoT. Defaults on whenever API sign-in is on: a login created only
+ * in the browser could never sign in, so creation must go through the server.
+ */
+export const isApiAdminUsersEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_ADMIN_USERS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAuthEnabled()
+}
+
+/**
+ * Administrator Employee Database reads the HR employee API (and the admin user list). Defaults
+ * on whenever API sign-in is on; set VITE_USE_API_EMPLOYEES=false for the browser-only list.
+ */
+export const isApiEmployeeDirectoryEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_EMPLOYEES
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAuthEnabled()
+}
+
+/**
+ * Administrator Class Details reads and writes classes, sections and academic years through the
+ * masters API. Defaults on whenever API sign-in is on; set VITE_USE_API_CLASSES=false for the
+ * browser-only class catalog.
+ */
+export const isApiClassDetailsEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_CLASSES
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAuthEnabled()
+}
+
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {
     if (token) sessionStorage.setItem(TOKEN_KEY, token)

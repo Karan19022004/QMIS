@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.endpoints.admissions import router as admissions_router
+from app.api.v1.endpoints.admin_users import router as admin_users_router
 from app.api.v1.endpoints.audit import router as audit_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.files import router as files_router
@@ -24,6 +25,7 @@ from app.models import Base
 from app.services.admissions_migrate import ensure_admissions_schema
 from app.services.hr_migrate import ensure_hr_employee_columns
 from app.services.masters_migrate import ensure_masters_schema
+from app.services.schema_check import warn_if_schema_behind
 from app.services.seed import seed_reference_data
 
 
@@ -32,6 +34,7 @@ def init_db() -> None:
     ensure_hr_employee_columns()
     ensure_admissions_schema()
     ensure_masters_schema()
+    warn_if_schema_behind()
     db = SessionLocal()
     try:
         seed_reference_data(db)
@@ -55,6 +58,7 @@ app.add_middleware(
 )
 app.include_router(auth_router)
 app.include_router(audit_router)
+app.include_router(admin_users_router)
 app.include_router(masters_router)
 app.include_router(admissions_router)
 app.include_router(parents_router)

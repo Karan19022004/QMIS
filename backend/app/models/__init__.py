@@ -16,6 +16,7 @@ from app.models.hr_record import HrRecord
 from app.models.otp import OtpChallenge
 from app.models.role import Permission, Role, RolePermission
 from app.models.user import User
+from app.models.user_profile import UserProfile
 
 __all__ = [
     "AcademicYear",
@@ -53,4 +54,5 @@ __all__ = [
     "Task",
     "TaskEvent",
     "User",
+    "UserProfile",
 ]

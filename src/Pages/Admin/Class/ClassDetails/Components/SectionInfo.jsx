@@ -8,12 +8,13 @@ const SectionInfo = ({
     onChangeSection,
     onAddSection,
     onRemoveSection,
+    showCapacity = true,
 }) => {
     return (
         <>
             <div className='space-y-4 lg:mt-8 mt-2'>
                 {sections.map((section, index) => (
-                    <div key={`section-${index}`} className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-[1fr_1fr_auto] gap-6 items-end'>
+                    <div key={`section-${index}`} className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 ${showCapacity ? 'lg:grid-cols-[1fr_1fr_auto]' : 'lg:grid-cols-[1fr_auto]'} gap-6 items-end`}>
                         <div className='flex flex-col gap-y-2'>
                             <label htmlFor={`section-name-${index}`} className='text-base font-medium text-[#1E1E1E]'>Section:</label>
                             <input
@@ -25,6 +26,7 @@ const SectionInfo = ({
                                 className={inputClass}
                             />
                         </div>
+                        {showCapacity && (
                         <div className='flex flex-col gap-y-2'>
                             <label htmlFor={`section-capacity-${index}`} className='text-base font-medium text-[#1E1E1E]'>Section Capacity:</label>
                             <input
@@ -36,6 +38,7 @@ const SectionInfo = ({
                                 className={inputClass}
                             />
                         </div>
+                        )}
                         <button
                             type='button'
                             onClick={() => onRemoveSection(index)}

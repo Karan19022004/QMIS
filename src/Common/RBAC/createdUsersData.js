@@ -1,6 +1,13 @@
 import noProfile from '../../assets/images/no-profile.png'
 import { ROLES } from '../../constants/roles'
 import { updateAssignmentStudentCounts } from './academicsCatalogData'
+import {
+    canUseAdminUsersApi,
+    createAdminUserApi,
+    listAdminUsersApi,
+    resetAdminUserPasswordApi,
+    updateAdminUserApi,
+} from '../../services/adminUsersApi'
 
 const STORAGE_KEY = 'schoolerp-created-users'
 const ACTIVE_USER_KEY = 'schoolerp_active_created_user'
@@ -302,3 +309,127 @@ export const getActiveCreatedUserSession = () => {
         return null
     }
 }
+
+/* ------------------------------------------------------------------------------------------
+ * API mode (Admin > RBAC > User Creation backed by /api/v1/admin/users).
+ *
+ * The server owns logins, roles, status and passwords. The local store is only a read-through
+ * mirror of the non-sensitive profile fields, kept so the screens that still read created users
+ * synchronously (class teacher picker, PRM assignee picker, Employee Database) keep working.
+ * A password is never written to it.
+ * ---------------------------------------------------------------------------------------- */
+
+const API_DETAIL_FIELDS = [
+    'alternativeMobileNumber', 'street', 'city', 'state', 'country', 'pincode', 'religion', 'caste',
+    'dateOfBirth', 'bloodGroup', 'height', 'weight', 'medicalHistory', 'fatherName', 'motherName',
+    'familyContactNumber', 'qualification', 'yearsOfExperience', 'previousSchool', 'joiningDate',
+    'username', 'className', 'section',
+]
+
+/** True when user creation should go through the server. */
+export const isAdminUsersApiActive = () => canUseAdminUsersApi()
+
+/** Map one /admin/users record to the local created-user shape. Never carries a password. */
+export const fromApiUser = (apiUser) => ({
+    ...Object.fromEntries(API_DETAIL_FIELDS.map((key) => [key, apiUser.details?.[key] || ''])),
+    id: apiUser.staffCode,
+    userId: apiUser.id,
+    name: apiUser.name,
+    firstName: apiUser.firstName,
+    middleName: apiUser.middleName || '',
+    lastName: apiUser.lastName,
+    email: apiUser.email,
+    role: apiUser.role,
+    roleLabel: apiUser.roleLabel,
+    status: apiUser.status,
+    gender: apiUser.gender || '',
+    mobileNumber: apiUser.mobileNumber || '',
+    username: apiUser.details?.username || apiUser.email.split('@')[0],
+    password: '',
+    mustChangePassword: Boolean(apiUser.mustChangePassword),
+    profileImage: '',
+    admissionNumber: apiUser.staffCode,
+    createdAt: apiUser.createdAt || '',
+    source: 'api',
+})
+
+/**
+ * Replace the mirrored staff records with the server's list. Student records (created through
+ * Admission enrollment) are left alone. Returns the mapped users.
+ */
+export const syncCreatedUsersFromApi = async () => {
+    if (!canUseAdminUsersApi()) return null
+    const apiUsers = await listAdminUsersApi()
+    const mapped = apiUsers.map(fromApiUser)
+    const keep = loadUsers().filter((user) => user.role === ROLES.STUDENT)
+    saveUsers([...keep, ...mapped])
+    return mapped
+}
+
+const apiErrorResult = (error) => ({
+    success: false,
+    message: error?.message || 'The request could not be completed.',
+    status: error?.status,
+})
+
+export const createUserViaApi = async (payload) => {
+    const validation = validateUserCreationForm(payload)
+    if (!validation.success) return validation
+    if (!CREATABLE_ROLES.includes(payload.role)) {
+        return { success: false, message: 'Selected role cannot be created here.' }
+    }
+
+    const details = Object.fromEntries(
+        API_DETAIL_FIELDS.map((key) => {
+            const raw = payload[key]
+            const value = key === 'dateOfBirth' || key === 'joiningDate'
+                ? formatUserDateOfBirth(raw)
+                : String(raw ?? '').trim()
+            return [key, value]
+        }),
+    )
+    const password = payload.password?.trim()
+    try {
+        const created = await createAdminUserApi({
+            role: payload.role,
+            firstName: payload.firstName.trim(),
+            middleName: payload.middleName?.trim() || '',
+            lastName: payload.lastName.trim(),
+            email: payload.email.trim(),
+            gender: payload.gender,
+            mobileNumber: payload.mobileNumber?.trim() || '',
+            status: payload.status === 'Inactive' ? 'Inactive' : 'Active',
+            ...(password ? { password } : {}),
+            ...details,
+        })
+        // Best-effort refresh of the mirror; the create itself already succeeded.
+        await syncCreatedUsersFromApi().catch(() => null)
+        return {
+            success: true,
+            user: fromApiUser(created),
+            temporaryPassword: created.temporaryPassword || null,
+        }
+    } catch (error) {
+        return apiErrorResult(error)
+    }
+}
+
+export const updateUserStatusViaApi = async (user, status) => {
+    try {
+        await updateAdminUserApi(user.userId, { status })
+        await syncCreatedUsersFromApi().catch(() => null)
+        return { success: true }
+    } catch (error) {
+        return apiErrorResult(error)
+    }
+}
+
+export const resetUserPasswordViaApi = async (user) => {
+    try {
+        const result = await resetAdminUserPasswordApi(user.userId)
+        return { success: true, temporaryPassword: result.temporaryPassword }
+    } catch (error) {
+        return apiErrorResult(error)
+    }
+}
+

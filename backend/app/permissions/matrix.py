@@ -75,6 +75,9 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("finance.collect", "Collect fees and send receipts (operational)"),
     ("finance.write", "Change finance masters, fee structures, and snapshot config"),
     ("finance.approve", "Approve finance requests and apply Head-only actions"),
+    ("users.read", "View staff logins created by administrators"),
+    ("users.write", "Create staff logins, change their status, and reset their passwords"),
+    ("rbac.read", "View roles and the permissions each role holds"),
 ]
 
 ALL_PERMISSION_CODES = [code for code, _ in PERMISSIONS]

@@ -36,4 +36,9 @@ def ensure_hr_employee_columns() -> None:
     with engine.begin() as connection:
         for name, column_type in _EMPLOYEE_COLUMNS:
             if name not in present:
+                if name == "user_id" and connection.dialect.name == "postgresql":
+                    # The model declares a UUID foreign key. A VARCHAR here made `user_id = <uuid>`
+                    # fail on PostgreSQL (see alembic revision 0002). Existing databases are fixed
+                    # by `alembic upgrade head`; this only stops new ones getting the wrong type.
+                    column_type = "UUID"
                 connection.execute(text(f"ALTER TABLE hr_employees ADD COLUMN {name} {column_type}"))
