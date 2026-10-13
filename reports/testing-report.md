@@ -1,93 +1,88 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 13 October 2026 (Administrator modules, step 2: Employee Database connected to the HR employee API)  
-Result: **205 passed**, 0 failed (full suite, `python -m pytest tests/ -q` from `backend`; 189 before this step, plus 16 new: 12 in `test_admin_employee_directory.py`, 4 in `test_frontend_admin_users_static.py`)  
-Frontend: production build passes (exit 0). The files changed in this step lint clean (ESLint on exactly those files, exit 0). A whole-project lint count was not run.
+Last run: 13 October 2026 (fix for the `hr_employees.user_id` schema mismatch, before Class Details)  
+Result: **218 passed**, 0 failed, 0 skipped (full suite, `python -m pytest tests/ -q` from `backend`; 205 before this step, plus 13 new in `test_migration_hr_user_id.py`)  
+Frontend: production build passes (exit 0). ESLint on `src/services`, the Employee Database screens and the shared mappers: exit 0, no findings. No frontend source changed in this step; the build and lint were re-run as asked. A whole-project lint count was not run.
 
-Evidence is kept apart. **Automated** = pytest. **Browser** = I drove the real screens against the live backend. Anything not run is marked NOT RUN. A static source check is not a browser check.
+Evidence is kept apart. **Automated** = pytest. **Rehearsal** = a script that restored the backup into a scratch database and ran the real migration. **Live** = the running backend and the real development database. **Browser** = I drove the real screen. Anything not run is marked NOT RUN.
 
 ## Automated (pytest)
 
 | Area | Tests | What they prove | Result |
 |---|---|---|---|
-| Directory read | 4 | The Administrator sees every HR employee, including one HR created a moment ago, and the same set HR sees; portal rows carry the fields the screen maps; no credential-like key (`password`, `hash`, `secret`, `token`) in the portal, typed or admin-users payloads (only `mustChangePassword`), and none of the temporary passwords issued in the test appear in any of them | PASS |
-| Permissions | 3 | A teacher sees only their own record and gets 403 on admin users; no token gets 401; there is no single-record PATCH or DELETE route on employees | PASS |
-| HR / login consistency | 5 | Deactivating a login marks the linked HR record Inactive and activating restores it, with an `HR_EMPLOYEE_STATUS_SYNCED` audit row; an HR bulk save cannot reactivate a login an admin turned off; **negative control:** with the sync disabled, the same bulk save does reactivate the login (so the test can fail); Relieved is never overwritten; a login with no HR record is unaffected; a user created through User Creation gets no HR record | PASS |
-| Frontend sources (static) | 4 new (9 in file) | The directory service never touches browser storage and never copies salary, password or `extra`; it uses only the existing endpoints and is read-only; the detail page shows no password in API mode and still shows it in local mode; the flag exists, the hook is skipped in local mode, and the shared Principal / Director / Super Admin screens do not use the API hook | PASS |
-| Earlier suites | 189 | Admin users (32), P0 security (52), frontend auth static (10), escalations and tasks (19), admissions, approvals, attendance, e2e campus flow, exams, finance, HR, leave, lesson plans, Phase 0, students | PASS |
+| Migration `0002` on PostgreSQL (throwaway database, dropped afterwards) | 8 | Converts VARCHAR(36) to UUID keeping every row and every link, and adds the foreign key; blank becomes NULL and upper-case is the same UUID; a value that is not a UUID **aborts** and nothing changes (the bad value is kept); a link to a login that does not exist **aborts** and nothing changes; a second run changes nothing; a UUID column without the foreign key gets it; downgrade restores VARCHAR(36), drops the foreign key and keeps the links; **negative control:** the original failing query (`user_id == <uuid>`) raises `character varying = uuid` on the old shape and works after the migration | PASS |
+| Startup helper and check | 2 | `ensure_hr_employee_columns` now adds `user_id` as UUID on PostgreSQL; the startup schema check reports the old shape (and names `alembic upgrade head`) and is quiet once migrated | PASS |
+| Alembic wiring (no database needed) | 3 | One revision chain ending at `0002_hr_user_id_uuid`; `alembic.ini` and `env.py` store no credentials; the migration is a no-op on non-PostgreSQL databases | PASS |
+| HR / login activation sync | 12 (existing) | Deactivate/activate keeps the linked HR record in step; an HR bulk save cannot reactivate a login an admin turned off (with a negative control); Relieved is never overwritten; no credentials in any payload; teacher sees only their own record | PASS (re-run, unchanged) |
+| Earlier suites | 193 | Admin users (32), static frontend checks (9), P0 security (52), escalations and tasks, admissions, approvals, attendance, exams, finance, HR, leave, lesson plans, Phase 0, students, and the rest | PASS |
 
-Static checks read the React sources only; there is no JS test runner in the project.
+The migration tests need a PostgreSQL server; they are reported as skipped, not passed, if none is reachable. This run: none skipped.
 
-## Browser (live backend restarted on the new code; Administrator; frontend dev server)
+## Rehearsal on a restored copy of the development database (script, not pytest)
 
-**PASS** (driven and observed)
+The backup was restored into a scratch database (`pg_restore`), then:
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Backup restores; the copy matches the dev snapshot (17 employees, 2 links) and has no `alembic_version` table | PASS |
+| 2 | `alembic upgrade head`: column is `uuid`, foreign key to `users(id)` exists, 17 rows and both links unchanged, `users` and `audit_logs` row counts unchanged, `alembic_version` = `0002_hr_user_id_uuid` | PASS |
+| 3 | Second `upgrade head` is a no-op | PASS |
+| 4 | `alembic downgrade -1`: back to VARCHAR, no foreign key, rows and links unchanged | PASS |
+| 5 | A non-UUID value aborts with the employee code named; after the abort the column is still VARCHAR and the value is intact | PASS |
+| 6 | A link to a non-existent login aborts; still VARCHAR, no foreign key, value intact | PASS |
+| 7 | A blank value and an upper-case UUID convert; the upper-case link is kept as the same UUID and the blank becomes NULL | PASS |
+
+The scratch database was dropped afterwards (only `postgres` and `qmis_erp` remain).
+
+## Live: the real development database
+
+| # | Check | Result |
+|---|---|---|
+| 8 | Backup taken before any change: `pg_dump -Fc` (about 146 KB, outside the repository; `pg_restore --list` reads it, 203 entries, `hr_employees` data included) | PASS |
+| 9 | Before: 17 employees, 15 with no `user_id`, 2 linked (EMP-0016, EMP-0017) to valid existing logins with matching emails; no blank, malformed, orphan or duplicate values; no foreign keys pointing at `hr_employees`, no views or triggers on it; 10 audit rows refer to HR employees by id | PASS (inspection) |
+| 10 | `alembic upgrade head` on the dev database: exit 0, now at `0002_hr_user_id_uuid` (head); `user_id` is `uuid`; foreign key `hr_employees_user_id_fkey` exists | PASS |
+| 11 | After: employee rows identical (id, code, email, status, created_at), both links identical, 10 audit rows still refer to HR employees, 443 audit rows total, no row-count change in any table except the new `alembic_version` | PASS |
+| 12 | `GET /hr/portal/employees` (and `/hr/employees`) after restarting the backend on the new code: **Teacher 200, Coordinator 200, Principal 200, Director 200, Admin 200 (17 rows), HR 200 (17 rows)**; Account Head and Finance Assistant 403; no token 401. (Before: Teacher, Coordinator, Principal and Director returned **500**.) The four scoped roles get an empty list because their seeded logins have no HR record, so nothing is leaked | PASS (the earlier 500s are fixed) |
+| 13 | A user whose HR record is linked by `user_id` (`live.link@qmis.edu`): after reactivation, reset and a password change, the portal and the typed list return only their own record (EMP-0017); another employee's record is 404; their own is 200; `admin/users` is 403 | PASS |
+| 14 | HR / login activation sync on the migrated database: activating the login set the HR record to Active; deactivating set it to Inactive; the deactivated user's token and login both returned 401 | PASS |
+| 15 | Browser: the Administrator's Employee Database reloaded against the migrated database shows "Showing 18 of 18 entries" (17 HR employees + 1 User Creation login) | PASS |
+
+## Not run
 
 | # | Scenario | Result |
 |---|---|---|
-| 1 | Employee Database loads from the server: 17 rows (16 HR employees + 1 User Creation login), each labelled with its source | PASS |
-| 2 | Search "priya" shows 1 row; a name that does not exist shows 0 rows; clearing restores all 17 | PASS |
-| 3 | Department filter "Transport" shows 3 rows (Vikram, Ramesh, Lakshmi); the department list is built from the data | PASS |
-| 4 | Detail of an HR employee (EMP-2026-001), opened by direct URL: HR fields, designation, category, reporting manager and status shown; salary reads "Restricted (HR)"; no password row; status matches what the API returns | PASS |
-| 5 | Detail of a User Creation login (TEA-0001): employee type "—", status and login note shown, username is the login email, no password | PASS |
-| 6 | Unknown id shows "Employee not found." | PASS |
-| 7 | One person, one row: a login and an HR record with the same email (EMP-0017) appear once, as the HR record, with "Login created through User Creation (TEA-0002, Inactive)" | PASS |
-| 8 | Persistence: after full reloads the same data comes back from the server; the browser copy of users holds no record of the HR-linked person (nothing is stored for the directory) | PASS |
-| 9 | Loading text, error with Retry, empty ("No employees have been added yet."), 403 message, and partial failure (HR rows shown with a warning naming the failed source; Retry recovers all 17) | PASS, but see the note: these failures were **simulated** by overriding `fetch` in the page, not by stopping the server |
-| 10 | Local mode (a second dev server with the API flags off, demo session): original department list, original subtitle, "No employees found.", and **no** API request made | PASS |
+| 16 | The HR "own record" page and the Employee Database screen in a browser signed in as Teacher, Coordinator, Principal and Director (checked through the API only, #12 and #13) | NOT RUN |
+| 17 | `alembic downgrade` on the development database itself (rehearsed on the copy only; the dev database was deliberately not downgraded) | NOT RUN |
+| 18 | A real restore of the backup over the development database (restore was proven on the scratch copy only) | NOT RUN |
+| 19 | A live HR bulk save from the HR screen (covered by pytest; it rewrites every HR row) | NOT RUN |
+| 20 | The migration against a database with bad data in it other than on the scratch copy (aborts proven by pytest and by the rehearsal) | NOT RUN |
+| 21 | Whole-project lint; mobile layout; the earlier User Creation items still listed as NOT RUN in the previous round | NOT RUN |
 
-**Live API checks** (a script against the running backend, not a browser)
+## Carried over from the previous step (not re-run, except #15 above)
 
-| # | Scenario | Result |
-|---|---|---|
-| 11 | Anonymous: HR portal 401, admin users 401. Teacher, Coordinator, Principal, Director, Account Head, HR: admin users 403. Admin and HR: HR portal 200 with 16 rows. Account Head and Finance Assistant: HR portal 403 | PASS |
-| 12 | Deactivating a linked login set the HR record to Inactive; activating set it back to Active; deactivating again left it Inactive (login created, HR record added with the same email, then status changed three times) | PASS |
-
-**FAIL** (found; pre-existing, not caused by this step, not fixed)
-
-| # | Scenario | Result |
-|---|---|---|
-| 13 | `GET /hr/portal/employees` as Teacher, Coordinator, Principal and Director returns **500** (`character varying = uuid`: the dev database column `hr_employees.user_id` is `VARCHAR(36)` while the model expects a UUID). The Administrator and HR are not affected. This is the same defect recorded in the P0 round and needs a column migration | FAIL (pre-existing) |
-
-**NOT RUN**
-
-| # | Scenario | Result |
-|---|---|---|
-| 14 | Deactivating the login **through the User Creation screen** and then watching the HR status change on the Employee Database screen (the same endpoint was checked by script, #12, and in pytest) | NOT RUN |
-| 15 | A real outage (stopping the backend) to see the error state; the states in #9 were simulated | NOT RUN |
-| 16 | Local-mode detail page with a created employee, and local-mode Export | NOT RUN |
-| 17 | Principal, Director and Super Admin Employee Database screens (not changed, still local-mode; the static test confirms they do not use the API hook) | NOT RUN |
-| 18 | Mobile layout; sorting; the Export button (unchanged and not exercised) | NOT RUN |
-| 19 | An HR bulk save from the HR screen against the dev database (covered by pytest; not run live, because it rewrites all HR rows) | NOT RUN |
-| 20 | Whole-project lint; the earlier User Creation items 12–17 (duplicate email on screen, flag-off User Creation, other roles) | NOT RUN |
+Employee Database in the browser as Administrator: list, search, department filter, HR and login detail pages, one-row merge by email, reload persistence, local mode (no API calls) — PASS. Error, empty, 403 and partial-failure states were checked by overriding `fetch` (simulated, not a real outage) — PASS. Deactivating from the User Creation screen and watching the HR status on screen, a real outage, and the Principal/Director/Super Admin screens — NOT RUN.
 
 ## Defects found
 
-- **Fixed in this step (server):** HR's bulk save could switch a login back on after an Administrator had deactivated it. `PATCH /admin/users/{id}` now keeps the linked HR record in step (matched by email) and writes an audit row; proven by a test that fails when the fix is removed.
-- **Fixed in this step (screen):** the list reloaded its local copy through an effect that set state (a lint error that was already there); it now derives the list instead. The shared builder showed the account status in the "Employee type" field; the API rows now show "—".
-- **Found, not fixed:** the `hr_employees.user_id` column mismatch above (#13); HR statuses On Leave and Probation are shown as they are and do not change the login; the list's "From / To" date controls do nothing (as before); the old User Creation notes from the previous round (upload fields are not sent to the server, the form keeps a previous error text until the next save) still apply.
+- **Fixed in this step:** `hr_employees.user_id` is now a UUID column with the foreign key the model declares, on the development database (via Alembic) and for databases that get the column from the startup helper (the helper no longer creates it as VARCHAR). The 500 for Teacher, Coordinator, Principal and Director on `GET /hr/portal/employees` is gone.
+- **Found, not fixed (other features, each needs its own reviewed revision):** the same VARCHAR(36)-vs-UUID drift on `school_classes.academic_year_id`, `admission_enquiries.profile_image_file_id` and `admission_enquiries.converted_admission_id`; `hr_employees.employee_code` is 32 characters live against 40 in the model.
+- **Open (design):** Alembic is applied by hand (`alembic upgrade head`); startup only warns. Other databases (a teammate's copy, production) are not migrated until someone runs it. The other `ensure_*` startup helpers are unchanged.
 
 ## Side effects on this machine
 
-- The backend on port 8000 was restarted on the new code (no schema change in this step).
-- Dev data added: a login `live.link@qmis.edu` (TEA-0002) and an HR employee EMP-0017 for it; both are now Inactive (accounts and HR records are not deleted). The earlier `browser.teacher@qmis.edu` (TEA-0001) is still Inactive.
-- A temporary second dev server on port 5180 was used for the local-mode check and has been stopped. The Administrator tab on port 5173 stays signed in.
+- Python package `alembic` 1.20.0 was installed (also added to `backend/requirements.txt`). The dev database now has an `alembic_version` table (one row).
+- The backend on port 8000 was restarted on the new code. The backup file is at `%USERPROFILE%\qmis-db-backups\` (outside the repository, not committed; it contains password hashes, so treat it as sensitive).
+- Dev data: `live.link@qmis.edu` (TEA-0002) was reactivated, given a new password (not recorded) and deactivated again; it and its HR record EMP-0017 are Inactive. No employee records were created or deleted.
 
 ## Commands
 
 ```
 cd backend
 python -m pytest tests/ -q
+alembic current
+alembic upgrade head      # after a backup
 ```
-
-## Coverage notes
-
-- `tests/test_admin_employee_directory.py` (12) — directory read, permissions, HR / login consistency (with a negative control)
-- `tests/test_frontend_admin_users_static.py` (9) — frontend source checks for the admin screens (5 User Creation, 4 Employee Database)
-- `tests/test_admin_users.py` (32) — admin user creation, privilege rules, lifecycle, audit, roles
-- `tests/test_security_p0.py` (52), `tests/test_frontend_auth_static.py` (10) — P0 hardening
-- `tests/test_escalations_tasks.py` (19), `test_leave.py`, `test_exams.py`, `test_lesson_plans.py`, `test_approvals.py`, `test_students.py`, `test_attendance.py`, admissions, parents/children, finance, HR, Phase 0
-- Pytest is not a browser pass for any screen
 
 ## Seeded API logins (development only)
 

@@ -25,6 +25,7 @@ from app.models import Base
 from app.services.admissions_migrate import ensure_admissions_schema
 from app.services.hr_migrate import ensure_hr_employee_columns
 from app.services.masters_migrate import ensure_masters_schema
+from app.services.schema_check import warn_if_schema_behind
 from app.services.seed import seed_reference_data
 
 
@@ -33,6 +34,7 @@ def init_db() -> None:
     ensure_hr_employee_columns()
     ensure_admissions_schema()
     ensure_masters_schema()
+    warn_if_schema_behind()
     db = SessionLocal()
     try:
         seed_reference_data(db)
