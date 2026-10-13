@@ -62,7 +62,7 @@ def _enroll_one(client: TestClient, headers: dict) -> dict:
         f"/api/v1/admissions/{admission_id}/enroll",
         json={
             "parent_account_email": "parent.riya@example.com",
-            "parent_account_password": "parent123",
+            "parent_account_password": "Parent-Test-2026",
         },
         headers=headers,
     )
@@ -103,7 +103,7 @@ def test_parent_cannot_list_campus_students(client):
 
     parent_login = client.post(
         "/api/v1/auth/login",
-        json={"email": "parent.riya@example.com", "password": "parent123"},
+        json={"email": "parent.riya@example.com", "password": "Parent-Test-2026"},
     )
     assert parent_login.status_code == 200, parent_login.text
     parent_headers = {"Authorization": f"Bearer {parent_login.json()['access_token']}"}

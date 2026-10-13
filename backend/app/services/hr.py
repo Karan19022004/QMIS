@@ -1,4 +1,3 @@
-import secrets
 from datetime import date
 
 from sqlalchemy import delete, func, select
@@ -6,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.config import settings
+from app.core.passwords import generate_temporary_password
 from app.core.security import hash_password
 from app.models import HrEmployee, HrRecord, Role, User
 from app.deps import role_code_for
@@ -588,7 +588,7 @@ def _provision_user(db: Session, actor: User, row: HrEmployee) -> str | None:
     if existing is not None:
         row.user_id = existing.id
         return None
-    temporary = f"Qmis@{secrets.randbelow(1_000_000):06d}"
+    temporary = generate_temporary_password()
     user = User(
         campus_id=actor.campus_id,
         role_id=role.id,

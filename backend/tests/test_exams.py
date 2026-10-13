@@ -52,7 +52,7 @@ def _enroll(client, admin, name: str, cls: str, parent_email: str) -> str:
     )
     enrolled = client.post(
         f"/api/v1/admissions/{adm}/enroll",
-        json={"parent_account_email": parent_email, "parent_account_password": "parent123"},
+        json={"parent_account_email": parent_email, "parent_account_password": "Parent-Test-2026"},
         headers=admin,
     )
     assert enrolled.status_code == 200, enrolled.text
@@ -147,7 +147,7 @@ def test_marks_flow_publish_ranks_and_parent_visibility(client):
     ).status_code == 409
 
     # nothing published yet
-    parent_a = _h(client, "x", ("parent.asha@example.com", "parent123"))
+    parent_a = _h(client, "x", ("parent.asha@example.com", "Parent-Test-2026"))
     before = client.get(f"/api/v1/results/students/{a}", headers=parent_a).json()
     assert before["exams"] == []
 

@@ -1,20 +1,12 @@
 import { apiRequest, getAccessToken, isApiFinanceEnabled } from './apiClient'
-import { apiLogin } from './authApi'
 
+/**
+ * Finance calls always run as the signed-in user. There is no fallback login: with no token the
+ * request fails closed, and the backend's role permissions decide what the user may do.
+ */
 export async function connectFinanceApi() {
     if (!isApiFinanceEnabled()) return false
-    if (getAccessToken()) return true
-    try {
-        await apiLogin('accounthead@qmis.edu', 'accounts123')
-        return true
-    } catch {
-        try {
-            await apiLogin('admin@qmis.edu', 'admin123')
-            return true
-        } catch {
-            return false
-        }
-    }
+    return Boolean(getAccessToken())
 }
 
 export async function pullFinanceState() {

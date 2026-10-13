@@ -3,20 +3,19 @@ import { Eye, EyeOff, Loader2, Lock, Mail } from 'lucide-react'
 import booksIllustration from '../../assets/images/login-books-illustration.png'
 import { PORTAL_LOGO_ALT, PORTAL_LOGO_ICON } from '../../constants/portalLogo'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { DEMO_PASSWORD, FAKE_CREDENTIALS, ROLE_HOME_PATHS, useAuth } from '../../context/AuthContext'
-import { getProfileLabel } from './profileOptions'
+import { ROLE_HOME_PATHS, useAuth } from '../../context/AuthContext'
+import { SESSION_NOTICE_KEY } from '../../services/apiClient'
 
-const API_ACCOUNTS = [
-    { role: 'admin', label: 'API Admin', email: 'admin@qmis.edu', password: 'admin123' },
-    { role: 'hr', label: 'API HR', email: 'hr@qmis.edu', password: 'hr12345' },
-]
-
-const DEMO_ACCOUNTS = Object.entries(FAKE_CREDENTIALS).map(([role, creds]) => ({
-    role,
-    label: getProfileLabel(role),
-    email: creds.email,
-    password: DEMO_PASSWORD,
-}))
+/** One-time notice left by the API client when it ended an expired session. */
+const takeSessionNotice = () => {
+    try {
+        const notice = sessionStorage.getItem(SESSION_NOTICE_KEY) || ''
+        sessionStorage.removeItem(SESSION_NOTICE_KEY)
+        return notice
+    } catch {
+        return ''
+    }
+}
 
 const SignIn = () => {
     const navigate = useNavigate()
@@ -29,9 +28,8 @@ const SignIn = () => {
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false)
     const [remember] = useState(() => Boolean(localStorage.getItem('schoolerp_remember_email')))
-    const [error, setError] = useState('')
+    const [error, setError] = useState(takeSessionNotice)
     const [submitting, setSubmitting] = useState(false)
-    const [showDemoAccounts, setShowDemoAccounts] = useState(false)
     const [showResetNote, setShowResetNote] = useState(false)
 
     const handleSubmit = async (e) => {
@@ -155,8 +153,7 @@ const SignIn = () => {
 
                     {showResetNote && (
                         <p className="mt-3 text-xs leading-relaxed text-[#5C6B82]">
-                            Password reset opens when the server is connected. Demo accounts use{' '}
-                            <span className="font-semibold text-[#1B2B4B]">{DEMO_PASSWORD}</span>.
+                            Password reset is not available yet. Ask your school administrator to reset your password.
                         </p>
                     )}
 
@@ -169,59 +166,6 @@ const SignIn = () => {
                         {submitting ? 'Signing in…' : 'Login'}
                     </button>
 
-                    <button
-                        type="button"
-                        onClick={() => setShowDemoAccounts((open) => !open)}
-                        className="mt-5 w-full cursor-pointer text-center text-sm text-[#515DEF] hover:underline lg:w-fit lg:text-left"
-                        aria-expanded={showDemoAccounts}
-                    >
-                        {showDemoAccounts ? 'Hide demo accounts' : 'Use a demo account'}
-                    </button>
-
-                    {showDemoAccounts && (
-                        <div className="mt-3 rounded-xl bg-[#F3F6FB] p-3">
-                            <p className="mb-2 px-1 text-xs font-medium text-[#1B2B4B]">Backend API accounts (password admin123)</p>
-                            <ul className="mb-3 flex flex-col gap-0.5">
-                                {API_ACCOUNTS.map((account) => (
-                                    <li key={`api-${account.role}`}>
-                                        <button
-                                            type="button"
-                                            className="w-full cursor-pointer rounded-lg px-2 py-1.5 text-left hover:bg-white"
-                                            onClick={() => {
-                                                setEmail(account.email)
-                                                setPassword(account.password)
-                                                setError('')
-                                            }}
-                                        >
-                                            <span className="text-sm font-medium text-[#1B2B4B]">{account.label}</span>
-                                            <span className="block break-all text-xs text-[#5C6B82]">{account.email}</span>
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                            <p className="mb-2 px-1 text-xs text-[#5C6B82]">
-                                Local demo fallback password <span className="font-semibold text-[#1B2B4B]">{DEMO_PASSWORD}</span>
-                            </p>
-                            <ul className="flex max-h-40 flex-col gap-0.5 overflow-y-auto">
-                                {DEMO_ACCOUNTS.map((account) => (
-                                    <li key={account.role}>
-                                        <button
-                                            type="button"
-                                            className="w-full cursor-pointer rounded-lg px-2 py-1.5 text-left hover:bg-white"
-                                            onClick={() => {
-                                                setEmail(account.email)
-                                                setPassword(account.password)
-                                                setError('')
-                                            }}
-                                        >
-                                            <span className="text-sm font-medium text-[#1B2B4B]">{account.label}</span>
-                                            <span className="block break-all text-xs text-[#5C6B82]">{account.email}</span>
-                                        </button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
                 </form>
             </main>
         </div>

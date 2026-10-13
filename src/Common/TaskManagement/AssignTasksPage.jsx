@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Navigate, NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -7,7 +7,12 @@ import Dropdown from '../CommonComponents/Dropdown'
 import ExportModal from '../CommonComponents/ExportModal'
 import EditRequestModal from '../CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../CommonComponents/DeleteRequestModal'
-import { getTasksAssignedByRole } from './taskManagementData'
+import {
+    getTasksAssignedByRole,
+    hydrateTasksFromApi,
+    isTasksApiMode,
+    TASKS_UPDATED_EVENT,
+} from './taskManagementData'
 import {
     canAssignTasks,
     formatAssignedTo,
@@ -33,7 +38,29 @@ const AssignTasksPage = () => {
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
 
-    const tasks = useMemo(() => getTasksAssignedByRole(roleKey), [roleKey])
+    const apiMode = isTasksApiMode()
+    // Rows live in state and are re-read whenever the data layer announces a change (API refresh or local write).
+    const [tasks, setTasks] = useState(() => getTasksAssignedByRole(roleKey))
+    const [load, setLoad] = useState({ loading: apiMode, error: '' })
+
+    useEffect(() => {
+        let cancelled = false
+        const refresh = () => {
+            if (!cancelled) setTasks(getTasksAssignedByRole(roleKey))
+        }
+        window.addEventListener(TASKS_UPDATED_EVENT, refresh)
+        Promise.resolve().then(refresh)
+        if (apiMode) {
+            hydrateTasksFromApi().then((result) => {
+                if (cancelled || result.skipped) return
+                setLoad({ loading: false, error: result.ok ? '' : result.error })
+            })
+        }
+        return () => {
+            cancelled = true
+            window.removeEventListener(TASKS_UPDATED_EVENT, refresh)
+        }
+    }, [roleKey, apiMode])
 
     const filteredTasks = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -135,6 +162,11 @@ const AssignTasksPage = () => {
                         </button>
                     </div>
                 </div>
+                {load.error && (
+                    <p role='alert' className='mb-3 text-sm text-[#B42318] bg-[#FEF3F2] border border-[#FDA29B] rounded-md px-3 py-2'>
+                        Could not load tasks from the server: {load.error}
+                    </p>
+                )}
                 <div className='relative overflow-x-auto'>
                     <table className='w-full text-sm text-left'>
                         <thead className='text-xs bg-[#EDEEF5] whitespace-nowrap rounded-lg'>
@@ -147,14 +179,15 @@ const AssignTasksPage = () => {
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Priority</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Due Date</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Status</th>
+                                {apiMode && <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Remarks</th>}
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {filteredTasks.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9} className='px-2 py-8 text-center text-[#808080]'>
-                                        No tasks assigned yet.
+                                    <td colSpan={apiMode ? 10 : 9} className='px-2 py-8 text-center text-[#808080]'>
+                                        {load.loading ? 'Loading tasks…' : 'No tasks assigned yet.'}
                                     </td>
                                 </tr>
                             ) : (
@@ -166,10 +199,16 @@ const AssignTasksPage = () => {
                                         <td className='px-2 py-4'>{getRoleLabel(task.assigneeRole)}</td>
                                         <td className='px-2 py-4' title={task.assigneeNames?.join(', ')}>{formatAssignedTo(task.assigneeNames)}</td>
                                         <td className='px-2 py-4'>{task.priority}</td>
-                                        <td className='px-2 py-4'>{task.dueDate}</td>
+                                        <td className='px-2 py-4 whitespace-nowrap'>
+                                            {task.dueDate}
+                                            {task.overdue && (
+                                                <span className='ml-2 px-2 py-0.5 rounded-lg text-xs font-semibold bg-[#FF000033] text-[#FF0000]'>Overdue</span>
+                                            )}
+                                        </td>
                                         <td className='px-2 py-4'>
                                             <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusBadgeColor[task.status] ?? ''}`}>{task.status}</span>
                                         </td>
+                                        {apiMode && <td className='px-2 py-4 max-w-[180px]' title={task.remark}>{task.remark || '—'}</td>}
                                         <td className='px-2 py-4 text-center rounded-e-lg'>
                                             <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
                                                 <button type='button' onClick={() => setEditRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Edit</button>

@@ -21,7 +21,7 @@ const EscalationForm = ({ form, onChange, roleConfig, readOnly = false }) => {
                 <label className={labelClass}>Recipient Role</label>
                 <input
                     type='text'
-                    value={roleConfig?.escalatesTo ?? form.escalatedTo ?? '—'}
+                    value={(readOnly ? form.escalatedTo : roleConfig?.escalatesTo) ?? form.escalatedTo ?? '—'}
                     disabled
                     className={inputClass}
                 />

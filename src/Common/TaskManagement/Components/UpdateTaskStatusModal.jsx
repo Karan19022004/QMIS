@@ -1,15 +1,28 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { X } from 'lucide-react'
 import { getNextStatusOptions, statusBadgeColor, TASK_STATUSES } from '../taskManagementConfig'
 
-const UpdateTaskStatusModal = ({ open, task, onClose, onSave, showRemark = false }) => {
+/**
+ * onSave(taskId, status, remark) may be synchronous (local mode) or return a promise resolving to
+ * { ok, error } (API mode). On { ok: false } the modal stays open and shows the error.
+ * - requireStatusChange: the status must actually change (API mode: the server rejects a no-op move).
+ * State is initialised from the task once: render with key={task.id} so each task gets a fresh modal.
+ * - prefillRemark: start with the task's last remark (local mode) instead of an empty box (API mode, where
+ *   every remark belongs to one specific move).
+ */
+const UpdateTaskStatusModal = ({
+    open,
+    task,
+    onClose,
+    onSave,
+    showRemark = false,
+    requireStatusChange = false,
+    prefillRemark = true,
+}) => {
     const [status, setStatus] = useState(task?.status ?? 'Pending')
-    const [remark, setRemark] = useState(task?.remark ?? '')
-
-    useEffect(() => {
-        if (task?.status) setStatus(task.status)
-        setRemark(task?.remark ?? '')
-    }, [task])
+    const [remark, setRemark] = useState(prefillRemark ? (task?.remark ?? '') : '')
+    const [saving, setSaving] = useState(false)
+    const [error, setError] = useState('')
 
     if (!open || !task) return null
 
@@ -18,10 +31,21 @@ const UpdateTaskStatusModal = ({ open, task, onClose, onSave, showRemark = false
         ? nextOptions
         : TASK_STATUSES.filter((item) => item !== task.status)
 
-    const handleSave = () => {
-        onSave(task.id, status, remark)
+    const handleSave = async () => {
+        if (saving) return
+        setSaving(true)
+        setError('')
+        const result = await onSave(task.id, status, remark)
+        if (result && result.ok === false) {
+            setSaving(false)
+            setError(result.error || 'Could not update the task.')
+            return
+        }
+        setSaving(false)
         onClose()
     }
+
+    const needsChange = !showRemark || requireStatusChange
 
     return (
         <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
@@ -60,9 +84,12 @@ const UpdateTaskStatusModal = ({ open, task, onClose, onSave, showRemark = false
                     </div>
                     {showRemark && (
                         <div className='flex flex-col gap-y-2'>
-                            <label htmlFor='task-remark' className='text-base font-medium text-[#1E1E1E]'>Remarks</label>
-                            <textarea id='task-remark' value={remark} onChange={(e) => setRemark(e.target.value)} rows={3} className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2 w-full' />
+                            <label htmlFor='task-remark' className='text-base font-medium text-[#1E1E1E]'>Remarks (optional)</label>
+                            <textarea id='task-remark' value={remark} onChange={(e) => setRemark(e.target.value)} rows={3} maxLength={2000} className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2 w-full' />
                         </div>
+                    )}
+                    {error && (
+                        <p role='alert' className='text-sm text-[#B42318] bg-[#FEF3F2] border border-[#FDA29B] rounded-md px-3 py-2'>{error}</p>
                     )}
                 </div>
                 <div className='flex justify-end gap-3 px-6 py-4 border-t border-[#EDEEF5]'>
@@ -76,10 +103,10 @@ const UpdateTaskStatusModal = ({ open, task, onClose, onSave, showRemark = false
                     <button
                         type='button'
                         onClick={handleSave}
-                        disabled={!showRemark && status === task.status}
+                        disabled={saving || (needsChange && status === task.status)}
                         className='bg-[#515DEF] text-white text-sm px-6 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
                     >
-                        Update Status
+                        {saving ? 'Saving…' : 'Update Status'}
                     </button>
                 </div>
             </div>

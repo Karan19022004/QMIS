@@ -55,7 +55,7 @@ def _enroll(client: TestClient, headers: dict, name="Neha Rao", cls="Grade 3") -
         f"/api/v1/admissions/{admission_id}/enroll",
         json={
             "parent_account_email": "parent.neha@example.com",
-            "parent_account_password": "parent123",
+            "parent_account_password": "Parent-Test-2026",
         },
         headers=headers,
     )

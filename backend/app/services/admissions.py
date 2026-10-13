@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.passwords import password_policy_message
 from app.core.security import hash_password
 from app.models import Admission, AdmissionEnquiry, Guardian, Role, Student, User
 from app.schemas.admissions import AdmissionCreate, EnrollAdmissionIn, EnquiryCreate
@@ -442,11 +443,14 @@ def _ensure_parent_user(
     if skip or not email:
         return None, False
     email = email.strip().lower()
-    if not password or len(password.strip()) < 6:
-        fail(400, "validation_error", "Parent password is required (min 6 characters).")
+    if not password or not password.strip():
+        fail(400, "validation_error", "Parent password is required.")
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
         return existing, False
+    policy_message = password_policy_message(password.strip(), email=email)
+    if policy_message:
+        fail(400, "weak_password", policy_message)
     role = db.scalar(select(Role).where(Role.code == "parent"))
     if role is None:
         fail(500, "config_error", "Parent role is not seeded.")

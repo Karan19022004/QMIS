@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -7,8 +7,12 @@ import Dropdown from '../CommonComponents/Dropdown'
 import ExportModal from '../CommonComponents/ExportModal'
 import { getRoleConfig } from './escalationRoleConfig'
 import {
-    getReceivedEscalations,
-    getSentEscalations,
+    ESCALATIONS_UPDATED_EVENT,
+    getAllEscalations,
+    hydrateEscalationsFromApi,
+    isReceivedEscalation,
+    isResolutionOverdue,
+    isSentEscalation,
     statusBadgeColor,
 } from './escalationData'
 import { formatEscalatedToDisplay } from './escalationUsersData'
@@ -24,16 +28,20 @@ const EscalationListPage = ({ roleKey }) => {
     const [search, setSearch] = useState('')
     const [entriesPerPage, setEntriesPerPage] = useState(10)
     const [exportModal, setExportModal] = useState(false)
-    const [refreshKey, setRefreshKey] = useState(0)
+    // Records live in state rather than in a memo keyed on a counter: with React Compiler a dependency
+    // the callback never reads is dropped, so API updates would not refresh the lists.
+    const [records, setRecords] = useState(() => getAllEscalations())
 
-    const sentEscalations = useMemo(
-        () => getSentEscalations(roleKey, currentUser),
-        [roleKey, currentUser, refreshKey],
-    )
-    const receivedEscalations = useMemo(
-        () => getReceivedEscalations(roleKey, currentUser),
-        [roleKey, currentUser, refreshKey],
-    )
+    // With a backend session the server is the source of truth (it also runs the 24h clock on read).
+    useEffect(() => {
+        const refresh = () => setRecords(getAllEscalations())
+        window.addEventListener(ESCALATIONS_UPDATED_EVENT, refresh)
+        hydrateEscalationsFromApi()
+        return () => window.removeEventListener(ESCALATIONS_UPDATED_EVENT, refresh)
+    }, [])
+
+    const sentEscalations = records.filter((item) => isSentEscalation(item, roleKey, currentUser))
+    const receivedEscalations = records.filter((item) => isReceivedEscalation(item, roleKey, currentUser))
 
     const activeList = listView === 'received' ? receivedEscalations : sentEscalations
 
@@ -41,7 +49,7 @@ const EscalationListPage = ({ roleKey }) => {
         return activeList.filter((item) => {
             const matchesSearch =
                 !search ||
-                item.id.toLowerCase().includes(search.toLowerCase()) ||
+                String(item.escalationId || item.id).toLowerCase().includes(search.toLowerCase()) ||
                 item.escalatedBy.toLowerCase().includes(search.toLowerCase()) ||
                 item.description.toLowerCase().includes(search.toLowerCase()) ||
                 item.escalatedTo.toLowerCase().includes(search.toLowerCase())
@@ -54,7 +62,7 @@ const EscalationListPage = ({ roleKey }) => {
         setSearch('')
         setFromDate(null)
         setToDate(null)
-        setRefreshKey((value) => value + 1)
+        setRecords(getAllEscalations())
     }
 
     const listTitle = listView === 'received' ? 'Received Escalations' : 'My Escalations'
@@ -212,7 +220,7 @@ const EscalationListPage = ({ roleKey }) => {
                                         className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7]'
                                     >
                                         <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>
-                                            {escalation.id}
+                                            {escalation.escalationId || escalation.id}
                                         </td>
                                         <td className='px-2 py-4'>
                                             <span className='block text-[#1E1E1E]'>{escalation.escalatedBy}</span>
@@ -232,6 +240,9 @@ const EscalationListPage = ({ roleKey }) => {
                                             >
                                                 {escalation.status}
                                             </span>
+                                            {isResolutionOverdue(escalation) && (
+                                                <span className='ml-2 text-xs font-semibold text-[#FF0000]'>Overdue</span>
+                                            )}
                                         </td>
                                         <td className='px-2 py-4 text-center rounded-e-lg'>
                                             <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>

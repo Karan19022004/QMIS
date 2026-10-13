@@ -1,6 +1,5 @@
 import { HR_KEYS } from '../Pages/HR/domain/hrStorage'
 import { apiRequest, getAccessToken, getApiBaseUrl } from './apiClient'
-import { apiLogin } from './authApi'
 
 const LIST_BY_KEY = {
     [HR_KEYS.documents]: 'documents',
@@ -26,14 +25,12 @@ const LIST_BY_KEY = {
     [HR_KEYS.announcements]: 'announcements',
 }
 
+/**
+ * HR calls always run as the signed-in user. There is no fallback login: with no token the
+ * request fails closed, and the backend's role permissions decide what the user may do.
+ */
 export async function connectHrApi() {
-    if (getAccessToken()) return true
-    try {
-        await apiLogin('hr@qmis.edu', 'hr12345')
-        return true
-    } catch {
-        return false
-    }
+    return Boolean(getAccessToken())
 }
 
 export async function createStaff(employee) {

@@ -1,9 +1,7 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Select from 'react-select'
-import {
-    getEscalationRecipientById,
-    getEscalationRecipientSelectOptions,
-} from '../escalationUsersData'
+import { getEscalationRecipientSelectOptions } from '../escalationUsersData'
+import { canUseEscalationsApi, listEscalationRecipientsApi } from '../../../services/escalationApi'
 
 const selectStyles = {
     control: (base, state) => ({
@@ -47,10 +45,31 @@ const RecipientSelect = ({
     disabled = false,
     roleLabel,
 }) => {
-    const options = useMemo(
+    const useApi = canUseEscalationsApi()
+    const [apiOptions, setApiOptions] = useState([])
+
+    // API mode: the people at the next level come from the server; leaving it empty sends to the whole role.
+    useEffect(() => {
+        if (!useApi) return undefined
+        let cancelled = false
+        listEscalationRecipientsApi()
+            .then((people) => {
+                if (cancelled) return
+                setApiOptions(
+                    people.map((person) => ({ value: person.id, label: person.email, subLabel: roleLabel })),
+                )
+            })
+            .catch(() => !cancelled && setApiOptions([]))
+        return () => {
+            cancelled = true
+        }
+    }, [useApi, roleLabel])
+
+    const localOptions = useMemo(
         () => getEscalationRecipientSelectOptions(targetRoleKey),
         [targetRoleKey],
     )
+    const options = useApi ? apiOptions : localOptions
 
     const selectedOption = useMemo(
         () => options.find((option) => option.value === value) ?? null,
@@ -68,13 +87,20 @@ const RecipientSelect = ({
                 value={selectedOption}
                 onChange={(option) => onChange?.(option?.value || '')}
                 isSearchable
+                isClearable={useApi}
                 isDisabled={disabled || options.length === 0}
-                placeholder={options.length ? `Search ${roleLabel || 'recipient'}...` : 'No users available'}
+                placeholder={
+                    useApi
+                        ? `Any ${roleLabel || 'recipient'} (or search for a person)...`
+                        : options.length
+                          ? `Search ${roleLabel || 'recipient'}...`
+                          : 'No users available'
+                }
                 styles={selectStyles}
                 formatOptionLabel={formatOptionLabel}
                 noOptionsMessage={() => 'No matching users found'}
             />
-            {options.length > 1 && (
+            {!useApi && options.length > 1 && (
                 <span className='text-xs text-[#667085]'>
                     Multiple {roleLabel?.toLowerCase() || 'recipient'} accounts found — choose the specific person who should receive this escalation.
                 </span>
@@ -83,5 +109,4 @@ const RecipientSelect = ({
     )
 }
 
-export { getEscalationRecipientById }
 export default RecipientSelect

@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import EscalationForm from './Components/EscalationForm'
-import { createEscalation, emptyEscalationForm } from './escalationData'
+import { createEscalation, emptyEscalationForm, raiseEscalationViaApi } from './escalationData'
+import { canUseEscalationsApi } from '../../services/escalationApi'
 import { getRoleConfig } from './escalationRoleConfig'
 import {
     getEscalationRecipientById,
@@ -15,16 +16,33 @@ const AddEscalationPage = ({ roleKey }) => {
     const roleConfig = getRoleConfig(roleKey)
     const { currentUser } = useEscalationContext(roleKey)
 
-    const defaultRecipientId = useMemo(
-        () => getEscalationRecipientSelectOptions(roleConfig?.escalatesToRoleKey)?.[0]?.value || '',
-        [roleConfig?.escalatesToRoleKey],
-    )
+    const apiOn = canUseEscalationsApi()
+    const defaultRecipientId = apiOn
+        ? ''
+        : getEscalationRecipientSelectOptions(roleConfig?.escalatesToRoleKey)?.[0]?.value || ''
 
     const [form, setForm] = useState(() => emptyEscalationForm(defaultRecipientId))
 
-    const handleSave = () => {
+    const [saving, setSaving] = useState(false)
+
+    const handleSave = async () => {
         if (!form.description.trim()) {
             toast.error('Description is required.')
+            return
+        }
+
+        if (canUseEscalationsApi()) {
+            // The server routes it one level up; the recipient is optional (empty = whole role).
+            setSaving(true)
+            try {
+                const created = await raiseEscalationViaApi(form)
+                toast.success(`${created.escalationId} routed to ${roleConfig.escalatesTo}. Resolve-by is 24 hours.`)
+                navigate(roleConfig.routeBase)
+            } catch (error) {
+                toast.error(error?.message || 'Could not raise the escalation.')
+            } finally {
+                setSaving(false)
+            }
             return
         }
 
@@ -66,6 +84,7 @@ const AddEscalationPage = ({ roleKey }) => {
                 <button
                     type='button'
                     onClick={handleSave}
+                    disabled={saving}
                     className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'
                 >
                     Save Escalation

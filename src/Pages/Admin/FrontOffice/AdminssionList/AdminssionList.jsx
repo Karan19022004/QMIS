@@ -70,13 +70,13 @@ const AdminssionList = () => {
             return
         }
         const entered = window.prompt(
-            `Create parent login for ${email}.\nEnter parent password (min 6 characters):`,
-            'parent123',
+            `Create parent login for ${email}.\nEnter a temporary parent password (min 10 characters, with a letter and a number). The parent must change it at first login:`,
+            '',
         )
         if (entered == null) return
         const password = String(entered).trim()
-        if (password.length < 6) {
-            toast.error('Parent password must be at least 6 characters.')
+        if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+            toast.error('Parent password must be at least 10 characters and contain a letter and a number.')
             return
         }
 

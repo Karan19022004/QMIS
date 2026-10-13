@@ -33,6 +33,22 @@ export const isApiLeaveEnabled = () => {
     }
     return isApiStudentsEnabled()
 }
+/** Escalations (24h clock) SoT — defaults on when the admissions/students API is on. */
+export const isApiEscalationsEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_ESCALATIONS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiStudentsEnabled()
+}
+/** Task Management SoT — defaults on when the admissions/students API is on. */
+export const isApiTasksEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_TASKS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiStudentsEnabled()
+}
 /** Notifications + approvals inbox — defaults on when the admissions/students API is on. */
 export const isApiNotificationsEnabled = () => {
     const explicit = import.meta.env.VITE_USE_API_NOTIFICATIONS
@@ -48,6 +64,20 @@ export const setAccessToken = (token) => {
     else sessionStorage.removeItem(TOKEN_KEY)
 }
 export const clearAccessToken = () => sessionStorage.removeItem(TOKEN_KEY)
+
+/**
+ * Offline demo sign-in (local-storage accounts, no API) is a development-only convenience.
+ * It requires a dev build AND an explicit VITE_ENABLE_DEMO_LOGINS=true, and is compiled out of
+ * production builds. The demo password is never stored in source; see VITE_DEMO_PASSWORD.
+ */
+export const isDemoLoginEnabled = () =>
+    Boolean(import.meta.env.DEV) && String(import.meta.env.VITE_ENABLE_DEMO_LOGINS || 'false') === 'true'
+
+export const SESSION_EXPIRED_EVENT = 'schoolerp:session-expired'
+export const SESSION_NOTICE_KEY = 'schoolerp_session_notice'
+
+// 401s on these paths mean "wrong credentials", not "your token expired".
+const AUTH_ATTEMPT_PATHS = ['/auth/login', '/auth/otp', '/auth/change-password']
 
 export class ApiError extends Error {
     constructor(message, status, details = null) {
@@ -96,6 +126,12 @@ export async function apiRequest(path, options = {}) {
     })
 
     if (!response.ok) {
+        if (response.status === 401 && token && !AUTH_ATTEMPT_PATHS.some((prefix) => path.startsWith(prefix))) {
+            // The signed-in token was rejected (expired or revoked): end the session.
+            clearAccessToken()
+            sessionStorage.setItem(SESSION_NOTICE_KEY, 'Your session has expired. Please sign in again.')
+            window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+        }
         throw new ApiError(await parseError(response), response.status)
     }
 

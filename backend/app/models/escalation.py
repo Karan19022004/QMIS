@@ -51,3 +51,22 @@ class Task(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     overdue_notified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+
+class TaskEvent(Base):
+    """Append-only task history: assignment and every status move, with the acting user and an optional remark."""
+
+    __tablename__ = "task_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tasks.id"), nullable=False, index=True)
+    campus_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campuses.id"), nullable=False)
+    action: Mapped[str] = mapped_column(String(16), nullable=False)  # assigned | status
+    from_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    to_status: Mapped[str] = mapped_column(String(16), nullable=False)
+    actor_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    actor_role: Mapped[str] = mapped_column(String(48), nullable=False)
+    remark: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Caller-supplied idempotency key for the "assigned" event (retries must not create a second task).
+    client_ref: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

@@ -102,7 +102,7 @@ def test_phase0_through_finance_campus_journey(client):
         headers=admin,
         json={
             "parent_account_email": "parent.diya@example.com",
-            "parent_account_password": "parent123",
+            "parent_account_password": "Parent-Test-2026",
         },
     )
     assert enrolled.status_code == 200, enrolled.text
@@ -110,7 +110,7 @@ def test_phase0_through_finance_campus_journey(client):
     assert enrolled.json()["admission"]["status"] == "Enrolled"
     assert enrolled.json()["parent_created"] is True
 
-    parent = _login(client, "parent.diya@example.com", "parent123")
+    parent = _login(client, "parent.diya@example.com", "Parent-Test-2026")
     parent_me = client.get("/api/v1/auth/me", headers=parent)
     assert parent_me.status_code == 200
     assert parent_me.json()["role"] == "parent"

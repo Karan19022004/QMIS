@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -31,10 +31,13 @@ class TaskIn(BaseModel):
     description: str | None = Field(default=None, max_length=4000)
     priority: str = "Medium"
     dueDate: date
+    # Optional client-generated key (8-64 chars): a retried POST with the same key returns the existing task.
+    clientRef: str | None = Field(default=None, min_length=8, max_length=64)
 
 
 class TaskStatusIn(BaseModel):
     status: str
+    remark: str | None = Field(default=None, max_length=2000)
 
 
 # ------------------------------------------------------------- escalations
@@ -70,6 +73,13 @@ def sweep_route(
     return svc.run_clock(db, user.campus_id, now=as_of)
 
 
+@router.get("/escalations/recipients")
+def recipients_route(
+    db: Session = Depends(get_db), user: User = Depends(require_permission("escalations.write"))
+) -> list[dict]:
+    return svc.recipients(db, user)
+
+
 @router.get("/escalations/{escalation_id}")
 def get_escalation_route(
     escalation_id: UUID, db: Session = Depends(get_db), user: User = Depends(require_permission("escalations.read"))
@@ -101,12 +111,18 @@ def assignees_route(
 
 @router.post("/tasks", status_code=201)
 def create_task_route(
-    body: TaskIn, db: Session = Depends(get_db), user: User = Depends(require_permission("tasks.write"))
+    body: TaskIn,
+    response: Response,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("tasks.write")),
 ) -> dict:
-    return svc.create_task(
+    task = svc.create_task(
         db, user, assignee_id=body.assigneeId, title=body.title, description=body.description,
-        priority=body.priority, due_date=body.dueDate,
+        priority=body.priority, due_date=body.dueDate, client_ref=body.clientRef,
     )
+    if task.get("idempotentReplay"):
+        response.status_code = 200  # same clientRef retried: the existing task, nothing new created
+    return task
 
 
 @router.get("/tasks")
@@ -133,4 +149,4 @@ def task_status_route(
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("tasks.write")),
 ) -> dict:
-    return svc.set_task_status(db, user, task_id, status=body.status)
+    return svc.set_task_status(db, user, task_id, status=body.status, remark=body.remark)

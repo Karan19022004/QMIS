@@ -10,7 +10,7 @@
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "983b2502cc48fde28e0ea04c048d061f84c41b49"
+      "revision": "a2ee3ba236b70f3fe9a445ec112e70c9dfe79a36"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -125,7 +125,7 @@
       "id": "client",
       "type": "frontend",
       "label": "API clients",
-      "sublabel": "11 *Api.js clients",
+      "sublabel": "13 *Api.js clients",
       "pos": [
         400,
         280
@@ -368,9 +368,9 @@
       ],
       "sources": [
         {
-          "path": "backend/app/main.py",
-          "line": 43,
-          "end_line": 48
+          "path": "backend/app/api/v1/endpoints/approvals.py",
+          "line": 1,
+          "end_line": 10
         }
       ]
     },
@@ -620,8 +620,9 @@
         "HR + Finance: API is SoT",
         "Phase 1: Head/Assistant + FY Apr\u2013Mar",
         "Gateway/SMTP/WA: env-gated (demo/stub)",
-        "Leave + bell notifications wired to UI (leaveApi, notificationsApi); leave flow checked in browser",
-        "Y-0..Y-5 backend built; Verified: 79 pytest"
+        "Leave, bell notifications, escalations and tasks wired to UI (leaveApi, notificationsApi, escalationApi, taskApi); each flow checked in browser",
+        "Tasks: remarks + history, retry-safe create, assignment hierarchy enforced on the backend",
+        "Y-0..Y-5 backend built; Verified: 90 pytest"
       ]
     },
     {
@@ -640,6 +641,7 @@
         "admissionsApi.js",
         "attendanceApi.js",
         "authApi.js",
+        "escalationApi.js",
         "filesApi.js",
         "financeApi.js",
         "hrApi.js",
@@ -647,6 +649,7 @@
         "notificationsApi.js",
         "parentsApi.js",
         "studentsApi.js",
+        "taskApi.js",
         "apiClient.js"
       ]
     },
@@ -654,7 +657,8 @@
       "dot": "rose",
       "title": "Still open",
       "items": [
-        "UI not wired yet: lesson plans, marks (need decisions/screens), escalations, tasks",
+        "UI not wired yet: lesson plans, marks (need decisions/screens)",
+        "Tasks: no attachments, no Admin/Director all-tasks screen",
         "24h clock needs a scheduler (runs on list reads + admin sweep today)",
         "Live SMTP/WhatsApp/Paytm when school ready",
         "RFID / eSSL if school confirms (still off)"
