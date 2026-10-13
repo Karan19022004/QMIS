@@ -5,16 +5,16 @@
   "status": "pass",
   "type": "architecture",
   "quality": "showcase",
-  "startedAt": "2026-10-13T10:43:28.253Z",
+  "startedAt": "2026-10-13T16:45:50.659Z",
   "specification": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
-    "sha256": "fd854148009386ced1ef742bd2382fd2a109bd1153be3649ce1c4f18892c11b7",
-    "bytes": 14017
+    "sha256": "023baee855769f895be931ecea74d794e38ef7c56851f42bfc802aeba741d6e4",
+    "bytes": 16080
   },
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "8939ec70fc92d60a8404175de5a9974e868cc0594606a5863e38b14548d81104",
-    "bytes": 785277
+    "sha256": "38219e2621a30ebc8abb001b4a6aa182b94b2b666e2444a649225d56ab298a12",
+    "bytes": 790834
   },
   "stages": {
     "validate": {
@@ -40,8 +40,8 @@
         "ok": true,
         "command": "validate",
         "specification": {
-          "sha256": "fd854148009386ced1ef742bd2382fd2a109bd1153be3649ce1c4f18892c11b7",
-          "bytes": 14017
+          "sha256": "023baee855769f895be931ecea74d794e38ef7c56851f42bfc802aeba741d6e4",
+          "bytes": 16080
         },
         "validation": {
           "checksPassed": 9,
@@ -56,7 +56,7 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 1613,
+      "durationMs": 1509,
       "command": [
         "C:\\Program Files\\nodejs\\node.exe",
         "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
@@ -72,19 +72,19 @@
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "b05308b8-c68d-4bdb-a723-c70932dd78e8",
+        "receiptId": "22f3be61-9b48-4368-b118-9498ca36d60a",
         "ok": true,
         "command": "deliver",
         "type": "architecture",
         "input": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
         "output": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
         "specification": {
-          "sha256": "fd854148009386ced1ef742bd2382fd2a109bd1153be3649ce1c4f18892c11b7",
-          "bytes": 14017
+          "sha256": "023baee855769f895be931ecea74d794e38ef7c56851f42bfc802aeba741d6e4",
+          "bytes": 16080
         },
         "artifact": {
-          "sha256": "8939ec70fc92d60a8404175de5a9974e868cc0594606a5863e38b14548d81104",
-          "bytes": 785277
+          "sha256": "38219e2621a30ebc8abb001b4a6aa182b94b2b666e2444a649225d56ab298a12",
+          "bytes": 790834
         },
         "validation": {
           "checksPassed": 9,
@@ -97,8 +97,8 @@
         "evidence": {
           "verified": true,
           "repository": "https://github.com/karan4533/ERP-dev",
-          "revision": "a2ee3ba236b70f3fe9a445ec112e70c9dfe79a36",
-          "references": 18
+          "revision": "ecb1e70f4fc10a373162d5dd46bd2099cb8c9c2c",
+          "references": 20
         },
         "update": {
           "status": "unavailable",
@@ -116,7 +116,7 @@
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 240,
+      "durationMs": 249,
       "command": [
         "C:\\Program Files\\nodejs\\node.exe",
         "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
@@ -128,8 +128,8 @@
         "ok": true,
         "file": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
         "artifact": {
-          "sha256": "8939ec70fc92d60a8404175de5a9974e868cc0594606a5863e38b14548d81104",
-          "bytes": 785277
+          "sha256": "38219e2621a30ebc8abb001b4a6aa182b94b2b666e2444a649225d56ab298a12",
+          "bytes": 790834
         },
         "checks": [
           {
@@ -190,7 +190,7 @@
           },
           "metrics": {
             "properCrossings": 0,
-            "resolvedCrossovers": 11,
+            "resolvedCrossovers": 12,
             "ambiguousCorridors": 0,
             "arrowheadCollisions": 0,
             "containerBorderRuns": 0,
@@ -204,10 +204,10 @@
             "routesOverSuggestedBends": 5,
             "maxStretch": 1.175,
             "routesOverSuggestedStretch": 0,
-            "minSegmentPx": 20,
-            "minInteriorSegmentPx": 52,
-            "shortSegmentCount": 0,
-            "shortEndpointSegmentCount": 0,
+            "minSegmentPx": 8,
+            "minInteriorSegmentPx": 50,
+            "shortSegmentCount": 2,
+            "shortEndpointSegmentCount": 2,
             "shortInteriorSegmentCount": 0,
             "microSegmentCount": 0
           },
@@ -221,70 +221,93 @@
             "crossings": [
               {
                 "left": {
-                  "id": "api-mod_parents",
+                  "id": "api-mod_admissions",
                   "from": "api",
-                  "to": "mod_parents",
-                  "label": "",
-                  "collectionIndex": 9,
-                  "artifactIndex": 10
-                },
-                "right": {
-                  "id": "api-mod_students",
-                  "from": "api",
-                  "to": "mod_students",
+                  "to": "mod_admissions",
                   "label": "",
                   "collectionIndex": 10,
                   "artifactIndex": 11
                 },
+                "right": {
+                  "id": "api-mod_parents",
+                  "from": "api",
+                  "to": "mod_parents",
+                  "label": "",
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
+                },
                 "point": [
                   920,
-                  253
+                  246
                 ],
                 "sharedNode": "api"
               },
               {
                 "left": {
-                  "id": "api-mod_parents",
+                  "id": "api-mod_admissions",
                   "from": "api",
-                  "to": "mod_parents",
+                  "to": "mod_admissions",
                   "label": "",
-                  "collectionIndex": 9,
-                  "artifactIndex": 10
+                  "collectionIndex": 10,
+                  "artifactIndex": 11
                 },
                 "right": {
-                  "id": "api-mod_workflows",
+                  "id": "api-mod_attendance",
                   "from": "api",
-                  "to": "mod_workflows",
-                  "label": "",
-                  "collectionIndex": 12,
-                  "artifactIndex": 13
-                },
-                "point": [
-                  920,
-                  281
-                ],
-                "sharedNode": "api"
-              },
-              {
-                "left": {
-                  "id": "api-mod_parents",
-                  "from": "api",
-                  "to": "mod_parents",
-                  "label": "",
-                  "collectionIndex": 9,
-                  "artifactIndex": 10
-                },
-                "right": {
-                  "id": "api-mod_finance",
-                  "from": "api",
-                  "to": "mod_finance",
+                  "to": "mod_attendance",
                   "label": "",
                   "collectionIndex": 13,
                   "artifactIndex": 14
                 },
                 "point": [
                   920,
-                  295
+                  260
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_admissions",
+                  "from": "api",
+                  "to": "mod_admissions",
+                  "label": "",
+                  "collectionIndex": 10,
+                  "artifactIndex": 11
+                },
+                "right": {
+                  "id": "api-mod_workflows",
+                  "from": "api",
+                  "to": "mod_workflows",
+                  "label": "",
+                  "collectionIndex": 14,
+                  "artifactIndex": 15
+                },
+                "point": [
+                  920,
+                  302
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_admissions",
+                  "from": "api",
+                  "to": "mod_admissions",
+                  "label": "",
+                  "collectionIndex": 10,
+                  "artifactIndex": 11
+                },
+                "right": {
+                  "id": "api-mod_finance",
+                  "from": "api",
+                  "to": "mod_finance",
+                  "label": "",
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
+                },
+                "point": [
+                  920,
+                  288
                 ],
                 "sharedNode": "api"
               },
@@ -294,135 +317,135 @@
                   "from": "api",
                   "to": "mod_parents",
                   "label": "",
-                  "collectionIndex": 9,
-                  "artifactIndex": 10
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
                 },
                 "right": {
-                  "id": "api-mod_hr",
+                  "id": "api-mod_attendance",
                   "from": "api",
-                  "to": "mod_hr",
+                  "to": "mod_attendance",
                   "label": "",
-                  "collectionIndex": 14,
-                  "artifactIndex": 15
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
                 },
                 "point": [
-                  921.2222222222222,
-                  309
+                  1058,
+                  260
                 ],
                 "sharedNode": "api"
               },
               {
                 "left": {
-                  "id": "api-mod_attendance",
+                  "id": "api-mod_students",
                   "from": "api",
-                  "to": "mod_attendance",
+                  "to": "mod_students",
                   "label": "",
-                  "collectionIndex": 11,
-                  "artifactIndex": 12
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
                 },
                 "right": {
                   "id": "api-mod_workflows",
                   "from": "api",
                   "to": "mod_workflows",
                   "label": "",
-                  "collectionIndex": 12,
-                  "artifactIndex": 13
-                },
-                "point": [
-                  784,
-                  281
-                ],
-                "sharedNode": "api"
-              },
-              {
-                "left": {
-                  "id": "api-mod_attendance",
-                  "from": "api",
-                  "to": "mod_attendance",
-                  "label": "",
-                  "collectionIndex": 11,
-                  "artifactIndex": 12
-                },
-                "right": {
-                  "id": "api-mod_finance",
-                  "from": "api",
-                  "to": "mod_finance",
-                  "label": "",
-                  "collectionIndex": 13,
-                  "artifactIndex": 14
-                },
-                "point": [
-                  784,
-                  295
-                ],
-                "sharedNode": "api"
-              },
-              {
-                "left": {
-                  "id": "api-mod_attendance",
-                  "from": "api",
-                  "to": "mod_attendance",
-                  "label": "",
-                  "collectionIndex": 11,
-                  "artifactIndex": 12
-                },
-                "right": {
-                  "id": "api-mod_hr",
-                  "from": "api",
-                  "to": "mod_hr",
-                  "label": "",
                   "collectionIndex": 14,
                   "artifactIndex": 15
                 },
                 "point": [
                   784,
-                  309
+                  302
                 ],
                 "sharedNode": "api"
               },
               {
                 "left": {
-                  "id": "api-mod_attendance",
+                  "id": "api-mod_students",
                   "from": "api",
-                  "to": "mod_attendance",
+                  "to": "mod_students",
                   "label": "",
-                  "collectionIndex": 11,
-                  "artifactIndex": 12
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
                 },
                 "right": {
-                  "id": "api-mod_files",
+                  "id": "api-mod_finance",
                   "from": "api",
-                  "to": "mod_files",
+                  "to": "mod_finance",
                   "label": "",
                   "collectionIndex": 15,
                   "artifactIndex": 16
                 },
                 "point": [
                   784,
-                  323
+                  288
                 ],
                 "sharedNode": "api"
               },
               {
                 "left": {
-                  "id": "api-mod_attendance",
+                  "id": "api-mod_students",
                   "from": "api",
-                  "to": "mod_attendance",
+                  "to": "mod_students",
                   "label": "",
-                  "collectionIndex": 11,
-                  "artifactIndex": 12
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
                 },
                 "right": {
-                  "id": "api-mod_ops",
+                  "id": "api-mod_hr",
                   "from": "api",
-                  "to": "mod_ops",
+                  "to": "mod_hr",
                   "label": "",
                   "collectionIndex": 16,
                   "artifactIndex": 17
                 },
                 "point": [
                   784,
-                  337
+                  330
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_students",
+                  "from": "api",
+                  "to": "mod_students",
+                  "label": "",
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
+                },
+                "right": {
+                  "id": "api-mod_files",
+                  "from": "api",
+                  "to": "mod_files",
+                  "label": "",
+                  "collectionIndex": 17,
+                  "artifactIndex": 18
+                },
+                "point": [
+                  784,
+                  316
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_students",
+                  "from": "api",
+                  "to": "mod_students",
+                  "label": "",
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
+                },
+                "right": {
+                  "id": "api-mod_ops",
+                  "from": "api",
+                  "to": "mod_ops",
+                  "label": "",
+                  "collectionIndex": 18,
+                  "artifactIndex": 19
+                },
+                "point": [
+                  784,
+                  344
                 ],
                 "sharedNode": "api"
               },
@@ -432,43 +455,43 @@
                   "from": "api",
                   "to": "mod_workflows",
                   "label": "",
-                  "collectionIndex": 12,
-                  "artifactIndex": 13
+                  "collectionIndex": 14,
+                  "artifactIndex": 15
                 },
                 "right": {
                   "id": "api-mod_finance",
                   "from": "api",
                   "to": "mod_finance",
                   "label": "",
-                  "collectionIndex": 13,
-                  "artifactIndex": 14
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
                 },
                 "point": [
-                  1042,
-                  295
+                  1034,
+                  302
                 ],
                 "sharedNode": "api"
               },
               {
                 "left": {
-                  "id": "api-mod_finance",
-                  "from": "api",
-                  "to": "mod_finance",
-                  "label": "",
-                  "collectionIndex": 13,
-                  "artifactIndex": 14
-                },
-                "right": {
                   "id": "api-mod_hr",
                   "from": "api",
                   "to": "mod_hr",
                   "label": "",
-                  "collectionIndex": 14,
-                  "artifactIndex": 15
+                  "collectionIndex": 16,
+                  "artifactIndex": 17
+                },
+                "right": {
+                  "id": "api-mod_files",
+                  "from": "api",
+                  "to": "mod_files",
+                  "label": "",
+                  "collectionIndex": 17,
+                  "artifactIndex": 18
                 },
                 "point": [
-                  1056,
-                  456
+                  1018,
+                  330
                 ],
                 "sharedNode": "api"
               }
@@ -500,51 +523,51 @@
               },
               {
                 "relationship": {
-                  "id": "api-mod_audit",
+                  "id": "api-mod_masters",
                   "from": "api",
-                  "to": "mod_audit",
+                  "to": "mod_masters",
                   "label": "",
-                  "collectionIndex": 6,
-                  "artifactIndex": 7
-                },
-                "bends": 3,
-                "stretch": 1.072
-              },
-              {
-                "relationship": {
-                  "id": "api-mod_admissions",
-                  "from": "api",
-                  "to": "mod_admissions",
-                  "label": "",
-                  "collectionIndex": 8,
-                  "artifactIndex": 9
+                  "collectionIndex": 9,
+                  "artifactIndex": 10
                 },
                 "bends": 3,
                 "stretch": 1.081
               },
               {
                 "relationship": {
-                  "id": "api-mod_workflows",
+                  "id": "api-mod_parents",
                   "from": "api",
-                  "to": "mod_workflows",
+                  "to": "mod_parents",
                   "label": "",
-                  "collectionIndex": 12,
-                  "artifactIndex": 13
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
                 },
                 "bends": 3,
-                "stretch": 1
+                "stretch": 1.072
               },
               {
                 "relationship": {
-                  "id": "api-mod_hr",
+                  "id": "api-mod_finance",
                   "from": "api",
-                  "to": "mod_hr",
+                  "to": "mod_finance",
                   "label": "",
-                  "collectionIndex": 14,
-                  "artifactIndex": 15
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
                 },
                 "bends": 3,
-                "stretch": 1
+                "stretch": 1.058
+              },
+              {
+                "relationship": {
+                  "id": "api-mod_files",
+                  "from": "api",
+                  "to": "mod_files",
+                  "label": "",
+                  "collectionIndex": 17,
+                  "artifactIndex": 18
+                },
+                "bends": 3,
+                "stretch": 1.054
               }
             ]
           },
@@ -577,27 +600,25 @@
             },
             "minimumSourceTextPx": 7.1,
             "minimumProjectedTextPx": 6.501088435374149,
-            "semanticTextCount": 45
+            "semanticTextCount": 50
           },
           "issues": []
         },
         "provenance": "current",
-        "deliveryReceiptId": "b05308b8-c68d-4bdb-a723-c70932dd78e8"
+        "deliveryReceiptId": "22f3be61-9b48-4368-b118-9498ca36d60a"
       }
     },
     "browser-check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 1847,
+      "durationMs": 1899,
       "command": [
         "C:\\Program Files\\nodejs\\node.exe",
         "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
         "browser-check",
         "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
         "--json",
-        "--require-provenance",
-        "--out-dir",
-        "C:\\karan\\ERP dev\\.archify\\architecture-project-overview"
+        "--require-provenance"
       ],
       "execution": "in-process",
       "receipt": {
@@ -608,11 +629,11 @@
         "status": "pass",
         "visualReview": "not-requested",
         "provenance": "current",
-        "deliveryReceiptId": "b05308b8-c68d-4bdb-a723-c70932dd78e8",
+        "deliveryReceiptId": "22f3be61-9b48-4368-b118-9498ca36d60a",
         "artifact": {
           "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-          "sha256": "8939ec70fc92d60a8404175de5a9974e868cc0594606a5863e38b14548d81104",
-          "bytes": 785277
+          "sha256": "38219e2621a30ebc8abb001b4a6aa182b94b2b666e2444a649225d56ab298a12",
+          "bytes": 790834
         },
         "state": {
           "detail": "read",
@@ -1306,8 +1327,8 @@
     "browserCheckReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-10-13T10:43:32.815Z",
-  "durationMs": 4562,
+  "finishedAt": "2026-10-13T16:45:55.124Z",
+  "durationMs": 4465,
   "update": {
     "status": "current",
     "installedVersion": "3.0.1",

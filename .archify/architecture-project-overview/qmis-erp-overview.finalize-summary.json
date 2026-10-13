@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
-    "sha256": "fd854148009386ced1ef742bd2382fd2a109bd1153be3649ce1c4f18892c11b7",
-    "bytes": 14017
+    "sha256": "023baee855769f895be931ecea74d794e38ef7c56851f42bfc802aeba741d6e4",
+    "bytes": 16080
   },
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "8939ec70fc92d60a8404175de5a9974e868cc0594606a5863e38b14548d81104",
-    "bytes": 785277
+    "sha256": "38219e2621a30ebc8abb001b4a6aa182b94b2b666e2444a649225d56ab298a12",
+    "bytes": 790834
   },
   "gates": {
     "validate": "pass",
@@ -43,11 +43,11 @@
     "noticeText": null
   },
   "visualReview": "not-requested",
-  "durationMs": 4562,
+  "durationMs": 4465,
   "visualReviewRecommendation": {
     "action": "inspect-route-readability",
     "signals": {
-      "resolvedCrossovers": 11,
+      "resolvedCrossovers": 12,
       "routesOverSuggestedBends": 5
     },
     "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
@@ -55,70 +55,93 @@
       "crossings": [
         {
           "left": {
-            "id": "api-mod_parents",
+            "id": "api-mod_admissions",
             "from": "api",
-            "to": "mod_parents",
-            "label": "",
-            "collectionIndex": 9,
-            "artifactIndex": 10
-          },
-          "right": {
-            "id": "api-mod_students",
-            "from": "api",
-            "to": "mod_students",
+            "to": "mod_admissions",
             "label": "",
             "collectionIndex": 10,
             "artifactIndex": 11
           },
+          "right": {
+            "id": "api-mod_parents",
+            "from": "api",
+            "to": "mod_parents",
+            "label": "",
+            "collectionIndex": 11,
+            "artifactIndex": 12
+          },
           "point": [
             920,
-            253
+            246
           ],
           "sharedNode": "api"
         },
         {
           "left": {
-            "id": "api-mod_parents",
+            "id": "api-mod_admissions",
             "from": "api",
-            "to": "mod_parents",
+            "to": "mod_admissions",
             "label": "",
-            "collectionIndex": 9,
-            "artifactIndex": 10
+            "collectionIndex": 10,
+            "artifactIndex": 11
           },
           "right": {
-            "id": "api-mod_workflows",
+            "id": "api-mod_attendance",
             "from": "api",
-            "to": "mod_workflows",
-            "label": "",
-            "collectionIndex": 12,
-            "artifactIndex": 13
-          },
-          "point": [
-            920,
-            281
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_parents",
-            "from": "api",
-            "to": "mod_parents",
-            "label": "",
-            "collectionIndex": 9,
-            "artifactIndex": 10
-          },
-          "right": {
-            "id": "api-mod_finance",
-            "from": "api",
-            "to": "mod_finance",
+            "to": "mod_attendance",
             "label": "",
             "collectionIndex": 13,
             "artifactIndex": 14
           },
           "point": [
             920,
-            295
+            260
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_admissions",
+            "from": "api",
+            "to": "mod_admissions",
+            "label": "",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "right": {
+            "id": "api-mod_workflows",
+            "from": "api",
+            "to": "mod_workflows",
+            "label": "",
+            "collectionIndex": 14,
+            "artifactIndex": 15
+          },
+          "point": [
+            920,
+            302
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_admissions",
+            "from": "api",
+            "to": "mod_admissions",
+            "label": "",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "right": {
+            "id": "api-mod_finance",
+            "from": "api",
+            "to": "mod_finance",
+            "label": "",
+            "collectionIndex": 15,
+            "artifactIndex": 16
+          },
+          "point": [
+            920,
+            288
           ],
           "sharedNode": "api"
         },
@@ -128,112 +151,89 @@
             "from": "api",
             "to": "mod_parents",
             "label": "",
-            "collectionIndex": 9,
-            "artifactIndex": 10
+            "collectionIndex": 11,
+            "artifactIndex": 12
           },
           "right": {
-            "id": "api-mod_hr",
+            "id": "api-mod_attendance",
             "from": "api",
-            "to": "mod_hr",
+            "to": "mod_attendance",
             "label": "",
-            "collectionIndex": 14,
-            "artifactIndex": 15
+            "collectionIndex": 13,
+            "artifactIndex": 14
           },
           "point": [
-            921.2222222222222,
-            309
+            1058,
+            260
           ],
           "sharedNode": "api"
         },
         {
           "left": {
-            "id": "api-mod_attendance",
+            "id": "api-mod_students",
             "from": "api",
-            "to": "mod_attendance",
+            "to": "mod_students",
             "label": "",
-            "collectionIndex": 11,
-            "artifactIndex": 12
+            "collectionIndex": 12,
+            "artifactIndex": 13
           },
           "right": {
             "id": "api-mod_workflows",
             "from": "api",
             "to": "mod_workflows",
             "label": "",
-            "collectionIndex": 12,
-            "artifactIndex": 13
-          },
-          "point": [
-            784,
-            281
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_attendance",
-            "from": "api",
-            "to": "mod_attendance",
-            "label": "",
-            "collectionIndex": 11,
-            "artifactIndex": 12
-          },
-          "right": {
-            "id": "api-mod_finance",
-            "from": "api",
-            "to": "mod_finance",
-            "label": "",
-            "collectionIndex": 13,
-            "artifactIndex": 14
-          },
-          "point": [
-            784,
-            295
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_attendance",
-            "from": "api",
-            "to": "mod_attendance",
-            "label": "",
-            "collectionIndex": 11,
-            "artifactIndex": 12
-          },
-          "right": {
-            "id": "api-mod_hr",
-            "from": "api",
-            "to": "mod_hr",
-            "label": "",
             "collectionIndex": 14,
             "artifactIndex": 15
           },
           "point": [
             784,
-            309
+            302
           ],
           "sharedNode": "api"
         },
         {
           "left": {
-            "id": "api-mod_attendance",
+            "id": "api-mod_students",
             "from": "api",
-            "to": "mod_attendance",
+            "to": "mod_students",
             "label": "",
-            "collectionIndex": 11,
-            "artifactIndex": 12
+            "collectionIndex": 12,
+            "artifactIndex": 13
           },
           "right": {
-            "id": "api-mod_files",
+            "id": "api-mod_finance",
             "from": "api",
-            "to": "mod_files",
+            "to": "mod_finance",
             "label": "",
             "collectionIndex": 15,
             "artifactIndex": 16
           },
           "point": [
             784,
-            323
+            288
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_students",
+            "from": "api",
+            "to": "mod_students",
+            "label": "",
+            "collectionIndex": 12,
+            "artifactIndex": 13
+          },
+          "right": {
+            "id": "api-mod_hr",
+            "from": "api",
+            "to": "mod_hr",
+            "label": "",
+            "collectionIndex": 16,
+            "artifactIndex": 17
+          },
+          "point": [
+            784,
+            330
           ],
           "sharedNode": "api"
         }
@@ -265,64 +265,64 @@
         },
         {
           "relationship": {
-            "id": "api-mod_audit",
+            "id": "api-mod_masters",
             "from": "api",
-            "to": "mod_audit",
+            "to": "mod_masters",
             "label": "",
-            "collectionIndex": 6,
-            "artifactIndex": 7
-          },
-          "bends": 3,
-          "stretch": 1.072
-        },
-        {
-          "relationship": {
-            "id": "api-mod_admissions",
-            "from": "api",
-            "to": "mod_admissions",
-            "label": "",
-            "collectionIndex": 8,
-            "artifactIndex": 9
+            "collectionIndex": 9,
+            "artifactIndex": 10
           },
           "bends": 3,
           "stretch": 1.081
         },
         {
           "relationship": {
-            "id": "api-mod_workflows",
+            "id": "api-mod_parents",
             "from": "api",
-            "to": "mod_workflows",
+            "to": "mod_parents",
             "label": "",
-            "collectionIndex": 12,
-            "artifactIndex": 13
+            "collectionIndex": 11,
+            "artifactIndex": 12
           },
           "bends": 3,
-          "stretch": 1
+          "stretch": 1.072
         },
         {
           "relationship": {
-            "id": "api-mod_hr",
+            "id": "api-mod_finance",
             "from": "api",
-            "to": "mod_hr",
+            "to": "mod_finance",
             "label": "",
-            "collectionIndex": 14,
-            "artifactIndex": 15
+            "collectionIndex": 15,
+            "artifactIndex": 16
           },
           "bends": 3,
-          "stretch": 1
+          "stretch": 1.058
+        },
+        {
+          "relationship": {
+            "id": "api-mod_files",
+            "from": "api",
+            "to": "mod_files",
+            "label": "",
+            "collectionIndex": 17,
+            "artifactIndex": 18
+          },
+          "bends": 3,
+          "stretch": 1.054
         }
       ],
       "truncated": true
     },
     "hints": [
-      "api → mod_parents and api → mod_students cross next to api: move node mod_parents or mod_students so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_parents and api → mod_workflows cross next to api: move node mod_parents or mod_workflows so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_parents and api → mod_finance cross next to api: move node mod_parents or mod_finance so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_parents and api → mod_hr cross next to api: move node mod_parents or mod_hr so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_attendance and api → mod_workflows cross next to api: move node mod_attendance or mod_workflows so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_attendance and api → mod_finance cross next to api: move node mod_attendance or mod_finance so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_attendance and api → mod_hr cross next to api: move node mod_attendance or mod_hr so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_attendance and api → mod_files cross next to api: move node mod_attendance or mod_files so the two reach api from different sides (for example one level with it, one directly above or below it)."
+      "api → mod_admissions and api → mod_parents cross next to api: move node mod_admissions or mod_parents so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_admissions and api → mod_attendance cross next to api: move node mod_admissions or mod_attendance so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_admissions and api → mod_workflows cross next to api: move node mod_admissions or mod_workflows so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_admissions and api → mod_finance cross next to api: move node mod_admissions or mod_finance so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_parents and api → mod_attendance cross next to api: move node mod_parents or mod_attendance so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_students and api → mod_workflows cross next to api: move node mod_students or mod_workflows so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_students and api → mod_finance cross next to api: move node mod_students or mod_finance so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_students and api → mod_hr cross next to api: move node mod_students or mod_hr so the two reach api from different sides (for example one level with it, one directly above or below it)."
     ],
     "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
   }

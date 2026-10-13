@@ -46,10 +46,18 @@ ROUTER_META = {
         "line": 9,
         "end_line": 20,
     },
+    "admin_users_router": {
+        "id": "mod_admin_users",
+        "label": "Admin users",
+        "sublabel": "users · roles",
+        "path": "backend/app/api/v1/endpoints/admin_users.py",
+        "line": 12,
+        "end_line": 134,
+    },
     "masters_router": {
         "id": "mod_masters",
         "label": "Masters",
-        "sublabel": "years · sections",
+        "sublabel": "years · classes · sections",
         "path": "backend/app/api/v1/endpoints/masters.py",
         "line": 23,
         "end_line": 80,
@@ -313,6 +321,16 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "sources": [{"path": "backend/app/core/config.py", "line": 4, "end_line": 20}],
         },
         {
+            "id": "alembic",
+            "type": "backend",
+            "label": "Alembic",
+            "sublabel": "0001 to 0003",
+            "pos": [370, 430],
+            "size": [140, 64],
+            "tag": "by hand",
+            "sources": [{"path": "backend/alembic/env.py", "line": 17, "end_line": 32}],
+        },
+        {
             "id": "uploads",
             "type": "database",
             "label": "Uploads",
@@ -334,6 +352,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
         {"id": "client-api", "from": "client", "to": "api", "label": "JWT", "variant": "security"},
         {"id": "api-db", "from": "api", "to": "db", "label": "SQL"},
         {"id": "api-uploads", "from": "api", "to": "uploads", "label": "files", "variant": "dashed"},
+        {"id": "alembic-db", "from": "alembic", "to": "db", "label": "upgrade head"},
     ]
     for nid in live_ids:
         connections.append({"id": f"api-{nid}", "from": "api", "to": nid})
@@ -385,14 +404,17 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "title": "Live now",
                 "items": [f"{m['label']} — {m['sublabel']}" for m in live]
                 + [
-                    "Flags: AUTH + ADMISSIONS + FINANCE",
+                    "Each screen has a VITE_USE_API_* flag; most default to the sign-in flag, off = browser-only demo data",
                     "Parents /me/children (P1-4) live",
                     "HR + Finance: API is SoT",
                     "Phase 1: Head/Assistant + FY Apr–Mar",
                     "Gateway/SMTP/WA: env-gated (demo/stub)",
                     "Leave, bell notifications, escalations and tasks wired to UI (leaveApi, notificationsApi, escalationApi, taskApi); each flow checked in browser",
                     "Tasks: remarks + history, retry-safe create, assignment hierarchy enforced on the backend",
-                    "Y-0..Y-5 backend built; Verified: 90 pytest",
+                    "Y-0..Y-5 backend built",
+                    "Administrator screens on the API: User Creation and Roles, Employee Database, Class Details, student and employee Attendance (read-only); each checked in a browser",
+                    "Schema changes are Alembic revisions 0001 to 0003, applied by hand after a backup; startup only warns when behind",
+                    "Verified: 260 pytest passed (13 Oct 2026)",
                 ],
             },
             {
@@ -415,6 +437,9 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "items": [
                     "UI not wired yet: lesson plans, marks (need decisions/screens)",
                     "Tasks: no attachments, no Admin/Director all-tasks screen",
+                    "Admin screens still local: Announcement, Communication, Calendar, Notifications page, TC approval, Activities, Documents, Dashboard",
+                    "Server stores no class capacity, class teacher or room; no student punch times; no class edit or delete",
+                    "Alembic not run at startup; three other drifted columns still need revisions",
                     "24h clock needs a scheduler (runs on list reads + admin sweep today)",
                     "Live SMTP/WhatsApp/Paytm when school ready",
                     "RFID / eSSL if school confirms (still off)",
