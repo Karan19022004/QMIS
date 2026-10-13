@@ -21,12 +21,25 @@ def pending_schema_problems() -> list[str]:
     if engine.dialect.name != "postgresql":
         return problems
     inspector = inspect(engine)
-    if inspector.has_table("hr_employees"):
-        column = next((c for c in inspector.get_columns("hr_employees") if c["name"] == "user_id"), None)
+    for table, column_name, consequence in (
+        (
+            "hr_employees",
+            "user_id",
+            "HR 'own record' lookups fail with a 500 for non-HR users",
+        ),
+        (
+            "school_classes",
+            "academic_year_id",
+            "filtering classes by academic year fails with a 500",
+        ),
+    ):
+        if not inspector.has_table(table):
+            continue
+        column = next((c for c in inspector.get_columns(table) if c["name"] == column_name), None)
         if column is not None and "uuid" not in str(column["type"]).lower():
             problems.append(
-                "hr_employees.user_id is not a UUID column, so HR 'own record' lookups fail with a 500 "
-                "for non-HR users. Back up the database, then run `alembic upgrade head`."
+                f"{table}.{column_name} is not a UUID column, so {consequence}. "
+                "Back up the database, then run `alembic upgrade head`."
             )
     return problems
 

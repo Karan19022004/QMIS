@@ -44,14 +44,15 @@ migration = _load_migration()
 # --- wiring (no database needed) --------------------------------------------------------
 
 
-def test_revisions_form_one_chain_ending_at_the_conversion():
+def test_revisions_form_one_chain():
     from alembic.config import Config
     from alembic.script import ScriptDirectory
 
     config = Config(str(BACKEND / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND / "alembic"))
     script = ScriptDirectory.from_config(config)
-    assert script.get_heads() == ["0002_hr_user_id_uuid"]
+    assert script.get_heads() == ["0003_class_year_uuid"]  # later revisions extend the chain
+    assert script.get_revision("0003_class_year_uuid").down_revision == "0002_hr_user_id_uuid"
     assert script.get_revision("0002_hr_user_id_uuid").down_revision == "0001_baseline"
     assert script.get_revision("0001_baseline").down_revision is None
 

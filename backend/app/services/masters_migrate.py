@@ -21,4 +21,9 @@ def ensure_masters_schema() -> None:
             present = {column["name"] for column in inspect(engine).get_columns(table)}
             for name, column_type in columns:
                 if name not in present:
+                    if (table, name) == ("school_classes", "academic_year_id") and connection.dialect.name == "postgresql":
+                        # The model declares a UUID foreign key. VARCHAR here made
+                        # `academic_year_id = <uuid>` fail on PostgreSQL (see alembic revision 0003).
+                        # Existing databases are fixed by `alembic upgrade head`.
+                        column_type = "UUID"
                     connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {column_type}"))
