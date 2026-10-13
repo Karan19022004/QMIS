@@ -104,7 +104,21 @@ Method: every `apiRequest(...)` path in `src/` was compared to the live OpenAPI 
 | Lesson plans (Y-2) | live | `lessonPlanApprovalData.js` (localStorage) | No — shape differs (FE: grouped weekly template; API: monthly plan with JSON content) |
 | Exams / marks / results (Y-3) | live | `markEntryApprovalData.js` (localStorage) | No — FE exam list and statuses differ; exam types are now seeded from the FE list |
 | Leave (Y-4) | live | `leaveApi.js` + `leaveRequestData.js` (localStorage is only a cache of the API; flag `VITE_USE_API_LEAVE`, defaults to the students flag); HR screen added at `/hr/leave-request/received` | Yes — verified in browser: teacher applies → principal approves → HR approves → teacher sees Approved. Dates converted ISO ↔ dd-mm-yyyy in `mapApiLeave`. Not browser-checked: rejection path, Permission with times |
-| Escalations + tasks (Y-5) | live | none; `escalationData.js` / `taskManagementData.js` still localStorage | No — FE already assumes the same ladder and 24h rule; needs an API client and mapping |
+| Escalations (Y-5) | live | `escalationApi.js` + `escalationData.js` (flag `VITE_USE_API_ESCALATIONS`) | Yes — browser-verified (Teacher, Coordinator, Principal, Director, Admin): raise, receive, resolve and reject with note, close, 24h auto-escalation (clock moved +25h/+49h via the admin sweep), bell notifications, Director/Admin access rules. Known gaps: no Admin "all escalations" tab (API has it); notification click does not open the item; not browser-checked: Super Admin, student/parent/gatekeeper/librarian screens, named-recipient dropdown, old local-storage mode after the latest list change, real 24h wait. Note: React Compiler is on; list data must live in state, not in a memo keyed on a counter |
+| Tasks (Y-5) | live (remarks + history, `clientRef` idempotency, assignment hierarchy added 13 Oct) | `taskApi.js` + `taskManagementData.js` (flag `VITE_USE_API_TASKS`, falls back to the students flag; local-storage path unchanged when off) | Yes — browser-verified (Principal, Teacher, Director, Admin) against the live backend: assign (single and several people, one task each), partial failure shown with a safe retry, status Pending → In Progress → Completed with remarks, overdue label, bell notifications, role restrictions, hierarchy rejection (403) shown on screen, flag-off regression. Details below |
+
+### Tasks (API mode) — how it works
+
+- **Flag:** `VITE_USE_API_TASKS=true` (or the students flag) and a signed-in session. Off → the old local-storage screens run exactly as before (checked in the browser: assign, list, status update).
+- **Status names:** backend `Incomplete` is shown as `Pending`; the UI never sends `Pending`, and moving a task back is refused client-side (the server also refuses: 409, no reopen).
+- **Assignees:** loaded from `GET /tasks/assignees` (real active users). That endpoint only returns the caller's direct reports.
+- **Several people:** the screen sends one `POST /tasks` per person (one assignee per task is a backend rule), in order. Each person has a stable `clientRef`; a retry of a lost response returns the existing task (HTTP 200, `idempotentReplay: true`), so no duplicates. A failure leaves the form locked and shows who was created and who failed, with "Retry failed (n)" that resends only the failed people.
+- **Dates / overdue:** assigned date is set by the server; overdue is computed by the server on read (never stored by the client).
+- **Remarks:** `POST /tasks/{id}/status` accepts an optional `remark` (max 2000). Every assignment and status change is stored in an append-only `task_events` table with the actor, role, remark and time; `GET /tasks/{id}` returns it as `history`; completion notifications to the assigner include the remark.
+- **Assignment hierarchy (enforced on the backend, mirrors `ASSIGNMENT_HIERARCHY` in `taskManagementConfig.js` — change both together):** superadmin → admin; admin → director; director → principal, prm; principal → coordinator, teacher, librarian; prm → gatekeepermanager; gatekeepermanager → gatekeeper. Any other pairing, and any role not listed (teacher, coordinator, HR…), gets 403. Assigning to yourself stays 400.
+- **Attachments:** not supported by the backend; the upload box is replaced by a note in API mode and hidden. Local mode keeps its upload box.
+- **Not added (out of scope):** edit, delete, reopen.
+- **Known gaps:** no Admin/Director "all tasks" screen (the API has `box=all` for admin, director/teacher get 403); only users the seed has can be assigned (Librarian, PRM, Gatekeeper roles have no users, so those paths are covered by backend tests only); "Retry failed" is also offered after a permanent rejection such as 403 (harmless, it fails again); the overdue claim race was fixed for tasks, but escalation auto-climb in `run_clock` could still send duplicate notifications if two list reads race (not changed); the API cache is in memory, so a page reload re-fetches.
 
 Known gaps in the wired modules:
 
@@ -112,4 +126,4 @@ Known gaps in the wired modules:
 - Logout cannot revoke a JWT (stateless); the client discards the token.
 - Backend approval states are Pending / Approved / Denied (leave maps to the FE's Pending / Approved / Rejected).
 
-Next frontend work, in order: escalations + tasks (client + mapping, no new screens needed), then lesson plans and marks (blocked on product decisions: weekly vs monthly plans, and an exam-schedule screen), each behind its own `VITE_USE_API_*` flag.
+Next frontend work, in order: lesson plans and marks (blocked on product decisions: weekly vs monthly plans, and an exam-schedule screen), each behind its own `VITE_USE_API_*` flag.

@@ -1,11 +1,19 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import ExportModal from '../CommonComponents/ExportModal'
 import UpdateTaskStatusModal from './Components/UpdateTaskStatusModal'
-import { getDemoUserId, getMyTasks, updateTaskStatus } from './taskManagementData'
+import {
+    getDemoUserId,
+    getMyTasks,
+    hydrateTasksFromApi,
+    isTasksApiMode,
+    setTaskStatusViaApi,
+    TASKS_UPDATED_EVENT,
+    updateTaskStatus,
+} from './taskManagementData'
 import { getNextStatusOptions, statusBadgeColor, TASK_STATUSES } from './taskManagementConfig'
 import { useTaskRole } from './useTaskRole'
 
@@ -21,13 +29,32 @@ const MyTasksPage = () => {
     const [statusFilter, setStatusFilter] = useState('')
     const [assignedByFilter, setAssignedByFilter] = useState('')
     const [exportModal, setExportModal] = useState(false)
-    const [refreshKey, setRefreshKey] = useState(0)
     const [statusModalTask, setStatusModalTask] = useState(null)
 
-    const tasks = useMemo(() => {
-        void refreshKey
-        return getMyTasks(roleKey, userId)
-    }, [roleKey, userId, refreshKey])
+    const apiMode = isTasksApiMode()
+    // Rows live in state and are re-read whenever the data layer announces a change (API refresh or local write).
+    const [tasks, setTasks] = useState(() => getMyTasks(roleKey, userId))
+    const [load, setLoad] = useState({ loading: apiMode, error: '' })
+
+    useEffect(() => {
+        let cancelled = false
+        const refresh = () => {
+            if (!cancelled) setTasks(getMyTasks(roleKey, userId))
+        }
+        window.addEventListener(TASKS_UPDATED_EVENT, refresh)
+        // Re-read once asynchronously so a changed role/user shows the right rows even before the API answers.
+        Promise.resolve().then(refresh)
+        if (apiMode) {
+            hydrateTasksFromApi().then((result) => {
+                if (cancelled || result.skipped) return
+                setLoad({ loading: false, error: result.ok ? '' : result.error })
+            })
+        }
+        return () => {
+            cancelled = true
+            window.removeEventListener(TASKS_UPDATED_EVENT, refresh)
+        }
+    }, [roleKey, userId, apiMode])
 
     const assignedByOptions = useMemo(
         () => [...new Set(tasks.map((task) => task.assignedBy).filter(Boolean))],
@@ -49,10 +76,11 @@ const MyTasksPage = () => {
         })
     }, [tasks, search, statusFilter, assignedByFilter])
 
-    const showRemarks = pathname.includes('/housekeeping-manager/')
+    const showRemarks = apiMode || pathname.includes('/housekeeping-manager/')
     const handleStatusSave = (taskId, status, remark) => {
+        if (apiMode) return setTaskStatusViaApi(taskId, status, remark) // resolves { ok, error }; list refreshes itself
         updateTaskStatus(taskId, status, remark)
-        setRefreshKey((key) => key + 1)
+        return undefined
     }
 
     return (
@@ -113,6 +141,11 @@ const MyTasksPage = () => {
                         Export
                     </button>
                 </div>
+                {load.error && (
+                    <p role='alert' className='mb-3 text-sm text-[#B42318] bg-[#FEF3F2] border border-[#FDA29B] rounded-md px-3 py-2'>
+                        Could not load tasks from the server: {load.error}
+                    </p>
+                )}
                 <div className='relative overflow-x-auto'>
                     <table className='w-full text-sm text-left'>
                         <thead className='text-xs bg-[#EDEEF5] whitespace-nowrap rounded-lg'>
@@ -132,7 +165,7 @@ const MyTasksPage = () => {
                             {filteredTasks.length === 0 ? (
                                 <tr>
                                     <td colSpan={showRemarks ? 9 : 8} className='px-2 py-8 text-center text-[#808080]'>
-                                        No tasks assigned to you.
+                                        {load.loading ? 'Loading tasks…' : 'No tasks assigned to you.'}
                                     </td>
                                 </tr>
                             ) : (
@@ -145,7 +178,12 @@ const MyTasksPage = () => {
                                             <td className='px-2 py-4 max-w-[200px] truncate' title={task.description}>{task.description}</td>
                                             <td className='px-2 py-4'>{task.assignedBy}</td>
                                             <td className='px-2 py-4'>{task.priority}</td>
-                                            <td className='px-2 py-4'>{task.dueDate}</td>
+                                            <td className='px-2 py-4 whitespace-nowrap'>
+                                                {task.dueDate}
+                                                {task.overdue && (
+                                                    <span className='ml-2 px-2 py-0.5 rounded-lg text-xs font-semibold bg-[#FF000033] text-[#FF0000]'>Overdue</span>
+                                                )}
+                                            </td>
                                             <td className='px-2 py-4'>
                                                 <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusBadgeColor[task.status] ?? ''}`}>{task.status}</span>
                                             </td>
@@ -185,10 +223,13 @@ const MyTasksPage = () => {
 
             <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
             <UpdateTaskStatusModal
+                key={statusModalTask?.id ?? 'none'}
                 open={Boolean(statusModalTask)}
                 task={statusModalTask}
                 onClose={() => setStatusModalTask(null)}
                 showRemark={showRemarks}
+                requireStatusChange={apiMode}
+                prefillRemark={!apiMode}
                 onSave={handleStatusSave}
             />
         </section>

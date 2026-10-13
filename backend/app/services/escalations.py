@@ -20,11 +20,11 @@ import json
 from datetime import date, datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.deps import role_code_for
-from app.models import Escalation, Role, Task, User
+from app.models import Escalation, Role, Task, TaskEvent, User
 from app.services.approvals import _notify
 from app.services.audit import write_audit
 from app.services.errors import fail
@@ -47,6 +47,16 @@ RECEIVER_STATUSES = ("In Review", "Resolved", "Rejected")
 VIEW_ALL_ROLES = {"admin", "superadmin", "managing_director"}
 NON_STAFF = {"student", "parent"}
 
+# Who may assign tasks to whom (direct reports only). Mirrors ASSIGNMENT_HIERARCHY in
+# src/Common/TaskManagement/taskManagementConfig.js - change both together. Roles not listed cannot assign tasks.
+TASK_HIERARCHY = {
+    "superadmin": ("admin",),
+    "admin": ("director",),
+    "director": ("principal", "prm"),
+    "principal": ("coordinator", "teacher", "librarian"),
+    "prm": ("gatekeepermanager",),
+    "gatekeepermanager": ("gatekeeper",),
+}
 TASK_PRIORITIES = ["High", "Medium", "Low"]
 TASK_STATUSES = ["Incomplete", "In Progress", "Completed"]
 TASK_FLOW = {"Incomplete": ("In Progress", "Completed"), "In Progress": ("Completed",), "Completed": ()}
@@ -175,6 +185,20 @@ def raise_escalation(
     return _out_esc(db, row, trail=True)
 
 
+def recipients(db: Session, actor: User) -> list[dict]:
+    """Active users at the level this actor escalates to (for the optional 'send to a specific person' choice)."""
+    to_role = ESCALATES_TO.get(role_code_for(db, actor))
+    if not to_role:
+        fail(403, "forbidden", "This role cannot raise escalations.")
+    rows = db.execute(
+        select(User)
+        .join(Role, Role.id == User.role_id)
+        .where(User.campus_id == actor.campus_id, User.is_active.is_(True), Role.code == to_role)
+        .order_by(User.email)
+    ).scalars()
+    return [{"id": str(u.id), "email": u.email, "role": to_role} for u in rows]
+
+
 def get_escalation(db: Session, actor: User, escalation_id: UUID) -> dict:
     return _out_esc(db, _load_esc(db, actor, escalation_id), trail=True)
 
@@ -293,7 +317,13 @@ def run_clock(db: Session, campus_id, *, now: datetime | None = None) -> dict:
             Task.due_date < now.date(),
         )
     ).all():
-        task.overdue_notified = True
+        # Claim the task atomically: two requests running the clock at once (e.g. the "mine" and "assigned" lists
+        # loaded in parallel) must not both notify. Only the request whose UPDATE flips the flag may send.
+        claimed = db.execute(
+            update(Task).where(Task.id == task.id, Task.overdue_notified.is_(False)).values(overdue_notified=True)
+        ).rowcount
+        if not claimed:
+            continue
         for uid in {task.assignee_id, task.assigned_by_id}:
             _notify(db, campus_id=campus_id, title=f"Task overdue: {task.title[:80]}",
                     body=f"Due {task.due_date.isoformat()}.", entity_type="task",
@@ -308,11 +338,41 @@ def run_clock(db: Session, campus_id, *, now: datetime | None = None) -> dict:
 # ---------------------------------------------------------------------- tasks
 
 
-def _out_task(db: Session, row: Task, *, today: date | None = None) -> dict:
+def _task_events(db: Session, task_ids: list[UUID]) -> dict[UUID, list[TaskEvent]]:
+    """Task history grouped by task, oldest first (one query for any number of tasks)."""
+    grouped: dict[UUID, list[TaskEvent]] = {}
+    if not task_ids:
+        return grouped
+    for ev in db.scalars(
+        select(TaskEvent).where(TaskEvent.task_id.in_(task_ids)).order_by(TaskEvent.created_at, TaskEvent.id)
+    ).all():
+        grouped.setdefault(ev.task_id, []).append(ev)
+    return grouped
+
+
+def _out_event(db: Session, ev: TaskEvent) -> dict:
+    actor = db.get(User, ev.actor_id)
+    return {
+        "at": _aware(ev.created_at).isoformat(),
+        "action": ev.action,
+        "fromStatus": ev.from_status,
+        "toStatus": ev.to_status,
+        "actor": actor.email if actor else "",
+        "actorRole": ev.actor_role,
+        "remark": ev.remark or "",
+    }
+
+
+def _out_task(
+    db: Session, row: Task, *, today: date | None = None, events: list[TaskEvent] | None = None, detail: bool = False
+) -> dict:
     today = today or date.today()
     by = db.get(User, row.assigned_by_id)
     to = db.get(User, row.assignee_id)
-    return {
+    if events is None:
+        events = _task_events(db, [row.id]).get(row.id, [])
+    last_remark = next((e.remark for e in reversed(events) if e.remark), "")
+    data = {
         "id": str(row.id),
         "taskId": f"TASK-{row.task_no:04d}",
         "title": row.title,
@@ -328,7 +388,11 @@ def _out_task(db: Session, row: Task, *, today: date | None = None) -> dict:
         "assigneeRole": row.assignee_role,
         "assignedAt": _aware(row.created_at).isoformat(),
         "completedAt": _aware(row.completed_at).isoformat() if row.completed_at else None,
+        "remark": last_remark or "",
     }
+    if detail:
+        data["history"] = [_out_event(db, e) for e in events]
+    return data
 
 
 def _load_task(db: Session, actor: User, task_id: UUID) -> Task:
@@ -342,10 +406,17 @@ def _load_task(db: Session, actor: User, task_id: UUID) -> Task:
 
 
 def assignees(db: Session, actor: User, *, role: str | None) -> list[dict]:
+    """Active staff the caller may assign tasks to: only the roles directly below the caller's own role."""
+    allowed = TASK_HIERARCHY.get(role_code_for(db, actor), ())
+    if not allowed:
+        fail(403, "forbidden", "Your role cannot assign tasks.")
+    if role and role not in allowed:
+        fail(403, "forbidden", f"Your role cannot assign tasks to {role}.")
     stmt = (
         select(User, Role.code)
         .join(Role, Role.id == User.role_id)
-        .where(User.campus_id == actor.campus_id, User.is_active.is_(True), User.id != actor.id)
+        .where(User.campus_id == actor.campus_id, User.is_active.is_(True), User.id != actor.id,
+               Role.code.in_(allowed))
         .order_by(Role.code, User.email)
     )
     if role:
@@ -363,10 +434,27 @@ def create_task(
     description: str | None,
     priority: str,
     due_date: date,
+    client_ref: str | None = None,
 ) -> dict:
     role = role_code_for(db, actor)
     if role in NON_STAFF:
         fail(403, "forbidden", "Only staff can assign tasks.")
+    if role not in TASK_HIERARCHY:
+        fail(403, "forbidden", "Your role cannot assign tasks.")
+    if client_ref:
+        # A retried request (same actor + same key) returns the task already created instead of a duplicate.
+        prior = db.scalar(
+            select(TaskEvent).where(
+                TaskEvent.actor_id == actor.id, TaskEvent.client_ref == client_ref, TaskEvent.action == "assigned"
+            )
+        )
+        if prior:
+            existing = db.get(Task, prior.task_id)
+            if not existing or existing.assignee_id != assignee_id:
+                fail(409, "conflict", "This request reference was already used for a different task.")
+            replay = _out_task(db, existing)
+            replay["idempotentReplay"] = True
+            return replay
     if not title or not title.strip():
         fail(400, "validation_error", "A title is required.")
     if priority not in TASK_PRIORITIES:
@@ -381,6 +469,8 @@ def create_task(
     target_role = role_code_for(db, target)
     if target_role in NON_STAFF:
         fail(400, "validation_error", "Tasks can only be assigned to staff.")
+    if target_role not in TASK_HIERARCHY[role]:
+        fail(403, "forbidden", f"A {role} cannot assign tasks to a {target_role}.")
     next_no = (db.scalar(select(func.max(Task.task_no)).where(Task.campus_id == actor.campus_id)) or 0) + 1
     row = Task(
         campus_id=actor.campus_id,
@@ -397,6 +487,8 @@ def create_task(
     )
     db.add(row)
     db.flush()
+    db.add(TaskEvent(task_id=row.id, campus_id=row.campus_id, action="assigned", from_status=None,
+                     to_status="Incomplete", actor_id=actor.id, actor_role=role, client_ref=client_ref))
     _notify(db, campus_id=actor.campus_id, title=f"New task: {row.title[:80]}",
             body=f"{priority} priority, due {due_date.isoformat()}.", entity_type="task",
             entity_id=str(row.id), user_id=target.id)
@@ -407,7 +499,7 @@ def create_task(
 
 
 def get_task(db: Session, actor: User, task_id: UUID) -> dict:
-    return _out_task(db, _load_task(db, actor, task_id))
+    return _out_task(db, _load_task(db, actor, task_id), detail=True)
 
 
 def list_tasks(db: Session, actor: User, *, box: str, status: str | None) -> list[dict]:
@@ -423,24 +515,33 @@ def list_tasks(db: Session, actor: User, *, box: str, status: str | None) -> lis
             fail(403, "forbidden", "Not allowed to list all tasks.")
     else:
         fail(400, "validation_error", "box must be mine, assigned or all.")
-    out = [_out_task(db, r) for r in rows]
+    events = _task_events(db, [r.id for r in rows])
+    out = [_out_task(db, r, events=events.get(r.id, [])) for r in rows]
     return [o for o in out if o["status"] == status] if status else out
 
 
-def set_task_status(db: Session, actor: User, task_id: UUID, *, status: str) -> dict:
+def set_task_status(db: Session, actor: User, task_id: UUID, *, status: str, remark: str | None = None) -> dict:
     row = _load_task(db, actor, task_id)
     if row.assignee_id != actor.id:
         fail(403, "forbidden", "Only the assignee can update a task's status.")
     if status not in TASK_STATUSES:
         fail(400, "validation_error", f"status must be one of: {', '.join(TASK_STATUSES)}.")
+    remark = (remark or "").strip() or None
+    if remark and len(remark) > 2000:
+        fail(400, "validation_error", "remark is too long (max 2000 characters).")
     if status not in TASK_FLOW[row.status]:
         fail(409, "conflict", f"Cannot move a task from {row.status} to {status}.")
+    previous = row.status
     row.status = status
+    db.add(TaskEvent(task_id=row.id, campus_id=row.campus_id, action="status", from_status=previous,
+                     to_status=status, actor_id=actor.id, actor_role=role_code_for(db, actor), remark=remark))
     if status == "Completed":
         row.completed_at = _now()
+        body = f"By {actor.email}." + (f" Remark: {remark[:200]}" if remark else "")
         _notify(db, campus_id=row.campus_id, title=f"Task completed: {row.title[:80]}",
-                body=f"By {actor.email}.", entity_type="task", entity_id=str(row.id), user_id=row.assigned_by_id)
+                body=body, entity_type="task", entity_id=str(row.id), user_id=row.assigned_by_id)
     write_audit(db, action=f"TASK_{status.upper().replace(' ', '_')}", entity_type="task",
-                entity_id=str(row.id), actor_id=actor.id, campus_id=actor.campus_id)
+                entity_id=str(row.id), actor_id=actor.id, campus_id=actor.campus_id,
+                details="with remark" if remark else None)
     db.commit()
-    return _out_task(db, row)
+    return _out_task(db, row, detail=True)

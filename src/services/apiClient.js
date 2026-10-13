@@ -33,6 +33,22 @@ export const isApiLeaveEnabled = () => {
     }
     return isApiStudentsEnabled()
 }
+/** Escalations (24h clock) SoT — defaults on when the admissions/students API is on. */
+export const isApiEscalationsEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_ESCALATIONS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiStudentsEnabled()
+}
+/** Task Management SoT — defaults on when the admissions/students API is on. */
+export const isApiTasksEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_TASKS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiStudentsEnabled()
+}
 /** Notifications + approvals inbox — defaults on when the admissions/students API is on. */
 export const isApiNotificationsEnabled = () => {
     const explicit = import.meta.env.VITE_USE_API_NOTIFICATIONS

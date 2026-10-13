@@ -390,8 +390,9 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                     "HR + Finance: API is SoT",
                     "Phase 1: Head/Assistant + FY Apr–Mar",
                     "Gateway/SMTP/WA: env-gated (demo/stub)",
-                    "Leave + bell notifications wired to UI (leaveApi, notificationsApi); leave flow checked in browser",
-                    "Y-0..Y-5 backend built; Verified: 79 pytest",
+                    "Leave, bell notifications, escalations and tasks wired to UI (leaveApi, notificationsApi, escalationApi, taskApi); each flow checked in browser",
+                    "Tasks: remarks + history, retry-safe create, assignment hierarchy enforced on the backend",
+                    "Y-0..Y-5 backend built; Verified: 90 pytest",
                 ],
             },
             {
@@ -412,7 +413,8 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "dot": "rose",
                 "title": "Still open",
                 "items": [
-                    "UI not wired yet: lesson plans, marks (need decisions/screens), escalations, tasks",
+                    "UI not wired yet: lesson plans, marks (need decisions/screens)",
+                    "Tasks: no attachments, no Admin/Director all-tasks screen",
                     "24h clock needs a scheduler (runs on list reads + admin sweep today)",
                     "Live SMTP/WhatsApp/Paytm when school ready",
                     "RFID / eSSL if school confirms (still off)",

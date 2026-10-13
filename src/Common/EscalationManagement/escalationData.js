@@ -1,4 +1,14 @@
 import { matchesEscalationUser } from './escalationUsersData'
+import { getRoleConfig } from './escalationRoleConfig'
+import {
+    canUseEscalationsApi,
+    getEscalationApi,
+    listEscalationsApi,
+    raiseEscalationApi,
+    setEscalationStatusApi,
+} from '../../services/escalationApi'
+
+export const ESCALATIONS_UPDATED_EVENT = 'schoolerp-escalations-updated'
 
 const UNIFIED_STORAGE_KEY = 'schoolerp-escalations'
 const LEGACY_STORAGE_PREFIX = 'escalation-management-'
@@ -69,8 +79,11 @@ export const parseEscalationDate = (dateStr) => {
 export const getEscalationStartTime = (escalation) =>
     escalation.escalatedAt ? new Date(escalation.escalatedAt) : parseEscalationDate(escalation.escalationDate)
 
+// The server moves `resolveBy` forward each time the 24h clock escalates an item, so prefer it when present.
 export const getResolveByDate = (escalation) =>
-    new Date(getEscalationStartTime(escalation).getTime() + RESOLUTION_SLA_HOURS * 60 * 60 * 1000)
+    escalation.resolveBy
+        ? new Date(escalation.resolveBy)
+        : new Date(getEscalationStartTime(escalation).getTime() + RESOLUTION_SLA_HOURS * 60 * 60 * 1000)
 
 export const formatDateTime = (date) => {
     const value = date instanceof Date ? date : new Date(date)
@@ -93,6 +106,104 @@ export const isResolutionOverdue = (escalation) => {
 
 const saveAllEscalations = (records) => {
     localStorage.setItem(UNIFIED_STORAGE_KEY, JSON.stringify(records))
+}
+
+// ---------------------------------------------------------------------------
+// API source of truth (Y-5). With a real backend session the local list is only a
+// cache of what the server returned; writes go to the API first.
+// ---------------------------------------------------------------------------
+
+const BACKEND_TO_FE_ROLE = { gatekeeper: 'gateKeeper', gatekeepermanager: 'gateKeeperManager', superadmin: 'superAdmin' }
+const toFeRole = (code) => BACKEND_TO_FE_ROLE[code] || code
+
+const isoToDmy = (iso) => {
+    const date = new Date(iso)
+    if (Number.isNaN(date.getTime())) return ''
+    return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`
+}
+
+const mapApiEscalation = (item) => {
+    const byKey = toFeRole(item.escalatedByRoleKey)
+    const toKey = toFeRole(item.escalatedToRoleKey)
+    return {
+        id: item.id,
+        escalationId: item.escalationId,
+        escalatedBy: item.escalatedBy,
+        escalatedByRole: getRoleConfig(byKey)?.roleLabel || item.escalatedByRoleKey,
+        escalatedByRoleKey: byKey,
+        escalatedByUserEmail: item.escalatedBy,
+        escalatedTo: getRoleConfig(toKey)?.roleLabel || item.escalatedToRoleKey,
+        escalatedToRoleKey: toKey,
+        escalatedToUserId: item.escalatedToUserId || '',
+        escalatedToUserName: item.escalatedToUserEmail || '',
+        escalatedToUserEmail: item.escalatedToUserEmail || '',
+        description: item.description,
+        fullDescription: item.fullDescription,
+        remarks: item.remarks,
+        escalationDate: isoToDmy(item.escalatedAt),
+        escalatedAt: item.escalatedAt,
+        status: item.status,
+        resolutionNote: item.resolutionNote,
+        resolveBy: item.resolveBy,
+        resolvedAt: item.resolvedAt,
+        overdue: Boolean(item.overdue),
+        level: item.level ?? 0,
+        trail: item.trail,
+        fromApi: true,
+    }
+}
+
+const emitEscalationsUpdated = () => {
+    try {
+        window.dispatchEvent(new CustomEvent(ESCALATIONS_UPDATED_EVENT))
+    } catch {
+        /* ignore */
+    }
+}
+
+/** Replace the local cache with the signed-in user's server data. Returns true when the API was used. */
+export const hydrateEscalationsFromApi = async () => {
+    if (!canUseEscalationsApi()) return false
+    try {
+        const [mine, received] = await Promise.all([listEscalationsApi('mine'), listEscalationsApi('received')])
+        const merged = new Map()
+        ;[...mine, ...received].forEach((item) => merged.set(item.id, mapApiEscalation(item)))
+        saveAllEscalations([...merged.values()])
+        emitEscalationsUpdated()
+        return true
+    } catch {
+        return false
+    }
+}
+
+/** Fetch one escalation with its trail and update the cache. Returns the mapped record or null. */
+export const hydrateEscalationFromApi = async (id) => {
+    if (!canUseEscalationsApi()) return null
+    try {
+        const record = mapApiEscalation(await getEscalationApi(id))
+        const rest = getAllEscalations().filter((item) => item.id !== record.id)
+        saveAllEscalations([record, ...rest])
+        emitEscalationsUpdated()
+        return record
+    } catch {
+        return null
+    }
+}
+
+export const raiseEscalationViaApi = async (form) => {
+    const created = await raiseEscalationApi({
+        description: form.description.trim(),
+        fullDescription: form.fullDescription?.trim(),
+        remarks: form.remarks?.trim(),
+        recipientUserId: form.recipientUserId,
+    })
+    await hydrateEscalationsFromApi()
+    return mapApiEscalation(created)
+}
+
+export const setEscalationStatusViaApi = async (id, status, note) => {
+    await setEscalationStatusApi(id, status, note)
+    return hydrateEscalationFromApi(id)
 }
 
 export const getAllEscalations = () => {

@@ -1,7 +1,7 @@
 from app.models.academics import AcademicYear, FinancialYear, SchoolClass, Section, Subject
 from app.models.admission import Admission, AdmissionEnquiry, Guardian, Student
 from app.models.approval import ApprovalEvent, ApprovalRequest, Notification
-from app.models.escalation import Escalation, Task
+from app.models.escalation import Escalation, Task, TaskEvent
 from app.models.exams import Exam, ExamType, ExamWeightage, MarkEntry, MarksBatch
 from app.models.leave import LeaveRequest
 from app.models.lesson_plan import LessonPlan
@@ -51,5 +51,6 @@ __all__ = [
     "StudentAttendance",
     "Subject",
     "Task",
+    "TaskEvent",
     "User",
 ]
