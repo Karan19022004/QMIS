@@ -323,10 +323,10 @@ export const enrollAdmissionAsStudent = async (id, extra = {}) => {
             const current = await getAdmissionApi(id)
             const parentEmail = extra.parentAccountEmail || current.parentAccountEmail
             const parentPassword = extra.parentAccountPassword
-            if (parentEmail && (!parentPassword || String(parentPassword).trim().length < 6)) {
+            if (parentEmail && (!parentPassword || String(parentPassword).trim().length < 10)) {
                 return {
                     success: false,
-                    message: 'Parent password is required (min 6 characters) when creating the parent login.',
+                    message: 'Parent password is required (min 10 characters, with a letter and a number) when creating the parent login.',
                 }
             }
             const result = await enrollAdmissionApi(id, {

@@ -18,8 +18,9 @@ const ChangePassword = () => {
     const handleSubmit = async (event) => {
         event.preventDefault()
         setError('')
-        if (newPassword.length < 6) {
-            setError('New password must be at least 6 characters.')
+        // Mirrors the server policy for quick feedback; the API remains the authority.
+        if (newPassword.length < 10 || !/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+            setError('New password must be at least 10 characters and contain a letter and a number.')
             return
         }
         if (newPassword !== confirmPassword) {
@@ -57,14 +58,14 @@ const ChangePassword = () => {
                     New password
                     <div className="relative mt-1">
                         <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A0AEC0]" />
-                        <input className={fieldClass} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} />
+                        <input className={fieldClass} type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={10} autoComplete="new-password" />
                     </div>
                 </label>
                 <label className="mt-4 block text-sm text-[#5C6B82]">
                     Confirm new password
                     <div className="relative mt-1">
                         <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A0AEC0]" />
-                        <input className={fieldClass} type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} />
+                        <input className={fieldClass} type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={10} autoComplete="new-password" />
                     </div>
                 </label>
                 <button type="submit" disabled={submitting} className="mt-6 flex w-full items-center justify-center gap-2 rounded-lg bg-[#1B2B4B] px-4 py-3.5 text-sm font-medium text-white disabled:opacity-70">
