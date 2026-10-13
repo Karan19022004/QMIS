@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.endpoints.admissions import router as admissions_router
+from app.api.v1.endpoints.admin_users import router as admin_users_router
 from app.api.v1.endpoints.audit import router as audit_router
 from app.api.v1.endpoints.auth import router as auth_router
 from app.api.v1.endpoints.files import router as files_router
@@ -55,6 +56,7 @@ app.add_middleware(
 )
 app.include_router(auth_router)
 app.include_router(audit_router)
+app.include_router(admin_users_router)
 app.include_router(masters_router)
 app.include_router(admissions_router)
 app.include_router(parents_router)
