@@ -100,11 +100,13 @@ python -m pytest tests/ -q
 
 ## Seeded API logins
 
-| Role | Email | Password |
-|---|---|---|
-| Admin | admin@qmis.edu | admin123 |
-| Teacher | teacher@qmis.edu | teacher123 |
-| Coordinator | coordinator@qmis.edu | coord123 |
-| Principal | principal@qmis.edu | principal123 |
-| Director | director@qmis.edu | director123 |
-| HR | hr@qmis.edu | hr12345 |
+| Role | Email |
+|---|---|
+| Admin | admin@qmis.edu |
+| Teacher | teacher@qmis.edu |
+| Coordinator | coordinator@qmis.edu |
+| Principal | principal@qmis.edu |
+| Director | director@qmis.edu |
+| HR | hr@qmis.edu |
+
+Passwords are not recorded in this report. They come from the seed settings in `backend/.env` (development only).

@@ -19,16 +19,18 @@ Archify overview: `.archify/architecture-project-overview/qmis-erp-overview.html
 
 ### Seed logins
 
-| Email | Password | Role |
-|---|---|---|
-| admin@qmis.edu | admin123 | admin |
-| hr@qmis.edu | hr12345 | hr |
-| accounthead@qmis.edu | accounts123 | accounthead |
-| finance.assistant@qmis.edu | finance123 | finance_assistant |
-| teacher@qmis.edu | teacher123 | teacher |
-| coordinator@qmis.edu | coord123 | coordinator |
-| principal@qmis.edu | principal123 | principal |
-| director@qmis.edu | director123 | director |
+| Email | Role |
+|---|---|
+| admin@qmis.edu | admin |
+| hr@qmis.edu | hr |
+| accounthead@qmis.edu | accounthead |
+| finance.assistant@qmis.edu | finance_assistant |
+| teacher@qmis.edu | teacher |
+| coordinator@qmis.edu | coordinator |
+| principal@qmis.edu | principal |
+| director@qmis.edu | director |
+
+Passwords come from the seed settings (*_SEED_PASSWORD in ackend/.env). Demo accounts are created only when ENVIRONMENT=development.
 
 ### Run
 

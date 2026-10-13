@@ -58,7 +58,7 @@ New days go at the top. Older days stay below so the history is in one file.
 ### Done
 
 1. **Blank screen** — `HRRoutes` eager `EMPLOYEES[0]` before HR hydrate; lazy redirect fix.
-2. **Postgres** — PG18 on `:5432`; `backend/.env` password set to user’s `Karan@123` (`Karan%40123` in URL).
+2. **Postgres** — PG18 on `:5432`; `backend/.env` password set locally (not recorded here).
 3. **Admissions 500s (why A1–A8 failed)** — enquiry_code / guardian_name / ADM clash fixes + migrate.
 4. **P1-4 Select Child** — `GET /parents/me/children`; ParentChildContext + smoke PASS.
 5. **Seed academics logins** — teacher / coordinator / principal / director.
@@ -86,7 +86,7 @@ New days go at the top. Older days stay below so the history is in one file.
 1. **Finance Head / Assistant permissions** (roles preserved)
    - `accounthead` = Finance Head: `finance.read` + `collect` + `write` + `approve`
    - `finance_assistant`: `finance.read` + `finance.collect` only (no config write / approve)
-   - Seeded `finance.assistant@qmis.edu` / `finance123`
+   - Seeded `finance.assistant@qmis.edu` (password comes from the local seed settings)
    - Routes wired: collect/send/settle/intent → collect|write; approve/confirm/concessions → approve|write; PUT state → write only
 
 2. **Financial year (April–March)** separate from academic year
@@ -121,8 +121,8 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ### How to verify
 
-- Head: `accounthead@qmis.edu` / `accounts123`
-- Assistant: `finance.assistant@qmis.edu` / `finance123`
+- Head: `accounthead@qmis.edu` (password comes from the local seed settings)
+- Assistant: `finance.assistant@qmis.edu` (password comes from the local seed settings)
 - `python -m pytest tests/ -q`
 - `python scripts/smoke_accounthead_persistence.py http://127.0.0.1:8003`
 

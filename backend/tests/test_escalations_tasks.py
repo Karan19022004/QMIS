@@ -8,15 +8,17 @@ os.environ["JWT_SECRET"] = "test-secret-qmis-erp-escalations"
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.config import settings
 from app.main import app
 
+# Seeded development logins come from settings (never typed here), so no password lives in this file.
 USERS = {
-    "admin": ("admin@qmis.edu", "admin123"),
-    "teacher": ("teacher@qmis.edu", "teacher123"),
-    "coordinator": ("coordinator@qmis.edu", "coord123"),
-    "principal": ("principal@qmis.edu", "principal123"),
-    "director": ("director@qmis.edu", "director123"),
-    "hr": ("hr@qmis.edu", "hr12345"),
+    "admin": (settings.admin_seed_email, settings.admin_seed_password),
+    "teacher": (settings.teacher_seed_email, settings.teacher_seed_password),
+    "coordinator": (settings.coordinator_seed_email, settings.coordinator_seed_password),
+    "principal": (settings.principal_seed_email, settings.principal_seed_password),
+    "director": (settings.director_seed_email, settings.director_seed_password),
+    "hr": (settings.hr_seed_email, settings.hr_seed_password),
 }
 
 
