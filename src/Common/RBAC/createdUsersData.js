@@ -329,7 +329,8 @@ const API_DETAIL_FIELDS = [
 /** True when user creation should go through the server. */
 export const isAdminUsersApiActive = () => canUseAdminUsersApi()
 
-const fromApiUser = (apiUser) => ({
+/** Map one /admin/users record to the local created-user shape. Never carries a password. */
+export const fromApiUser = (apiUser) => ({
     ...Object.fromEntries(API_DETAIL_FIELDS.map((key) => [key, apiUser.details?.[key] || ''])),
     id: apiUser.staffCode,
     userId: apiUser.id,

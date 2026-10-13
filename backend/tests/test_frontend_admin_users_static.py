@@ -47,3 +47,40 @@ def test_roles_page_is_read_only():
 
 def test_password_field_does_not_autofill_existing_credentials():
     assert "autoComplete='new-password'" in _read("Common/RBAC/Components/UserCreationForm.jsx")
+
+
+# --- Admin > User Management > Employee Database (HR-backed) ---
+
+
+def test_employee_directory_service_never_touches_browser_storage_or_secrets():
+    source = _read("services/employeeDirectoryApi.js")
+    assert "localStorage" not in source and "sessionStorage" not in source
+    mapper = source[source.index("export const mapHrEmployee") : source.index("export const loadEmployeeDirectory")]
+    # explicit allowlist: salary is shown as restricted, never copied; no password or extra bag
+    assert "'Restricted (HR)'" in mapper
+    for forbidden in ("item.salary", "item.basicSalary", "item.ctc", "item.extra", "item.password", "temporaryPassword"):
+        assert forbidden not in mapper, forbidden
+
+
+def test_employee_directory_reuses_existing_endpoints_not_new_ones():
+    source = _read("services/employeeDirectoryApi.js")
+    assert "'/hr/portal/employees'" in source
+    assert "listAdminUsersApi" in source
+    assert "method: 'POST'" not in source and "method: 'PUT'" not in source  # read-only
+
+
+def test_employee_directory_detail_page_hides_password_in_api_mode():
+    page = _read("Pages/Admin/UserManagement/EmployeeDatabase/ViewEmployee.jsx")
+    api_branch, local_branch = page.split(") : (", 1)[0], page.split(") : (", 1)[1]
+    assert "employee.account.password" not in api_branch
+    assert "employee.account.password" in local_branch  # local mode unchanged
+
+
+def test_employee_directory_is_flag_gated_and_local_mode_kept():
+    client = _read("services/apiClient.js")
+    assert "VITE_USE_API_EMPLOYEES" in client
+    hook = _read("Pages/Admin/UserManagement/EmployeeDatabase/useEmployeeDirectory.js")
+    assert "canUseEmployeeDirectoryApi" in hook and "if (!apiMode) return undefined" in hook
+    # the shared Principal/Director/SuperAdmin screens do not use the API hook
+    for shared in ("Common/UserDatabase/EmployeeDatabaseListView.jsx", "Common/UserDatabase/ViewEmployeePage.jsx"):
+        assert "useEmployeeDirectory" not in _read(shared)
