@@ -9,10 +9,13 @@
 | File upload stub | Wired — `POST /api/v1/files` |
 | HR module (partner) | Done — `hrApi.js` |
 | Admissions (Phase 1) | Done — enquiry → convert → enroll; `VITE_USE_API_ADMISSIONS=true` |
+| Parent children (P1-4) | Done — `GET /parents/me/children`; `parentsApi.js` |
 | Finance | Done — snapshot + server actions; `VITE_USE_API_FINANCE=true` |
+| Students UIS (P1-5) | Done — `GET /students`, `GET /students/{id}`; `studentsApi.js` |
+| Class attendance (Y-1) | Done — `GET/POST /attendance`; `attendanceApi.js`; Teacher Class Attendance list |
 
 See `ADMISSIONS_ANALYSIS.md`, `FINANCE_ANALYSIS.md`, and **`API_SOT_CUTOVER.md`** (HR/Finance API-only; no silent localStorage SoT).  
-Archify overview: `.archify/architecture-project-overview/qmis-erp-overview.html`.
+Archify overview: `.archify/architecture-project-overview/qmis-erp-overview.html` (includes Parents module).
 
 ### Seed logins
 
@@ -21,6 +24,11 @@ Archify overview: `.archify/architecture-project-overview/qmis-erp-overview.html
 | admin@qmis.edu | admin123 | admin |
 | hr@qmis.edu | hr12345 | hr |
 | accounthead@qmis.edu | accounts123 | accounthead |
+| finance.assistant@qmis.edu | finance123 | finance_assistant |
+| teacher@qmis.edu | teacher123 | teacher |
+| coordinator@qmis.edu | coord123 | coordinator |
+| principal@qmis.edu | principal123 | principal |
+| director@qmis.edu | director123 | director |
 
 ### Run
 
@@ -61,8 +69,8 @@ python -m pytest tests/ -q
 python scripts/smoke_campus_flow.py http://127.0.0.1:8001
 ```
 
-Latest: **39 pytest passed** + **21/21 live smoke** (Phase 0 → Admissions → Partner HR → Finance).  
-Detail: `reports/testing-report.md`.
+Latest: full suite pytest — see `reports/testing-report.md` (includes students + attendance).  
+Parent smoke includes `/parents/me/children`.
 
 ### Deferred (not blockers)
 

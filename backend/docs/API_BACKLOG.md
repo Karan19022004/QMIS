@@ -55,12 +55,12 @@ Register every new router in `app/api/v1/router.py`.
 | P1-1 | Enquiry CRUD | PRM / Admin admission enquiry | DONE | You |
 | P1-2 | Admission CRUD + convert | Add admission | DONE | You |
 | P1-3 | Enroll → student + guardian + parent user | Enroll action | DONE | You |
-| P1-4 | `GET /api/v1/parents/me/children` | Parent select-child | PLANNED | You |
-| P1-5 | Student list & detail | Shared student database | PARTIAL | You |
+| P1-4 | `GET /api/v1/parents/me/children` | Parent select-child | DONE | You |
+| P1-5 | Student list & detail | Shared student database | DONE | You |
 
-> Running stack today: rich enquiry list/create/patch, convert, admission CRUD, enroll with optional parent login. Set `VITE_USE_API_ADMISSIONS=true`. Students merge into Finance snapshot on GET. Parent “my children” API (P1-4) still open.
+> Running stack today: enquiry → convert → admission CRUD → enroll (+ parent user) → `GET /parents/me/children` → `GET /students` + `GET /students/{id}`. Frontend: `VITE_USE_API_ADMISSIONS=true` (also enables students SoT), `parentsApi.js`, `studentsApi.js`, Student Database list/detail hydrate from API. Soft-delete enquiry = status `In Active` (no hard DELETE).
 
-> Product note: Architecture wants student create only after fee confirm, and parent via student profile. Confirm with school before locking P1-4.
+> Phase 1 closed. Phase 2 started with **Y-1 Attendance DONE**.
 
 ---
 
@@ -68,11 +68,11 @@ Register every new router in `app/api/v1/router.py`.
 
 ### You (core + academics + finance shell)
 
-| ID | Area | Key APIs |
-|---|---|---|
-| Y-1 | Attendance | `GET/POST /attendance` |
-| Y-2 | Lesson plans | submit / decide |
-| Y-3 | Marks / exams | entry + approval |
+| ID | Area | Key APIs | Status |
+|---|---|---|---|
+| Y-1 | Attendance | `GET/POST /api/v1/attendance`, calendar map | DONE |
+| Y-2 | Lesson plans | submit / decide | NEXT |
+| Y-3 | Marks / exams | entry + approval | PLANNED |
 | Y-4 | Leave engine | request + decision + balances |
 | Y-5 | Tasks / escalations | shared workflows |
 | Y-6 | Fee structures + collection + books + actions | Account Head — **DONE** (snapshot + finance actions) |

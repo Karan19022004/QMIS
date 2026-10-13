@@ -47,6 +47,8 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("hr.self", "View own staff profile, leave, attendance, and payslip"),
     ("admissions.write", "Create enquiries and enroll students"),
     ("students.read", "View students and guardians"),
+    ("attendance.read", "View class attendance"),
+    ("attendance.write", "Mark class attendance"),
     ("finance.read", "View finance fees, receipts, and books"),
     ("finance.collect", "Collect fees and send receipts (operational)"),
     ("finance.write", "Change finance masters, fee structures, and snapshot config"),
@@ -79,6 +81,11 @@ _FINANCE_ASSISTANT = [
     "students.read",
 ]
 
+_STAFF_STUDENTS = list(dict.fromkeys([*_CORE, "students.read"]))
+_STAFF_ATTENDANCE = list(
+    dict.fromkeys([*_STAFF_STUDENTS, "attendance.read", "attendance.write"])
+)
+
 ROLE_PERMISSIONS: dict[str, list[str]] = {code: list(_CORE) for code, _ in ALL_ROLES}
 ROLE_PERMISSIONS.update(
     {
@@ -89,5 +96,11 @@ ROLE_PERMISSIONS.update(
         "prm": list(_ADMISSIONS),
         "accounthead": list(_FINANCE_HEAD),
         "finance_assistant": list(_FINANCE_ASSISTANT),
+        # Staff UIS + class attendance (P1-5 / Y-1)
+        "teacher": list(_STAFF_ATTENDANCE),
+        "coordinator": list(_STAFF_ATTENDANCE),
+        "principal": list(_STAFF_ATTENDANCE),
+        "director": list(_STAFF_ATTENDANCE),
+        "jointdirector": list(_STAFF_ATTENDANCE),
     }
 )

@@ -83,6 +83,21 @@ def seed_reference_data(db: Session) -> None:
         email=settings.finance_assistant_seed_email,
         password=settings.finance_assistant_seed_password,
     )
+    # Academics / approvals logins used by Full Panel Test Guide
+    for role_code, email, password in (
+        ("teacher", settings.teacher_seed_email, settings.teacher_seed_password),
+        ("coordinator", settings.coordinator_seed_email, settings.coordinator_seed_password),
+        ("principal", settings.principal_seed_email, settings.principal_seed_password),
+        ("director", settings.director_seed_email, settings.director_seed_password),
+    ):
+        if role_code in roles_by_code:
+            _seed_user(
+                db,
+                campus=campus,
+                role=roles_by_code[role_code],
+                email=email,
+                password=password,
+            )
     if created_campus:
         write_audit(
             db,

@@ -1,5 +1,6 @@
 from app.models.academics import AcademicYear, FinancialYear, SchoolClass, Section, Subject
 from app.models.admission import Admission, AdmissionEnquiry, Guardian, Student
+from app.models.attendance import StudentAttendance
 from app.models.audit import AuditLog
 from app.models.base import Base
 from app.models.campus import Campus
@@ -31,6 +32,7 @@ __all__ = [
     "SchoolClass",
     "Section",
     "Student",
+    "StudentAttendance",
     "Subject",
     "User",
 ]

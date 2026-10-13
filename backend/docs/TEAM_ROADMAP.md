@@ -3,9 +3,10 @@
 **You:** Backend lead (foundation, auth, masters, admissions, academics, finance core, integrations)  
 **Partner:** Frontend integration + **HR backend vertical** (and wiring HR UI to APIs)
 
-> **Status snapshot — 9 October 2026:** Phase 0 foundation (P0-9 masters complete: years/classes/sections/subjects), Phase 1 Admissions, Partner HR, Finance snapshot + actions, API SoT for HR+Finance.  
-> Verified: see `reports/testing-report.md`. Next: HR↔Finance browser click-through, production keys (gateway/SMTP/WhatsApp), Ops verticals, RFID if school wants, parent `/me/children`.  
-> Historical week plan below is kept for context; prefer `API_BACKLOG.md` + Archify for current topology.  
+> **Status snapshot — 12 October 2026:** Phase 0 done; Phase 1 (P1-1…P1-5) **complete**; Phase 2 **Y-1 Attendance DONE**; Partner HR + Finance on API SoT.  
+> Verified: `reports/testing-report.md` — **50 pytest passed**.  
+> **Next backend (order):** **Y-2 Lesson plans** → Y-3 Marks. Defer live SMTP/WhatsApp/Paytm/RFID.  
+> Prefer `API_BACKLOG.md` + `.archify/architecture-project-overview/` for topology.  
 > Manager reports: only `reports/daily-work-report.md` + `reports/testing-report.md` (no PDFs).
 
 ---

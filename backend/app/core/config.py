@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     accounthead_seed_password: str = "accounts123"
     finance_assistant_seed_email: str = "finance.assistant@qmis.edu"
     finance_assistant_seed_password: str = "finance123"
+    teacher_seed_email: str = "teacher@qmis.edu"
+    teacher_seed_password: str = "teacher123"
+    coordinator_seed_email: str = "coordinator@qmis.edu"
+    coordinator_seed_password: str = "coord123"
+    principal_seed_email: str = "principal@qmis.edu"
+    principal_seed_password: str = "principal123"
+    director_seed_email: str = "director@qmis.edu"
+    director_seed_password: str = "director123"
     upload_dir: str = "uploads"
 
     # demo = local outbox + demo Razorpay HMAC (not real merchant). live = real providers.

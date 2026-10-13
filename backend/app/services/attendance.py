@@ -1,0 +1,200 @@
+"""Teacher class attendance SoT (Y-1)."""
+
+from __future__ import annotations
+
+from datetime import date
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.models import Student, StudentAttendance, User
+from app.models.base import utcnow
+from app.schemas.attendance import AttendanceUpsertIn
+from app.services.audit import write_audit
+from app.services.errors import fail
+
+ALLOWED_STATUS = {"Present", "Absent", "Late", "Holiday"}
+
+
+def _mark_out(row: StudentAttendance, student: Student | None = None) -> dict:
+    name = student.full_name if student else ""
+    admission = student.admission_number if student else ""
+    return {
+        "id": str(row.id),
+        "studentId": str(row.student_id),
+        "studentName": name,
+        "admissionNumber": admission,
+        "className": row.class_name,
+        "section": row.section or "",
+        "date": row.attendance_date.isoformat(),
+        "time": row.updated_at.isoformat() if row.updated_at else row.created_at.isoformat(),
+        "attendanceStatus": row.status,
+        "inOutStatus": row.in_out_status or ("—" if row.status == "Absent" else ""),
+    }
+
+
+def list_attendance(
+    db: Session,
+    actor: User,
+    *,
+    attendance_date: date,
+    class_name: str | None = None,
+    section: str | None = None,
+) -> list[dict]:
+    stmt = select(StudentAttendance).where(
+        StudentAttendance.campus_id == actor.campus_id,
+        StudentAttendance.attendance_date == attendance_date,
+    )
+    if class_name:
+        stmt = stmt.where(StudentAttendance.class_name == class_name)
+    if section:
+        stmt = stmt.where(StudentAttendance.section == section)
+    rows = db.scalars(stmt.order_by(StudentAttendance.class_name, StudentAttendance.created_at)).all()
+    student_ids = [r.student_id for r in rows]
+    students = {
+        s.id: s
+        for s in db.scalars(select(Student).where(Student.id.in_(student_ids))).all()
+    } if student_ids else {}
+    return [_mark_out(r, students.get(r.student_id)) for r in rows]
+
+
+def roster_with_marks(
+    db: Session,
+    actor: User,
+    *,
+    attendance_date: date,
+    class_name: str,
+    section: str | None = None,
+) -> list[dict]:
+    """Enrolled students for a class, merged with any marks for the date."""
+    students = db.scalars(
+        select(Student)
+        .where(Student.campus_id == actor.campus_id, Student.class_name == class_name)
+        .order_by(Student.full_name)
+    ).all()
+    marks = {
+        r.student_id: r
+        for r in db.scalars(
+            select(StudentAttendance).where(
+                StudentAttendance.campus_id == actor.campus_id,
+                StudentAttendance.attendance_date == attendance_date,
+                StudentAttendance.class_name == class_name,
+            )
+        ).all()
+    }
+    out: list[dict] = []
+    for student in students:
+        mark = marks.get(student.id)
+        if mark:
+            out.append(_mark_out(mark, student))
+        else:
+            out.append(
+                {
+                    "id": None,
+                    "studentId": str(student.id),
+                    "studentName": student.full_name,
+                    "admissionNumber": student.admission_number,
+                    "className": student.class_name,
+                    "section": section or "",
+                    "date": attendance_date.isoformat(),
+                    "time": "",
+                    "attendanceStatus": "",
+                    "inOutStatus": "",
+                }
+            )
+    return out
+
+
+def upsert_attendance(db: Session, actor: User, payload: AttendanceUpsertIn) -> list[dict]:
+    class_name = payload.class_name.strip()
+    if not class_name:
+        fail(400, "validation_error", "Class is required.")
+
+    results: list[StudentAttendance] = []
+    for item in payload.marks:
+        status = (item.status or "").strip()
+        if status not in ALLOWED_STATUS:
+            fail(400, "validation_error", f"Invalid status '{item.status}'. Use {sorted(ALLOWED_STATUS)}.")
+        student = db.get(Student, item.student_id)
+        if student is None or student.campus_id != actor.campus_id:
+            fail(404, "not_found", f"Student {item.student_id} not found.")
+        if student.class_name != class_name:
+            fail(400, "validation_error", f"Student {student.full_name} is not in class {class_name}.")
+
+        row = db.scalar(
+            select(StudentAttendance).where(
+                StudentAttendance.campus_id == actor.campus_id,
+                StudentAttendance.student_id == student.id,
+                StudentAttendance.attendance_date == payload.date,
+            )
+        )
+        if row is None:
+            row = StudentAttendance(
+                campus_id=actor.campus_id,
+                student_id=student.id,
+                attendance_date=payload.date,
+                class_name=class_name,
+                section=payload.section,
+                status=status,
+                in_out_status=item.in_out_status,
+                marked_by_user_id=actor.id,
+            )
+            db.add(row)
+        else:
+            row.status = status
+            row.in_out_status = item.in_out_status
+            row.class_name = class_name
+            row.section = payload.section
+            row.marked_by_user_id = actor.id
+            row.updated_at = utcnow()
+        results.append(row)
+
+    write_audit(
+        db,
+        action="ATTENDANCE_UPSERT",
+        entity_type="student_attendance",
+        entity_id=f"{class_name}:{payload.date.isoformat()}",
+        actor_id=actor.id,
+        campus_id=actor.campus_id,
+        details=f"{len(payload.marks)} marks",
+    )
+    db.commit()
+    for row in results:
+        db.refresh(row)
+
+    students = {
+        s.id: s
+        for s in db.scalars(
+            select(Student).where(Student.id.in_([r.student_id for r in results]))
+        ).all()
+    }
+    return [_mark_out(r, students.get(r.student_id)) for r in results]
+
+
+def student_month_map(
+    db: Session,
+    actor: User,
+    student_id: UUID,
+    *,
+    year: int,
+    month: int,
+) -> dict[str, str]:
+    student = db.get(Student, student_id)
+    if student is None or student.campus_id != actor.campus_id:
+        fail(404, "not_found", "Student not found.")
+    if month < 1 or month > 12:
+        fail(400, "validation_error", "Month must be 1–12.")
+
+    start = date(year, month, 1)
+    end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)
+    rows = db.scalars(
+        select(StudentAttendance).where(
+            StudentAttendance.campus_id == actor.campus_id,
+            StudentAttendance.student_id == student_id,
+            StudentAttendance.attendance_date >= start,
+            StudentAttendance.attendance_date < end,
+        )
+    ).all()
+    code = {"Present": "P", "Absent": "A", "Late": "P", "Holiday": "H"}
+    return {r.attendance_date.isoformat(): code.get(r.status, "P") for r in rows}
