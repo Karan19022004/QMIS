@@ -11,23 +11,35 @@ const CreateUserPage = ({
     fixedRole,
     fixedRoleLabel,
     pageTitle = 'Create User',
-    pageDescription = 'Complete the user profile and set the login email. OTP remains any 6-digit code at sign-in.',
+    pageDescription = 'Complete the user profile and set the login email.',
     submitLabel = 'Create User',
     successMessage = 'User created successfully.',
     onSuccess,
     renderAfterForm,
+    passwordLabel,
+    passwordPlaceholder,
+    passwordHelp,
 }) => {
     const navigate = useNavigate()
     const [form, setForm] = useState(defaultForm)
     const [error, setError] = useState('')
+    const [submitting, setSubmitting] = useState(false)
 
     const updateField = (key, value) => {
         setForm((prev) => ({ ...prev, [key]: value }))
     }
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        if (submitting) return
         setError('')
-        const result = onSubmit(form)
+        setSubmitting(true)
+        let result
+        try {
+            // onSubmit may be synchronous (local store) or return a promise (API).
+            result = await onSubmit(form)
+        } finally {
+            setSubmitting(false)
+        }
         if (!result.success) {
             setError(result.message)
             return
@@ -72,6 +84,9 @@ const CreateUserPage = ({
                     onChange={updateField}
                     fixedRole={fixedRole}
                     fixedRoleLabel={fixedRoleLabel}
+                    passwordLabel={passwordLabel}
+                    passwordPlaceholder={passwordPlaceholder}
+                    passwordHelp={passwordHelp}
                 />
 
                 {renderAfterForm?.({ form, updateField })}
@@ -82,10 +97,11 @@ const CreateUserPage = ({
                     <button
                         type='button'
                         onClick={handleSubmit}
-                        className='inline-flex items-center gap-2 bg-[#515DEF] text-white text-sm px-6 py-2.5 rounded-md hover:opacity-90 cursor-pointer'
+                        disabled={submitting}
+                        className='inline-flex items-center gap-2 bg-[#515DEF] text-white text-sm px-6 py-2.5 rounded-md hover:opacity-90 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed'
                     >
                         <Save size={16} />
-                        {submitLabel}
+                        {submitting ? 'Saving…' : submitLabel}
                     </button>
                 </div>
             </div>

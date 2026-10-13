@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
@@ -9,18 +9,30 @@ import {
     REFERENCE_OPTIONS,
     SOURCE_OPTIONS,
 } from '../admissionEnquiryData'
-import { getCreatedUsersByRole } from '../../../../../Common/RBAC/createdUsersData'
+import { getCreatedUsersByRole, syncCreatedUsersFromApi } from '../../../../../Common/RBAC/createdUsersData'
 import { CLASS_LEVEL_OPTIONS } from '../../../Class/ClassDetails/classDetailsOptions'
 
 const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
 
 const AdmissionEnquiryInfo = ({ form, onChange, readOnly = false }) => {
+    const [prmRecords, setPrmRecords] = useState(() => getCreatedUsersByRole('prm'))
     const assignees = useMemo(() => {
-        const created = getCreatedUsersByRole('prm')
+        const created = prmRecords
             .filter((user) => user.status === 'Active')
             .map((user) => user.name)
         const defaults = ['Admin Desk', 'Front Office']
         return [...new Set([...created, ...defaults])]
+    }, [prmRecords])
+
+    // In API mode the server owns the user list; refresh the local mirror before listing PRMs.
+    useEffect(() => {
+        let cancelled = false
+        syncCreatedUsersFromApi()
+            .then((mapped) => {
+                if (mapped && !cancelled) setPrmRecords(getCreatedUsersByRole('prm'))
+            })
+            .catch(() => { /* keep whatever is already mirrored */ })
+        return () => { cancelled = true }
     }, [])
 
     const update = (key, value) => {

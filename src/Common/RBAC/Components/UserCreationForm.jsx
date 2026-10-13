@@ -34,7 +34,15 @@ const Field = ({ label, htmlFor, children }) => (
     </div>
 )
 
-const UserCreationForm = ({ form, onChange, fixedRole, fixedRoleLabel }) => {
+const UserCreationForm = ({
+    form,
+    onChange,
+    fixedRole,
+    fixedRoleLabel,
+    passwordLabel = 'Password',
+    passwordPlaceholder = 'Set login password',
+    passwordHelp = '',
+}) => {
     const updateField = (key, value) => onChange?.(key, value)
     const roleLabel = fixedRoleLabel || CREATABLE_ROLE_LABELS[fixedRole || form.role] || form.role
 
@@ -375,15 +383,19 @@ const UserCreationForm = ({ form, onChange, fixedRole, fixedRoleLabel }) => {
                             placeholder='Defaults to email prefix if blank'
                         />
                     </Field>
-                    <Field label='Password' htmlFor='password'>
+                    <Field label={passwordLabel} htmlFor='password'>
                         <input
                             id='password'
                             type='password'
+                            autoComplete='new-password'
                             value={form.password}
                             onChange={(e) => updateField('password', e.target.value)}
                             className={inputClass}
-                            placeholder='Set login password'
+                            placeholder={passwordPlaceholder}
                         />
+                        {passwordHelp ? (
+                            <p className='text-xs text-[#667085]'>{passwordHelp}</p>
+                        ) : null}
                     </Field>
                 </div>
             </FormSection>

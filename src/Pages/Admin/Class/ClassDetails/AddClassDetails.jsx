@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ClassInfo from './Components/ClassInfo'
 import SectionInfo from './Components/SectionInfo'
 import { saveClassDetails } from '../../../../Common/RBAC/academicsCatalogData'
-import { getCreatedUsersByRole } from '../../../../Common/RBAC/createdUsersData'
+import { getCreatedUsersByRole, syncCreatedUsersFromApi } from '../../../../Common/RBAC/createdUsersData'
 
 const emptyForm = {
     className: '',
@@ -16,10 +16,22 @@ const emptyForm = {
 
 const AddClassDetails = () => {
     const navigate = useNavigate()
+    const [teacherRecords, setTeacherRecords] = useState(() => getCreatedUsersByRole('teacher'))
     const teachers = useMemo(
-        () => getCreatedUsersByRole('teacher').filter((user) => user.status === 'Active'),
-        [],
+        () => teacherRecords.filter((user) => user.status === 'Active'),
+        [teacherRecords],
     )
+
+    // In API mode the server owns the user list; refresh the local mirror before showing teachers.
+    useEffect(() => {
+        let cancelled = false
+        syncCreatedUsersFromApi()
+            .then((mapped) => {
+                if (mapped && !cancelled) setTeacherRecords(getCreatedUsersByRole('teacher'))
+            })
+            .catch(() => { /* keep whatever is already mirrored */ })
+        return () => { cancelled = true }
+    }, [])
     const [form, setForm] = useState(emptyForm)
     const [sections, setSections] = useState([{ name: '', capacity: '' }])
     const [error, setError] = useState('')

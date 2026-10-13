@@ -58,6 +58,18 @@ export const isApiNotificationsEnabled = () => {
     return isApiStudentsEnabled()
 }
 
+/**
+ * Admin user creation + roles SoT. Defaults on whenever API sign-in is on: a login created only
+ * in the browser could never sign in, so creation must go through the server.
+ */
+export const isApiAdminUsersEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_ADMIN_USERS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAuthEnabled()
+}
+
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {
     if (token) sessionStorage.setItem(TOKEN_KEY, token)
