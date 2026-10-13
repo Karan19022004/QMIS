@@ -10,6 +10,8 @@ import {
     statusBadgeColor,
     STUDENT_ATTENDANCE,
 } from './studentAttendanceData'
+import { canUseAdminAttendanceApi, loadStudentAttendance, toIsoDate } from '../../../../services/adminAttendanceApi'
+import { useAttendanceQuery } from '../useAttendanceQuery'
 
 const emptyFilters = { search: '', className: '', section: '' }
 
@@ -18,10 +20,32 @@ const StudentsList = () => {
     const [selectedDate, setSelectedDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
 
+    // API mode: marks for the chosen date come from the attendance API (class / section filter on the
+    // server). Local mode: the browser-only demo rows below, filtered exactly as before.
+    const apiMode = canUseAdminAttendanceApi()
+    const query = useAttendanceQuery(apiMode, loadStudentAttendance, {
+        date: toIsoDate(selectedDate || new Date()),
+        className: filters.className,
+        section: filters.section,
+    })
+    const classOptions = apiMode ? (query.options?.classOptions ?? []) : CLASS_OPTIONS
+    const sectionOptions = apiMode ? (query.options?.sectionOptions ?? []) : SECTION_OPTIONS
+    const apiRecords = query.data?.records
+
     const filteredRecords = useMemo(
-        () => filterStudentAttendance(STUDENT_ATTENDANCE, filters),
-        [filters],
+        () =>
+            apiMode
+                ? filterStudentAttendance(apiRecords ?? [], { search: filters.search })
+                : filterStudentAttendance(STUDENT_ATTENDANCE, filters),
+        [apiMode, apiRecords, filters],
     )
+    const counts = useMemo(() => {
+        const tally = {}
+        filteredRecords.forEach((record) => {
+            tally[record.status] = (tally[record.status] || 0) + 1
+        })
+        return tally
+    }, [filteredRecords])
 
     const clearFilters = () => {
         setFilters(emptyFilters)
@@ -61,7 +85,7 @@ const StudentsList = () => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All Classes</option>
-                            {CLASS_OPTIONS.map((className) => (
+                            {classOptions.map((className) => (
                                 <option key={className} value={className}>{className}</option>
                             ))}
                         </select>
@@ -75,7 +99,7 @@ const StudentsList = () => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All Sections</option>
-                            {SECTION_OPTIONS.map((section) => (
+                            {sectionOptions.map((section) => (
                                 <option key={section} value={section}>{section}</option>
                             ))}
                         </select>
@@ -108,6 +132,50 @@ const StudentsList = () => {
                         Export
                     </button>
                 </div>
+                {apiMode && query.status === 'loading' ? (
+                    <div role='status' className='py-16 text-center text-sm text-[#667085]'>Loading attendance…</div>
+                ) : apiMode && query.status === 'error' ? (
+                    <div role='alert' className='py-16 text-center'>
+                        <h3 className='text-lg font-semibold text-[#B42318]'>Could not load attendance</h3>
+                        <p className='text-sm text-[#667085] mt-2 max-w-md mx-auto'>{query.error}</p>
+                        <button
+                            type='button'
+                            onClick={query.reload}
+                            className='mt-4 bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 cursor-pointer'
+                        >
+                            Retry
+                        </button>
+                    </div>
+                ) : (
+                <>
+                {apiMode && (
+                    <div className='mb-3 space-y-1'>
+                        {(query.data?.warnings ?? []).map((warning) => (
+                            <p key={warning} role='status' className='text-xs text-[#B54708]'>{warning}</p>
+                        ))}
+                        <p className='text-xs text-[#667085]'>
+                            Marks saved by teachers for the chosen date. Punch-in and punch-out times are not stored for
+                            students, so the table shows when attendance was marked and its In / Out note.
+                            {filters.className && !filters.section
+                                ? ' Students nobody has marked yet are listed as "Not marked".'
+                                : ' Choose a class without a section to also see students who are not marked yet.'}
+                        </p>
+                        <p className='text-xs font-medium text-[#0C1E5B]'>
+                            {Object.keys(counts).length === 0
+                                ? 'No students listed.'
+                                : Object.entries(counts).map(([status, count]) => `${status}: ${count}`).join(' · ')}
+                        </p>
+                    </div>
+                )}
+                {apiMode && filteredRecords.length === 0 ? (
+                    <div className='py-16 text-center'>
+                        <h3 className='text-lg font-semibold text-[#0C1E5B]'>No attendance marked for this date</h3>
+                        <p className='text-sm text-[#667085] mt-2 max-w-md mx-auto'>
+                            Nothing has been marked for {toIsoDate(selectedDate || new Date())}
+                            {filters.className ? ` in ${filters.className}` : ''}. Try another date or class.
+                        </p>
+                    </div>
+                ) : (
                 <div className='relative overflow-x-auto'>
                     <table className='w-full text-sm text-left'>
                         <thead className='text-xs bg-[#EDEEF5] whitespace-nowrap rounded-lg'>
@@ -116,8 +184,8 @@ const StudentsList = () => {
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Student Name</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Section</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>On Time</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Out Time</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>{apiMode ? 'Marked At' : 'On Time'}</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>{apiMode ? 'In / Out' : 'Out Time'}</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Status</th>
                             </tr>
                         </thead>
@@ -128,8 +196,8 @@ const StudentsList = () => {
                                     <td className='px-2 py-4'>{record.studentName}</td>
                                     <td className='px-2 py-4'>{record.className}</td>
                                     <td className='px-2 py-4'>{record.section}</td>
-                                    <td className='px-2 py-4'>{record.onTime}</td>
-                                    <td className='px-2 py-4'>{record.outTime}</td>
+                                    <td className='px-2 py-4'>{apiMode ? record.markedAt : record.onTime}</td>
+                                    <td className='px-2 py-4'>{apiMode ? record.inOut : record.outTime}</td>
                                     <td className='px-2 py-4 rounded-e-lg'>
                                         <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusBadgeColor[record.status]}`}>
                                             {record.status}
@@ -140,11 +208,16 @@ const StudentsList = () => {
                         </tbody>
                     </table>
                 </div>
+                )}
+                </>
+                )}
             </div>
 
             <div className='flex justify-between items-center px-4 mt-4'>
                 <p className='text-sm font-medium text-[#515DEF]'>
-                    Showing 1 to {filteredRecords.length} of {filteredRecords.length} entries
+                    {apiMode && query.status !== 'ready'
+                        ? ''
+                        : `Showing 1 to ${filteredRecords.length} of ${filteredRecords.length} entries`}
                 </p>
                 <div className='flex gap-x-2'>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'>

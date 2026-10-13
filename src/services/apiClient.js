@@ -95,6 +95,18 @@ export const isApiClassDetailsEnabled = () => {
     return isApiAuthEnabled()
 }
 
+/**
+ * Administrator Attendance (students and employees) reads the attendance and HR APIs. Defaults on
+ * whenever API sign-in is on; set VITE_USE_API_ADMIN_ATTENDANCE=false for the browser-only demo rows.
+ */
+export const isApiAdminAttendanceEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_ADMIN_ATTENDANCE
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAuthEnabled()
+}
+
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {
     if (token) sessionStorage.setItem(TOKEN_KEY, token)

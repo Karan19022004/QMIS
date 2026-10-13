@@ -5,6 +5,10 @@ export const SECTION_OPTIONS = ['A', 'B', 'C', 'D']
 export const statusBadgeColor = {
     Present: 'bg-[#4CAF5033] text-[#4CAF50]',
     Absent: 'bg-[#FF000033] text-[#FF0000]',
+    // Statuses the attendance API can return in addition to Present / Absent.
+    Late: 'bg-[#FF980033] text-[#E65100]',
+    Holiday: 'bg-[#2196F333] text-[#1565C0]',
+    'Not marked': 'bg-[#9E9E9E33] text-[#616161]',
 }
 
 export const STUDENT_ATTENDANCE = [
