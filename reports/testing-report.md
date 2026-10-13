@@ -1,9 +1,9 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 13 October 2026 (fix for the `hr_employees.user_id` schema mismatch, before Class Details)  
-Result: **218 passed**, 0 failed, 0 skipped (full suite, `python -m pytest tests/ -q` from `backend`; 205 before this step, plus 13 new in `test_migration_hr_user_id.py`)  
-Frontend: production build passes (exit 0). ESLint on `src/services`, the Employee Database screens and the shared mappers: exit 0, no findings. No frontend source changed in this step; the build and lint were re-run as asked. A whole-project lint count was not run.
+Last run: 13 October 2026 (migration `0003` for `school_classes.academic_year_id`, then Admin Class Details connected to the masters API)  
+Result: **246 passed**, 0 failed, 0 skipped (full suite, `python -m pytest tests/ -q` from `backend`). History of this day: 218 after migration `0002`; 231 after `0003` (+13); 246 after Class Details (+7 API contract, +8 static frontend checks).  
+Frontend: production build passes (exit 0). ESLint on the changed files (`src/services`, the Class Details page, add page, hook, two components, `academicsCatalogData.js`): exit 0, no findings. Running ESLint over the whole `Class/ClassDetails` folder also reports one **old** error in `Components/ExportModal.jsx` (unused `useState`); that file was not changed and was left alone. A whole-project lint count was not run.
 
 Evidence is kept apart. **Automated** = pytest. **Rehearsal** = a script that restored the backup into a scratch database and ran the real migration. **Live** = the running backend and the real development database. **Browser** = I drove the real screen. Anything not run is marked NOT RUN.
 
@@ -11,69 +11,86 @@ Evidence is kept apart. **Automated** = pytest. **Rehearsal** = a script that re
 
 | Area | Tests | What they prove | Result |
 |---|---|---|---|
-| Migration `0002` on PostgreSQL (throwaway database, dropped afterwards) | 8 | Converts VARCHAR(36) to UUID keeping every row and every link, and adds the foreign key; blank becomes NULL and upper-case is the same UUID; a value that is not a UUID **aborts** and nothing changes (the bad value is kept); a link to a login that does not exist **aborts** and nothing changes; a second run changes nothing; a UUID column without the foreign key gets it; downgrade restores VARCHAR(36), drops the foreign key and keeps the links; **negative control:** the original failing query (`user_id == <uuid>`) raises `character varying = uuid` on the old shape and works after the migration | PASS |
-| Startup helper and check | 2 | `ensure_hr_employee_columns` now adds `user_id` as UUID on PostgreSQL; the startup schema check reports the old shape (and names `alembic upgrade head`) and is quiet once migrated | PASS |
-| Alembic wiring (no database needed) | 3 | One revision chain ending at `0002_hr_user_id_uuid`; `alembic.ini` and `env.py` store no credentials; the migration is a no-op on non-PostgreSQL databases | PASS |
-| HR / login activation sync | 12 (existing) | Deactivate/activate keeps the linked HR record in step; an HR bulk save cannot reactivate a login an admin turned off (with a negative control); Relieved is never overwritten; no credentials in any payload; teacher sees only their own record | PASS (re-run, unchanged) |
-| Earlier suites | 193 | Admin users (32), static frontend checks (9), P0 security (52), escalations and tasks, admissions, approvals, attendance, exams, finance, HR, leave, lesson plans, Phase 0, students, and the rest | PASS |
+| Migration `0003` on PostgreSQL (throwaway database, dropped afterwards) | 13 | Converts VARCHAR(36) to UUID keeping every class, every year link and every section; blank becomes NULL and an upper-case value is the same UUID; a value that is not a UUID **aborts** with nothing changed; a link to an academic year that does not exist **aborts**; a class linked to a year on a **different campus** **aborts**; a second run changes nothing; a UUID column without the foreign key gets it; downgrade restores VARCHAR(36), drops the foreign key and keeps the links; **negative control:** `academic_year_id == <uuid>` raises `character varying = uuid` on the old shape and works after; class → year and section → class relationships and the foreign-key rule hold; the startup helper adds UUID; the startup check reports the old shape and is quiet once migrated | PASS |
+| Migration `0002` on PostgreSQL (earlier step, re-run) | 13 | `hr_employees.user_id` conversion, abort rules, idempotence, downgrade, negative control, startup helper, wiring (now one chain `0003 → 0002 → 0001`) | PASS |
+| Class Details API contract (new) | 7 | A new class defaults to the current year and gets its first section (letter upper-cased); the year filter returns only that year's classes and the unfiltered list returns all; an unknown year is `404 academic_year_not_found` and creates nothing; a duplicate class is `409 class_exists` and a duplicate section `409 section_exists` (the codes a retry relies on); a section for an unknown class is 404; Teacher can read classes but gets 403 creating a class or section, and no token is 401; the API has no class update or delete | PASS |
+| Class Details frontend, static (new) | 8 | The service only uses the three masters routes, never touches browser storage and never sends DELETE/PATCH/PUT; the year filter goes to the server and only an unfiltered list is mirrored; save looks the class up first and treats 409 as present; the flag defaults to the auth flag; the mirror keeps local-only fields, never removes a class and holds no password; the list and add screens hide capacity / teacher / room and Edit / Delete in API mode and keep the local branch; the hook derives loading from the request key (no state set inside the effect body) | PASS |
+| Earlier suites | 205 | HR / login sync (12), admin users (32), earlier static checks (13), P0 security (52), escalations and tasks, admissions, approvals, attendance, exams, finance, HR, leave, lesson plans, Phase 0, students, and the rest | PASS |
 
-The migration tests need a PostgreSQL server; they are reported as skipped, not passed, if none is reachable. This run: none skipped.
+The migration tests need a PostgreSQL server; they are reported as skipped, not passed, if none is reachable. This run: none skipped. There is no JavaScript test runner, so frontend behaviour is covered by the browser checks below, not by unit tests.
 
-## Rehearsal on a restored copy of the development database (script, not pytest)
+## Rehearsal of `0003` on a restored copy of the development database (script, not pytest)
 
-The backup was restored into a scratch database (`pg_restore`), then:
-
-| # | Check | Result |
-|---|---|---|
-| 1 | Backup restores; the copy matches the dev snapshot (17 employees, 2 links) and has no `alembic_version` table | PASS |
-| 2 | `alembic upgrade head`: column is `uuid`, foreign key to `users(id)` exists, 17 rows and both links unchanged, `users` and `audit_logs` row counts unchanged, `alembic_version` = `0002_hr_user_id_uuid` | PASS |
-| 3 | Second `upgrade head` is a no-op | PASS |
-| 4 | `alembic downgrade -1`: back to VARCHAR, no foreign key, rows and links unchanged | PASS |
-| 5 | A non-UUID value aborts with the employee code named; after the abort the column is still VARCHAR and the value is intact | PASS |
-| 6 | A link to a non-existent login aborts; still VARCHAR, no foreign key, value intact | PASS |
-| 7 | A blank value and an upper-case UUID convert; the upper-case link is kept as the same UUID and the blank becomes NULL | PASS |
-
-The scratch database was dropped afterwards (only `postgres` and `qmis_erp` remain).
-
-## Live: the real development database
+The backup was restored into a scratch database (`pg_restore`), then the real migration was run there:
 
 | # | Check | Result |
 |---|---|---|
-| 8 | Backup taken before any change: `pg_dump -Fc` (about 146 KB, outside the repository; `pg_restore --list` reads it, 203 entries, `hr_employees` data included) | PASS |
-| 9 | Before: 17 employees, 15 with no `user_id`, 2 linked (EMP-0016, EMP-0017) to valid existing logins with matching emails; no blank, malformed, orphan or duplicate values; no foreign keys pointing at `hr_employees`, no views or triggers on it; 10 audit rows refer to HR employees by id | PASS (inspection) |
-| 10 | `alembic upgrade head` on the dev database: exit 0, now at `0002_hr_user_id_uuid` (head); `user_id` is `uuid`; foreign key `hr_employees_user_id_fkey` exists | PASS |
-| 11 | After: employee rows identical (id, code, email, status, created_at), both links identical, 10 audit rows still refer to HR employees, 443 audit rows total, no row-count change in any table except the new `alembic_version` | PASS |
-| 12 | `GET /hr/portal/employees` (and `/hr/employees`) after restarting the backend on the new code: **Teacher 200, Coordinator 200, Principal 200, Director 200, Admin 200 (17 rows), HR 200 (17 rows)**; Account Head and Finance Assistant 403; no token 401. (Before: Teacher, Coordinator, Principal and Director returned **500**.) The four scoped roles get an empty list because their seeded logins have no HR record, so nothing is leaked | PASS (the earlier 500s are fixed) |
-| 13 | A user whose HR record is linked by `user_id` (`live.link@qmis.edu`): after reactivation, reset and a password change, the portal and the typed list return only their own record (EMP-0017); another employee's record is 404; their own is 200; `admin/users` is 403 | PASS |
-| 14 | HR / login activation sync on the migrated database: activating the login set the HR record to Active; deactivating set it to Inactive; the deactivated user's token and login both returned 401 | PASS |
-| 15 | Browser: the Administrator's Employee Database reloaded against the migrated database shows "Showing 18 of 18 entries" (17 HR employees + 1 User Creation login) | PASS |
+| 1 | Backup restores; the copy matches the dev snapshot | PASS |
+| 2 | `alembic upgrade head`: column is `uuid`, foreign key to `academic_years(id)` exists, classes, years and sections unchanged, `alembic_version` = `0003_class_year_uuid` | PASS |
+| 3 | A second `upgrade head` is a no-op | PASS |
+| 4 | `alembic downgrade -1`: back to VARCHAR, no foreign key, data unchanged | PASS |
+| 5 | A non-UUID value aborts; the column is still VARCHAR and the value intact | PASS |
+| 6 | A link to a year that does not exist aborts; nothing changed | PASS |
+| 7 | A class linked to a year on another campus aborts; nothing changed | PASS |
+| 8 | A blank value and an upper-case UUID convert (blank → NULL, upper-case kept as the same UUID) | PASS |
+| 9 | A throwaway API server on the migrated copy: filtering by a real year returns 200 (it was 500); a new class defaults to the current year; an unknown year is 404; a section is created with the class; Teacher gets 403 creating a class | PASS |
+
+The scratch database was dropped afterwards.
+
+## Live: the real development database (`0003`)
+
+| # | Check | Result |
+|---|---|---|
+| 10 | Backup taken before any change: `pg_dump -Fc`, outside the repository, readable with `pg_restore --list` (it holds password hashes, so it is sensitive) | PASS |
+| 11 | Before: 1 class (Grade 1) with no academic year, 1 academic year (2026-27). The migration's own checks found no non-UUID, orphan or cross-campus value (it would have aborted). The only table that references `school_classes` is `sections` (`sections_class_id_fkey`), which is untouched | PASS (inspection) |
+| 11a | Read-only check after all the browser work: at `0003_class_year_uuid`; `academic_year_id` is `uuid`; classes are Grade 1 (no year, 0 sections) and V (2026-27, 3 sections); foreign keys on `school_classes` are `school_classes_academic_year_id_fkey` → `academic_years` and `school_classes_campus_id_fkey` → `campuses`; `sections_class_id_fkey` → `school_classes` | PASS |
+| 12 | `alembic upgrade head` on the dev database: exit 0, now at `0003_class_year_uuid` (head); column is `uuid`; foreign key `school_classes_academic_year_id_fkey` exists | PASS |
+| 13 | After: the class, the year and the sections are identical to the snapshot; no table changed except `alembic_version` | PASS |
+| 14 | `GET /masters/classes?academic_year_id=<current>` returned 200 (empty list, as Grade 1 has no year); the HR portal still returns 200 for Admin, HR, Teacher and Principal; a rolled-back SQL join worked and the foreign key rejected an unknown year | PASS |
+
+## Browser: Admin Class Details (Administrator, live backend, real database)
+
+Signed in as the seeded Administrator against the running backend; the other flag-on pages were not touched.
+
+| # | Scenario | Result |
+|---|---|---|
+| 15 | List loads from the server: columns Class / Section / Academic Year, one row (Grade 1, "—", "—"); the Academic Year filter lists "2026-27 (current)" from the server; the note that capacity, teacher and room are not stored is shown; the From / To date pickers are hidden | PASS |
+| 16 | Filter by 2026-27 (server-side): Grade 1 (no year) is correctly absent and "No classes match these filters / Clear the filters" is shown | PASS |
+| 17 | Add form (API mode): Class, Academic Year and Section inputs only (no teacher, capacity or room), the year dropdown lists the server years | PASS |
+| 18 | Create class V with sections a and b: the button shows "Saving…" and is disabled, then redirects to the list with "Class V created; sections added: A, B."; the list shows V · A, B · 2026-27 | PASS |
+| 19 | Retry-style save (class V again with A and C): "Class V already existed; sections added: C; already present: A."; the list shows A, B, C; no duplicate class or section | PASS |
+| 20 | Year filter after the creates: 2026-27 shows only V (A, B, C) | PASS |
+| 21 | Error state: with the network switched off in the browser (Chrome emulation), changing the filter shows "Could not load classes" with Retry and the year list kept; after the network is restored, Retry loads both classes | PASS (the offline message at that moment was the raw "Failed to fetch"; the text was then changed to "Could not reach the server. Check your connection and try again." — that new text was **not** seen on screen) |
+| 22 | Mirror: after the list loaded, the browser catalog `schoolerp-academics-catalog` held classes `Grade 1, V` and sections `A, B, C`, so the screens that still read it can offer the same classes | PASS (catalog contents only; the other screens were not opened) |
+| 23 | Local mode (a second Vite server on port 5180 with API sign-in off, demo login with a throwaway password): original seven columns, teacher / capacity / room fields and the section capacity input present, no Academic Year filter, class VI saved locally and listed (A=25, capacity 40), **0 requests to the backend** | PASS (save and list only; local Edit / Delete were not exercised, their code is unchanged) |
 
 ## Not run
 
 | # | Scenario | Result |
 |---|---|---|
-| 16 | The HR "own record" page and the Employee Database screen in a browser signed in as Teacher, Coordinator, Principal and Director (checked through the API only, #12 and #13) | NOT RUN |
-| 17 | `alembic downgrade` on the development database itself (rehearsed on the copy only; the dev database was deliberately not downgraded) | NOT RUN |
-| 18 | A real restore of the backup over the development database (restore was proven on the scratch copy only) | NOT RUN |
-| 19 | A live HR bulk save from the HR screen (covered by pytest; it rewrites every HR row) | NOT RUN |
-| 20 | The migration against a database with bad data in it other than on the scratch copy (aborts proven by pytest and by the rehearsal) | NOT RUN |
-| 21 | Whole-project lint; mobile layout; the earlier User Creation items still listed as NOT RUN in the previous round | NOT RUN |
-
-## Carried over from the previous step (not re-run, except #15 above)
-
-Employee Database in the browser as Administrator: list, search, department filter, HR and login detail pages, one-row merge by email, reload persistence, local mode (no API calls) — PASS. Error, empty, 403 and partial-failure states were checked by overriding `fetch` (simulated, not a real outage) — PASS. Deactivating from the User Creation screen and watching the HR status on screen, a real outage, and the Principal/Director/Super Admin screens — NOT RUN.
+| 24 | A non-admin role in a browser (Teacher can read but not create: proven by pytest and not driven in a screen; the admin routes are not offered to Teacher) | NOT RUN |
+| 25 | A real 403 from the server shown on the Add screen (the message path exists; no Administrator without `masters.write` exists) | NOT RUN |
+| 26 | A partial section failure on the Add screen (the service logic is covered by static checks; a failing section could not be produced against the real server) | NOT RUN |
+| 27 | The other screens that read the class catalog (student allocation, assigned classes, activities, lesson plans, documents) opened with an API-mirrored class | NOT RUN |
+| 28 | The new friendly "Could not reach the server" text on screen; mobile layout; a second tab open while saving | NOT RUN |
+| 29 | `alembic downgrade` on the development database itself, and a real restore of the backup over it (both proven on the scratch copy only) | NOT RUN |
+| 30 | `0003` against a database with bad data other than the scratch copy (aborts proven by pytest and by the rehearsal) | NOT RUN |
+| 31 | Whole-project lint | NOT RUN |
 
 ## Defects found
 
-- **Fixed in this step:** `hr_employees.user_id` is now a UUID column with the foreign key the model declares, on the development database (via Alembic) and for databases that get the column from the startup helper (the helper no longer creates it as VARCHAR). The 500 for Teacher, Coordinator, Principal and Director on `GET /hr/portal/employees` is gone.
-- **Found, not fixed (other features, each needs its own reviewed revision):** the same VARCHAR(36)-vs-UUID drift on `school_classes.academic_year_id`, `admission_enquiries.profile_image_file_id` and `admission_enquiries.converted_admission_id`; `hr_employees.employee_code` is 32 characters live against 40 in the model.
-- **Open (design):** Alembic is applied by hand (`alembic upgrade head`); startup only warns. Other databases (a teammate's copy, production) are not migrated until someone runs it. The other `ensure_*` startup helpers are unchanged.
+- **Fixed:** `school_classes.academic_year_id` is now a UUID column with the foreign key the model declares, on the development database (via Alembic) and for databases that get the column from the startup helper. `GET /masters/classes?academic_year_id=<real year>` no longer returns 500.
+- **Found while building and fixed:** the offline error text showed the raw browser message; it now says the server could not be reached.
+- **Not fixed (design, needs a decision):** the server stores no class capacity, section capacity, class teacher or room number, and has no class update or delete. In API mode those fields and the Edit / Delete actions are hidden and each screen says so; they need a backend change first. The other class-catalog screens only see server classes after the Class Details list or Add screen has run in that browser (no refresh at sign-in).
+- **Found, not fixed (other features, each needs its own reviewed revision):** the same VARCHAR(36)-vs-UUID drift on `admission_enquiries.profile_image_file_id` and `admission_enquiries.converted_admission_id`; `hr_employees.employee_code` is 32 characters live against 40 in the model; an old unused `models/masters.py` duplicates the masters models. Old lint error in `Components/ExportModal.jsx`.
+- **Open (design):** Alembic is applied by hand (`alembic upgrade head`); startup only warns, so a teammate's copy or production is not migrated until someone runs it and takes a backup first.
 
 ## Side effects on this machine
 
-- Python package `alembic` 1.20.0 was installed (also added to `backend/requirements.txt`). The dev database now has an `alembic_version` table (one row).
-- The backend on port 8000 was restarted on the new code. The backup file is at `%USERPROFILE%\qmis-db-backups\` (outside the repository, not committed; it contains password hashes, so treat it as sensitive).
-- Dev data: `live.link@qmis.edu` (TEA-0002) was reactivated, given a new password (not recorded) and deactivated again; it and its HR record EMP-0017 are Inactive. No employee records were created or deleted.
+- Dev database: now at `0003_class_year_uuid`. **New dev data:** class `V` with sections A, B, C (2026-27), created through the screen; the API cannot delete or rename a class, so it stays. The earlier HR test records are unchanged.
+- Backups are in `%USERPROFILE%\qmis-db-backups\` (outside the repository, not committed; they contain password hashes, so treat them as sensitive): `qmis_erp_before_hr_user_id_uuid_*.dump` and `qmis_erp_before_class_year_uuid_*.dump`.
+- The temporary Vite server on port 5180 was stopped; the main servers (backend 8000, frontend 5173) are still running. The throwaway local-mode demo password was only set for that one process and is not stored anywhere.
+- Python package `alembic` is installed (and in `backend/requirements.txt`).
 
 ## Commands
 
