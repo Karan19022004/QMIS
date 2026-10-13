@@ -10,7 +10,7 @@
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "cdf52be29591cbe18f8e25f3739a19aa11ea4ea3"
+      "revision": "3878ae53e2c462f1147d73e575395c2315df78b4"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -45,6 +45,9 @@
           "mod_audit",
           "mod_masters",
           "mod_admissions",
+          "mod_parents",
+          "mod_students",
+          "mod_attendance",
           "mod_finance",
           "mod_hr",
           "mod_files"
@@ -122,7 +125,7 @@
       "id": "client",
       "type": "frontend",
       "label": "API clients",
-      "sublabel": "admissionsApi, authApi, filesApi\u2026",
+      "sublabel": "admissionsApi, attendanceApi, authApi\u2026",
       "pos": [
         400,
         280
@@ -283,7 +286,70 @@
         {
           "path": "backend/app/api/v1/endpoints/admissions.py",
           "line": 20,
-          "end_line": 126
+          "end_line": 136
+        }
+      ]
+    },
+    {
+      "id": "mod_parents",
+      "type": "backend",
+      "label": "Parents",
+      "sublabel": "me/children",
+      "pos": [
+        1080,
+        280
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/app/api/v1/endpoints/parents.py",
+          "line": 11,
+          "end_line": 48
+        }
+      ]
+    },
+    {
+      "id": "mod_students",
+      "type": "backend",
+      "label": "Students",
+      "sublabel": "list \u00b7 detail",
+      "pos": [
+        1250,
+        280
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/app/main.py",
+          "line": 56,
+          "end_line": 56
+        }
+      ]
+    },
+    {
+      "id": "mod_attendance",
+      "type": "backend",
+      "label": "Attendance",
+      "sublabel": "class marks",
+      "pos": [
+        1080,
+        380
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "backend/app/main.py",
+          "line": 57,
+          "end_line": 57
         }
       ]
     },
@@ -293,8 +359,8 @@
       "label": "Finance",
       "sublabel": "snapshot + actions",
       "pos": [
-        1080,
-        280
+        1250,
+        380
       ],
       "size": [
         150,
@@ -314,8 +380,8 @@
       "label": "HR",
       "sublabel": "partner vertical",
       "pos": [
-        1250,
-        280
+        1080,
+        480
       ],
       "size": [
         150,
@@ -335,8 +401,8 @@
       "label": "Files",
       "sublabel": "upload stub",
       "pos": [
-        1080,
-        380
+        1250,
+        480
       ],
       "size": [
         150,
@@ -357,7 +423,7 @@
       "sublabel": "Phase 2",
       "pos": [
         1080,
-        500
+        600
       ],
       "size": [
         150,
@@ -379,7 +445,7 @@
       "sublabel": "Phase 3+",
       "pos": [
         1250,
-        500
+        600
       ],
       "size": [
         150,
@@ -413,6 +479,9 @@
         "mod_audit",
         "mod_masters",
         "mod_admissions",
+        "mod_parents",
+        "mod_students",
+        "mod_attendance",
         "mod_finance",
         "mod_hr",
         "mod_files"
@@ -490,6 +559,21 @@
       "to": "mod_admissions"
     },
     {
+      "id": "api-mod_parents",
+      "from": "api",
+      "to": "mod_parents"
+    },
+    {
+      "id": "api-mod_students",
+      "from": "api",
+      "to": "mod_students"
+    },
+    {
+      "id": "api-mod_attendance",
+      "from": "api",
+      "to": "mod_attendance"
+    },
+    {
       "id": "api-mod_finance",
       "from": "api",
       "to": "mod_finance"
@@ -526,13 +610,18 @@
         "Audit \u2014 /api/v1/audit-logs",
         "Masters \u2014 years \u00b7 sections",
         "Admissions \u2014 enquiry \u2192 enroll",
+        "Parents \u2014 me/children",
+        "Students \u2014 list \u00b7 detail",
+        "Attendance \u2014 class marks",
         "Finance \u2014 snapshot + actions",
         "HR \u2014 partner vertical",
         "Files \u2014 upload stub",
         "Flags: AUTH + ADMISSIONS + FINANCE",
-        "HR + Finance: API is SoT (no silent localStorage)",
-        "Gateway/SMTP/WA: env-gated (stub without keys)",
-        "Verified: 41 pytest"
+        "Parents /me/children (P1-4) live",
+        "HR + Finance: API is SoT",
+        "Phase 1: Head/Assistant + FY Apr\u2013Mar",
+        "Gateway/SMTP/WA: env-gated (demo/stub)",
+        "Verified: 45 pytest"
       ]
     },
     {
@@ -549,10 +638,13 @@
       "title": "Clients found",
       "items": [
         "admissionsApi.js",
+        "attendanceApi.js",
         "authApi.js",
         "filesApi.js",
         "financeApi.js",
         "hrApi.js",
+        "parentsApi.js",
+        "studentsApi.js",
         "apiClient.js"
       ]
     },
@@ -560,10 +652,10 @@
       "dot": "rose",
       "title": "Still open",
       "items": [
-        "Live keys when school ready (mode=live)",
-        "Manual Vite UI pass vs demo API",
-        "RFID / eSSL if school confirms (still off)",
-        "Ops \u00b7 Parent /me/children \u00b7 Academics"
+        "P1-5 student list/detail (UIS) \u2014 next",
+        "Phase 2 Y-1 Teacher class attendance SoT",
+        "Live SMTP/WhatsApp/Paytm when school ready",
+        "RFID / eSSL if school confirms (still off)"
       ]
     }
   ]

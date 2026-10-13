@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import mo_user from '../../assets/images/no-profile.png'
+import { ensureEnrolledStudentDetailFromApi } from '../StudentDatabase/enrolledStudentsData'
 import { getStudentById } from '../StudentDatabase/studentDatabaseData'
+import { isApiStudentsEnabled } from '../../services/apiClient'
 
 const Section = ({ title, children }) => (
     <div className='bg-white rounded-2xl shadow-md p-4'>
@@ -21,7 +23,43 @@ const Field = ({ label, value }) => (
 const ViewStudentPage = ({ routeBase }) => {
     const { id } = useParams()
     const navigate = useNavigate()
-    const student = useMemo(() => getStudentById(id), [id])
+    const [student, setStudent] = useState(() => getStudentById(id))
+    const [loading, setLoading] = useState(isApiStudentsEnabled() && !getStudentById(id))
+
+    useEffect(() => {
+        let cancelled = false
+        if (!isApiStudentsEnabled()) {
+            setStudent(getStudentById(id))
+            setLoading(false)
+            return undefined
+        }
+        setLoading(true)
+        ensureEnrolledStudentDetailFromApi(id)
+            .then(() => {
+                if (!cancelled) setStudent(getStudentById(id))
+            })
+            .catch(() => {
+                if (!cancelled) setStudent(null)
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [id])
+
+    if (loading) {
+        return (
+            <section className='space-y-6'>
+                <button type='button' onClick={() => navigate(routeBase)} className='inline-flex items-center gap-2 text-sm text-[#515DEF] border border-[#515DEF] rounded-md px-4 py-2 hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer'>
+                    <ArrowLeft size={18} />
+                    Back to list
+                </button>
+                <div className='bg-white rounded-2xl shadow-md p-8 text-center text-[#667085]'>Loading student…</div>
+            </section>
+        )
+    }
 
     if (!student) {
         return (

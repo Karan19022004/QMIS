@@ -10,26 +10,26 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ## 12 October 2026
 
-**Status:** Blank screen fixed; Postgres/pgAdmin password aligned; Admin admissions A1–A8 API path unblocked. Manual UI retest still needed from user.
+**Status:** Phase 1 identity journey closed (P1-1…P1-5). Docs + Archify refreshed. Manual browser Pass not claimed.
 
 ### Done
 
 1. **Blank screen** — `HRRoutes` eager `EMPLOYEES[0]` before HR hydrate; lazy redirect fix.
 2. **Postgres** — PG18 on `:5432`; `backend/.env` password set to user’s `Karan@123` (`Karan%40123` in URL).
-3. **Admissions 500s (why A1–A8 failed)**
-   - List: legacy enquiry with null `enquiry_code` broke `EnquiryOut`
-   - Create: Phase-0 `guardian_name` NOT NULL + null insert
-   - Enroll: `ADM-0001` collided with existing student admission number
-   - Fixes: schema migrate (nullable legacy cols + backfill codes), default guardian name, unique ADM code across admissions+students, enroll remaps colliding codes
-4. **API verify** — create enquiry → convert → enroll returns 200; parent user can be created.
+3. **Admissions 500s (why A1–A8 failed)** — enquiry_code / guardian_name / ADM clash fixes + migrate.
+4. **P1-4 Select Child** — `GET /parents/me/children`; ParentChildContext + smoke PASS.
+5. **Seed academics logins** — teacher / coordinator / principal / director.
+6. **Docs** — `API_BACKLOG` P1-4/P1-5 DONE; `TEAM_ROADMAP` / `FRONTEND_INTEGRATION` updated.
+7. **P1-5 Students UIS** — `GET /api/v1/students`, `GET /api/v1/students/{id}`; `studentsApi.js`; Student Database list/detail hydrate when admissions API on; teacher/principal/director get `students.read`.
+8. **Y-1 Class attendance** — `GET/POST /api/v1/attendance`, calendar map; `attendanceApi.js`; Teacher Class Attendance list loads API when enabled; `attendance.read/write` for teacher staff roles.
+9. **Archify** — overview includes `mod_students`, `mod_attendance`, `studentsApi.js`, `attendanceApi.js` (finalize gates pass). Uncommitted endpoint files cite `main.py` mount until commit.
+10. **Pytest** — **50 passed**.
 
-4. **Automation without school data** — pytest admissions + e2e; live smoke parent login.
-5. **P1-4 Select Child** — implemented `GET /api/v1/parents/me/children`; ParentChildContext loads API children when API auth on; empty-state message on Select Child. Live smoke PASS.
+### Still open / next build
 
-### Still open
+- Phase 2 **Y-2** Lesson plans
+- Manual browser Parent / Student Database / Teacher attendance Pass not claimed
 
-- User confirm Select Child shows child card in browser
-- Phase 2 not started
 
 
 ---

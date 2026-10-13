@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
+    "sha256": "2b2a97aab82e7e76532bb122839e39ad9c2b68a027ea12b82a8826695003b499",
+    "bytes": 12786
+  },
+  "artifact": {
+    "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+    "sha256": "c5c0be43b505c2f036a1196d5df3b14982fc24f3cf0331ece9acc7b9ed2869dd",
+    "bytes": 782806
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "fail"
+  },
+  "failedStage": "browser-check",
+  "diagnostics": [
+    {
+      "code": "viewer/evidence-path-conflict",
+      "severity": "error",
+      "message": "browser-check will not replace the existing unowned evidence path \"C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json\".",
+      "subject": {
+        "artifact": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+        "evidencePath": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
+      },
+      "evidence": {
+        "reason": {
+          "code": "ownership-artifact-mismatch"
+        }
+      },
+      "supportedFixes": [
+        "move the conflicting file aside, or choose a separate --out-dir, then rerun browser-check"
+      ]
+    }
+  ],
+  "diagnosticSummary": {
+    "total": 1,
+    "shown": 1,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.finalize.json",
+    "summaryReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.finalize-summary.json",
+    "browserCheckReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-12T16:57:15.843Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 3961
+}

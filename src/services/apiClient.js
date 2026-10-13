@@ -8,6 +8,22 @@ export const isApiAdmissionsEnabled = () =>
     String(import.meta.env.VITE_USE_API_ADMISSIONS || 'false') === 'true'
 export const isApiFinanceEnabled = () =>
     String(import.meta.env.VITE_USE_API_FINANCE || 'true') === 'true'
+/** Student UIS list/detail — defaults on when admissions API is on. */
+export const isApiStudentsEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_STUDENTS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAdmissionsEnabled()
+}
+/** Class attendance SoT — defaults on when admissions/students API is on. */
+export const isApiAttendanceEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_ATTENDANCE
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiStudentsEnabled()
+}
 
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {

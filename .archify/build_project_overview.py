@@ -60,7 +60,31 @@ ROUTER_META = {
         "sublabel": "enquiry → enroll",
         "path": "backend/app/api/v1/endpoints/admissions.py",
         "line": 20,
-        "end_line": 126,
+        "end_line": 136,
+    },
+    "parents_router": {
+        "id": "mod_parents",
+        "label": "Parents",
+        "sublabel": "me/children",
+        "path": "backend/app/api/v1/endpoints/parents.py",
+        "line": 11,
+        "end_line": 48,
+    },
+    "students_router": {
+        "id": "mod_students",
+        "label": "Students",
+        "sublabel": "list · detail",
+        "path": "backend/app/api/v1/endpoints/students.py",
+        "line": 11,
+        "end_line": 32,
+    },
+    "attendance_router": {
+        "id": "mod_attendance",
+        "label": "Attendance",
+        "sublabel": "class marks",
+        "path": "backend/app/api/v1/endpoints/attendance.py",
+        "line": 13,
+        "end_line": 55,
     },
     "hr_router": {
         "id": "mod_hr",
@@ -118,6 +142,19 @@ def git_rev() -> str:
         return "0" * 40
 
 
+def path_at_head(rel: str) -> bool:
+    """Archify repo evidence is verified against committed HEAD, not the worktree."""
+    try:
+        subprocess.check_output(
+            ["git", "cat-file", "-e", f"HEAD:{rel.replace(chr(92), '/')}"],
+            cwd=ROOT,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except Exception:
+        return False
+
+
 def scan_routers() -> list[dict]:
     text = MAIN.read_text(encoding="utf-8")
     modules = []
@@ -126,7 +163,13 @@ def scan_routers() -> list[dict]:
         line = text.count("\n", 0, match.start()) + 1
         meta = ROUTER_META.get(name)
         if meta:
-            modules.append(dict(meta))
+            item = dict(meta)
+            # Uncommitted endpoint files cannot be cited at HEAD — fall back to main.py mount.
+            if not path_at_head(item["path"]):
+                item["path"] = "backend/app/main.py"
+                item["line"] = line
+                item["end_line"] = line
+            modules.append(item)
         else:
             slug = re.sub(r"_?router$", "", name)
             modules.append(
@@ -312,8 +355,9 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "items": [f"{m['label']} — {m['sublabel']}" for m in live]
                 + [
                     "Flags: AUTH + ADMISSIONS + FINANCE",
-                    "HR + Finance: API is SoT (no silent localStorage)",
-                    "Phase 1: Head/Assistant perms + FY Apr–Mar",
+                    "Parents /me/children (P1-4) live",
+                    "HR + Finance: API is SoT",
+                    "Phase 1: Head/Assistant + FY Apr–Mar",
                     "Gateway/SMTP/WA: env-gated (demo/stub)",
                     "Verified: 45 pytest",
                 ],
@@ -336,10 +380,10 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "dot": "rose",
                 "title": "Still open",
                 "items": [
-                    "Live keys when school ready (mode=live)",
-                    "Manual Vite UI pass vs demo API",
+                    "P1-5 student list/detail (UIS) — next",
+                    "Phase 2 Y-1 Teacher class attendance SoT",
+                    "Live SMTP/WhatsApp/Paytm when school ready",
                     "RFID / eSSL if school confirms (still off)",
-                    "Ops · Parent /me/children · Academics",
                 ],
             },
         ],

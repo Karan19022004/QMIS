@@ -1,0 +1,665 @@
+{
+  "schemaVersion": 1,
+  "ok": false,
+  "command": "finalize",
+  "status": "fail",
+  "type": "architecture",
+  "quality": "showcase",
+  "startedAt": "2026-10-12T17:03:31.385Z",
+  "specification": {
+    "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
+    "sha256": "2b2a97aab82e7e76532bb122839e39ad9c2b68a027ea12b82a8826695003b499",
+    "bytes": 12786
+  },
+  "artifact": {
+    "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+    "sha256": "c5c0be43b505c2f036a1196d5df3b14982fc24f3cf0331ece9acc7b9ed2869dd",
+    "bytes": 782806
+  },
+  "stages": {
+    "validate": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": null,
+      "execution": "embedded-in-deliver",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "deliver",
+        "architecture",
+        "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
+        "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "C:\\karan\\ERP dev",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": true,
+        "command": "validate",
+        "specification": {
+          "sha256": "2b2a97aab82e7e76532bb122839e39ad9c2b68a027ea12b82a8826695003b499",
+          "bytes": 12786
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        }
+      }
+    },
+    "deliver": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 2169,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "deliver",
+        "architecture",
+        "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
+        "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+        "--quality",
+        "showcase",
+        "--repo-root",
+        "C:\\karan\\ERP dev",
+        "--json"
+      ],
+      "receipt": {
+        "schemaVersion": 1,
+        "receiptId": "da31c802-ee9a-43a4-83ba-32fba3ff75f4",
+        "ok": true,
+        "command": "deliver",
+        "type": "architecture",
+        "input": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
+        "output": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+        "specification": {
+          "sha256": "2b2a97aab82e7e76532bb122839e39ad9c2b68a027ea12b82a8826695003b499",
+          "bytes": 12786
+        },
+        "artifact": {
+          "sha256": "c5c0be43b505c2f036a1196d5df3b14982fc24f3cf0331ece9acc7b9ed2869dd",
+          "bytes": 782806
+        },
+        "validation": {
+          "checksPassed": 9,
+          "checkCount": 9,
+          "compositionProfile": "showcase",
+          "compositionStatus": "pass",
+          "errors": 0,
+          "warnings": 0
+        },
+        "evidence": {
+          "verified": true,
+          "repository": "https://github.com/karan4533/ERP-dev",
+          "revision": "3878ae53e2c462f1147d73e575395c2315df78b4",
+          "references": 17
+        },
+        "update": {
+          "status": "unavailable",
+          "installedVersion": null,
+          "availableVersion": null,
+          "releaseNotes": null,
+          "checkedAt": null,
+          "source": null,
+          "noticeRequired": false,
+          "noticeText": null,
+          "reason": "disabled"
+        }
+      }
+    },
+    "check": {
+      "status": "pass",
+      "exitCode": 0,
+      "durationMs": 748,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "check",
+        "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+        "--require-provenance"
+      ],
+      "receipt": {
+        "ok": true,
+        "file": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+        "artifact": {
+          "sha256": "c5c0be43b505c2f036a1196d5df3b14982fc24f3cf0331ece9acc7b9ed2869dd",
+          "bytes": 782806
+        },
+        "checks": [
+          {
+            "name": "single_svg",
+            "ok": true,
+            "details": [
+              "found 1 <svg> block(s)"
+            ]
+          },
+          {
+            "name": "finite_svg",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "orthogonal_arrows",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "label_route_clearance",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_crossings",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "relationship_corridors",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "container_border_runs",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "route_rhythm",
+            "ok": true,
+            "details": []
+          },
+          {
+            "name": "legend_clearance",
+            "ok": true,
+            "details": []
+          }
+        ],
+        "composition": {
+          "schemaVersion": 1,
+          "profile": "showcase",
+          "status": "pass",
+          "summary": {
+            "errors": 0,
+            "warnings": 0
+          },
+          "metrics": {
+            "properCrossings": 0,
+            "resolvedCrossovers": 9,
+            "ambiguousCorridors": 0,
+            "arrowheadCollisions": 0,
+            "containerBorderRuns": 0,
+            "labelRouteClearanceIssues": 0,
+            "labelCanvasOverflowIssues": 0,
+            "minLabelRouteClearance": 20,
+            "desktopReadabilityIssues": 0,
+            "viewportHeightIssues": 0,
+            "minProjectedNodeTextPx": 6.95891156462585,
+            "maxBends": 3,
+            "routesOverSuggestedBends": 5,
+            "maxStretch": 1.175,
+            "routesOverSuggestedStretch": 0,
+            "minSegmentPx": 8,
+            "minInteriorSegmentPx": 20,
+            "shortSegmentCount": 2,
+            "shortEndpointSegmentCount": 2,
+            "shortInteriorSegmentCount": 0,
+            "microSegmentCount": 0
+          },
+          "suggestedLimits": {
+            "bendsPerRelationship": 2,
+            "stretch": 1.35,
+            "segmentPx": 16,
+            "microSegmentPx": 8
+          },
+          "routeReview": {
+            "crossings": [
+              {
+                "left": {
+                  "id": "api-mod_masters",
+                  "from": "api",
+                  "to": "mod_masters",
+                  "label": "",
+                  "collectionIndex": 7,
+                  "artifactIndex": 8
+                },
+                "right": {
+                  "id": "api-mod_admissions",
+                  "from": "api",
+                  "to": "mod_admissions",
+                  "label": "",
+                  "collectionIndex": 8,
+                  "artifactIndex": 9
+                },
+                "point": [
+                  920.1538461538462,
+                  218
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_parents",
+                  "from": "api",
+                  "to": "mod_parents",
+                  "label": "",
+                  "collectionIndex": 9,
+                  "artifactIndex": 10
+                },
+                "right": {
+                  "id": "api-mod_students",
+                  "from": "api",
+                  "to": "mod_students",
+                  "label": "",
+                  "collectionIndex": 10,
+                  "artifactIndex": 11
+                },
+                "point": [
+                  920,
+                  260
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_parents",
+                  "from": "api",
+                  "to": "mod_parents",
+                  "label": "",
+                  "collectionIndex": 9,
+                  "artifactIndex": 10
+                },
+                "right": {
+                  "id": "api-mod_hr",
+                  "from": "api",
+                  "to": "mod_hr",
+                  "label": "",
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
+                },
+                "point": [
+                  920,
+                  288
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_parents",
+                  "from": "api",
+                  "to": "mod_parents",
+                  "label": "",
+                  "collectionIndex": 9,
+                  "artifactIndex": 10
+                },
+                "right": {
+                  "id": "api-mod_files",
+                  "from": "api",
+                  "to": "mod_files",
+                  "label": "",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "point": [
+                  920,
+                  302
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_finance",
+                  "from": "api",
+                  "to": "mod_finance",
+                  "label": "",
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
+                },
+                "right": {
+                  "id": "api-mod_hr",
+                  "from": "api",
+                  "to": "mod_hr",
+                  "label": "",
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
+                },
+                "point": [
+                  784,
+                  288
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_finance",
+                  "from": "api",
+                  "to": "mod_finance",
+                  "label": "",
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
+                },
+                "right": {
+                  "id": "api-mod_files",
+                  "from": "api",
+                  "to": "mod_files",
+                  "label": "",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "point": [
+                  784,
+                  302
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_finance",
+                  "from": "api",
+                  "to": "mod_finance",
+                  "label": "",
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
+                },
+                "right": {
+                  "id": "api-mod_academics",
+                  "from": "api",
+                  "to": "mod_academics",
+                  "label": "",
+                  "collectionIndex": 14,
+                  "artifactIndex": 15
+                },
+                "point": [
+                  784,
+                  316
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_finance",
+                  "from": "api",
+                  "to": "mod_finance",
+                  "label": "",
+                  "collectionIndex": 11,
+                  "artifactIndex": 12
+                },
+                "right": {
+                  "id": "api-mod_ops",
+                  "from": "api",
+                  "to": "mod_ops",
+                  "label": "",
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
+                },
+                "point": [
+                  784,
+                  330
+                ],
+                "sharedNode": "api"
+              },
+              {
+                "left": {
+                  "id": "api-mod_hr",
+                  "from": "api",
+                  "to": "mod_hr",
+                  "label": "",
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
+                },
+                "right": {
+                  "id": "api-mod_files",
+                  "from": "api",
+                  "to": "mod_files",
+                  "label": "",
+                  "collectionIndex": 13,
+                  "artifactIndex": 14
+                },
+                "point": [
+                  1034,
+                  302
+                ],
+                "sharedNode": "api"
+              }
+            ],
+            "detours": [
+              {
+                "relationship": {
+                  "id": "api-uploads",
+                  "from": "api",
+                  "to": "uploads",
+                  "label": "files",
+                  "collectionIndex": 4,
+                  "artifactIndex": 5
+                },
+                "bends": 3,
+                "stretch": 1.175,
+                "directCorridorBlockers": [
+                  {
+                    "id": "db",
+                    "label": "PostgreSQL",
+                    "box": [
+                      610,
+                      420,
+                      140,
+                      64
+                    ]
+                  }
+                ]
+              },
+              {
+                "relationship": {
+                  "id": "api-mod_audit",
+                  "from": "api",
+                  "to": "mod_audit",
+                  "label": "",
+                  "collectionIndex": 6,
+                  "artifactIndex": 7
+                },
+                "bends": 3,
+                "stretch": 1
+              },
+              {
+                "relationship": {
+                  "id": "api-mod_admissions",
+                  "from": "api",
+                  "to": "mod_admissions",
+                  "label": "",
+                  "collectionIndex": 8,
+                  "artifactIndex": 9
+                },
+                "bends": 3,
+                "stretch": 1.081
+              },
+              {
+                "relationship": {
+                  "id": "api-mod_hr",
+                  "from": "api",
+                  "to": "mod_hr",
+                  "label": "",
+                  "collectionIndex": 12,
+                  "artifactIndex": 13
+                },
+                "bends": 3,
+                "stretch": 1.067
+              },
+              {
+                "relationship": {
+                  "id": "api-mod_ops",
+                  "from": "api",
+                  "to": "mod_ops",
+                  "label": "",
+                  "collectionIndex": 15,
+                  "artifactIndex": 16
+                },
+                "bends": 3,
+                "stretch": 1
+              }
+            ]
+          },
+          "leadingSpace": {
+            "measured": true,
+            "emptyTopPx": 50,
+            "emptyTopRatio": 0.066,
+            "occupiedTop": 50,
+            "viewBoxTop": 0,
+            "canvasHeight": 752,
+            "typicalNodeHeight": 64,
+            "reviewSuggested": false
+          },
+          "desktopReadability": {
+            "budgetBasis": "recognized-declared-wide",
+            "readerContract": "declared-wide-v1",
+            "availableDiagramWidth": 1346,
+            "actualBudgetPx": 1346,
+            "actualReaderWidth": 1376,
+            "desiredReaderWidth": 1480.6578947368423,
+            "viewportCap": 1376,
+            "limit": "viewport-cap",
+            "requestedTargetPx": 7.5,
+            "requestedTargetMet": false,
+            "hardFloorPx": 6,
+            "hardFloorMet": true,
+            "minimumOwner": {
+              "kind": "node",
+              "id": "client"
+            },
+            "minimumSourceTextPx": 7.6,
+            "minimumProjectedTextPx": 6.95891156462585,
+            "semanticTextCount": 43
+          },
+          "issues": []
+        },
+        "provenance": "current",
+        "deliveryReceiptId": "da31c802-ee9a-43a4-83ba-32fba3ff75f4"
+      }
+    },
+    "browser-check": {
+      "status": "fail",
+      "exitCode": 1,
+      "durationMs": 39,
+      "command": [
+        "C:\\Program Files\\nodejs\\node.exe",
+        "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
+        "browser-check",
+        "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+        "--json",
+        "--require-provenance"
+      ],
+      "execution": "in-process",
+      "receipt": {
+        "schemaVersion": 1,
+        "ok": false,
+        "command": "browser-check",
+        "evidenceKind": "automated-browser",
+        "status": "fail",
+        "visualReview": "not-requested",
+        "provenance": "current",
+        "deliveryReceiptId": "da31c802-ee9a-43a4-83ba-32fba3ff75f4",
+        "artifact": {
+          "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+          "sha256": "c5c0be43b505c2f036a1196d5df3b14982fc24f3cf0331ece9acc7b9ed2869dd",
+          "bytes": 782806
+        },
+        "state": {
+          "detail": "read",
+          "motion": "still"
+        },
+        "chrome": {
+          "status": "not-checked",
+          "executable": null
+        },
+        "diagnostics": [
+          {
+            "code": "viewer/evidence-path-conflict",
+            "severity": "error",
+            "message": "browser-check will not replace the existing unowned evidence path \"C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json\".",
+            "subject": {
+              "artifact": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+              "evidencePath": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
+            },
+            "evidence": {
+              "reason": {
+                "code": "ownership-artifact-mismatch"
+              }
+            },
+            "supportedFixes": [
+              "move the conflicting file aside, or choose a separate --out-dir, then rerun browser-check"
+            ]
+          }
+        ],
+        "containment": {
+          "status": "fail",
+          "policy": "fit-or-reader-declared-readable-vertical-scroll",
+          "viewports": []
+        },
+        "themeStates": {
+          "status": "fail",
+          "viewports": []
+        },
+        "readability": {
+          "status": "fail",
+          "minimumProjectedNodeTextPx": 6,
+          "viewports": []
+        },
+        "viewerChrome": {
+          "status": "fail",
+          "viewports": []
+        },
+        "captures": {
+          "status": "not-requested",
+          "screenshots": [],
+          "contactSheet": null
+        },
+        "sidecars": {
+          "receipt": "qmis-erp-overview.browser-check.json",
+          "files": []
+        },
+        "error": "browser-check will not replace the existing unowned evidence path \"C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json\"."
+      }
+    }
+  },
+  "diagnostics": [
+    {
+      "code": "viewer/evidence-path-conflict",
+      "severity": "error",
+      "message": "browser-check will not replace the existing unowned evidence path \"C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json\".",
+      "subject": {
+        "artifact": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
+        "evidencePath": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
+      },
+      "evidence": {
+        "reason": {
+          "code": "ownership-artifact-mismatch"
+        }
+      },
+      "supportedFixes": [
+        "move the conflicting file aside, or choose a separate --out-dir, then rerun browser-check"
+      ]
+    }
+  ],
+  "evidence": {
+    "receipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.finalize.json",
+    "summaryReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.finalize-summary.json",
+    "browserCheckReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
+  },
+  "visualReview": "not-requested",
+  "failedStage": "browser-check",
+  "finishedAt": "2026-10-12T17:03:35.347Z",
+  "durationMs": 3961,
+  "update": {
+    "status": "current",
+    "installedVersion": "3.0.1",
+    "availableVersion": "3.0.1",
+    "releaseNotes": null,
+    "checkedAt": "2026-10-12T16:57:15.843Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  }
+}

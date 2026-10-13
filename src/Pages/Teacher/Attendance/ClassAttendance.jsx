@@ -1,8 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
+import { listAttendanceApi } from '../../../services/attendanceApi'
+import { isApiAttendanceEnabled } from '../../../services/apiClient'
 import {
     ATTENDANCE_LIST,
     ATTENDANCE_STATUSES,
@@ -12,9 +14,50 @@ import {
     inOutStatusBadgeColor,
 } from './attendanceData'
 
+const toIsoDate = (value) => {
+    if (!value) return ''
+    const d = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(d.getTime())) return ''
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 const ClassAttendance = () => {
     const [selectedDate, setSelectedDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
+    const [classFilter, setClassFilter] = useState('')
+    const [rows, setRows] = useState(ATTENDANCE_LIST)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState('')
+
+    useEffect(() => {
+        let cancelled = false
+        if (!isApiAttendanceEnabled()) {
+            setRows(ATTENDANCE_LIST)
+            return undefined
+        }
+        setLoading(true)
+        setError('')
+        const date = toIsoDate(selectedDate)
+        listAttendanceApi({ date, className: classFilter || undefined, roster: Boolean(classFilter) })
+            .then((data) => {
+                if (!cancelled) setRows(Array.isArray(data) ? data : [])
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setError(err.message || 'Failed to load attendance')
+                    setRows([])
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [selectedDate, classFilter])
+
+    const displayRows = useMemo(() => rows, [rows])
 
     return (
         <section>
@@ -34,7 +77,12 @@ const ClassAttendance = () => {
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='class-filter' className='text-base font-medium text-[#808080]'>Class</label>
-                        <select id='class-filter' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
+                        <select
+                            id='class-filter'
+                            value={classFilter}
+                            onChange={(e) => setClassFilter(e.target.value)}
+                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                        >
                             <option value=''>All</option>
                             {CLASSES.map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
@@ -112,23 +160,44 @@ const ClassAttendance = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {ATTENDANCE_LIST.map((record) => (
-                                <tr key={record.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
-                                    <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{record.studentId}</td>
+                            {loading && (
+                                <tr>
+                                    <td colSpan={7} className='px-2 py-10 text-center text-[#667085]'>Loading attendance…</td>
+                                </tr>
+                            )}
+                            {!loading && error && (
+                                <tr>
+                                    <td colSpan={7} className='px-2 py-10 text-center text-red-500'>{error}</td>
+                                </tr>
+                            )}
+                            {!loading && !error && displayRows.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className='px-2 py-10 text-center text-[#667085]'>
+                                        No attendance marks for this date. Mark attendance via API or select a class for roster.
+                                    </td>
+                                </tr>
+                            )}
+                            {!loading && !error && displayRows.map((record) => (
+                                <tr key={record.id || record.studentId} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
+                                    <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{record.admissionNumber || record.studentId}</td>
                                     <td className='px-2 py-4 font-medium text-[#1E1E1E]'>{record.studentName}</td>
                                     <td className='px-2 py-4'>{record.className}</td>
-                                    <td className='px-2 py-4'>{record.section}</td>
-                                    <td className='px-2 py-4'>{record.time}</td>
+                                    <td className='px-2 py-4'>{record.section || '—'}</td>
+                                    <td className='px-2 py-4'>{record.time || '—'}</td>
                                     <td className='px-2 py-4'>
-                                        <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusBadgeColor[record.attendanceStatus]}`}>
-                                            {record.attendanceStatus}
-                                        </span>
+                                        {record.attendanceStatus ? (
+                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusBadgeColor[record.attendanceStatus] || ''}`}>
+                                                {record.attendanceStatus}
+                                            </span>
+                                        ) : (
+                                            '—'
+                                        )}
                                     </td>
                                     <td className='px-2 py-4 rounded-e-lg'>
-                                        {record.inOutStatus === '—' ? (
+                                        {!record.inOutStatus || record.inOutStatus === '—' ? (
                                             '—'
                                         ) : (
-                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${inOutStatusBadgeColor[record.inOutStatus]}`}>
+                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${inOutStatusBadgeColor[record.inOutStatus] || ''}`}>
                                                 {record.inOutStatus}
                                             </span>
                                         )}
@@ -142,7 +211,9 @@ const ClassAttendance = () => {
 
             <div className='flex justify-between items-center px-4 mt-4'>
                 <p className='text-sm font-medium text-[#515DEF]'>
-                    Showing 1 to {ATTENDANCE_LIST.length} of {ATTENDANCE_LIST.length} entries
+                    {displayRows.length === 0
+                        ? 'Showing 0 entries'
+                        : `Showing 1 to ${displayRows.length} of ${displayRows.length} entries`}
                 </p>
                 <div className='flex justify-center gap-x-2 flex-wrap'>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'>

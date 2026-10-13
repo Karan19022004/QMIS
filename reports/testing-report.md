@@ -1,32 +1,29 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 12 October 2026 — P1-4 parents/me/children  
-Result: **3 passed** (admissions + e2e); live smoke parent children **PASS**
+Last run: 12 October 2026 (P1-5 + Y-1)  
+Result: **50 passed**, 0 failed (full suite `backend/tests/`)
 
 ## Commands
 
 ```
 cd backend
-python -m pytest tests/test_admissions.py tests/test_e2e_campus_flow.py -q
-python scripts/smoke_parent_login.py
+python -m pytest tests/ -q
 ```
 
-## Results
+## Coverage notes
 
-| Case | Result |
-|---|---|
-| Enquiry → convert → enroll → parent login | PASS |
-| `GET /parents/me/children` returns enrolled child | PASS (pytest + live smoke) |
-| Browser Select Child UI | Fix shipped — user retest |
+- `tests/test_students.py` — campus list/detail; parent 403; teacher `students.read`
+- `tests/test_attendance.py` — upsert/list/roster/calendar; teacher `attendance.write`
+- Prior: admissions, parents/children, finance, HR, Phase 0
+- Pytest ≠ browser Pass for Student Database / Class Attendance UI
 
-## Latest smoke parent (for UI)
+## Seeded API logins
 
-```
-email:    smoke.parent.311139e0@example.com
-password: parent12
-```
-
-## Honesty
-
-Manual browser Pass not claimed until user confirms child card appears on `/parent/select-child`.
+| Role | Email | Password |
+|---|---|---|
+| Admin | admin@qmis.edu | admin123 |
+| Teacher | teacher@qmis.edu | teacher123 |
+| Coordinator | coordinator@qmis.edu | coord123 |
+| Principal | principal@qmis.edu | principal123 |
+| Director | director@qmis.edu | director123 |
