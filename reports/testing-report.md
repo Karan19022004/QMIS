@@ -1,85 +1,78 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 13 October 2026 (Task Management API integration, on top of Y-0 … Y-5)  
-Result: **90 passed**, 0 failed (full suite, `python -m pytest tests/ -q` from `backend`; 82 before this work, plus 8 new tests)  
-Frontend: production build passes (exit 0). Lint: `src/services` is clean; `src/Common/TaskManagement` reports 4 errors that were already there (unused `toDate` / `setToDate` in `AssignTasksPage.jsx` line 33 and `MyTasksPage.jsx` line 27, not touched). Whole project: 364 problems (310 errors, 54 warnings), all in other files.
+Last run: 13 October 2026 (P0 security hardening)  
+Result: **152 passed**, 0 failed (full suite, `python -m pytest tests/ -q` from `backend`; 90 before this work, plus 62 new: 52 in `test_security_p0.py`, 10 in `test_frontend_auth_static.py`)  
+Frontend: production build passes (exit 0). Lint on the touched files shows only problems that were already there (checked against the committed version of `AuthContext.jsx`: the same 3 "fast refresh" errors and 1 missing-dependency warning; `AdminssionList.jsx` line 40 and `ExportModal.jsx` line 1 are old and untouched). A whole-project lint count was not run this time.
 
-Three kinds of evidence are kept apart. **Automated** = pytest. **Browser** = I drove the real screens against the live backend (Principal, Teacher, Director and Admin each logged in in their own tab). **API probe** = a direct call to the live backend, not a screen. Anything not run is marked NOT RUN.
+Evidence is kept apart. **Automated** = pytest. **Live API** = a direct call to the running backend after a restart on the new code. **Browser** = I drove the real screens. Anything not run is marked NOT RUN. A static source check is not a browser check.
 
-## Automated (pytest) — Task Management
+## Automated (pytest)
 
-`tests/test_escalations_tasks.py`: 19 passed (it holds the escalation and the task tests).
+| Area | Tests | What they prove | Result |
+|---|---|---|---|
+| Startup with insecure production config | 20 | Default environment is production; default JWT secret, short secret, placeholder secret, `OTP_DEBUG`, `*` CORS, demo integrations and default DB password are each refused with a clear message; staging/prod/blank/test names get no relaxation; a secure production config is accepted; `development`, `dev`, `local` allowed; importing the app in a separate process with an insecure production environment fails ("Refusing to start") and succeeds with a secure one | PASS |
+| Demo accounts | 2 | Production mode creates zero users; development creates the demo users | PASS |
+| OTP | 5 | Challenge response is identical for a known and an unknown email; no code is created for an unknown email but it is audited; no `debug_code` outside development even with `OTP_DEBUG=true`; `debug_code` only in development with the flag; verify failure is identical for known and unknown | PASS |
+| Rate limit and lockout | 10 | Sliding window and "blocked attempts are not recorded"; 5 wrong passwords then 429 with `Retry-After` (also with the correct password); same answer for an unknown email; lockout lifts after the window; success resets the counter; lockout audited; per-IP block across many emails; OTP request limit for known and unknown emails; OTP verify lockout also burns the code; change-password current-password guessing limited | PASS |
+| Password validation | 15 | Rejects short, no number, no letter, common, repeated, leading/trailing space, over 72 bytes, email name; accepts strong; HR temporary passwords are random and meet the policy; weak change refused (422) and the old password still works; reuse refused; old weak seeded login still works; a strong change succeeds; parent account creation enforces the policy | PASS |
+| Frontend sources (static) | 10 | No seeded passwords or the old shared demo password in `src`; `apiLogin` is only called from the sign-in context with the typed values; HR and Finance clients do not import the login API and rely on the signed-in token; no prefilled credentials on the sign-in page; no local fallback after an API login failure; the fake OTP login is gone; stored role is verified with the server; demo switch is development-only | PASS |
+| Existing suites | 90 | Admissions, approvals, attendance, demo integrations, e2e campus flow, escalations and tasks (19), exams, finance, HR, leave, lesson plans, Phase 0, students | PASS |
 
-| New / changed test | What it proves | Result |
-|---|---|---|
-| `test_task_status_remark_is_persisted_in_history_with_actor` | Remark is stored with the status change, appears in the task history with actor and role, shows on the list, and is in the completion notification | PASS |
-| `test_task_remark_validation_and_rules_unchanged` | Blank remark treated as none; over 2000 characters refused; assignee-only, no-reopen and forward-only rules unchanged | PASS |
-| `test_task_create_with_client_ref_is_idempotent` | Same `clientRef` returns the same task (200, `idempotentReplay`); same ref with another assignee is 409; no second task or notification | PASS |
-| `test_overdue_notification_is_claimed_atomically_by_one_request` | Two requests racing on the overdue check send exactly one notification per person (this failed with the guard disabled) | PASS |
-| `test_task_hierarchy_allows_only_direct_reports` | Allowed: principal→coordinator/teacher, director→principal, admin→director. Refused with 403 and nothing created or notified: principal→director/admin, director→teacher/coordinator, admin→teacher/principal, teacher, coordinator and HR as assigners | PASS |
-| `test_task_hierarchy_checks_do_not_change_existing_error_codes` | Self-assignment still 400, bad priority still 400, unknown assignee still 400 | PASS |
-| `test_task_hierarchy_applies_to_idempotent_retries` | A refused pairing with a `clientRef` stays refused; the allowed one still replays | PASS |
-| `test_task_assignees_are_limited_to_the_callers_direct_reports` | Assignee lookup returns only the caller's direct reports; another role 403; roles that cannot assign (teacher, coordinator, HR) 403 | PASS |
-| Existing task tests (assign flow, validation, overdue-once) | Unchanged behaviour | PASS |
+Test passwords were changed in six existing test files (parent accounts and one change-password test) only because the new rule needs 10 characters; assertions are unchanged.
 
-Full suite after the hierarchy change: 90 passed, 0 failed (83 s).
+## Live API (running backend, restarted on the new code)
 
-## Browser (live backend, `VITE_USE_API_TASKS` on)
+| Check | Result |
+|---|---|
+| Login, `/auth/me` returns the signed-in user | PASS |
+| Wrong password: 401, generic message | PASS |
+| OTP challenge: known and unknown email same status and shape; unknown gets no code | PASS |
+| OTP code issued only because this machine is `ENVIRONMENT=development` with `OTP_DEBUG=true`; code works once, second use 401; wrong code identical for known and unknown | PASS |
+| Lockout: 5 failures (401) then 429 with `Retry-After: 900` | PASS |
+| Logout endpoint 200 | PASS |
+| Expired token 401; tampered token 401; no token 401 | PASS |
+| HR user reads HR data (200); HR user cannot read finance (403) | PASS |
+| Account Head reads finance state (200); cannot read HR data (403) | PASS |
+| Without a token: HR data 401, finance state 401 | PASS |
+| Principal's existing session still reads tasks, escalations and leave requests (200) | PASS |
+| Backend refuses to start with this machine's old `.env` that has no `ENVIRONMENT` (exit 1, message names the three unsafe settings) | PASS |
+| Teacher reads HR "own record" (`/hr/portal/employees`) | **FAIL** (500). Not caused by this work: the local database column `hr_employees.user_id` is `VARCHAR(36)` while the model expects a UUID. Not fixed (database migration, outside P0) |
+
+## Browser (live backend and frontend)
 
 | # | Scenario | Result |
 |---|---|---|
-| 1 | Empty form: blocked with the message, nothing created | PASS |
-| 2 | API-mode form: assigned date is "Today (set by the server)", upload box replaced by a note, real users loaded from the server | PASS |
-| 3 | Two people selected: one task each (TASK-0001, TASK-0002) | PASS |
-| 4 | Partial failure (server refused one person): created/failed list with reason and "Retry failed (1)" | PASS |
-| 5 | Lost response (server created the task, browser saw a network error), then retry: same `clientRef` reused, still exactly 2 tasks, the teacher got one "New task" notification | PASS |
-| 6 | Teacher sees only own tasks; Pending → In Progress with remark → Completed; remark stored; list refreshed without reload; no Update action after Completed; only forward options; Save disabled until the status changes | PASS |
-| 7 | Server history shows assigned + status events with actor (principal / teacher) and remarks | PASS (API read) |
-| 8 | Principal bell went 4 → 5 with "Task completed"; Principal list shows Completed and the remark on a cold load | PASS |
-| 9 | Overdue label on backdated tasks (Teacher and Principal), none on due-today or completed tasks | PASS |
-| 10 | Teacher opening the Assign Task page is redirected to My Tasks | PASS |
-| 11 | Director role list is Principal + Front Office (PRM); Admin role list is Director only; Principal sees Coordinator / Teacher / Librarian | PASS |
-| 12 | Director → Principal task: shown in Principal's My Tasks, bell 8 → 9, Director's list shows it | PASS |
-| 13 | Admin → Director task created through the UI (TASK-0007); shown in Admin's list and in the Director's My Tasks (bell 2) | PASS |
-| 14 | Principal → Teacher task created through the UI after the backend hierarchy change (TASK-0006) | PASS |
-| 15 | Hierarchy bypass: the Principal's page was made to send a Director as the assignee; the server answered 403 and the screen showed "0 task(s) created, 1 could not be assigned … A principal cannot assign tasks to a director."; no task was created (list stayed at 5) | PASS |
-| 16 | Flag off (local mode): two date pickers, upload box and demo teachers back; Principal assigned a task (PRI-TASK-001) and saw it listed without a Remarks column; Teacher saw it, moved it to In Progress with no remarks box; no API tasks mixed in (network traffic was not inspected) | PASS |
-| 17 | Flag turned back on: server-set assigned date shown again | PASS |
-| 18 | Self-assignment through the screen | NOT RUN (the assignee list never contains the caller; covered by the API probe and pytest) |
-| 19 | Director / Admin "all tasks" view | NOT RUN (no such screen exists; Admin's list shows only tasks the Admin assigned, 1 entry) |
-| 20 | Librarian, Front Office (PRM), Gatekeeper and Gatekeeper Manager screens | NOT RUN (no seeded users for those roles; hierarchy covered by the role map in code and the Principal / Director / Admin screens) |
-| 21 | Super Admin screens, mobile layout, Export button, date filters | NOT RUN |
+| 1 | Sign-in page has no demo-account button, no prefilled credentials, no shared demo password | PASS |
+| 2 | Wrong password: "Invalid email or password." and stay on the sign-in page | PASS |
+| 3 | Six wrong attempts for one email: 6th shows "Too many attempts. Try again in 15 minutes." | PASS |
+| 4 | HR signs in through the form: lands on the HR dashboard with real HR data (16 employees); server says the token is `hr@qmis.edu` / role `hr` | PASS |
+| 5 | Signed in as HR, opening the Account Head URL: sent back to the HR dashboard; token still HR; finance with that token 403; no silent login as another user | PASS |
+| 6 | Sign out: session and token cleared, protected URL returns to the sign-in page | PASS |
+| 7 | Account Head signs in through the form: correct identity, Finance dashboard loads (HR data 403 for that token) | PASS, with a caveat: the first load showed the previous HR visit's "load failed" message until "Retry API load" was clicked |
+| 8 | Reload with a valid session: stays signed in (role checked with the server) | PASS |
+| 9 | Stored role changed to HR while the token is Admin's: after a reload the session is ended and the page goes to the sign-in page | PASS |
+| 10 | Rejected token (a valid token with its last characters altered) and page reload: session ended, sign-in page shows "Your session has expired. Please sign in again." | PASS |
+| 11 | Token rejected in the middle of a session (page already open): signed out by itself after about 15 s (next background refresh) and sent to the sign-in page | PASS |
+| 12 | Task Management still lists the Principal's 5 tasks after the change | PASS |
+| 13 | OTP screens | NOT RUN (the frontend has no OTP screen; OTP was checked through the API only) |
+| 14 | Change-password screen with the new 10-character rule, and a must-change account | NOT RUN (the client check was edited; the server rule is covered by pytest) |
+| 15 | A real expired token (waiting for 8 hours, or a token signed with an old expiry) in the browser | NOT RUN (the server's rejection of an expired token was checked through the API; the browser used an altered token, which takes the same 401 path) |
+| 16 | Offline demo sign-in with `VITE_ENABLE_DEMO_LOGINS=true` | NOT RUN |
+| 17 | Admissions screen with the new parent password prompt | NOT RUN |
+| 18 | Escalation and leave screens | NOT RUN in a browser this round (escalation tests and the live API read for escalations and leave were 200; screens were checked in earlier rounds) |
 
-## API probes (live backend, after the restart with the hierarchy)
+## Defects found
 
-| Probe | Result |
-|---|---|
-| Principal → Director 403, Director → Teacher 403, Admin → Teacher 403, Teacher → Principal 403; none created a task | PASS |
-| Principal → self 400 | PASS |
-| `GET /tasks/assignees`: Principal 200 (coordinator, teacher), Director 200 (principal), Admin 200 (director); Principal `?role=director` 403; Teacher 403 | PASS |
-| Earlier: past due date 400, blank title 400, bad priority 400, unknown assignee 400, assigner moving status 403, reopen 409, `box=all` 200 for Admin and 403 for Director / Teacher | PASS |
-| 8 parallel list reads sent exactly one overdue notification per person (after the race fix) | PASS |
+- **Fixed:** FE fallback logins for HR, Finance (HR, Account Head, Admin) and a pre-filled default parent password; any 6-digit "OTP" accepted by an unused local login; startup with the shipped secret; OTP code and unknown-account disclosure; unlimited login and OTP guessing; 6-character passwords; a wrong-password sign-in falling back to local demo accounts.
+- **Not fixed:** the `hr_employees.user_id` column type in the local database (above); the Finance screen keeps a previous user's error after switching users in one tab, and client-side caches (HR, finance and others) are not cleared on sign-out (recommend a full page reload on sign-out in P1); mock employee pages still contain fictional account passwords as display text (they cannot sign in).
 
-## Defects found and fixed in this work
+## Side effects on this machine
 
-- **Duplicate "Task overdue" notifications** (two per person) when two list reads ran at the same moment. The overdue flag is now claimed with one atomic update; regression test added.
-- **Modal and list refresh**: the Update Status modal no longer uses an effect to copy props (it is re-created per task), and the lists keep their rows in state (React Compiler is on).
-
-## Observed, not fixed
-
-- The 4 pre-existing lint errors above.
-- "Retry failed" is also shown after a permanent refusal such as 403 (it fails again, creates nothing).
-- Escalation auto-climb could send duplicate notifications under the same kind of race as the task overdue alert (not touched).
-- Clicking a notification marks it read but does not open the item.
-- Client-side validation still uses a browser `alert` (existing pattern).
-
-## Side effects on the dev database
-
-- User `teacher2@qmis.edu` (EMP-0016) created through the HR API to test several assignees.
-- Tasks TASK-0001 … TASK-0007 created during testing; the due dates of TASK-0003 and TASK-0004 were moved back one day directly in the database to test the overdue label.
-- Duplicate overdue notifications created before the race fix remain.
-- Local-mode test task in the browser storage was removed.
+- `backend/.env` (git-ignored, never committed) got `ENVIRONMENT=development` so the backend keeps starting.
+- The backend on port 8000 was restarted on the new code.
+- Failed-login and OTP audit rows were written to the dev database; the throwaway lockout email does not exist as an account.
+- In the browser, the Admin, Teacher and Director test tabs were signed out by the checks; the Principal tab is still signed in.
 
 ## Commands
 
@@ -90,15 +83,13 @@ python -m pytest tests/ -q
 
 ## Coverage notes
 
-- `tests/test_escalations_tasks.py` (19 tests) — escalations: rejection needs a note, auto-escalation notifications, Director/Admin access, one-level-up routing, receiver-only status, 24h clock, HR has no path, admin-only sweep; tasks: assign flow, validation, overdue once and race-safe, remarks and history, idempotent create, assignment hierarchy and assignee lookup limits
-- `tests/test_leave.py` — chain principal→HR, on-leave lookup, permission rules, overlap 409, access rules, logout audited
-- `tests/test_exams.py` — exam types, marks flow, publish after chain, ranks, parent sees own child only, weightage rules
-- `tests/test_lesson_plans.py` — deadline rule, submit/lock, approval and visibility, revise to v2, reminders
-- `tests/test_approvals.py` — 3-level chain, wrong role / self-decision 403, deny needs reason, notifications
-- `tests/test_students.py`, `tests/test_attendance.py`, admissions, parents/children, finance, HR, Phase 0
-- Pytest is not a browser Pass for Student Database / Class Attendance screens
+- `tests/test_security_p0.py` (52) — P0 hardening, listed above
+- `tests/test_frontend_auth_static.py` (10) — frontend auth source checks (no JS test runner exists in the project)
+- `tests/test_escalations_tasks.py` (19) — escalations and tasks incl. hierarchy
+- `tests/test_leave.py`, `test_exams.py`, `test_lesson_plans.py`, `test_approvals.py`, `test_students.py`, `test_attendance.py`, admissions, parents/children, finance, HR, Phase 0
+- Pytest is not a browser pass for any screen
 
-## Seeded API logins
+## Seeded API logins (development only)
 
 | Role | Email |
 |---|---|
@@ -108,5 +99,6 @@ python -m pytest tests/ -q
 | Principal | principal@qmis.edu |
 | Director | director@qmis.edu |
 | HR | hr@qmis.edu |
+| Account Head | accounthead@qmis.edu |
 
-Passwords are not recorded in this report. They come from the seed settings in `backend/.env` (development only).
+These exist only when `ENVIRONMENT=development`. Passwords are not recorded in this report; they come from the seed settings in `backend/.env`.
