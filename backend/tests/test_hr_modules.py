@@ -374,13 +374,13 @@ def test_staff_must_change_password_then_clears(client):
     changed = client.post(
         "/api/v1/auth/change-password",
         headers={"Authorization": f"Bearer {token}"},
-        json={"current_password": temporary, "new_password": "Secure99"},
+        json={"current_password": temporary, "new_password": "Secure-Pass-99"},
     )
     assert changed.status_code == 200, changed.text
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 200
     assert me.json()["must_change_password"] is False
-    again = client.post("/api/v1/auth/login", json={"email": "new.staff@school.com", "password": "Secure99"})
+    again = client.post("/api/v1/auth/login", json={"email": "new.staff@school.com", "password": "Secure-Pass-99"})
     assert again.status_code == 200
     assert again.json()["must_change_password"] is False
 

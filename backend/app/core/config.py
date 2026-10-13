@@ -1,17 +1,33 @@
 import os
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Shipped placeholder secret. It is public (in git history), so it must never sign tokens
+# anywhere except an explicitly configured local development machine.
+DEFAULT_JWT_SECRET = "local-dev-change-me-qmis-erp-2026"
+MIN_JWT_SECRET_LENGTH = 32
+_DEVELOPMENT_NAMES = {"development", "dev", "local"}
+_KNOWN_WEAK_SECRET_MARKERS = ("change-me", "changeme", "secret", "password", "example", "placeholder")
+
+
+class InsecureConfigurationError(ValueError):
+    """Raised at startup when a non-development environment has an unsafe configuration."""
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # hide_input_in_errors: a failed validation must not echo secrets (DB URL, JWT secret) into logs.
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     app_name: str = "QMIS ERP API"
+    # Secure by default: anything other than an explicit development value is treated as production.
+    environment: str = "production"
     database_url: str = "postgresql+psycopg://postgres:root@localhost:5432/qmis_erp"
-    jwt_secret: str = "local-dev-change-me-qmis-erp-2026"
+    jwt_secret: str = DEFAULT_JWT_SECRET
     jwt_expire_minutes: int = 480
     otp_expire_minutes: int = 10
-    otp_debug: bool = True
+    # Returns the OTP in the API response. Only honoured when ENVIRONMENT is development.
+    otp_debug: bool = False
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     admin_seed_email: str = "admin@qmis.edu"
     admin_seed_password: str = "admin123"
@@ -30,6 +46,21 @@ class Settings(BaseSettings):
     director_seed_email: str = "director@qmis.edu"
     director_seed_password: str = "director123"
     upload_dir: str = "uploads"
+
+    # --- Brute-force protection (in-memory, per API process) ---
+    login_max_failures: int = 5  # failed logins per email before lockout
+    login_lockout_minutes: int = 15
+    login_ip_max_failures: int = 20  # failed logins per client IP before that IP is blocked
+    otp_challenge_max_per_window: int = 3  # OTP requests per email per window
+    otp_challenge_ip_max_per_window: int = 10  # OTP requests per client IP per window
+    otp_challenge_window_minutes: int = 10
+    otp_verify_max_failures: int = 5  # wrong codes per email before lockout (challenge is burned)
+    otp_verify_ip_max_failures: int = 20
+    # Only enable behind a trusted reverse proxy that overwrites X-Forwarded-For.
+    trust_proxy_headers: bool = False
+
+    # --- Password policy (applies when a password is set or changed, never at login) ---
+    password_min_length: int = 10
 
     # demo = local outbox + demo Razorpay HMAC (not real merchant). live = real providers.
     integrations_mode: str = ""
@@ -54,6 +85,53 @@ class Settings(BaseSettings):
 
     # RFID / eSSL punch import — off until school confirms.
     rfid_import_enabled: bool = False
+
+    @property
+    def is_development(self) -> bool:
+        return self.environment.strip().lower() in _DEVELOPMENT_NAMES
+
+    @property
+    def otp_debug_enabled(self) -> bool:
+        """OTP codes are only ever echoed back in explicitly configured development."""
+        return self.otp_debug and self.is_development
+
+    @property
+    def seed_demo_accounts(self) -> bool:
+        """Demo logins (admin/hr/teacher...) are created only in development."""
+        return self.is_development
+
+    def insecure_production_problems(self) -> list[str]:
+        problems: list[str] = []
+        secret = self.jwt_secret.strip()
+        lowered = secret.lower()
+        if secret == DEFAULT_JWT_SECRET:
+            problems.append("JWT_SECRET is the shipped default; generate a unique random secret")
+        elif len(secret) < MIN_JWT_SECRET_LENGTH:
+            problems.append(f"JWT_SECRET must be at least {MIN_JWT_SECRET_LENGTH} characters")
+        elif any(marker in lowered for marker in _KNOWN_WEAK_SECRET_MARKERS):
+            problems.append("JWT_SECRET looks like a placeholder; generate a unique random secret")
+        if self.otp_debug:
+            problems.append("OTP_DEBUG must be false (it discloses one-time codes in API responses)")
+        if "*" in self.cors_origin_list:
+            problems.append("CORS_ORIGINS must list explicit origins, not '*'")
+        if str(os.environ.get("INTEGRATIONS_MODE", self.integrations_mode) or "").strip().lower() == "demo":
+            problems.append("INTEGRATIONS_MODE=demo (fake payment/email providers) is not allowed")
+        if "postgres:root@" in self.database_url:
+            problems.append("DATABASE_URL uses the default database password")
+        return problems
+
+    @model_validator(mode="after")
+    def _reject_insecure_non_development(self) -> "Settings":
+        if self.is_development:
+            return self
+        problems = self.insecure_production_problems()
+        if problems:
+            raise InsecureConfigurationError(
+                f"Refusing to start with ENVIRONMENT={self.environment!r}: "
+                + "; ".join(problems)
+                + ". For local work set ENVIRONMENT=development in backend/.env."
+            )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

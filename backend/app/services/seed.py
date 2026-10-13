@@ -55,6 +55,22 @@ def seed_reference_data(db: Session) -> None:
                 db.add(RolePermission(role_id=role.id, permission_id=perm.id))
                 existing_links.add(key)
 
+    # Demo logins have well-known passwords, so they exist only in explicit development mode.
+    if settings.seed_demo_accounts:
+        _seed_demo_users(db, campus, roles_by_code)
+    if created_campus:
+        write_audit(
+            db,
+            action="REFERENCE_SEEDED",
+            entity_type="campus",
+            entity_id=str(campus.id),
+            campus_id=campus.id,
+            details="Madurai campus, roles, and permissions",
+        )
+    db.commit()
+
+
+def _seed_demo_users(db: Session, campus: Campus, roles_by_code: dict[str, Role]) -> None:
     _seed_user(
         db,
         campus=campus,
@@ -98,16 +114,6 @@ def seed_reference_data(db: Session) -> None:
                 email=email,
                 password=password,
             )
-    if created_campus:
-        write_audit(
-            db,
-            action="REFERENCE_SEEDED",
-            entity_type="campus",
-            entity_id=str(campus.id),
-            campus_id=campus.id,
-            details="Madurai campus, roles, and permissions",
-        )
-    db.commit()
 
 
 def _seed_current_academic_year(db: Session, campus: Campus) -> None:

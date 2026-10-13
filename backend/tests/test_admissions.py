@@ -74,7 +74,7 @@ def test_rich_enquiry_admission_enroll_with_parent(client):
         f"/api/v1/admissions/{admission_id}/enroll",
         json={
             "parent_account_email": "parent.aariv@example.com",
-            "parent_account_password": "parent123",
+            "parent_account_password": "Parent-Test-2026",
         },
         headers=headers,
     )
@@ -88,7 +88,7 @@ def test_rich_enquiry_admission_enroll_with_parent(client):
     # Parent can authenticate with the enroll credentials (synthetic — no school data needed).
     parent_login = client.post(
         "/api/v1/auth/login",
-        json={"email": "parent.aariv@example.com", "password": "parent123"},
+        json={"email": "parent.aariv@example.com", "password": "Parent-Test-2026"},
     )
     assert parent_login.status_code == 200, parent_login.text
     assert parent_login.json()["role"] == "parent"
