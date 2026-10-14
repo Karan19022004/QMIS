@@ -8,6 +8,24 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026 (late) — Student panel 23/23 Completed
+
+**Status:** Full Student sidebar completed (shared APIs + self-scoped portal). Migration **0012** (`students.student_user_id`).
+
+### Done
+
+1. `GET /students/me` + optional student login on enroll; results/attendance/TC scoped to linked student login.
+2. FE: `StudentLayout` hydrates `ActiveStudentContext` from `/students/me` (offline demo fallback).
+3. Word Student **23 Completed / 0 Partial / 0 Not Completed** (review + updated/unlocked copies; main `.docx` was locked in Word).
+4. Pytest student/parent portal suites green; Alembic upgraded to **0012**.
+
+### Open / next
+
+- Close Word and replace locked `QMIS-ERP-Role-Module-Status.docx` from `.unlocked.docx` if still open.
+- Next role panel after Student (Teacher/Coordinator likely).
+
+---
+
 ## 14 October 2026 (late) — Parent panel 23/23 Completed
 
 **Status:** Full Parent sidebar completed (shared APIs + portal child views). No new migration.

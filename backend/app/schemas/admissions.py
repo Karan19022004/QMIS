@@ -172,6 +172,9 @@ class EnrollAdmissionIn(BaseModel):
     parent_account_email: str | None = None
     parent_account_password: str | None = None
     skip_parent_account: bool = False
+    student_account_email: str | None = None
+    student_account_password: str | None = None
+    skip_student_account: bool = True
 
 
 class EnrollAdmissionOut(BaseModel):
@@ -180,3 +183,5 @@ class EnrollAdmissionOut(BaseModel):
     student_code: str
     parent_user_id: UUID | None = None
     parent_created: bool = False
+    student_user_id: UUID | None = None
+    student_created: bool = False

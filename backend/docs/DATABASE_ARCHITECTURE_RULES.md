@@ -1,7 +1,7 @@
 # School ERP — Database Architecture Rules (all 480 sidebar modules)
 
 **Status:** Canonical delivery rules (14 October 2026)  
-**Verified baseline (re-checked 14 Oct 2026):** PostgreSQL `qmis_erp`, Alembic head **`0011_front_office_records`**, **48** application tables matching SQLAlchemy `Base.metadata` exactly (plus `alembic_version`; no extras / no missing).
+**Verified baseline (re-checked 14 Oct 2026):** PostgreSQL `qmis_erp`, Alembic head **`0012_students_student_user_id`**, **48** application tables matching SQLAlchemy `Base.metadata` exactly (plus `alembic_version`; no extras / no missing). Additive column: `students.student_user_id`.
 
 These rules apply before any new role panel, API, or migration work. They override the mistaken idea that 480 sidebar rows require 480 tables.
 
@@ -53,7 +53,7 @@ Do **not** create a new model because a different role needs the same feature.
 
 | Figure | Meaning |
 |---|---|
-| **~48 tables @ `0011`** | Verified baseline for shared core + Admin campus + PRM Front Office persistence |
+| **~48 tables @ `0012`** | Verified baseline for shared core + Admin campus + PRM Front Office + student portal login link |
 | **~80–150 tables (full ERP)** | Planning estimate for later Finance/Transport/Canteen/Audit depth — **not a target** |
 
 Do **not** add tables merely to reach a count. Always verify migration head and live schema before quoting numbers:
@@ -61,7 +61,7 @@ Do **not** add tables merely to reach a count. Always verify migration head and 
 ```bash
 cd backend
 alembic current
-# expect 0011_front_office_records (or newer when migrations are added)
+# expect 0012_students_student_user_id (or newer when migrations are added)
 ```
 
 ---
@@ -71,7 +71,7 @@ alembic current
 For each confirmed schema change:
 
 1. Update SQLAlchemy models and Pydantic/API schemas consistently.
-2. Add an Alembic revision (prefer additive / abort-safe patterns used in `0002`–`0011`).
+2. Add an Alembic revision (prefer additive / abort-safe patterns used in `0002`–`0012`).
 3. Preserve existing records; define FKs, indexes, uniqueness, and deletion/downgrade rules.
 4. Test upgrade on a safe development or throwaway copy — never destructive tests on production.
 5. Verify persistence and retrieval through the API (not HTTP 200 alone).

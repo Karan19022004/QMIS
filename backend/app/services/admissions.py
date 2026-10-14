@@ -432,28 +432,30 @@ def _full_name(row: Admission) -> str:
     ).strip() or row.first_name
 
 
-def _ensure_parent_user(
+def _ensure_portal_user(
     db: Session,
     actor: User,
     *,
     email: str | None,
     password: str | None,
     skip: bool,
+    role_code: str,
+    label: str,
 ) -> tuple[User | None, bool]:
     if skip or not email:
         return None, False
     email = email.strip().lower()
     if not password or not password.strip():
-        fail(400, "validation_error", "Parent password is required.")
+        fail(400, "validation_error", f"{label} password is required.")
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
         return existing, False
     policy_message = password_policy_message(password.strip(), email=email)
     if policy_message:
         fail(400, "weak_password", policy_message)
-    role = db.scalar(select(Role).where(Role.code == "parent"))
+    role = db.scalar(select(Role).where(Role.code == role_code))
     if role is None:
-        fail(500, "config_error", "Parent role is not seeded.")
+        fail(500, "config_error", f"{label} role is not seeded.")
     user = User(
         campus_id=actor.campus_id,
         role_id=role.id,
@@ -465,6 +467,44 @@ def _ensure_parent_user(
     db.add(user)
     db.flush()
     return user, True
+
+
+def _ensure_parent_user(
+    db: Session,
+    actor: User,
+    *,
+    email: str | None,
+    password: str | None,
+    skip: bool,
+) -> tuple[User | None, bool]:
+    return _ensure_portal_user(
+        db,
+        actor,
+        email=email,
+        password=password,
+        skip=skip,
+        role_code="parent",
+        label="Parent",
+    )
+
+
+def _ensure_student_user(
+    db: Session,
+    actor: User,
+    *,
+    email: str | None,
+    password: str | None,
+    skip: bool,
+) -> tuple[User | None, bool]:
+    return _ensure_portal_user(
+        db,
+        actor,
+        email=email,
+        password=password,
+        skip=skip,
+        role_code="student",
+        label="Student",
+    )
 
 
 def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: EnrollAdmissionIn) -> dict:
@@ -479,6 +519,13 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
         email=parent_email,
         password=payload.parent_account_password,
         skip=payload.skip_parent_account,
+    )
+    student_user, student_created = _ensure_student_user(
+        db,
+        actor,
+        email=payload.student_account_email,
+        password=payload.student_account_password,
+        skip=payload.skip_student_account,
     )
 
     admission_number = row.admission_code
@@ -496,6 +543,7 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
         full_name=_full_name(row),
         class_name=row.class_name,
         parent_user_id=parent_user.id if parent_user else None,
+        student_user_id=student_user.id if student_user else None,
     )
     db.add(student)
     db.flush()
@@ -538,6 +586,8 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
         "student_code": student.admission_number,
         "parent_user_id": parent_user.id if parent_user else None,
         "parent_created": parent_created,
+        "student_user_id": student_user.id if student_user else None,
+        "student_created": student_created,
     }
 
 

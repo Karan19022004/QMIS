@@ -181,6 +181,17 @@ ROLE_PERMISSIONS.update(
                 ]
             )
         ),
+        "student": list(
+            dict.fromkeys(
+                [
+                    *_CORE,
+                    "results.read",
+                    "notifications.read",
+                    "attendance.read",
+                    "exams.read",
+                ]
+            )
+        ),
         "jointdirector": list(_STAFF_ACADEMIC),
         "stationerystoremanager": list(dict.fromkeys([*_CORE, *_APPROVALS])),
         "hr": list(
@@ -247,11 +258,11 @@ for _code, _perms in ROLE_PERMISSIONS.items():
 
 # TC requests: parents and front office file them; PRM forwards; administrators decide.
 # Super Admin / Managing Director already hold every permission.
-_TC_FILERS = {"parent", "prm", "admin"}
+_TC_FILERS = {"parent", "student", "prm", "admin"}
 _TC_FORWARDERS = {"prm", "admin"}
 _TC_DECIDERS = {"admin"}
 for _code, _perms in ROLE_PERMISSIONS.items():
-    if _code in {"admin", "superadmin", "managing_director", "prm", "parent"} and "tc.read" not in _perms:
+    if _code in {"admin", "superadmin", "managing_director", "prm", "parent", "student"} and "tc.read" not in _perms:
         _perms.append("tc.read")
     if _code in _TC_FILERS and "tc.write" not in _perms:
         _perms.append("tc.write")

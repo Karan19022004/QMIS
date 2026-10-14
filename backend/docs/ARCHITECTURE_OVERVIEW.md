@@ -19,7 +19,7 @@
 | Admin campus (`mod_admin_campus`) | Documents, Announcements, Calendar, TC, Activities, Communication, Admin dashboard | Grouped so the rack stays readable |
 | Planned | Ops / later modules | Dashed “planned” edges |
 | Data | PostgreSQL `qmis_erp`, `uploads/` | SQL + file assets |
-| Migrations | Alembic `0001`–`0011` | Schema upgrades (not silent at startup); **48** app tables at head |
+| Migrations | Alembic `0001`–`0012` | Schema upgrades (not silent at startup); **48** app tables at head (+ `students.student_user_id`) |
 
 Views in the HTML: **Live API**, **Planned**, **User path**.
 

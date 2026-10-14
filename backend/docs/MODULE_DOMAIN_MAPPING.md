@@ -1,7 +1,7 @@
 # Module → domain → API → table mapping
 
 **Rules:** [`DATABASE_ARCHITECTURE_RULES.md`](DATABASE_ARCHITECTURE_RULES.md)  
-**Schema baseline:** Alembic **`0011_front_office_records`**, **48** application tables  
+**Schema baseline:** Alembic **`0012_students_student_user_id`**, **48** application tables (+ `students.student_user_id`)  
 **Legend:** Shared = reuse across roles · Role-specific = domain owned by that panel · Verified = PASS / PARTIAL / NOT RUN
 
 Migration required? **No** means use existing tables; **Yes** only when a new domain needs persistence.
@@ -31,6 +31,7 @@ Migration required? **No** means use existing tables; **Yes** only when a new do
 | Front Office campus ops | `front_office_records` | `/front-office/{collection}` | `frontoffice.*` |
 | Audit trail | `audit_logs` | (middleware + `/audit`) | `audit.read` |
 | Parent children | `students.parent_user_id` | `/parents/me/children` | parent role |
+| Student self | `students.student_user_id` | `/students/me` | student role |
 
 ---
 
@@ -71,11 +72,35 @@ Parent portal reuses `StudentPortalRoutes` with `roleKey=parent` and `ActiveStud
 
 ---
 
+## Student (23 modules) — Completed
+
+Student portal reuses `StudentPortalRoutes` with `roleKey=student` and `ActiveStudentContext` hydrated from `GET /students/me` (`students.student_user_id`, Alembic **0012**). Optional student login on enroll (`student_account_email` / `student_account_password`).
+
+| Sidebar module | Domain | FE | API | Tables | Migration? | Verified |
+|---|---|---|---|---|---|---|
+| Class > Online / Extended / Timetable | Portal UI | Student class pages | — | — | No | PASS (portal) |
+| Class > Attendance List | Attendance | `AttendanceDetails` | `/attendance/students/{id}/calendar` | `student_attendance` | No | PASS |
+| Exam Result | Results | `ResultDetails` | `/results/students/{id}` | exams/marks | No | PASS |
+| Exam Schedule | Portal UI | ExamSchedule | exams.read | exams | No | PASS (portal) |
+| Deliverables ×3 | Portal UI | Teacher deliverables viewMode=student | — | — | No | PASS (portal) |
+| Star Ratings | Portal UI | ViewRatings | — | — | No | PASS (portal) |
+| Library / Bus Route / Track Bus / Hostel | Portal UI | Student pages | — | — | No | PASS (portal) |
+| Payment Details ×3 | Portal UI | Student payment pages | — | — | No | PASS (portal; no student fee ledger) |
+| Announcement | Announcements | roleKey=student | `/announcements` | announcement tables | No | PASS |
+| TC Request | TC | Student TC pages | `/tc-requests` | `tc_requests` | No | PASS |
+| Communication | Communication | roleKey=student | `/communication/*` | conversation tables | No | PASS |
+| Calendar | Calendar | roleKey=student | `/calendar` | `calendar_events` | No | PASS |
+| Notifications | Notifications | API list view | `/notifications` | `notifications` | No | PASS |
+| Escalation Management | Escalations | roleKey=student | `/escalations` | `escalations` | No | PASS |
+
+**Student permissions:** same non-staff bundle as Parent (`results.read`, `notifications.read`, `attendance.read`, `exams.read`, plus calendar/announcements/communication/tc).
+
+---
+
 ## Other role panels
 
 | Role panel | Default approach |
 |---|---|
-| Student | Same shared domains as Parent where applicable |
 | Teacher / Coordinator | Academics already partly in DB |
 | Principal / Director | Shared approvals + announcements + calendar |
 | HR / Account Head / others | Reuse first; migrate only for true new domains |

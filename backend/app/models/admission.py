@@ -122,6 +122,9 @@ class Student(Base):
     full_name: Mapped[str] = mapped_column(String(160), nullable=False)
     class_name: Mapped[str] = mapped_column(String(40), nullable=False)
     parent_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    student_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 

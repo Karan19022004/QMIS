@@ -55,6 +55,13 @@ def _assert_parent_owns_student(db: Session, actor: User, student: Student) -> N
         fail(403, "forbidden", "You can only file TC requests for your linked children.")
 
 
+def _assert_student_owns_self(db: Session, actor: User, student: Student) -> None:
+    if role_code_for(db, actor) != "student":
+        return
+    if str(student.student_user_id or "") != str(actor.id):
+        fail(403, "forbidden", "You can only file a TC request for your own student profile.")
+
+
 def _student(db: Session, actor: User, ref: str) -> Student:
     row = None
     try:
@@ -79,6 +86,15 @@ def _find(db: Session, actor: User, ref: str) -> TcRequest:
     role = role_code_for(db, actor)
     if role == "parent" and row.student_id not in _parent_child_ids(db, actor):
         fail(404, "not_found", "TC request not found.")
+    if role == "student":
+        mine = db.scalar(
+            select(Student.id).where(
+                Student.campus_id == actor.campus_id,
+                Student.student_user_id == actor.id,
+            )
+        )
+        if mine is None or row.student_id != mine:
+            fail(404, "not_found", "TC request not found.")
     return row
 
 
@@ -119,6 +135,14 @@ def list_requests(db: Session, actor: User) -> list[dict]:
     if role == "parent":
         kids = _parent_child_ids(db, actor)
         rows = [row for row in rows if row.student_id in kids]
+    elif role == "student":
+        mine = db.scalar(
+            select(Student.id).where(
+                Student.campus_id == actor.campus_id,
+                Student.student_user_id == actor.id,
+            )
+        )
+        rows = [row for row in rows if mine is not None and row.student_id == mine]
     elif role not in _TC_CAMPUS_READERS:
         # Other roles with tc.read (if any) do not see campus-wide lists.
         rows = []
@@ -151,6 +175,7 @@ def create(
         fail(403, "forbidden", "You are not allowed to file a TC request.")
     student = _student(db, actor, student_ref)
     _assert_parent_owns_student(db, actor, student)
+    _assert_student_owns_self(db, actor, student)
     reason = (reason or "").strip()
     transfer_to = (transfer_to or "").strip()
     if not reason:

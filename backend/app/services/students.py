@@ -30,13 +30,18 @@ def _admission_for(db: Session, student: Student) -> Admission | None:
 
 
 def _list_item(student: Student, admission: Admission | None) -> dict:
+    class_name = student.class_name or ""
     return {
         "id": str(student.id),
         "name": student.full_name,
         "admissionNumber": student.admission_number,
-        "className": student.class_name or "",
+        "className": class_name,
+        "section": "",
+        "classSection": class_name,
+        "rollNumber": "",
         "admissionId": str(student.admission_id) if student.admission_id else None,
         "parentUserId": str(student.parent_user_id) if student.parent_user_id else None,
+        "studentUserId": str(student.student_user_id) if student.student_user_id else None,
         "gender": (admission.gender if admission else None) or "",
         "email": (admission.email if admission else None) or "",
         "mobileNumber": (admission.mobile_number if admission else None) or "",
@@ -47,6 +52,39 @@ def _list_item(student: Student, admission: Admission | None) -> dict:
         "status": (admission.status if admission else None) or "Active",
         "createdAt": _iso(student.created_at),
     }
+
+
+def get_my_student(db: Session, actor: User) -> dict:
+    """Student portal profile for the signed-in student login."""
+    from sqlalchemy import String, cast, or_
+
+    from app.deps import role_code_for
+
+    if role_code_for(db, actor) != "student":
+        fail(403, "forbidden", "Student role required.")
+    student_key = str(actor.id)
+    row = db.scalar(
+        select(Student).where(
+            Student.campus_id == actor.campus_id,
+            or_(
+                Student.student_user_id == actor.id,
+                cast(Student.student_user_id, String) == student_key,
+            ),
+        )
+    )
+    if row is None:
+        fail(404, "not_found", "No student profile is linked to this login.")
+    return get_student(db, actor, row.id)
+
+
+def link_student_user(db: Session, *, student_id: UUID, user_id: UUID) -> Student:
+    student = db.get(Student, student_id)
+    if student is None:
+        fail(404, "not_found", "Student not found.")
+    student.student_user_id = user_id
+    db.add(student)
+    db.flush()
+    return student
 
 
 def list_students(db: Session, actor: User, class_name: str | None = None) -> list[dict]:

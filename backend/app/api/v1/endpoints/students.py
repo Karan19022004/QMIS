@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.deps import require_permission
+from app.deps import get_current_user, require_permission
 from app.models import User
 from app.services import students as svc
 
@@ -19,6 +19,15 @@ def list_students_route(
 ) -> list[dict]:
     """Campus enrolled students for staff UIS (API SoT)."""
     return svc.list_students(db, user, class_name=class_name)
+
+
+@router.get("/me")
+def my_student_route(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Linked student profile for the signed-in student portal login."""
+    return svc.get_my_student(db, user)
 
 
 @router.get("/{student_id}")

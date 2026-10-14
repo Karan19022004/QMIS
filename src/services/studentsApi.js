@@ -14,6 +14,30 @@ export async function getStudentApi(studentId) {
     return apiRequest(`/students/${studentId}`)
 }
 
+/** Linked student profile for the signed-in student portal login. */
+export async function getMyStudentApi() {
+    return apiRequest('/students/me')
+}
+
+/** Map /students/me (or list row) → ActiveStudentContext profile shape. */
+export function mapMyStudentProfile(row) {
+    if (!row) return null
+    const className = row.className || ''
+    const section = row.section || ''
+    return {
+        id: String(row.id),
+        name: row.name || [row.firstName, row.lastName].filter(Boolean).join(' ') || '',
+        className,
+        section: section || '—',
+        classSection: row.classSection || (section ? `${className}-${section}` : className),
+        rollNumber: row.rollNumber || '',
+        admissionNumber: row.admissionNumber || '',
+        admissionId: row.admissionId || null,
+        studentUserId: row.studentUserId || null,
+        parentUserId: row.parentUserId || null,
+    }
+}
+
 /** Map API list row → enrolled-students localStorage shape. */
 export function mapStudentListFromApi(row) {
     return {
@@ -34,6 +58,7 @@ export function mapStudentListFromApi(row) {
         city: row.city || '',
         status: row.status || 'Active',
         parentUserId: row.parentUserId || null,
+        studentUserId: row.studentUserId || null,
     }
 }
 
