@@ -10,7 +10,7 @@
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "10ac4fc7c6e24e81ba580c73f8476de4d7c074d6"
+      "revision": "94684f56a67bf72d9b5512cbaa38c9ec19d1585c"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {

@@ -13,7 +13,6 @@ from app.models.lesson_plan import LessonPlan
 from app.models.attendance import StudentAttendance
 from app.models.audit import AuditLog
 from app.models.base import Base
-from app.models.calendar import CalendarEvent
 from app.models.campus import Campus
 from app.models.documents import DocumentItem, DocumentRecord
 from app.models.file_asset import FileAsset
@@ -39,7 +38,6 @@ __all__ = [
     "ApprovalRequest",
     "AuditLog",
     "Base",
-    "CalendarEvent",
     "CalendarEvent",
     "Campus",
     "Conversation",

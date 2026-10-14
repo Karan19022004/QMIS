@@ -8,6 +8,41 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026 (stabilisation gate) — Admin locked; PRM next
+
+**Status:** Administrator panel stabilised and gated. Live matrix re-checked **26/26 PASS**, schema_check clean, DB audit + daily PDF + Archify architecture doc refreshed. **No PRM (Front Office) implementation in this step** — PRM starts only after this gate.
+
+### Done
+
+1. **Admin stabilisation.** Re-ran `audit_admin_modules.py` (26/26). Committed DB/integration audit hardening (`schema_check` Admin tables, audit script table names, `.env.example` Vite flags, `DATABASE_INTEGRATION_AUDIT.md`). Word status helpers use a scored Admin-table finder (any 2+ distinctive modules) plus HTML escaping in the proof script.
+2. **Daily working report PDF.** Markdown source remains `reports/daily-work-report.md`. Manager PDF: `erp complete documentation/QMIS-ERP-Daily-Work-Report.pdf` (built by `make_daily_work_report_pdf.py`). Nothing extra under `reports/`.
+3. **Archify architecture documented.** Showcase overview at `.archify/architecture-project-overview/qmis-erp-overview.html` (finalize PASS). Narrative: `backend/docs/ARCHITECTURE_OVERVIEW.md`.
+4. **PRM hand-off (plan only).** First PRM slice after the gate: Front Office Admission Enquiry → shared `/admissions` APIs (ensure `VITE_USE_API_ADMISSIONS=true`), then Admission List / Student DB reuse, then PRM-only screens (gate pass, re-enrollment, transfer) one module at a time.
+
+### Open / next (PRM — not started)
+
+- Begin PRM with Admission Enquiry FE→API smoke against existing Admin admissions backend.
+- Keep Admin known limitations as backlog (Roles read-only, Documents list Delete stub, Attendance read-only, Activities/TC/Communication UI click-through).
+
+---
+
+## 14 October 2026 (late evening) — DB / integration audit
+
+**Status:** Full database, configuration and Admin data-flow audit completed. PostgreSQL `qmis_erp` matches SQLAlchemy models (47 tables); Alembic **head = current = `0010_communication`**. Live Admin matrix **26/26 PASS**; Calendar create verified in API **and** SQL; teacher dashboard **403**; pytest **400 passed**; frontend build **PASS**. Decision: **READY WITH KNOWN LIMITATIONS** (`backend/docs/DATABASE_INTEGRATION_AUDIT.md`).
+
+### Done
+
+1. **Schema/config inspection.** Connectivity OK; no model↔DB drift; `create_all` + Alembic dual path documented; secrets redacted in the inventory.
+2. **Ops hardening.** `schema_check` now warns when an Alembic revision expects Admin tables (`0005`–`0010`) that are missing; audit script table names corrected; root `.env.example` lists Admin `VITE_USE_API_*` flags.
+3. **Deliverable.** `backend/docs/DATABASE_INTEGRATION_AUDIT.md` with per-module FE→API / API→DB / persist / authz / browser scorecard and setup commands.
+
+### Open
+
+- Browser re-click for Activities / TC / Communication UI still NOT RUN this pass (live API covered).
+- Admissions FE flag still defaults off unless `.env` sets `VITE_USE_API_ADMISSIONS=true`.
+
+---
+
 ## 14 October 2026 (evening)
 
 **Status:** The remaining Administrator modules now persist on the server: Documents (`cd2ec2f`), Notifications and Announcements (`d745b0d`), Calendar, TC Request Approval, Activities, Communication and the Dashboard. Migrations `0005`–`0010` are on the development database. Full backend suite **400 passed**. End-to-end Administrator audit: live matrix **26/26 PASS**, build PASS, decision **READY WITH KNOWN LIMITATIONS** (`backend/docs/ADMINISTRATOR_MODULE_AUDIT.md`). Role-module Word sheet: Admin **26 Completed / 0 Partial**. Archify project overview regenerated to include Documents, Announcements, Calendar, TC, Activities, Communication and Admin dashboard.

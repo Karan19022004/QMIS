@@ -7,12 +7,12 @@
   "quality": "showcase",
   "specification": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
-    "sha256": "81e3909351f1a0ab7ceac64b590a715636b036baa96cc5e2062ab0bdb21606e2",
+    "sha256": "ba2a69cb3bdb1833cea09aaaf73f200cc2e7a930cf41da3eceec889c02aee2da",
     "bytes": 16959
   },
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "ed03725fa1ef2c0b0fb70b567ff27e23f4da4eb1d59130f1ba8e0815e9215437",
+    "sha256": "196092e386cbfd6652d026bca1c680d46c761bd359802459f670598ca7aa31bf",
     "bytes": 793219
   },
   "gates": {
@@ -45,7 +45,7 @@
     "eventKey": "archify@sha256:ffedc53390c9da6e859f41e432c5d2d0615a23cf00a503181f07efbba88a7ce8"
   },
   "visualReview": "not-requested",
-  "durationMs": 10229,
+  "durationMs": 5713,
   "visualReviewRecommendation": {
     "action": "inspect-route-readability",
     "signals": {

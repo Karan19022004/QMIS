@@ -5,15 +5,15 @@
   "status": "pass",
   "type": "architecture",
   "quality": "showcase",
-  "startedAt": "2026-10-14T13:36:02.986Z",
+  "startedAt": "2026-10-14T15:24:59.068Z",
   "specification": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
-    "sha256": "81e3909351f1a0ab7ceac64b590a715636b036baa96cc5e2062ab0bdb21606e2",
+    "sha256": "ba2a69cb3bdb1833cea09aaaf73f200cc2e7a930cf41da3eceec889c02aee2da",
     "bytes": 16959
   },
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "ed03725fa1ef2c0b0fb70b567ff27e23f4da4eb1d59130f1ba8e0815e9215437",
+    "sha256": "196092e386cbfd6652d026bca1c680d46c761bd359802459f670598ca7aa31bf",
     "bytes": 793219
   },
   "stages": {
@@ -40,7 +40,7 @@
         "ok": true,
         "command": "validate",
         "specification": {
-          "sha256": "81e3909351f1a0ab7ceac64b590a715636b036baa96cc5e2062ab0bdb21606e2",
+          "sha256": "ba2a69cb3bdb1833cea09aaaf73f200cc2e7a930cf41da3eceec889c02aee2da",
           "bytes": 16959
         },
         "validation": {
@@ -56,7 +56,7 @@
     "deliver": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 2922,
+      "durationMs": 1774,
       "command": [
         "C:\\Program Files\\nodejs\\node.exe",
         "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
@@ -72,18 +72,18 @@
       ],
       "receipt": {
         "schemaVersion": 1,
-        "receiptId": "52d4900c-71f4-405f-8b04-dde32be6acd8",
+        "receiptId": "8a73711b-ff7d-4ddb-b037-57910c905c2e",
         "ok": true,
         "command": "deliver",
         "type": "architecture",
         "input": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
         "output": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
         "specification": {
-          "sha256": "81e3909351f1a0ab7ceac64b590a715636b036baa96cc5e2062ab0bdb21606e2",
+          "sha256": "ba2a69cb3bdb1833cea09aaaf73f200cc2e7a930cf41da3eceec889c02aee2da",
           "bytes": 16959
         },
         "artifact": {
-          "sha256": "ed03725fa1ef2c0b0fb70b567ff27e23f4da4eb1d59130f1ba8e0815e9215437",
+          "sha256": "196092e386cbfd6652d026bca1c680d46c761bd359802459f670598ca7aa31bf",
           "bytes": 793219
         },
         "validation": {
@@ -97,7 +97,7 @@
         "evidence": {
           "verified": true,
           "repository": "https://github.com/karan4533/ERP-dev",
-          "revision": "10ac4fc7c6e24e81ba580c73f8476de4d7c074d6",
+          "revision": "94684f56a67bf72d9b5512cbaa38c9ec19d1585c",
           "references": 21
         },
         "update": {
@@ -116,7 +116,7 @@
     "check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 547,
+      "durationMs": 288,
       "command": [
         "C:\\Program Files\\nodejs\\node.exe",
         "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
@@ -128,7 +128,7 @@
         "ok": true,
         "file": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
         "artifact": {
-          "sha256": "ed03725fa1ef2c0b0fb70b567ff27e23f4da4eb1d59130f1ba8e0815e9215437",
+          "sha256": "196092e386cbfd6652d026bca1c680d46c761bd359802459f670598ca7aa31bf",
           "bytes": 793219
         },
         "checks": [
@@ -569,13 +569,13 @@
           "issues": []
         },
         "provenance": "current",
-        "deliveryReceiptId": "52d4900c-71f4-405f-8b04-dde32be6acd8"
+        "deliveryReceiptId": "8a73711b-ff7d-4ddb-b037-57910c905c2e"
       }
     },
     "browser-check": {
       "status": "pass",
       "exitCode": 0,
-      "durationMs": 4689,
+      "durationMs": 2706,
       "command": [
         "C:\\Program Files\\nodejs\\node.exe",
         "C:\\Users\\vikas\\.agents\\skills\\archify\\bin\\archify.mjs",
@@ -593,10 +593,10 @@
         "status": "pass",
         "visualReview": "not-requested",
         "provenance": "current",
-        "deliveryReceiptId": "52d4900c-71f4-405f-8b04-dde32be6acd8",
+        "deliveryReceiptId": "8a73711b-ff7d-4ddb-b037-57910c905c2e",
         "artifact": {
           "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-          "sha256": "ed03725fa1ef2c0b0fb70b567ff27e23f4da4eb1d59130f1ba8e0815e9215437",
+          "sha256": "196092e386cbfd6652d026bca1c680d46c761bd359802459f670598ca7aa31bf",
           "bytes": 793219
         },
         "state": {
@@ -1315,8 +1315,8 @@
     "browserCheckReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
   },
   "visualReview": "not-requested",
-  "finishedAt": "2026-10-14T13:36:13.216Z",
-  "durationMs": 10229,
+  "finishedAt": "2026-10-14T15:25:04.781Z",
+  "durationMs": 5713,
   "update": {
     "status": "update_available",
     "installedVersion": "3.0.1",

@@ -60,13 +60,28 @@ UPDATES = {
 
 
 def find_admin_table(doc: Document):
+    # Score candidate module tables; Administrator wins with several distinctive rows.
+    # Require any 2+ signals (not all), so one missing/renamed module does not break lookup.
+    admin_signals = (
+        "TC Request Approval",
+        "RBAC > Roles",
+        "Class Details",
+        "Admissions > Admission Enquiry",
+        "Documents > Student Documents",
+    )
+    best, best_score = None, 0
     for table in doc.tables:
         if len(table.rows) < 5:
             continue
-        mods = [r.cells[0].text.strip() for r in table.rows[:5]]
-        if mods[0].startswith("Module") and "Dashboard" in mods[1] and any("Admission" in m for m in mods):
-            return table
-    raise RuntimeError("Administrator table not found")
+        mods = [r.cells[0].text.strip() for r in table.rows]
+        if not mods[0].startswith("Module") or "Dashboard" not in mods[1]:
+            continue
+        score = sum(1 for signal in admin_signals if any(signal in m for m in mods))
+        if score > best_score:
+            best, best_score = table, score
+    if best is None or best_score < 2:
+        raise RuntimeError("Administrator table not found")
+    return best
 
 
 def apply(doc: Document) -> dict:

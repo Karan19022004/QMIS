@@ -6,7 +6,6 @@ No passwords are printed.
 
 from __future__ import annotations
 
-import json
 import re
 import sys
 from pathlib import Path
@@ -38,8 +37,8 @@ MODULES = [
     ("Sports Activities", "activitiesApi.js", "/activities?type=sports", "GET", "activities.read", ["activities"]),
     ("Chess Results", "activitiesApi.js", "/activities?type=sports", "GET", "activities.read", ["activities", "activity_players"]),
     ("Competitions", "activitiesApi.js", "/activities?type=competition", "GET", "activities.read", ["activities"]),
-    ("Student Documents", "documentsApi.js", "/documents/students", "GET", "documents.read", ["document_folders", "document_files"]),
-    ("Employee Documents", "documentsApi.js", "/documents/employees", "GET", "documents.read", ["document_folders", "document_files"]),
+    ("Student Documents", "documentsApi.js", "/documents/students", "GET", "documents.read", ["document_records", "document_items"]),
+    ("Employee Documents", "documentsApi.js", "/documents/employees", "GET", "documents.read", ["document_records", "document_items"]),
     ("Task Assignment", "taskApi.js", "/tasks?box=assigned", "GET", "tasks.read", ["tasks"]),
     ("Assigned Tasks", "taskApi.js", "/tasks?box=mine", "GET", "tasks.read", ["tasks"]),
     ("My Leave Requests", "leaveApi.js", "/leave-requests?box=mine", "GET", "leave.read", ["leave_requests"]),
@@ -163,10 +162,6 @@ def main() -> int:
         counts[r["verdict"]] = counts.get(r["verdict"], 0) + 1
     print()
     print("COUNTS", counts)
-
-    out = ROOT / "reports" / "admin-module-audit-live.json"
-    out.write_text(json.dumps(rows, indent=2), encoding="utf-8")
-    print("Wrote", out)
     return 0 if counts.get("FAIL", 0) == 0 else 1
 
 
