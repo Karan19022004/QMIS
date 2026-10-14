@@ -107,6 +107,19 @@ export const isApiAdminAttendanceEnabled = () => {
     return isApiAuthEnabled()
 }
 
+/**
+ * Administrator Documents (student and employee uploads) go through the documents API, which stores
+ * the files and enforces who may read them. Defaults on whenever API sign-in is on; set
+ * VITE_USE_API_DOCUMENTS=false for the browser-only file-name list.
+ */
+export const isApiDocumentsEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_DOCUMENTS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAuthEnabled()
+}
+
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {
     if (token) sessionStorage.setItem(TOKEN_KEY, token)

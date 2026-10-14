@@ -25,6 +25,8 @@ import {
 import { apiChangePassword, apiLogin, apiLogout, apiMe } from '../services/authApi'
 import { clearLeaveRequestMemory } from '../Common/LeaveRequest/leaveRequestData'
 import { clearEscalationMemory } from '../Common/EscalationManagement/escalationData'
+import { clearEmployeeDocumentsMemory } from '../Pages/Admin/Documents/EmployeeDocuments/employeeDocumentsData'
+import { clearStudentDocumentsMemory } from '../Pages/Admin/Documents/StudentDocuments/studentDocumentsData'
 
 export { ROLES }
 
@@ -356,6 +358,8 @@ export const AuthProvider = ({ children }) => {
         sessionStorage.removeItem(STORAGE_KEY)
         clearLeaveRequestMemory() // server-sourced leave requests and escalations are held in memory; drop them with the session
         clearEscalationMemory()
+        clearStudentDocumentsMemory() // uploaded-document lists are server data too
+        clearEmployeeDocumentsMemory()
         clearActiveAdminSession()
         clearActiveCreatedUserSession()
         setIsAuthenticated(false)

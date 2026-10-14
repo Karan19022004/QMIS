@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import React, { useMemo, useState } from 'react'
+import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, EllipsisIcon, Plus, Download } from 'lucide-react'
@@ -10,30 +10,21 @@ import {
     documentStatusColor,
     getDocumentCellValue,
     getDocumentTypes,
-    getEmployeeDocumentRecords,
     recordStatusBadgeColor,
     RECORD_STATUS_OPTIONS,
 } from './employeeDocumentsData'
+import useDocumentRecords from '../useDocumentRecords'
 
 const EmployeeDocuments = () => {
-    const location = useLocation()
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
-    const [records, setRecords] = useState(() => getEmployeeDocumentRecords())
-    const [documentTypes, setDocumentTypes] = useState(() => getDocumentTypes())
+    const { records, status: loadStatus, error: loadError } = useDocumentRecords('employees')
+    // the columns follow the records: a new label becomes a new column
+    const documentTypes = getDocumentTypes()
     const [exportModal, setExportModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
-
-    const refreshData = () => {
-        setRecords(getEmployeeDocumentRecords())
-        setDocumentTypes(getDocumentTypes())
-    }
-
-    useEffect(() => {
-        refreshData()
-    }, [location.key])
 
     const filteredRecords = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -202,7 +193,11 @@ const EmployeeDocuments = () => {
                                         colSpan={documentTypes.length + 5}
                                         className='px-2 py-10 text-center text-[#667085]'
                                     >
-                                        No employee documents found.
+                                        {loadStatus === 'loading'
+                                            ? 'Loading employee documents…'
+                                            : loadStatus === 'error'
+                                              ? loadError
+                                              : 'No employee documents found.'}
                                     </td>
                                 </tr>
                             ) : (

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import React, { useMemo, useState } from 'react'
+import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, EllipsisIcon, Plus, Download } from 'lucide-react'
@@ -9,25 +9,20 @@ import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteReques
 import {
     documentStatusColor,
     getDocumentCellValue,
-    getStudentDocumentRecords,
     recordStatusBadgeColor,
     RECORD_STATUS_OPTIONS,
     STUDENT_DOCUMENT_TYPES,
 } from './studentDocumentsData'
+import useDocumentRecords from '../useDocumentRecords'
 
 const StudentDocuments = () => {
-    const location = useLocation()
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
-    const [records, setRecords] = useState(() => getStudentDocumentRecords())
+    const { records, status: loadStatus, error: loadError } = useDocumentRecords('students')
     const [exportModal, setExportModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
-
-    useEffect(() => {
-        setRecords(getStudentDocumentRecords())
-    }, [location.key])
 
     const filteredRecords = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -183,7 +178,11 @@ const StudentDocuments = () => {
                                         colSpan={STUDENT_DOCUMENT_TYPES.length + 6}
                                         className='px-2 py-10 text-center text-[#667085]'
                                     >
-                                        No student documents found.
+                                        {loadStatus === 'loading'
+                                            ? 'Loading student documents…'
+                                            : loadStatus === 'error'
+                                              ? loadError
+                                              : 'No student documents found.'}
                                     </td>
                                 </tr>
                             ) : (

@@ -9,6 +9,7 @@ from app.models.attendance import StudentAttendance
 from app.models.audit import AuditLog
 from app.models.base import Base
 from app.models.campus import Campus
+from app.models.documents import DocumentItem, DocumentRecord
 from app.models.file_asset import FileAsset
 from app.models.finance import FinanceRecord
 from app.models.hr_employee import HrEmployee
@@ -28,6 +29,8 @@ __all__ = [
     "AuditLog",
     "Base",
     "Campus",
+    "DocumentItem",
+    "DocumentRecord",
     "FileAsset",
     "FinanceRecord",
     "Guardian",

@@ -1,5 +1,7 @@
 import React, { useRef, useState } from 'react'
 import { FileUp } from 'lucide-react'
+import { toast } from 'react-toastify'
+import { openStoredDocument } from '../../../../../services/documentsApi'
 
 const SUPPORTED_FORMATS = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
 const MAX_SIZE_MB = 5
@@ -10,7 +12,12 @@ const formatSize = (bytes) => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-const DocumentFileUpload = ({ fileName = '', onChange }) => {
+/**
+ * `onChange(fileName, file)` — `file` is the chosen File (null when removed) so a save can send the real
+ * bytes. `downloadUrl` is set for a file that is already stored on the server; it can be opened until a
+ * new file replaces it.
+ */
+const DocumentFileUpload = ({ fileName = '', downloadUrl = '', onChange }) => {
     const [fileMeta, setFileMeta] = useState(null)
     const [isDragging, setIsDragging] = useState(false)
     const inputRef = useRef(null)
@@ -38,7 +45,7 @@ const DocumentFileUpload = ({ fileName = '', onChange }) => {
             size: formatSize(file.size),
             ext,
         })
-        onChange?.(file.name)
+        onChange?.(file.name, file)
     }
 
     const handleDragOver = (e) => {
@@ -63,10 +70,20 @@ const DocumentFileUpload = ({ fileName = '', onChange }) => {
         e.stopPropagation()
         setFileMeta(null)
         if (inputRef.current) inputRef.current.value = ''
-        onChange?.('')
+        onChange?.('', null)
+    }
+
+    const handleOpen = async (e) => {
+        e.stopPropagation()
+        try {
+            await openStoredDocument(downloadUrl)
+        } catch (error) {
+            toast.error(error?.status === 403 ? 'You do not have permission to open this file.' : 'The file could not be opened.')
+        }
     }
 
     const hasFile = Boolean(displayName)
+    const canOpen = Boolean(downloadUrl) && !fileMeta
 
     return (
         <div
@@ -97,6 +114,15 @@ const DocumentFileUpload = ({ fileName = '', onChange }) => {
                     </div>
                     <span className='text-sm font-semibold text-gray-800 max-w-[200px] truncate'>{displayName}</span>
                     {displaySize ? <span className='text-xs text-gray-400 mb-2'>{displaySize}</span> : null}
+                    {canOpen ? (
+                        <button
+                            type='button'
+                            onClick={handleOpen}
+                            className='text-xs font-medium text-indigo-500 hover:underline cursor-pointer'
+                        >
+                            View file
+                        </button>
+                    ) : null}
                     <button
                         type='button'
                         onClick={handleDelete}

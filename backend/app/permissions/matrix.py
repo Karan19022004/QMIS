@@ -78,6 +78,10 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("users.read", "View staff logins created by administrators"),
     ("users.write", "Create staff logins, change their status, and reset their passwords"),
     ("rbac.read", "View roles and the permissions each role holds"),
+    ("documents.students.read", "View and download student documents"),
+    ("documents.students.write", "Upload, replace and remove student documents"),
+    ("documents.employees.read", "View and download employee documents"),
+    ("documents.employees.write", "Upload, replace and remove employee documents"),
 ]
 
 ALL_PERMISSION_CODES = [code for code, _ in PERMISSIONS]
@@ -144,7 +148,18 @@ ROLE_PERMISSIONS.update(
         "parent": [*_CORE, "results.read"],
         "jointdirector": list(_STAFF_ACADEMIC),
         "stationerystoremanager": list(dict.fromkeys([*_CORE, *_APPROVALS])),
-        "hr": list(dict.fromkeys([*_HR, "approvals.submit", "approvals.read", "notifications.read"])),
+        "hr": list(
+            dict.fromkeys(
+                [
+                    *_HR,
+                    "approvals.submit",
+                    "approvals.read",
+                    "notifications.read",
+                    "documents.employees.read",
+                    "documents.employees.write",
+                ]
+            )
+        ),
     }
 )
 
