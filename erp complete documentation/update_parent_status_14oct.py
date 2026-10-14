@@ -33,6 +33,12 @@ UPDATES = {
         "Backend scopes parent list/create to linked children; parents cannot forward/reject-prm. "
         "Verified pytest test_parent_tc_requests (14 Oct 2026).",
     ),
+    "Announcement": (
+        "Completed",
+        "Shared AnnouncementListView with roleKey=parent under /parent/announcement. "
+        "Reads GET /announcements (announcements.read); parents also see notices targeted at students; "
+        "parent added to default broadcast audience. UI create not offered (not a sender role).",
+    ),
 }
 
 

@@ -94,16 +94,18 @@ Migration required? **No** means use existing tables; **Yes** only when a new do
 
 | Sidebar module | Domain | FE | API | Tables | Migration? | Verified |
 |---|---|---|---|---|---|---|
-| TC Request | TC (shared) | Student portal TC pages (used under `/parent`) | `/tc-requests` create/list/get | `tc_requests` | No (`0008`) | PASS (parent scoped; pytest) |
+| TC Request | TC (shared) | Student portal TC pages (used under `/parent`) | `/tc-requests` create/list/get | `tc_requests` | No (`0008`) | PASS (parent scoped; live + pytest) |
+| Announcement | Announcements (shared) | `AnnouncementList`/`View` with `roleKey=parent` | `GET /announcements` | announcement tables | No (`0006`) | PASS (audience includes parent; sees student-targeted too) |
 | Escalation Management | Escalations | Student portal escalation pages | existing | `escalations` | No | PASS (sheet already Completed; parents have no escalation write path by design) |
-| Announcement / Communication / Calendar / Notifications | Shared | Still `roleKey=student` wrappers in StudentPortalRoutes | existing | existing | No | NOT RUN (next Parent shared-domain wiring) |
+| Communication / Calendar / Notifications | Shared | Still student wrappers for calendar/comm/notifications | existing | existing | No | NOT RUN (next) |
 | Class / Evaluation / Fees / Library / Transport / Hostel | Student portal demos / Partial | StudentPortalRoutes | partial | various | Only if new persistence needed | NOT RUN / Partial on sheet |
 
 ### Parent verification notes (14 Oct 2026)
 
 - Select Child already uses `GET /parents/me/children` when API auth is on.
-- TC: parent create/list scoped to linked children; forward/reject-prm blocked for parent.
-- Word: Parent TC Request → **Completed**; sheet recount after script.
+- TC: parent create/list scoped to linked children; forward/reject-prm blocked for parent (live **403** after uvicorn reload).
+- Announcement: `roleKey=parent` routes; default audience includes `parent`; parents also see student-targeted notices.
+- Word: Parent **3 Completed / 6 Partial / 14 Not Completed**.
 
 ## Other role panels (480 − Admin − PRM − Parent in progress)
 

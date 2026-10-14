@@ -8,6 +8,22 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026 (late) — Parent Announcement + TC live verify
+
+**Status:** Parent TC live-verified after uvicorn reload; Announcement wired with `roleKey=parent`.
+
+### Done
+
+1. Live TC: create **201**, forward as parent **403**, children list **200**.
+2. Parent Announcement: portal `roleKey=parent`; default audience + student-notice visibility; pytest parent announce/TC **4 passed**; live parent list sees notices.
+3. Word Parent **3/6/14**; TOTAL **153/46/279/2**.
+
+### Open / next
+
+- Parent Calendar → Communication → Notifications.
+
+---
+
 ## 14 October 2026 (late) — Parent TC Request API + push
 
 **Status:** Pushed PRM Goods Received work; started Parent panel with **TC Request** (shared `tc_requests`).

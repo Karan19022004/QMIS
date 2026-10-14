@@ -43,6 +43,7 @@ const StudentPortalRoutes = ({
     sampleQuestionsRoute,
     communicationInboxBase,
     dashboardComponent = null,
+    roleKey = 'student',
     includeOnlineClass = true,
     includeExtraClass = true,
     includeStarRatings = true,
@@ -96,8 +97,8 @@ const StudentPortalRoutes = ({
             <Route path={`${routePrefix}/notification/holiday-notification`} element={<Navigate to={`${routePrefix}/notifications`} replace />} />
             <Route path={`${routePrefix}/notification/payment-notification`} element={<Navigate to={`${routePrefix}/notifications`} replace />} />
 
-            <Route path={`${routePrefix}/announcement`} element={<AnnouncementList />} />
-            <Route path={`${routePrefix}/announcement/view/:id`} element={<ViewAnnouncement />} />
+            <Route path={`${routePrefix}/announcement`} element={<AnnouncementList roleKey={roleKey} />} />
+            <Route path={`${routePrefix}/announcement/view/:id`} element={<ViewAnnouncement roleKey={roleKey} />} />
 
             <Route path={`${routePrefix}/tc-request`} element={<TcRequestList />} />
             <Route path={`${routePrefix}/tc-request/add`} element={<AddTcRequest />} />

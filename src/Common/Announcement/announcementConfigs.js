@@ -42,6 +42,11 @@ export const ANNOUNCEMENT_ROUTE_CONFIG = {
         view: '/student/announcement/view',
         sentByDefault: 'Student',
     },
+    parent: {
+        list: '/parent/announcement',
+        view: '/parent/announcement/view',
+        sentByDefault: 'Parent',
+    },
     gatekeeper: {
         list: '/gate-keeper/broadcast-list',
         view: '/gate-keeper/view-broadcast',

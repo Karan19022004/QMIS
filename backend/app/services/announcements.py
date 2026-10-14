@@ -52,6 +52,7 @@ DEFAULT_AUDIENCE = [
     "coordinator",
     "librarian",
     "student",
+    "parent",
     "gatekeepermanager",
     "gatekeeper",
     "admin",
@@ -69,12 +70,13 @@ def _can_write(db: Session, actor: User) -> bool:
 
 
 def _visible(row: Announcement, actor: User, role: str) -> bool:
-    return (
-        role in SEE_ALL_ROLES
-        or role in (row.audience or [])
-        or row.sender_role == role
-        or row.created_by == actor.id
-    )
+    audience = row.audience or []
+    if role in SEE_ALL_ROLES or role in audience or row.sender_role == role or row.created_by == actor.id:
+        return True
+    # Parents receive the same school notices that target students unless a parent audience is set.
+    if role == "parent" and "student" in audience:
+        return True
+    return False
 
 
 def _find(db: Session, actor: User, ref: str) -> Announcement:
