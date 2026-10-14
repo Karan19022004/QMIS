@@ -1,18 +1,20 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import delete, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.deps import require_permission
-from app.models import AcademicYear, FinancialYear, SchoolClass, Section, Subject, User
+from app.models import AcademicYear, FinancialYear, HrEmployee, Role, SchoolClass, Section, Subject, User
 from app.schemas.phase0 import (
     AcademicYearCreate,
     AcademicYearOut,
     AcademicYearUpdate,
     ClassCreate,
     ClassOut,
+    ClassUpdate,
     FinancialYearCreate,
     FinancialYearOut,
     FinancialYearUpdate,
@@ -22,6 +24,7 @@ from app.schemas.phase0 import (
     SubjectCreate,
     SubjectOut,
 )
+from app.services import class_dependencies
 from app.services.audit import write_audit
 from app.services.errors import fail
 
@@ -370,16 +373,101 @@ def set_current_financial_year(
     return update_financial_year(year_id, FinancialYearUpdate(is_current=True), db, user)
 
 
+# Roles that may be a class teacher. A class teacher is a LOGIN (users.id) on this campus.
+_CLASS_TEACHER_ROLES = ("teacher", "coordinator")
+
+
+def _get_class(db: Session, user: User, class_id: UUID) -> SchoolClass:
+    row = db.scalar(
+        select(SchoolClass).where(SchoolClass.id == class_id, SchoolClass.campus_id == user.campus_id)
+    )
+    if row is None:
+        fail(404, "class_not_found", "Class not found.")
+    return row
+
+
+def _class_outs(db: Session, rows: list[SchoolClass]) -> list[ClassOut]:
+    """ClassOut with the derived capacity (sum of the class's active sections that have one)."""
+    totals: dict = {}
+    if rows:
+        totals = dict(
+            db.execute(
+                select(Section.class_id, func.sum(Section.capacity))
+                .where(
+                    Section.class_id.in_([row.id for row in rows]),
+                    Section.is_active.is_(True),
+                    Section.capacity.is_not(None),
+                )
+                .group_by(Section.class_id)
+            ).all()
+        )
+    outs: list[ClassOut] = []
+    for row in rows:
+        out = ClassOut.model_validate(row)
+        total = totals.get(row.id)
+        out.capacity = int(total) if total is not None else None
+        outs.append(out)
+    return outs
+
+
+def _teacher_labels(db: Session, user_ids: set) -> dict:
+    """{user_id: (display name or None, email)} for the given logins. Read-only, display only."""
+    if not user_ids:
+        return {}
+    emails = dict(db.execute(select(User.id, User.email).where(User.id.in_(user_ids))).all())
+    names: dict = {}
+    for employee in db.scalars(select(HrEmployee).where(HrEmployee.user_id.in_(user_ids))).all():
+        full = f"{employee.first_name} {employee.last_name}".strip()
+        if full:
+            names[employee.user_id] = full
+    return {uid: (names.get(uid), emails.get(uid)) for uid in user_ids}
+
+
+def _section_outs(db: Session, rows: list[Section]) -> list[SectionOut]:
+    labels = _teacher_labels(db, {row.class_teacher_user_id for row in rows if row.class_teacher_user_id})
+    outs: list[SectionOut] = []
+    for row in rows:
+        out = SectionOut.model_validate(row)
+        name, email = labels.get(row.class_teacher_user_id, (None, None))
+        out.class_teacher_name = name
+        out.class_teacher_email = email
+        outs.append(out)
+    return outs
+
+
+def _resolve_class_teacher(db: Session, actor: User, teacher_user_id: UUID) -> User:
+    """The login must exist on the actor's campus, be active, and hold a teaching role."""
+    teacher = db.scalar(
+        select(User).where(User.id == teacher_user_id, User.campus_id == actor.campus_id)
+    )
+    if teacher is None:
+        fail(404, "class_teacher_not_found", "That teacher was not found on this campus.")
+    if not teacher.is_active:
+        fail(409, "class_teacher_inactive", "That login is deactivated and cannot be a class teacher.")
+    role_code = db.scalar(select(Role.code).where(Role.id == teacher.role_id))
+    if role_code not in _CLASS_TEACHER_ROLES:
+        fail(409, "class_teacher_role", "Only a teacher or coordinator login can be a class teacher.")
+    return teacher
+
+
+def _clean_room(value: str | None) -> str | None:
+    cleaned = (value or "").strip()
+    return cleaned or None
+
+
 @router.get("/classes", response_model=list[ClassOut])
 def list_classes(
     academic_year_id: UUID | None = Query(default=None),
+    include_inactive: bool = Query(default=False),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("masters.read")),
-) -> list[SchoolClass]:
+) -> list[ClassOut]:
     q = select(SchoolClass).where(SchoolClass.campus_id == user.campus_id)
     if academic_year_id is not None:
         q = q.where(SchoolClass.academic_year_id == academic_year_id)
-    return list(db.scalars(q.order_by(SchoolClass.name.asc())).all())
+    if not include_inactive:
+        q = q.where(SchoolClass.is_active.is_(True))
+    return _class_outs(db, list(db.scalars(q.order_by(SchoolClass.name.asc())).all()))
 
 
 @router.post("/classes", response_model=ClassOut, status_code=201)
@@ -387,13 +475,8 @@ def create_class(
     body: ClassCreate,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("masters.write")),
-) -> SchoolClass:
+) -> ClassOut:
     name = body.name.strip()
-    existing = db.scalar(
-        select(SchoolClass).where(SchoolClass.campus_id == user.campus_id, SchoolClass.name == name)
-    )
-    if existing is not None:
-        fail(409, "class_exists", "That class already exists on this campus.")
 
     year_id = body.academic_year_id
     if year_id is not None:
@@ -408,7 +491,28 @@ def create_class(
                 AcademicYear.campus_id == user.campus_id, AcademicYear.is_current.is_(True)
             )
         )
-        year_id = current.id if current is not None else None
+        if current is None:
+            fail(
+                409,
+                "academic_year_required",
+                "Choose an academic year, or mark one as current, before adding a class.",
+            )
+        year_id = current.id
+
+    existing = db.scalar(
+        select(SchoolClass).where(
+            SchoolClass.campus_id == user.campus_id,
+            SchoolClass.academic_year_id == year_id,
+            SchoolClass.name == name,
+        )
+    )
+    if existing is not None:
+        fail(
+            409,
+            "class_exists",
+            "That class already exists in this academic year."
+            + ("" if existing.is_active else " It is deactivated; reactivate it instead."),
+        )
 
     section_name = body.section.strip().upper() if body.section and body.section.strip() else None
     row = SchoolClass(
@@ -430,9 +534,71 @@ def create_class(
         campus_id=user.campus_id,
         details=name,
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:  # two requests raced past the check above; the database constraint won
+        db.rollback()
+        fail(409, "class_exists", "That class already exists in this academic year.")
     db.refresh(row)
-    return row
+    return _class_outs(db, [row])[0]
+
+
+@router.patch("/classes/{class_id}", response_model=ClassOut)
+def update_class(
+    class_id: UUID,
+    body: ClassUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("masters.write")),
+) -> ClassOut:
+    row = _get_class(db, user, class_id)
+    if body.is_active is None:
+        fail(422, "nothing_to_update", "Nothing to change. Send is_active to deactivate or reactivate.")
+    if body.is_active != row.is_active:
+        row.is_active = body.is_active
+        write_audit(
+            db,
+            action="CLASS_REACTIVATED" if body.is_active else "CLASS_DEACTIVATED",
+            entity_type="school_class",
+            entity_id=str(row.id),
+            actor_id=user.id,
+            campus_id=user.campus_id,
+            details=row.name,
+        )
+        db.commit()
+        db.refresh(row)
+    return _class_outs(db, [row])[0]
+
+
+@router.delete("/classes/{class_id}", response_model=ClassOut)
+def delete_class(
+    class_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("masters.write")),
+) -> ClassOut:
+    """Permanent delete, only for a class nothing refers to. Otherwise deactivate it."""
+    row = _get_class(db, user, class_id)
+    references = class_dependencies.class_references(db, user.campus_id, row.name)
+    if references:
+        fail(
+            409,
+            "class_in_use",
+            f"{row.name} is used by {class_dependencies.describe(references)}, so it cannot be deleted. "
+            "Deactivate it instead; those records stay linked to it.",
+        )
+    out = _class_outs(db, [row])[0]
+    db.execute(delete(Section).where(Section.class_id == row.id))
+    db.delete(row)
+    write_audit(
+        db,
+        action="CLASS_DELETED",
+        entity_type="school_class",
+        entity_id=str(row.id),
+        actor_id=user.id,
+        campus_id=user.campus_id,
+        details=row.name,
+    )
+    db.commit()
+    return out
 
 
 @router.get("/sections", response_model=list[SectionOut])
@@ -441,13 +607,15 @@ def list_sections(
     include_inactive: bool = Query(default=False),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("masters.read")),
-) -> list[Section]:
+) -> list[SectionOut]:
     q = select(Section).where(Section.campus_id == user.campus_id)
     if class_id is not None:
         q = q.where(Section.class_id == class_id)
     if not include_inactive:
-        q = q.where(Section.is_active.is_(True))
-    return list(db.scalars(q.order_by(Section.name.asc())).all())
+        q = q.where(Section.is_active.is_(True)).where(
+            Section.class_id.in_(select(SchoolClass.id).where(SchoolClass.is_active.is_(True)))
+        )
+    return _section_outs(db, list(db.scalars(q.order_by(Section.name.asc())).all()))
 
 
 @router.post("/sections", response_model=SectionOut, status_code=201)
@@ -455,12 +623,10 @@ def create_section(
     body: SectionCreate,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("masters.write")),
-) -> Section:
-    school_class = db.scalar(
-        select(SchoolClass).where(SchoolClass.id == body.class_id, SchoolClass.campus_id == user.campus_id)
-    )
-    if school_class is None:
-        fail(404, "class_not_found", "Class not found.")
+) -> SectionOut:
+    school_class = _get_class(db, user, body.class_id)
+    if not school_class.is_active:
+        fail(409, "class_inactive", "That class is deactivated. Reactivate it before adding sections.")
     name = body.name.strip().upper()
     existing = db.scalar(
         select(Section).where(
@@ -471,7 +637,17 @@ def create_section(
     )
     if existing is not None:
         fail(409, "section_exists", "That section already exists for this class.")
-    row = Section(campus_id=user.campus_id, class_id=body.class_id, name=name, is_active=True)
+    if body.class_teacher_user_id is not None:
+        _resolve_class_teacher(db, user, body.class_teacher_user_id)
+    row = Section(
+        campus_id=user.campus_id,
+        class_id=body.class_id,
+        name=name,
+        is_active=True,
+        capacity=body.capacity,
+        room_number=_clean_room(body.room_number),
+        class_teacher_user_id=body.class_teacher_user_id,
+    )
     db.add(row)
     db.flush()
     if not school_class.section:
@@ -485,9 +661,13 @@ def create_section(
         campus_id=user.campus_id,
         details=f"{school_class.name}-{name}",
     )
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        fail(409, "section_exists", "That section already exists for this class.")
     db.refresh(row)
-    return row
+    return _section_outs(db, [row])[0]
 
 
 @router.get("/sections/{section_id}", response_model=SectionOut)
@@ -495,13 +675,13 @@ def get_section(
     section_id: UUID,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("masters.read")),
-) -> Section:
+) -> SectionOut:
     row = db.scalar(
         select(Section).where(Section.id == section_id, Section.campus_id == user.campus_id)
     )
     if row is None:
         fail(404, "section_not_found", "Section not found.")
-    return row
+    return _section_outs(db, [row])[0]
 
 
 @router.patch("/sections/{section_id}", response_model=SectionOut)
@@ -510,39 +690,73 @@ def update_section(
     body: SectionUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("masters.write")),
-) -> Section:
+) -> SectionOut:
     row = db.scalar(
         select(Section).where(Section.id == section_id, Section.campus_id == user.campus_id)
     )
     if row is None:
         fail(404, "section_not_found", "Section not found.")
+    sent = body.model_fields_set
+    changed: list[str] = []
+
     if body.name is not None:
         name = body.name.strip().upper()
-        clash = db.scalar(
-            select(Section).where(
-                Section.campus_id == user.campus_id,
-                Section.class_id == row.class_id,
-                Section.name == name,
-                Section.id != section_id,
+        if name != row.name:
+            clash = db.scalar(
+                select(Section).where(
+                    Section.campus_id == user.campus_id,
+                    Section.class_id == row.class_id,
+                    Section.name == name,
+                    Section.id != section_id,
+                )
             )
-        )
-        if clash is not None:
-            fail(409, "section_exists", "That section already exists for this class.")
-        row.name = name
-    if body.is_active is not None:
+            if clash is not None:
+                fail(409, "section_exists", "That section already exists for this class.")
+            school_class = db.get(SchoolClass, row.class_id)
+            references = class_dependencies.section_references(
+                db, user.campus_id, school_class.name, row.name
+            )
+            if references:
+                fail(
+                    409,
+                    "section_in_use",
+                    f"Section {row.name} is used by {class_dependencies.describe(references)}, so it cannot "
+                    "be renamed. Add a new section and deactivate this one instead.",
+                )
+            row.name = name
+            changed.append("name")
+    if body.is_active is not None and body.is_active != row.is_active:
         row.is_active = body.is_active
-    write_audit(
-        db,
-        action="SECTION_UPDATED",
-        entity_type="section",
-        entity_id=str(row.id),
-        actor_id=user.id,
-        campus_id=user.campus_id,
-        details=row.name,
-    )
-    db.commit()
-    db.refresh(row)
-    return row
+        changed.append("is_active")
+    if "capacity" in sent and body.capacity != row.capacity:
+        row.capacity = body.capacity
+        changed.append("capacity")
+    if "room_number" in sent and _clean_room(body.room_number) != row.room_number:
+        row.room_number = _clean_room(body.room_number)
+        changed.append("room_number")
+    if "class_teacher_user_id" in sent and body.class_teacher_user_id != row.class_teacher_user_id:
+        if body.class_teacher_user_id is not None:
+            _resolve_class_teacher(db, user, body.class_teacher_user_id)
+        row.class_teacher_user_id = body.class_teacher_user_id
+        changed.append("class_teacher")
+
+    if changed:
+        write_audit(
+            db,
+            action="SECTION_UPDATED",
+            entity_type="section",
+            entity_id=str(row.id),
+            actor_id=user.id,
+            campus_id=user.campus_id,
+            details=f"{row.name}: {', '.join(changed)}",
+        )
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            fail(409, "section_exists", "That section already exists for this class.")
+        db.refresh(row)
+    return _section_outs(db, [row])[0]
 
 
 @router.delete("/sections/{section_id}", response_model=SectionOut)
@@ -550,7 +764,7 @@ def deactivate_section(
     section_id: UUID,
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("masters.write")),
-) -> Section:
+) -> SectionOut:
     return update_section(section_id, SectionUpdate(is_active=False), db, user)
 
 

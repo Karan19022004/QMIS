@@ -88,6 +88,11 @@ def old_shape(pg):
         connection.execute(text("DELETE FROM school_classes"))
         connection.execute(text("ALTER TABLE school_classes DROP CONSTRAINT IF EXISTS school_classes_academic_year_id_fkey"))
         connection.execute(text("ALTER TABLE school_classes ALTER COLUMN academic_year_id TYPE varchar(36) USING academic_year_id::text"))
+        # A database at revision 0003 predates 0004: the year may be empty and a name is unique per campus.
+        connection.execute(text("ALTER TABLE school_classes ALTER COLUMN academic_year_id DROP NOT NULL"))
+        connection.execute(text("ALTER TABLE school_classes DROP CONSTRAINT IF EXISTS uq_school_class_campus_year_name"))
+        connection.execute(text("ALTER TABLE school_classes DROP CONSTRAINT IF EXISTS school_classes_campus_id_name_key"))
+        connection.execute(text("ALTER TABLE school_classes ADD CONSTRAINT school_classes_campus_id_name_key UNIQUE (campus_id, name)"))
     return pg
 
 

@@ -109,11 +109,23 @@ class ClassCreate(BaseModel):
     academic_year_id: UUID | None = None
 
 
+class ClassUpdate(BaseModel):
+    """A class row is identified by name + academic year, so neither can be edited here: students,
+    admissions and attendance refer to the class by name. Edit a class's sections for capacity, room
+    and class teacher; use this to deactivate or reactivate the class."""
+
+    is_active: bool | None = None
+
+
 class ClassOut(BaseModel):
     id: UUID
     name: str
     section: str | None
     academic_year_id: UUID | None = None
+    is_active: bool = True
+    # Derived: the sum of the capacities of the class's active sections that have one. None when no
+    # section has a capacity. Not stored, so it can never disagree with the sections.
+    capacity: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -121,11 +133,20 @@ class ClassOut(BaseModel):
 class SectionCreate(BaseModel):
     class_id: UUID
     name: str = Field(min_length=1, max_length=20)
+    capacity: int | None = Field(default=None, ge=1, le=1000)
+    room_number: str | None = Field(default=None, max_length=20)
+    class_teacher_user_id: UUID | None = None
 
 
 class SectionUpdate(BaseModel):
+    """Send only what changes. For capacity, room_number and class_teacher_user_id an explicit null
+    clears the value, while leaving the field out keeps it."""
+
     name: str | None = Field(default=None, min_length=1, max_length=20)
     is_active: bool | None = None
+    capacity: int | None = Field(default=None, ge=1, le=1000)
+    room_number: str | None = Field(default=None, max_length=20)
+    class_teacher_user_id: UUID | None = None
 
 
 class SectionOut(BaseModel):
@@ -133,6 +154,12 @@ class SectionOut(BaseModel):
     class_id: UUID
     name: str
     is_active: bool = True
+    capacity: int | None = None
+    room_number: str | None = None
+    class_teacher_user_id: UUID | None = None
+    # Display only, resolved from the login and its HR record at read time. Never stored on the section.
+    class_teacher_name: str | None = None
+    class_teacher_email: str | None = None
 
     model_config = {"from_attributes": True}
 

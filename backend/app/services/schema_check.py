@@ -41,6 +41,19 @@ def pending_schema_problems() -> list[str]:
                 f"{table}.{column_name} is not a UUID column, so {consequence}. "
                 "Back up the database, then run `alembic upgrade head`."
             )
+    for table, column_name, consequence in (
+        ("sections", "class_teacher_user_id", "listing sections fails with a 500"),
+        ("sections", "capacity", "listing sections fails with a 500"),
+        ("sections", "room_number", "listing sections fails with a 500"),
+        ("school_classes", "is_active", "listing classes fails with a 500"),
+    ):
+        if not inspector.has_table(table):
+            continue
+        if not any(c["name"] == column_name for c in inspector.get_columns(table)):
+            problems.append(
+                f"{table}.{column_name} does not exist yet, so {consequence}. "
+                "Back up the database, then run `alembic upgrade head`."
+            )
     return problems
 
 

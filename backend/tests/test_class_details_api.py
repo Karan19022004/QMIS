@@ -111,8 +111,12 @@ def test_only_users_with_masters_write_can_create_but_others_can_read(client):
     assert client.post(CLASSES, json={"name": "Anon"}).status_code == 401
 
 
-def test_the_api_has_no_class_update_or_delete_so_the_screen_must_not_offer_them(client):
+def test_a_class_cannot_be_renamed_because_records_refer_to_it_by_name(client):
+    """Edit and deactivate/delete are covered in test_class_details_edit.py. A rename is refused on
+    purpose: students, admissions and attendance hold the class NAME as text."""
     admin = _admin(client)
-    created = client.post(CLASSES, json={"name": _name(client, "NoDel")}, headers=admin).json()
-    assert client.delete(f"{CLASSES}/{created['id']}", headers=admin).status_code in (404, 405)
-    assert client.patch(f"{CLASSES}/{created['id']}", json={"name": "X"}, headers=admin).status_code in (404, 405)
+    name = _name(client, "NoRen")
+    created = client.post(CLASSES, json={"name": name}, headers=admin).json()
+    refused = client.patch(f"{CLASSES}/{created['id']}", json={"name": "X"}, headers=admin)
+    assert refused.status_code == 422 and refused.json()["detail"]["code"] == "nothing_to_update"
+    assert name in {c["name"] for c in client.get(CLASSES, headers=admin).json()}
