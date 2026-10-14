@@ -19,7 +19,7 @@
 | Admin campus (`mod_admin_campus`) | Documents, Announcements, Calendar, TC, Activities, Communication, Admin dashboard | Grouped so the rack stays readable |
 | Planned | Ops / later modules | Dashed “planned” edges |
 | Data | PostgreSQL `qmis_erp`, `uploads/` | SQL + file assets |
-| Migrations | Alembic `0001`–`0010` | Schema upgrades (not silent at startup) |
+| Migrations | Alembic `0001`–`0011` | Schema upgrades (not silent at startup); **48** app tables at head |
 
 Views in the HTML: **Live API**, **Planned**, **User path**.
 
@@ -58,6 +58,8 @@ Open the HTML in a browser (dark/light themes, export PNG/SVG from the diagram U
 
 | Doc | Purpose |
 |---|---|
+| `DATABASE_ARCHITECTURE_RULES.md` | Rules for all 480 sidebar modules (reuse first; migrate only when needed) |
+| `MODULE_DOMAIN_MAPPING.md` | Role module → API → tables map (Admin 26 + PRM 21; verified baseline 48 tables @ `0011`) |
 | `ADMINISTRATOR_MODULE_AUDIT.md` | Admin 26-module E2E scorecard |
 | `DATABASE_INTEGRATION_AUDIT.md` | DB, config inventory, persistence, authz |
 | `FRONTEND_INTEGRATION.md` | Route and flag details |

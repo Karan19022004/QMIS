@@ -87,6 +87,11 @@ class Settings(BaseSettings):
     rfid_import_enabled: bool = False
 
     @property
+    def is_sqlite(self) -> bool:
+        """True when DATABASE_URL targets SQLite (tests / local in-memory)."""
+        return self.database_url.strip().lower().startswith("sqlite")
+
+    @property
     def is_development(self) -> bool:
         return self.environment.strip().lower() in _DEVELOPMENT_NAMES
 

@@ -8,6 +8,63 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026 (late) — PRM Material Gate Pass await-fix
+
+**Status:** Material Gate Pass Add/Edit await API create/update. No schema change.
+
+### Done
+
+1. `AddMaterialGatePass.jsx` / `EditMaterialGatePass.jsx` — async save with await, toast errors, saving state.
+2. Pytest FO suite **5 passed**; live create `MGP-0001` **201**.
+3. Mapping: Material Gate Pass → PASS.
+
+### Open / next
+
+- Goods Received Pass Add/Edit — still navigate without awaiting API save.
+
+---
+
+## 14 October 2026 (late) — PRM Hostel Gate Pass await-fix
+
+**Status:** Hostel Gate Pass Add/Edit await API create/update. No schema change.
+
+### Done
+
+1. `AddHostelGatePass.jsx` / `EditHostelGatePass.jsx` — `async` save with `await`, error toast, saving disabled state.
+2. Pytest: create + update + list hostel-gate-passes (**4** FO tests total passed). Live: `HGP-0001` **201**, update status Checked Out **200**.
+3. `MODULE_DOMAIN_MAPPING.md` — Hostel marked PASS.
+
+### Open / next
+
+- Material Gate Pass and Goods Received Pass Add — still navigate without awaiting API save.
+
+---
+
+## 14 October 2026 (late) — Verify architecture docs + PRM Student Transfer create
+
+**Status:** Baseline **confirmed** (not assumed). Admin **26/26 PASS**. Student Transfer Add form now persists to `front_office_records` (no migration).
+
+### Verification
+
+1. Git: `main` ahead of `origin/main` by 2; uncommitted docs + this FE/API wiring; no destructive ops.
+2. Alembic current = head = **`0011_front_office_records`**.
+3. PostgreSQL public: **49** relations = **48** app tables + `alembic_version`; model tables match 1:1 (0 only-PG / 0 only-model).
+4. Admin live audit script: **26/26 PASS**.
+5. Docs accurate on baseline; mapping gap fixed for Transfer create; Hostel/Material/Goods Add marked **PARTIAL** (missing `await`).
+
+### Done
+
+1. Restored `Settings.is_sqlite` (legacy `app.db.session` import was broken without it).
+2. Wired `AddStudentTransfer.jsx` → `addStudentTransfer` → `POST /front-office/student-transfers`.
+3. Pytest FO: **3 passed** (gate pass + authz + transfer create/list/get). Live smoke: create `STR-0001` **201**, list **200**.
+
+### Open / next
+
+- Next PRM workflow: await API saves on Hostel, Material, and Goods Received Add screens (same table; no schema change).
+- Browser smoke as PRM login for Transfer Add still recommended.
+
+---
+
 ## 14 October 2026 (PRM Front Office) — Not Completed / Gap closed
 
 **Status:** PRM panel moved from **8 Completed / 1 Partial / 12 Not Completed** to **21 Completed / 0 Partial / 0 Not Completed**. Word sheet: `QMIS-ERP-Role-Module-Status.updated.14oct-prm.docx`. Migration **`0011_front_office_records`** applied on `qmis_erp`.
