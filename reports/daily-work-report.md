@@ -8,6 +8,23 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026 (late) — PRM Goods Received + Word status 21/21
+
+**Status:** Goods Received Pass Add/Edit await API. Role-module Word sheet updated: PRM **21 Completed / 0 Partial / 0 Not Completed**.
+
+### Done
+
+1. `AddGoodsReceivedPass.jsx` / `EditGoodsReceivedPass.jsx` — async await save + toasts.
+2. Pytest FO suite **6 passed**; live `GRP-0001` **201**.
+3. Regenerated Word via `update_prm_status_14oct.py` → main `QMIS-ERP-Role-Module-Status.docx`, `updated.14oct-prm.docx`, `review.14oct.docx` (notes refreshed for Transfer/Hostel/Material/Goods create verification). TOTAL sheet: 151 Completed / 46 Partial / 281 Not Completed / 2 Gap.
+
+### Open / next
+
+- Next role panel after PRM (follow DATABASE_ARCHITECTURE_RULES — reuse domains first).
+- Close locked `ADMIN-UPDATED-14oct.docx` if the unlocked copy should replace it.
+
+---
+
 ## 14 October 2026 (late) — PRM Material Gate Pass await-fix
 
 **Status:** Material Gate Pass Add/Edit await API create/update. No schema change.

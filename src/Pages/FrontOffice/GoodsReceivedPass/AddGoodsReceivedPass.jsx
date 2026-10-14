@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import GoodsReceivedPassForm, {
     createInitialFormData,
     validateGoodsReceivedPassForm,
@@ -10,14 +11,23 @@ const AddGoodsReceivedPass = () => {
     const navigate = useNavigate()
     const [formData, setFormData] = useState(createInitialFormData)
     const [errors, setErrors] = useState({})
+    const [saving, setSaving] = useState(false)
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         const validationErrors = validateGoodsReceivedPassForm(formData)
         setErrors(validationErrors)
         if (Object.keys(validationErrors).length > 0) return
 
-        addGoodsReceivedPass(formData)
-        navigate('/front-office/goods-received-pass-list')
+        setSaving(true)
+        try {
+            await addGoodsReceivedPass(formData)
+            toast.success('Goods received pass saved successfully.')
+            navigate('/front-office/goods-received-pass-list')
+        } catch (error) {
+            toast.error(error?.message || 'Could not save goods received pass.')
+        } finally {
+            setSaving(false)
+        }
     }
 
     return (
@@ -39,10 +49,11 @@ const AddGoodsReceivedPass = () => {
                 </button>
                 <button
                     type='button'
+                    disabled={saving}
                     onClick={handleSubmit}
-                    className='bg-[#515DEF] text-white text-sm px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'
+                    className='bg-[#515DEF] text-white text-sm px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full disabled:opacity-60'
                 >
-                    Save Goods Received Pass
+                    {saving ? 'Saving…' : 'Save Goods Received Pass'}
                 </button>
             </div>
         </section>

@@ -1,4 +1,4 @@
-"""Mark PRM (Front Office) Not Completed / Partial rows Completed after API wiring."""
+"""Mark PRM (Front Office) modules Completed after API wiring + await create/update fixes."""
 
 from __future__ import annotations
 
@@ -9,9 +9,23 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
 BASE = Path(__file__).resolve().parent
-SRC = BASE / "QMIS-ERP-Role-Module-Status.updated.14oct-evening.docx"
+
+# Prefer the latest PRM sheet; fall back to evening then base.
+for candidate in (
+    BASE / "QMIS-ERP-Role-Module-Status.updated.14oct-prm.docx",
+    BASE / "QMIS-ERP-Role-Module-Status.updated.14oct-evening.docx",
+    BASE / "QMIS-ERP-Role-Module-Status.docx",
+):
+    if candidate.exists():
+        SRC = candidate
+        break
+else:
+    raise FileNotFoundError("No role-module status Word source found")
+
 OUTS = [
     BASE / "QMIS-ERP-Role-Module-Status.updated.14oct-prm.docx",
+    BASE / "QMIS-ERP-Role-Module-Status.docx",
+    BASE / "QMIS-ERP-Role-Module-Status.review.14oct.docx",
     BASE / "QMIS-ERP-Role-Module-Status.ADMIN-UPDATED-14oct.docx",
 ]
 
@@ -23,12 +37,12 @@ UPDATES = {
     ),
     "Student Transfer": (
         "Completed",
-        "Persisted on GET/POST /api/v1/front-office/student-transfers (migration 0011_front_office_records, frontoffice.*). "
-        "List hydrates from the server; UI layout preserved.",
+        "List + Add persist via /api/v1/front-office/student-transfers (0011, frontoffice.*). "
+        "AddStudentTransfer awaits POST; verified live STR-* (14 Oct 2026).",
     ),
     "Student Re-Enrollment": (
         "Completed",
-        "Persisted on /api/v1/front-office/student-re-enrollments (0011). studentReEnrollmentData.js uses Front Office API when signed in.",
+        "Persisted on /api/v1/front-office/student-re-enrollments (0011). Add/list use Front Office API when signed in.",
     ),
     "TC Request": (
         "Completed",
@@ -37,19 +51,19 @@ UPDATES = {
     ),
     "Gate Pass > Student Gate Pass": (
         "Completed",
-        "Persisted on /api/v1/front-office/student-gate-passes (0011). gatePassData.js API mode; UI unchanged.",
+        "Persisted on /api/v1/front-office/student-gate-passes (0011). Add awaits API create; UI layout preserved.",
     ),
     "Gate Pass > Hostel Gate Pass": (
         "Completed",
-        "Persisted on /api/v1/front-office/hostel-gate-passes (0011).",
+        "Add/Edit await create/update on /api/v1/front-office/hostel-gate-passes (0011). Live HGP-* verified.",
     ),
     "Gate Pass > Material Gate Pass": (
         "Completed",
-        "Persisted on /api/v1/front-office/material-gate-passes (0011).",
+        "Add/Edit await create/update on /api/v1/front-office/material-gate-passes (0011). Live MGP-* verified.",
     ),
     "Gate Pass > Goods Received Pass": (
         "Completed",
-        "Persisted on /api/v1/front-office/goods-received-passes (0011).",
+        "Add/Edit await create/update on /api/v1/front-office/goods-received-passes (0011). Live GRP-* verified.",
     ),
     "My Attendance": (
         "Completed",
@@ -95,9 +109,8 @@ def find_prm_table(doc: Document):
     raise RuntimeError("PRM table not found")
 
 
-def apply(doc: Document) -> dict:
+def apply(doc: Document) -> tuple[dict, dict]:
     table = find_prm_table(doc)
-    changed = 0
     for row in table.rows[1:]:
         mod = row.cells[0].text.strip()
         if mod not in UPDATES:
@@ -106,9 +119,7 @@ def apply(doc: Document) -> dict:
         row.cells[1].text = status
         row.cells[2].text = note
         set_cell_shading(row.cells[1], "C6EFCE")
-        changed += 1
 
-    # Recount summary row for PRM
     counts = {"Completed": 0, "Partial": 0, "Not Completed": 0, "Gap": 0}
     for row in table.rows[1:]:
         status = row.cells[1].text.strip()
@@ -156,11 +167,17 @@ def apply(doc: Document) -> dict:
 
 
 def main() -> None:
-    src = Document(str(SRC))
-    counts, totals = apply(src)
-    out = BASE / "QMIS-ERP-Role-Module-Status.updated.14oct-prm.docx"
-    src.save(str(out))
-    print("Wrote", out)
+    doc = Document(str(SRC))
+    counts, totals = apply(doc)
+    for out in OUTS:
+        try:
+            doc.save(str(out))
+            print("Wrote", out.name)
+        except PermissionError:
+            alt = out.with_name(out.stem + ".unlocked.docx")
+            doc.save(str(alt))
+            print("LOCKED", out.name, "-> wrote", alt.name)
+    print("Source", SRC.name)
     print("PRM counts", counts)
     print("TOTAL", totals)
 

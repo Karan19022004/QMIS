@@ -136,6 +136,42 @@ def test_admin_can_create_and_list_material_gate_pass(client):
     assert any(row["id"] == body["id"] for row in listed.json())
 
 
+def test_admin_can_create_and_list_goods_received_pass(client):
+    headers = _login(client, ADMIN)
+    created = client.post(
+        "/api/v1/front-office/goods-received-passes",
+        headers=headers,
+        json={
+            "paymentType": "CASH",
+            "date": "14-10-2026",
+            "time": "10:00",
+            "timePeriod": "AM",
+            "supplierName": "ABC Supplies",
+            "billNo": "BILL-100",
+            "billDate": "14-10-2026",
+            "materials": [
+                {
+                    "id": "row-1",
+                    "description": "Paper reams",
+                    "quantity": 10,
+                    "remarks": "",
+                }
+            ],
+            "signatories": {},
+            "status": "Pending",
+            "createdBy": "Front Office",
+        },
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["id"].startswith("GRP-")
+    assert body["supplierName"] == "ABC Supplies"
+
+    listed = client.get("/api/v1/front-office/goods-received-passes", headers=headers)
+    assert listed.status_code == 200
+    assert any(row["id"] == body["id"] for row in listed.json())
+
+
 def test_admin_can_create_and_list_student_transfer(client):
     headers = _login(client, ADMIN)
     created = client.post(

@@ -73,7 +73,7 @@ Migration required? **No** means use existing tables; **Yes** only when a new do
 | Student Gate Pass | Front Office | `AddGatePass.jsx`, `gatePassData.js` | `/front-office/student-gate-passes` | `front_office_records` | No (`0011`) | PASS (await+API) |
 | Hostel Gate Pass | Front Office | `AddHostelGatePass.jsx`, `EditHostelGatePass.jsx`, `hostelGatePassData.js` | `/front-office/hostel-gate-passes` | `front_office_records` | No (`0011`) | PASS (await create/update; live `HGP-0001`; pytest) |
 | Material Gate Pass | Front Office | `AddMaterialGatePass.jsx`, `EditMaterialGatePass.jsx`, `materialGatePassData.js` | `/front-office/material-gate-passes` | `front_office_records` | No (`0011`) | PASS (await create/update; live `MGP-0001`; pytest) |
-| Goods Received Pass | Front Office | `AddGoodsReceivedPass.jsx`, `goodsReceivedPassData.js` | `/front-office/goods-received-passes` | `front_office_records` | No (`0011`) | PARTIAL (save not awaited before navigate) |
+| Goods Received Pass | Front Office | `AddGoodsReceivedPass.jsx`, `EditGoodsReceivedPass.jsx`, `goodsReceivedPassData.js` | `/front-office/goods-received-passes` | `front_office_records` | No (`0011`) | PASS (await create/update; live `GRP-0001`; pytest) |
 | Tasks / Leave / Escalation | Shared workflows | Common Task/Leave/Escalation | existing | existing | No | PASS |
 | My Attendance | HR self | `MyAttendance.jsx` | `GET /hr/attendance` | `hr_records` | No | PASS (API) |
 | Announcement / Communication / Calendar / Notifications | Shared | Common pages `roleKey=prm` | existing | existing | No | PASS |
@@ -84,7 +84,9 @@ Migration required? **No** means use existing tables; **Yes** only when a new do
 - Student Transfer **Add** form persists via `addStudentTransfer` → `POST /front-office/student-transfers`.
 - Hostel Gate Pass Add/Edit `await` create/update → `/front-office/hostel-gate-passes`.
 - Material Gate Pass Add/Edit `await` create/update → `/front-office/material-gate-passes`.
-- **Next implementation task:** Goods Received Pass Add/Edit — `await` API saves before navigate (same table; no schema change).
+- Goods Received Pass Add/Edit `await` create/update → `/front-office/goods-received-passes`.
+- Word status: PRM **21/21 Completed** (`QMIS-ERP-Role-Module-Status.docx` + `.updated.14oct-prm.docx` + `.review.14oct.docx`).
+- **Next:** choose next role panel after PRM (reuse-first per architecture rules).
 
 ---
 
