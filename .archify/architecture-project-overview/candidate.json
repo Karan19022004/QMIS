@@ -10,7 +10,7 @@
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "94684f56a67bf72d9b5512cbaa38c9ec19d1585c"
+      "revision": "336c1e449dad1837969b4384d24c9cd93849ac74"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -53,7 +53,8 @@
           "mod_finance",
           "mod_hr",
           "mod_files",
-          "mod_admin_campus"
+          "mod_admin_campus",
+          "mod_front_office"
         ],
         "note": "Routers mounted in main.py"
       },
@@ -127,7 +128,7 @@
       "id": "client",
       "type": "frontend",
       "label": "API clients",
-      "sublabel": "24 *Api.js clients",
+      "sublabel": "26 *Api.js clients",
       "pos": [
         400,
         200
@@ -360,7 +361,7 @@
       "id": "mod_students",
       "type": "backend",
       "label": "Students",
-      "sublabel": "list \u00b7 detail",
+      "sublabel": "list \u00b7 detail \u00b7 me",
       "pos": [
         800,
         316
@@ -373,7 +374,7 @@
         {
           "path": "backend/app/api/v1/endpoints/students.py",
           "line": 11,
-          "end_line": 31
+          "end_line": 40
         }
       ]
     },
@@ -504,6 +505,28 @@
       ]
     },
     {
+      "id": "mod_front_office",
+      "type": "backend",
+      "label": "Front Office",
+      "sublabel": "auto from main.py",
+      "pos": [
+        960,
+        592
+      ],
+      "size": [
+        148,
+        60
+      ],
+      "sources": [
+        {
+          "path": "backend/app/main.py",
+          "line": 90,
+          "end_line": 90
+        }
+      ],
+      "tag": "auto"
+    },
+    {
       "id": "mod_ops",
       "type": "cloud",
       "label": "Ops",
@@ -552,7 +575,8 @@
         "mod_finance",
         "mod_hr",
         "mod_files",
-        "mod_admin_campus"
+        "mod_admin_campus",
+        "mod_front_office"
       ]
     },
     {
@@ -677,6 +701,11 @@
       "to": "mod_admin_campus"
     },
     {
+      "id": "api-mod_front_office",
+      "from": "api",
+      "to": "mod_front_office"
+    },
+    {
       "id": "api-mod_ops",
       "from": "api",
       "to": "mod_ops",
@@ -694,15 +723,18 @@
         "Masters \u2014 classes \u00b7 sections",
         "Admissions \u2014 enquiry \u2192 enroll",
         "Parents \u2014 me/children",
-        "Students \u2014 list \u00b7 detail",
+        "Students \u2014 list \u00b7 detail \u00b7 me",
         "Attendance \u2014 class marks",
         "Workflows \u2014 leave \u00b7 tasks \u00b7 exams",
         "Finance \u2014 snapshot + actions",
         "HR \u2014 partner vertical",
         "Files \u2014 upload \u00b7 download",
         "Admin campus \u2014 docs \u00b7 TC \u00b7 activities",
+        "Front Office \u2014 auto from main.py",
         "Each screen has a VITE_USE_API_* flag; most default to the sign-in flag, off = browser-only demo data",
         "Parents /me/children (P1-4) live",
+        "Students /me + student_user_id (0012) \u2014 Student portal 23/23",
+        "Parent portal 23/23 + PRM Front Office 21/21 + Admin 26/26",
         "HR + Finance: API is SoT",
         "Phase 1: Head/Assistant + FY Apr\u2013Mar",
         "Gateway/SMTP/WA: env-gated (demo/stub)",
@@ -710,8 +742,8 @@
         "Tasks: remarks + history, retry-safe create, assignment hierarchy enforced on the backend",
         "Y-0..Y-5 backend built",
         "Administrator screens on the API: User Creation and Roles, Employee Database, Class Details, Attendance (read-only), Documents, Announcements, Calendar, TC, Activities, Communication, Dashboard",
-        "Alembic head 0010_communication (0001\u20130010 applied by hand after backup); startup only warns when behind",
-        "Administrator audit 14 Oct 2026: live matrix 26/26 PASS; pytest 400 passed; READY WITH KNOWN LIMITATIONS"
+        "Alembic head 0012_students_student_user_id (0001\u20130012); startup only warns when behind",
+        "14 Oct 2026: Admin/PRM/Parent/Student panels Completed; pytest 412 passed"
       ]
     },
     {
@@ -743,10 +775,12 @@
         "escalationApi.js",
         "filesApi.js",
         "financeApi.js",
+        "frontOfficeApi.js",
         "hrApi.js",
         "leaveApi.js",
         "notificationsApi.js",
         "parentsApi.js",
+        "resultsApi.js",
         "studentsApi.js",
         "taskApi.js",
         "tcApi.js",

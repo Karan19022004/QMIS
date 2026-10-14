@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
-    "sha256": "ba2a69cb3bdb1833cea09aaaf73f200cc2e7a930cf41da3eceec889c02aee2da",
-    "bytes": 16959
+    "sha256": "69d7aeccdf0801a44ecf80df8d536418f2f74051ebd65d37b0fb0ac679abc309",
+    "bytes": 17767
   },
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "196092e386cbfd6652d026bca1c680d46c761bd359802459f670598ca7aa31bf",
-    "bytes": 793219
+    "sha256": "4f34b1a462f5a0a213d9970f8550c70a8d30ba66d7ec1075fa32cff3e4c9e4f6",
+    "bytes": 795672
   },
   "gates": {
     "validate": "pass",
@@ -45,11 +45,11 @@
     "eventKey": "archify@sha256:ffedc53390c9da6e859f41e432c5d2d0615a23cf00a503181f07efbba88a7ce8"
   },
   "visualReview": "not-requested",
-  "durationMs": 5713,
+  "durationMs": 7073,
   "visualReviewRecommendation": {
     "action": "inspect-route-readability",
     "signals": {
-      "resolvedCrossovers": 11,
+      "resolvedCrossovers": 16,
       "routesOverSuggestedBends": 5,
       "routesOverSuggestedStretch": 2
     },
@@ -143,7 +143,7 @@
             "artifactIndex": 16
           },
           "point": [
-            692,
+            685,
             384
           ],
           "sharedNode": "api"
@@ -166,7 +166,30 @@
             "artifactIndex": 18
           },
           "point": [
-            678,
+            671,
+            384
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_workflows",
+            "from": "api",
+            "to": "mod_workflows",
+            "label": "",
+            "collectionIndex": 14,
+            "artifactIndex": 15
+          },
+          "right": {
+            "id": "api-mod_front_office",
+            "from": "api",
+            "to": "mod_front_office",
+            "label": "",
+            "collectionIndex": 19,
+            "artifactIndex": 20
+          },
+          "point": [
+            699,
             384
           ],
           "sharedNode": "api"
@@ -189,7 +212,7 @@
             "artifactIndex": 17
           },
           "point": [
-            692,
+            685,
             476
           ],
           "sharedNode": "api"
@@ -214,29 +237,6 @@
           "point": [
             1034,
             563
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_hr",
-            "from": "api",
-            "to": "mod_hr",
-            "label": "",
-            "collectionIndex": 16,
-            "artifactIndex": 17
-          },
-          "right": {
-            "id": "api-mod_files",
-            "from": "api",
-            "to": "mod_files",
-            "label": "",
-            "collectionIndex": 17,
-            "artifactIndex": 18
-          },
-          "point": [
-            678,
-            476
           ],
           "sharedNode": "api"
         }
@@ -300,7 +300,7 @@
             "artifactIndex": 16
           },
           "bends": 4,
-          "stretch": 2.138
+          "stretch": 2.12
         }
       ],
       "truncated": true
@@ -311,9 +311,9 @@
       "api → mod_students and api → mod_attendance cross next to api: move node mod_students or mod_attendance so the two reach api from different sides (for example one level with it, one directly above or below it).",
       "api → mod_workflows and api → mod_finance cross next to api: move node mod_workflows or mod_finance so the two reach api from different sides (for example one level with it, one directly above or below it).",
       "api → mod_workflows and api → mod_files cross next to api: move node mod_workflows or mod_files so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_workflows and api → mod_front_office cross next to api: move node mod_workflows or mod_front_office so the two reach api from different sides (for example one level with it, one directly above or below it).",
       "api → mod_finance and api → mod_hr cross next to api: move node mod_finance or mod_hr so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_finance and api → mod_files cross next to api: move node mod_finance or mod_files so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_hr and api → mod_files cross next to api: move node mod_hr or mod_files so the two reach api from different sides (for example one level with it, one directly above or below it)."
+      "api → mod_finance and api → mod_files cross next to api: move node mod_finance or mod_files so the two reach api from different sides (for example one level with it, one directly above or below it)."
     ],
     "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
   }

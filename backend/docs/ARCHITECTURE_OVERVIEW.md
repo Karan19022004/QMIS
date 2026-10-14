@@ -12,7 +12,7 @@
 
 | Layer | Nodes | Meaning |
 |---|---|---|
-| People | Browser users | Staff/parent roles using the Vite app |
+| People | Browser users | Staff / parent / student roles using the Vite app |
 | Frontend | React + Vite web, `src/services/*Api.js` | Bearer JWT client to `/api/v1` |
 | API core | FastAPI app | Mounted routers from `backend/app/main.py` |
 | Live modules | Auth, Audit, Admin users, Masters, Admissions, Parents, Students, Attendance, Workflows (leave/escalations/tasks/approvals/notifications), Finance, HR, Files, **Admin campus** | Green “API module” cards |
@@ -59,7 +59,7 @@ Open the HTML in a browser (dark/light themes, export PNG/SVG from the diagram U
 | Doc | Purpose |
 |---|---|
 | `DATABASE_ARCHITECTURE_RULES.md` | Rules for all 480 sidebar modules (reuse first; migrate only when needed) |
-| `MODULE_DOMAIN_MAPPING.md` | Role module → API → tables map (Admin 26 + PRM 21; verified baseline 48 tables @ `0011`) |
+| `MODULE_DOMAIN_MAPPING.md` | Role module → API → tables map (Admin 26 + PRM 21 + Parent 23 + Student 23; baseline 48 tables @ `0012`) |
 | `ADMINISTRATOR_MODULE_AUDIT.md` | Admin 26-module E2E scorecard |
 | `DATABASE_INTEGRATION_AUDIT.md` | DB, config inventory, persistence, authz |
 | `FRONTEND_INTEGRATION.md` | Route and flag details |
@@ -70,4 +70,5 @@ Open the HTML in a browser (dark/light themes, export PNG/SVG from the diagram U
 
 ## Delivery gate (14 Oct)
 
-Administrator modules are **READY WITH KNOWN LIMITATIONS**. Next delivery slice is **PRM (Front Office)** — start with Admission Enquiry against the existing admissions API; do not expand Archify until that slice lands new routers.
+**Completed panels:** Administrator **26/26**, PRM (Front Office) **21/21**, Parent **23/23**, Student **23/23** (shared portal routes; `GET /students/me` + Alembic **0012**).  
+Next delivery slice: Teacher / Coordinator academic panels.

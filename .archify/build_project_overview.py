@@ -81,10 +81,10 @@ ROUTER_META = {
     "students_router": {
         "id": "mod_students",
         "label": "Students",
-        "sublabel": "list · detail",
+        "sublabel": "list · detail · me",
         "path": "backend/app/api/v1/endpoints/students.py",
         "line": 11,
-        "end_line": 31,
+        "end_line": 40,
     },
     "attendance_router": {
         "id": "mod_attendance",
@@ -463,6 +463,8 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 + [
                     "Each screen has a VITE_USE_API_* flag; most default to the sign-in flag, off = browser-only demo data",
                     "Parents /me/children (P1-4) live",
+                    "Students /me + student_user_id (0012) — Student portal 23/23",
+                    "Parent portal 23/23 + PRM Front Office 21/21 + Admin 26/26",
                     "HR + Finance: API is SoT",
                     "Phase 1: Head/Assistant + FY Apr–Mar",
                     "Gateway/SMTP/WA: env-gated (demo/stub)",
@@ -470,8 +472,8 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                     "Tasks: remarks + history, retry-safe create, assignment hierarchy enforced on the backend",
                     "Y-0..Y-5 backend built",
                     "Administrator screens on the API: User Creation and Roles, Employee Database, Class Details, Attendance (read-only), Documents, Announcements, Calendar, TC, Activities, Communication, Dashboard",
-                    "Alembic head 0010_communication (0001–0010 applied by hand after backup); startup only warns when behind",
-                    "Administrator audit 14 Oct 2026: live matrix 26/26 PASS; pytest 400 passed; READY WITH KNOWN LIMITATIONS",
+                    "Alembic head 0012_students_student_user_id (0001–0012); startup only warns when behind",
+                    "14 Oct 2026: Admin/PRM/Parent/Student panels Completed; pytest 412 passed",
                 ],
             },
             {
