@@ -10,7 +10,7 @@
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "ecb1e70f4fc10a373162d5dd46bd2099cb8c9c2c"
+      "revision": "10c239e212d6e7aa9f6c6c7a3b8afb87ba1b2642"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -190,7 +190,7 @@
       "id": "alembic",
       "type": "backend",
       "label": "Alembic",
-      "sublabel": "0001 to 0003",
+      "sublabel": "0001 to 0004",
       "pos": [
         370,
         430
@@ -680,9 +680,9 @@
         "Leave, bell notifications, escalations and tasks wired to UI (leaveApi, notificationsApi, escalationApi, taskApi); each flow checked in browser",
         "Tasks: remarks + history, retry-safe create, assignment hierarchy enforced on the backend",
         "Y-0..Y-5 backend built",
-        "Administrator screens on the API: User Creation and Roles, Employee Database, Class Details, student and employee Attendance (read-only); each checked in a browser",
-        "Schema changes are Alembic revisions 0001 to 0003, applied by hand after a backup; startup only warns when behind",
-        "Verified: 260 pytest passed (13 Oct 2026)"
+        "Administrator screens on the API: User Creation and Roles, Employee Database, student and employee Attendance (read-only), and Class Details with capacity, room, class teacher per section, edit, deactivate and delete; each checked in a browser",
+        "Schema changes are Alembic revisions 0001 to 0004, applied by hand after a backup; startup only warns when behind",
+        "Verified: 314 pytest passed (14 Oct 2026)"
       ]
     },
     {
@@ -724,7 +724,7 @@
         "UI not wired yet: lesson plans, marks (need decisions/screens)",
         "Tasks: no attachments, no Admin/Director all-tasks screen",
         "Admin screens still local: Announcement, Communication, Calendar, Notifications page, TC approval, Activities, Documents, Dashboard",
-        "Server stores no class capacity, class teacher or room; no student punch times; no class edit or delete",
+        "No student punch times; class capacity is not checked against enrolment; Class Details is not yet checked in a browser for non-admin roles",
         "Alembic not run at startup; three other drifted columns still need revisions",
         "24h clock needs a scheduler (runs on list reads + admin sweep today)",
         "Live SMTP/WhatsApp/Paytm when school ready",

@@ -1,11 +1,35 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 13 October 2026 (role-module audit and the Student Database fix, on top of Admin Attendance)  
-Result: **264 passed**, 0 failed, 0 skipped (full suite, `python -m pytest tests/ -q` from `backend`, 3 min 20 s, on the working tree of branch `fix/student-database-admissions-lookup`). The 260 on committed code plus 4 new static checks that are **uncommitted**. History of this day: 218 after migration `0002`; 231 after `0003`; 246 after Class Details; 260 after Attendance; 264 after the Student Database fix. The audit itself added no tests.  
+Last run: 14 October 2026 (Class Details: section capacity, room, class teacher, edit, deactivate, delete; migration `0004`)  
+Result: **314 passed**, 0 failed, 0 skipped (full suite, `python -m pytest tests/ -q` from `backend`, 2 min 39 s, branch `feature/admin-class-details`). Since that run only two small frontend edits were made (a mirror fix and a display tweak) and the 9 static frontend checks were re-run: 9 passed. History: 264 on 13 Oct; +32 Class Details edit tests, +13 migration `0004` tests, +4 class-teacher picker tests and the rewritten static checks bring it to 314.  
 Frontend: production build passes (exit 0). ESLint on the changed files (`StudentsList.jsx`, `EmployeesList.jsx`, `useAttendanceQuery.js`, `adminAttendanceApi.js`, `apiClient.js`, and the two attendance data files): no findings. Running ESLint over the whole `Pages/Admin/Attendance` folder also reports three **old** errors (unused `useState` in the three `ExportModal.jsx` files under `Employees/Components`, `LeaveRequest/Components` and `Students/Compnents`); those files were not changed. A whole-project lint count was not run.
 
 Evidence is kept apart. **Automated** = pytest. **Browser** = I drove the real screen against the running backend and the real development database. Anything not run is marked NOT RUN.
+
+## Class Details edit, deactivate, delete (14 Oct 2026)
+
+**Automated (pytest) — PASS.** Class Details edit API (36 tests: create, edit section capacity / room / class teacher, teacher role and campus rules, deactivate and reactivate, delete only when nothing uses the class, duplicate class per academic year, permissions per role derived from the permission matrix, the class-teacher picker); migration `0004` on a throwaway PostgreSQL database (13 tests: upgrade, repeat, downgrade, abort when a year is ambiguous or a duplicate exists, refusal to discard data); static frontend checks (9). Full suite 314 passed. Frontend: `npm run build` passes; ESLint on the seven changed files exits clean (the only other finding in the folder is the old unused `useState` in `Components/ExportModal.jsx`).
+
+**Browser — Administrator, live backend, real development database (PASS unless marked):**
+
+| # | Scenario | Result |
+|---|---|---|
+| B1 | List loads from the server with Academic Year, Capacity, Class Teacher, Room, Status, Actions; year filter lists "2026-27 (current)" | PASS |
+| B2 | Add class VI, section A, capacity 40, room 101, class teacher chosen from the picker (three eligible logins listed) → success message, back on the list, row shows 40 / teacher / 101 | PASS |
+| B3 | Edit sections: A changed to capacity 45, room 102, other teacher; section B added (30, room 103, coordinator) → "Saved 2 sections of VI"; class capacity derived as 75 | PASS |
+| B4 | Deactivate VI through the confirmation → row leaves the list and the class catalog | PASS |
+| B5 | "Show deactivated" shows VI with a Deactivated badge; Edit is disabled for it; Reactivate restores it | PASS |
+| B6 | Delete Grade 1 (in use) → refused with the server's message naming 7 students, 7 admissions, 8 enquiries and 3 attendance records; row stays | PASS |
+| B7 | Delete VI (unused) → "VI deleted", row gone | PASS |
+| B8 | Save class V with section A again, capacity 99 → "Class V already existed; already present: A"; nothing duplicated; A unchanged | PASS |
+| B9 | Local mode (second Vite server, API flags off, throwaway demo password): list keeps the original seven columns and Edit / Delete menu, add page keeps its original fields, a local save works, **0 backend calls** | PASS |
+
+**Defects found and fixed during the browser run:** (1) deactivating a class removed it from the class catalog's detail list but **not from the flat class and section lists that the other screens' dropdowns read** (`getClasses`, `getSections`), so my own note that it "leaves those dropdowns" was untrue; the mirror now removes those names too unless another class or an assignment still uses them, re-checked after the fix (VI left the class list, sections A, B, C stayed because class V uses them); (2) the Capacity cell showed `— A=—, B=—, C=—` when nothing was set; the per-section breakdown now shows only when a section has a capacity. Both are covered by the build and lint; (1) also by a static check.
+
+**NOT RUN:** a Teacher, Principal or other non-admin role in the browser (write refusal is proven by pytest only); the same class in a second academic year (only one academic year exists in the development database; the database rule is proven by pytest and the migration tests); a partial section failure on screen; a real 403 or outage on these screens; the other screens (student allocation, activities and so on) reading the mirrored classes; mobile layout; the flag-on build in the Principal or Director screens; a race between the delete check and a new student.
+
+**Noted, not changed:** the delete refusal message reads "enquiry(ies)" (wording from the server); capacity is not checked against enrolment; a class-teacher picker entry for a login with no HR record shows only the email.
 
 ## Automated (pytest)
 

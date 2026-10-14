@@ -7,13 +7,13 @@
   "quality": "showcase",
   "specification": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
-    "sha256": "023baee855769f895be931ecea74d794e38ef7c56851f42bfc802aeba741d6e4",
-    "bytes": 16080
+    "sha256": "436f2b9f77dcd407b2bdd2535fd32e321738996f5d6a20e54fbefd44a856d16d",
+    "bytes": 16195
   },
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "38219e2621a30ebc8abb001b4a6aa182b94b2b666e2444a649225d56ab298a12",
-    "bytes": 790834
+    "sha256": "ea047c7ec41f6ab51467ba2085e8da0f09a6c565e3e2fb44d08d09c2b6d48509",
+    "bytes": 790949
   },
   "gates": {
     "validate": "pass",
@@ -33,17 +33,19 @@
     "browserCheckReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
   },
   "update": {
-    "status": "current",
+    "status": "update_available",
     "installedVersion": "3.0.1",
-    "availableVersion": "3.0.1",
-    "releaseNotes": null,
-    "checkedAt": "2026-10-12T16:57:15.843Z",
-    "source": "cache",
-    "noticeRequired": false,
-    "noticeText": null
+    "availableVersion": "3.1.0",
+    "releaseNotes": "https://github.com/tt-a1i/archify/releases/tag/v3.1.0",
+    "severity": "normal",
+    "checkedAt": "2026-10-14T06:27:45.438Z",
+    "source": "network",
+    "noticeRequired": true,
+    "noticeText": "Archify update: 3.0.1 → 3.1.0. A newer release is available. Release notes: https://github.com/tt-a1i/archify/releases/tag/v3.1.0. The installed Skill has not changed; ask to snooze or ignore this reminder.",
+    "eventKey": "archify@sha256:ffedc53390c9da6e859f41e432c5d2d0615a23cf00a503181f07efbba88a7ce8"
   },
   "visualReview": "not-requested",
-  "durationMs": 4465,
+  "durationMs": 12360,
   "visualReviewRecommendation": {
     "action": "inspect-route-readability",
     "signals": {

@@ -316,7 +316,7 @@ const ClassDetails = () => {
                                                         <td className='px-2 py-4'>{record.academicYear}</td>
                                                         <td className='px-2 py-4'>
                                                             <div className='font-medium text-[#344054]'>{record.capacity ?? '—'}</div>
-                                                            {visible.length > 1 && (
+                                                            {visible.length > 1 && visible.some((section) => section.capacity) && (
                                                                 <div className='text-xs'>{sectionCapacities}</div>
                                                             )}
                                                         </td>

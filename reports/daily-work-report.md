@@ -8,6 +8,26 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026
+
+**Status:** Class Details now stores capacity, room and class teacher on the server, per academic year, and the Administrator can edit, deactivate and delete classes from the screen. Backend, migration `0004` (applied to the development database after a backup and a rehearsal on a copy), frontend and tests are done; checked in a browser as Administrator. Nothing is pushed or merged.
+
+### Done
+
+1. **Class Details backend (as decided at plan review).** Section capacity, room number and class teacher (stored as the login's user id, never as text); a class belongs to one academic year and is unique per campus, year and name at database level; classes are deactivated rather than deleted, and can be deleted permanently only when no student, admission, enquiry, exam, lesson plan, attendance record or mark batch uses them (the server answers with what uses it). Only an active teacher or coordinator login can be class teacher. New admin-only picker `GET /masters/class-teacher-options`. Alembic `0004` adds the columns, backfills a class's year only when its campus has exactly one year (otherwise it aborts and lists the classes), and its downgrade refuses to discard data.
+2. **Class Details screens (API mode).** The list shows Academic Year, Capacity (derived), Class Teacher, Room and Status, a "Show deactivated" toggle and an actions menu (Edit sections, Deactivate / Reactivate, Delete, each behind a confirmation with a double-click guard and the server's message on refusal). The Add screen takes capacity, room and a teacher per section and is safe to repeat. A new Edit dialog changes capacity, room, teacher and active state per section and can add a section, saving row by row. Local (browser-only) mode is unchanged.
+3. **Browser check as Administrator, plus local mode.** Create, edit with a new section, deactivate, show and reactivate, a refused delete of a class in use (Grade 1: 7 students, 7 admissions, 8 enquiries, 3 attendance records), a delete of an unused class, a duplicate save, and the flag-off regression (0 backend calls) all passed. **Two defects were found and fixed:** a deactivated class still stayed in the flat class and section lists that other screens' dropdowns read (my own earlier note said it did not), and the capacity cell showed placeholder dashes when nothing was set.
+4. **Tests and documents.** Full backend suite **314 passed** (264 before); build and lint on the changed files are clean. `backend/docs/FRONTEND_INTEGRATION.md` now describes the new routes, rules, migration `0004` and the mirror behaviour. Details in `reports/testing-report.md`.
+
+### Not done / open
+
+- **Not run in a browser:** Teacher or Principal on these screens (proven by pytest only), the same class in a second academic year (only one year exists in the development database), a partial section failure on screen, a real outage.
+- **Open design points:** capacity is not checked against enrolment; the delete check matches class names across all years and cannot be made race-proof without a foreign key; if the unpushed Phase 2 line is restored, `TeacherAssignment.class_teacher_of` overlaps `class_teacher_user_id`.
+- **A commit made by the repository owner (`10c239e`, "backend chnage") swept in this work, including the review copy of the status sheet.** That sheet is **stale** (it says no Ops API exists and no backend for announcements, calendar, communication or notifications, and the Teacher rows were not checked against `academicsApi.js`); it must be redone before anyone uses it. The Archify overview was **not** regenerated for this step.
+- **Next:** redo the role-module status sheet and regenerate the Archify overview; then Attendance editing, Leave, Roles, and the missing Activities, Documents, Announcement, TC Approval, Communication, Calendar and Notifications modules, one at a time. Reviewer decisions still open: the Escalation mirror, the HR / Finance cache, User Creation status, and the Roles-editing design. The remote `main` rewind still needs the owner's confirmation.
+
+---
+
 ## 13 October 2026
 
 **Status:** Backend modules Y-0 to Y-5 built; leave, notifications, escalations and task management are wired to the frontend and checked end to end in a browser. P0 security hardening done on a review branch (not pushed); see item 18. Administrator modules started: RBAC User Creation and Roles (item 19) and Employee Database from HR (item 20) built and checked in a browser, on their own branch, not pushed. The `hr_employees.user_id` schema fix is done as a versioned migration (item 21), and so is the `school_classes.academic_year_id` fix (item 22). The Administrator's Class Details screens now use the masters API (item 23), and the Administrator's student and employee Attendance pages read real attendance (item 24). The earlier work is merged to `main` (PR #1 and PR #2); item 24 is committed on `feature/admin-attendance` (not pushed). A role-module audit of seven panels and a review copy of the status sheet are done (item 25), and the Student Database fix found by that audit is done but uncommitted (item 26); both wait for review.

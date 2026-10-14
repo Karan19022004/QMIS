@@ -1,4 +1,4 @@
-﻿"""
+"""
 Build / refresh the ONE project-wide Archify overview.
 
 Always overwrite the same folder — never create timestamped or extra Archify folders:
@@ -324,7 +324,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "id": "alembic",
             "type": "backend",
             "label": "Alembic",
-            "sublabel": "0001 to 0003",
+            "sublabel": "0001 to 0004",
             "pos": [370, 430],
             "size": [140, 64],
             "tag": "by hand",

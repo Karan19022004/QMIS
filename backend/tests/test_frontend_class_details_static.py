@@ -67,6 +67,10 @@ def test_mirror_removes_only_api_sourced_classes_and_keeps_local_ones():
     body = source[source.index("export const mirrorApiClassDetails") : source.index("export const removeClassDetails")]
     # classes the server no longer lists drop out, but only entries that came from the server
     assert "item.source === 'api' && item.apiId && !mirroredIds.has(String(item.apiId))" in body
+    # the flat lists that feed other screens' dropdowns (getClasses, getSections) shed those names too,
+    # unless something still here uses them
+    assert "catalog.classes = catalog.classes.filter(" in body and "catalog.sections = catalog.sections.filter(" in body
+    assert "keepClass.has(" in body and "keepSection.has(" in body
     assert "...local," in body  # local-only fields survive for a class with the same name
     # teacher, capacity and room now come from the server, not from the browser
     assert "classTeacher: taught?.classTeacherName" in body and "classRoomNumber: roomed?.roomNumber" in body
