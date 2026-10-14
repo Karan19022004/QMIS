@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import React, { useEffect, useMemo, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -13,17 +13,42 @@ import {
     filterStudentGatePasses,
     formatOutTimeForDisplay,
     getStudentGatePasses,
+    hydrateStudentGatePassesFromApi,
     statusBadgeColor,
 } from './gatePassData'
+import { frontOfficeApiOn } from '../frontOfficeStore'
 
 const GatePassList = () => {
+    const location = useLocation()
     const [fromDate, setFromDate] = useState(null)
     const [toDate, setToDate] = useState(null)
     const [exportModal, setExportModal] = useState(false)
     const [search, setSearch] = useState('')
     const [status, setStatus] = useState('')
     const [entriesPerPage, setEntriesPerPage] = useState(10)
-    const [records, setRecords] = useState(() => getStudentGatePasses())
+    const [records, setRecords] = useState(() => (frontOfficeApiOn() ? [] : getStudentGatePasses()))
+    const [loadError, setLoadError] = useState('')
+
+    useEffect(() => {
+        if (!frontOfficeApiOn()) {
+            setRecords(getStudentGatePasses())
+            return undefined
+        }
+        let active = true
+        hydrateStudentGatePassesFromApi()
+            .then((rows) => {
+                if (active) {
+                    setRecords(rows)
+                    setLoadError('')
+                }
+            })
+            .catch((error) => {
+                if (active) setLoadError(error?.message || 'Could not load gate passes.')
+            })
+        return () => {
+            active = false
+        }
+    }, [location.key])
 
     const refresh = () => setRecords(getStudentGatePasses())
 
@@ -41,14 +66,19 @@ const GatePassList = () => {
         setToDate(null)
     }
 
-    const handleDelete = (id) => {
-        deleteStudentGatePass(id)
+    const handleDelete = async (id) => {
+        const result = await deleteStudentGatePass(id)
+        if (!result.success) {
+            toast.error(result.message || 'Delete failed.')
+            return
+        }
         refresh()
         toast.success('Gate pass deleted.')
     }
 
     return (
         <section>
+            {loadError ? <p className='text-sm text-[#B42318] mb-3'>{loadError}</p> : null}
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
                     <button

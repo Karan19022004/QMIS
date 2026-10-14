@@ -1,3 +1,12 @@
+import {
+    createFrontOfficeItem,
+    deleteFrontOfficeItem,
+    frontOfficeApiOn,
+    hydrateFrontOfficeCollection,
+    peekFrontOfficeCollection,
+    updateFrontOfficeItem,
+} from '../frontOfficeStore'
+
 const STORAGE_KEY = 'material-gate-pass-front-office'
 const MGP_COUNTER_KEY = 'material-gate-pass-mgp-counter'
 
@@ -128,7 +137,14 @@ const hydrateRecord = (record) => ({
     status: record.status ?? deriveOverallStatus(record.approvals),
 })
 
-export const getMaterialGatePasses = () => {
+const FO_COLLECTION = 'material-gate-passes'
+
+export const hydrateMaterialGatePassesFromApi = async () => {
+    const rows = await hydrateFrontOfficeCollection(FO_COLLECTION)
+    return rows.map(hydrateRecord)
+}
+
+const localMaterialGatePasses = () => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
         const records = JSON.parse(stored).map(hydrateRecord)
@@ -140,6 +156,11 @@ export const getMaterialGatePasses = () => {
     return DEFAULT_MATERIAL_GATE_PASSES.map(hydrateRecord)
 }
 
+export const getMaterialGatePasses = () =>
+    frontOfficeApiOn()
+        ? peekFrontOfficeCollection(FO_COLLECTION).map(hydrateRecord)
+        : localMaterialGatePasses()
+
 export const saveMaterialGatePasses = (records) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
 }
@@ -147,12 +168,10 @@ export const saveMaterialGatePasses = (records) => {
 export const getMaterialGatePassById = (id) =>
     getMaterialGatePasses().find((record) => record.id === id) ?? null
 
-export const addMaterialGatePass = (payload) => {
-    const records = getMaterialGatePasses()
-    const mgpNo = generateMgpNo()
-    const record = hydrateRecord({
-        id: `mgp-${mgpNo}`,
-        mgpNo,
+export const addMaterialGatePass = async (payload) => {
+    const mgpNo = frontOfficeApiOn() ? undefined : generateMgpNo()
+    const draft = hydrateRecord({
+        ...(mgpNo ? { id: `mgp-${mgpNo}`, mgpNo } : {}),
         ...payload,
         status: deriveOverallStatus(payload.approvals),
         createdAt: new Date().toLocaleString('en-IN', {
@@ -164,11 +183,15 @@ export const addMaterialGatePass = (payload) => {
             hour12: true,
         }).replace(',', ''),
     })
-    saveMaterialGatePasses([record, ...records])
-    return record
+    if (frontOfficeApiOn()) {
+        const row = await createFrontOfficeItem(FO_COLLECTION, draft)
+        return hydrateRecord(row)
+    }
+    saveMaterialGatePasses([draft, ...localMaterialGatePasses()])
+    return draft
 }
 
-export const updateMaterialGatePass = (id, payload) => {
+export const updateMaterialGatePass = async (id, payload) => {
     const records = getMaterialGatePasses()
     const index = records.findIndex((record) => record.id === id)
     if (index === -1) return null
@@ -177,14 +200,20 @@ export const updateMaterialGatePass = (id, payload) => {
         ...payload,
         status: deriveOverallStatus(payload.approvals ?? records[index].approvals),
     })
+    if (frontOfficeApiOn()) {
+        return hydrateRecord(await updateFrontOfficeItem(FO_COLLECTION, id, updated))
+    }
     records[index] = updated
     saveMaterialGatePasses(records)
     return updated
 }
 
-export const deleteMaterialGatePass = (id) => {
-    const records = getMaterialGatePasses().filter((record) => record.id !== id)
-    saveMaterialGatePasses(records)
+export const deleteMaterialGatePass = async (id) => {
+    if (frontOfficeApiOn()) {
+        await deleteFrontOfficeItem(FO_COLLECTION, id)
+        return
+    }
+    saveMaterialGatePasses(localMaterialGatePasses().filter((record) => record.id !== id))
 }
 
 export const getNextMgpPreview = () => {

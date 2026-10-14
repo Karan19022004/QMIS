@@ -1,4 +1,11 @@
-import { canUseTcApi, decideTcRequestApi, getTcRequestApi, listTcRequestsApi } from '../../services/tcApi'
+import {
+    canUseTcApi,
+    decideTcRequestApi,
+    forwardTcRequestApi,
+    getTcRequestApi,
+    listTcRequestsApi,
+    rejectTcRequestAtPrmApi,
+} from '../../services/tcApi'
 import { isoToDmy } from '../../services/documentsApi'
 
 const STORAGE_KEY = 'schoolerp-tc-requests'
@@ -101,6 +108,18 @@ export const clearTcRequestMemory = () => {
 
 export const decideTcRequestViaApi = async (ref, decision, remarks) => {
     const mapped = mapApiRequest(await decideTcRequestApi(ref, decision, remarks))
+    apiRequests = apiRequests.map((item) => (item.id === mapped.id ? mapped : item))
+    return mapped
+}
+
+export const forwardTcRequestViaApi = async (ref, remarks) => {
+    const mapped = mapApiRequest(await forwardTcRequestApi(ref, remarks))
+    apiRequests = apiRequests.map((item) => (item.id === mapped.id ? mapped : item))
+    return mapped
+}
+
+export const rejectTcRequestAtPrmViaApi = async (ref, remarks) => {
+    const mapped = mapApiRequest(await rejectTcRequestAtPrmApi(ref, remarks))
     apiRequests = apiRequests.map((item) => (item.id === mapped.id ? mapped : item))
     return mapped
 }

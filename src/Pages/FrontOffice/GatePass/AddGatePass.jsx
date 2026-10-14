@@ -17,12 +17,12 @@ const AddGatePass = () => {
     })
     const [errors, setErrors] = useState({})
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const validationErrors = validateStudentGatePassForm(formData)
         setErrors(validationErrors)
         if (Object.keys(validationErrors).length > 0) return
 
-        const result = addStudentGatePass(formData)
+        const result = await addStudentGatePass(formData)
         if (!result.success) {
             toast.error(result.message)
             return

@@ -1,7 +1,16 @@
 import { getStudentById, getStudentsList } from '../../../Common/StudentDatabase/studentDatabaseData'
+import {
+    createFrontOfficeItem,
+    deleteFrontOfficeItem,
+    frontOfficeApiOn,
+    hydrateFrontOfficeCollection,
+    peekFrontOfficeCollection,
+    updateFrontOfficeItem,
+} from '../frontOfficeStore'
 
 const STORAGE_KEY = 'student-gate-pass-front-office'
 const COUNTER_KEY = 'student-gate-pass-sgp-counter'
+const COLLECTION = 'student-gate-passes'
 
 export const STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected']
 
@@ -121,86 +130,93 @@ export const mapStudentForGatePass = (studentId) => {
     }
 }
 
-export const getStudentGatePasses = () => readRecords()
+export const hydrateStudentGatePassesFromApi = () => hydrateFrontOfficeCollection(COLLECTION)
+
+export const getStudentGatePasses = () =>
+    frontOfficeApiOn() ? peekFrontOfficeCollection(COLLECTION) : readRecords()
 
 export const getStudentGatePassById = (id) =>
-    readRecords().find((record) => record.id === id) ?? null
+    getStudentGatePasses().find((record) => record.id === id) ?? null
 
-export const addStudentGatePass = (payload) => {
-    const studentId = String(payload.studentId || '').trim()
-    const reason = String(payload.reason || '').trim()
-    const outTime = String(payload.outTime || '').trim()
-    const date = String(payload.date || '').trim()
-
-    if (!studentId) return { success: false, message: 'Student ID is required.' }
-    if (!reason) return { success: false, message: 'Reason is required.' }
-    if (!date) return { success: false, message: 'Date is required.' }
-    if (!outTime) return { success: false, message: 'Out time is required.' }
-    if (!STATUS_OPTIONS.includes(payload.status)) {
-        return { success: false, message: 'Invalid status.' }
-    }
-
-    const id = nextGatePassId()
-    const record = {
-        id,
-        gatePassId: id,
-        studentId,
+const buildRecord = (payload, id) => {
+    const base = {
+        studentId: String(payload.studentId || '').trim(),
         studentName: payload.studentName || '',
         classSection: payload.classSection || '',
         gender: payload.gender || '',
         mobileNumber: payload.mobileNumber || '',
         city: payload.city || '',
-        reason,
-        date,
-        outTime,
+        reason: String(payload.reason || '').trim(),
+        date: String(payload.date || '').trim(),
+        outTime: String(payload.outTime || '').trim(),
         status: payload.status,
         profileImage: payload.profileImage || '',
-        createdAt: new Date().toISOString(),
+    }
+    if (id) {
+        base.id = id
+        base.gatePassId = id
+    }
+    return base
+}
+
+const validatePayload = (payload) => {
+    if (!String(payload.studentId || '').trim()) return 'Student ID is required.'
+    if (!String(payload.reason || '').trim()) return 'Reason is required.'
+    if (!String(payload.date || '').trim()) return 'Date is required.'
+    if (!String(payload.outTime || '').trim()) return 'Out time is required.'
+    if (!STATUS_OPTIONS.includes(payload.status)) return 'Invalid status.'
+    return ''
+}
+
+export const addStudentGatePass = async (payload) => {
+    const message = validatePayload(payload)
+    if (message) return { success: false, message }
+
+    if (frontOfficeApiOn()) {
+        try {
+            const record = await createFrontOfficeItem(COLLECTION, buildRecord(payload, undefined))
+            return { success: true, record }
+        } catch (error) {
+            return { success: false, message: error?.message || 'Could not save gate pass.' }
+        }
     }
 
+    const id = nextGatePassId()
+    const record = { ...buildRecord(payload, id), createdAt: new Date().toISOString() }
     writeRecords([record, ...readRecords()])
     return { success: true, record }
 }
 
-export const updateStudentGatePass = (id, payload) => {
+export const updateStudentGatePass = async (id, payload) => {
+    const message = validatePayload(payload)
+    if (message) return { success: false, message }
+
+    if (frontOfficeApiOn()) {
+        try {
+            const record = await updateFrontOfficeItem(COLLECTION, id, buildRecord(payload, id))
+            return { success: true, record }
+        } catch (error) {
+            return { success: false, message: error?.message || 'Could not update gate pass.' }
+        }
+    }
+
     const records = readRecords()
     const index = records.findIndex((record) => record.id === id)
     if (index < 0) return { success: false, message: 'Gate pass not found.' }
-
-    const studentId = String(payload.studentId || '').trim()
-    const reason = String(payload.reason || '').trim()
-    const outTime = String(payload.outTime || '').trim()
-    const date = String(payload.date || '').trim()
-
-    if (!studentId) return { success: false, message: 'Student ID is required.' }
-    if (!reason) return { success: false, message: 'Reason is required.' }
-    if (!date) return { success: false, message: 'Date is required.' }
-    if (!outTime) return { success: false, message: 'Out time is required.' }
-    if (!STATUS_OPTIONS.includes(payload.status)) {
-        return { success: false, message: 'Invalid status.' }
-    }
-
-    records[index] = {
-        ...records[index],
-        studentId,
-        studentName: payload.studentName || '',
-        classSection: payload.classSection || '',
-        gender: payload.gender || '',
-        mobileNumber: payload.mobileNumber || '',
-        city: payload.city || '',
-        reason,
-        date,
-        outTime,
-        status: payload.status,
-        profileImage: payload.profileImage || '',
-        updatedAt: new Date().toISOString(),
-    }
-
+    records[index] = { ...records[index], ...buildRecord(payload, id), updatedAt: new Date().toISOString() }
     writeRecords(records)
     return { success: true, record: records[index] }
 }
 
-export const deleteStudentGatePass = (id) => {
+export const deleteStudentGatePass = async (id) => {
+    if (frontOfficeApiOn()) {
+        try {
+            await deleteFrontOfficeItem(COLLECTION, id)
+            return { success: true }
+        } catch (error) {
+            return { success: false, message: error?.message || 'Could not delete gate pass.' }
+        }
+    }
     writeRecords(readRecords().filter((record) => record.id !== id))
     return { success: true }
 }

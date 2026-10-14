@@ -17,6 +17,7 @@ from app.models.campus import Campus
 from app.models.documents import DocumentItem, DocumentRecord
 from app.models.file_asset import FileAsset
 from app.models.finance import FinanceRecord
+from app.models.front_office import FrontOfficeRecord
 from app.models.hr_employee import HrEmployee
 from app.models.hr_record import HrRecord
 from app.models.otp import OtpChallenge
@@ -46,6 +47,7 @@ __all__ = [
     "DocumentRecord",
     "FileAsset",
     "FinanceRecord",
+    "FrontOfficeRecord",
     "Guardian",
     "HrEmployee",
     "Escalation",

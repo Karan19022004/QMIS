@@ -89,6 +89,8 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("tc.read", "View transfer-certificate requests"),
     ("tc.write", "File or forward a transfer-certificate request"),
     ("tc.decide", "Approve or reject a transfer-certificate request"),
+    ("frontoffice.read", "View Front Office gate passes, transfers and re-enrollment"),
+    ("frontoffice.write", "Create and change Front Office campus records"),
     ("activities.read", "View cultural, sports and competition activities"),
     ("activities.write", "Add, change and remove activities"),
     ("activities.approve", "Approve or reject an activity"),
@@ -150,7 +152,17 @@ ROLE_PERMISSIONS.update(
         "superadmin": list(_ADMIN),
         "admin": list(_ADMIN),
         "managing_director": list(_ADMIN),
-        "prm": list(_ADMISSIONS),
+        "prm": list(
+            dict.fromkeys(
+                [
+                    *_ADMISSIONS,
+                    "hr.self",
+                    "hr.employees.read",
+                    "frontoffice.read",
+                    "frontoffice.write",
+                ]
+            )
+        ),
         "accounthead": list(_FINANCE_HEAD),
         "finance_assistant": list(_FINANCE_ASSISTANT),
         # Staff UIS + class attendance (P1-5 / Y-1)
@@ -254,3 +266,10 @@ for _code, _perms in ROLE_PERMISSIONS.items():
 for _code, _perms in ROLE_PERMISSIONS.items():
     if _code == "admin" and "dashboard.read" not in _perms:
         _perms.append("dashboard.read")
+
+# Front Office campus records: Admin can also read/write (shared campus office).
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code in {"admin", "prm"}:
+        for _p in ("frontoffice.read", "frontoffice.write"):
+            if _p not in _perms:
+                _perms.append(_p)

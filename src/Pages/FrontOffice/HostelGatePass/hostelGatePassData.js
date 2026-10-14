@@ -6,6 +6,14 @@ import {
     mapStudentForGatePass,
     parseGatePassDate,
 } from '../GatePass/gatePassData'
+import {
+    createFrontOfficeItem,
+    deleteFrontOfficeItem,
+    frontOfficeApiOn,
+    hydrateFrontOfficeCollection,
+    peekFrontOfficeCollection,
+    updateFrontOfficeItem,
+} from '../frontOfficeStore'
 
 export {
     formatGatePassDate,
@@ -77,10 +85,15 @@ const nextGatePassId = () => {
     return `HGP-${String(current).padStart(3, '0')}`
 }
 
-export const getHostelGatePasses = () => readRecords()
+const COLLECTION = 'hostel-gate-passes'
+
+export const hydrateHostelGatePassesFromApi = () => hydrateFrontOfficeCollection(COLLECTION)
+
+export const getHostelGatePasses = () =>
+    frontOfficeApiOn() ? peekFrontOfficeCollection(COLLECTION) : readRecords()
 
 export const getHostelGatePassById = (id) =>
-    readRecords().find((record) => record.id === id) ?? null
+    getHostelGatePasses().find((record) => record.id === id) ?? null
 
 const buildRecordPayload = (payload, existing = null) => {
     const studentId = String(payload.studentId || '').trim()
@@ -126,9 +139,18 @@ const buildRecordPayload = (payload, existing = null) => {
     }
 }
 
-export const addHostelGatePass = (payload) => {
+export const addHostelGatePass = async (payload) => {
     const built = buildRecordPayload(payload)
     if (!built.success) return built
+
+    if (frontOfficeApiOn()) {
+        try {
+            const record = await createFrontOfficeItem(COLLECTION, built.data)
+            return { success: true, record }
+        } catch (error) {
+            return { success: false, message: error?.message || 'Could not save hostel gate pass.' }
+        }
+    }
 
     const id = nextGatePassId()
     const record = {
@@ -142,13 +164,25 @@ export const addHostelGatePass = (payload) => {
     return { success: true, record }
 }
 
-export const updateHostelGatePass = (id, payload) => {
+export const updateHostelGatePass = async (id, payload) => {
+    const existing = getHostelGatePassById(id)
+    if (!existing) return { success: false, message: 'Gate pass not found.' }
+
+    const built = buildRecordPayload(payload, existing)
+    if (!built.success) return built
+
+    if (frontOfficeApiOn()) {
+        try {
+            const record = await updateFrontOfficeItem(COLLECTION, id, { ...built.data, id, gatePassId: id })
+            return { success: true, record }
+        } catch (error) {
+            return { success: false, message: error?.message || 'Could not update hostel gate pass.' }
+        }
+    }
+
     const records = readRecords()
     const index = records.findIndex((record) => record.id === id)
     if (index < 0) return { success: false, message: 'Gate pass not found.' }
-
-    const built = buildRecordPayload(payload, records[index])
-    if (!built.success) return built
 
     records[index] = {
         ...records[index],
@@ -159,7 +193,15 @@ export const updateHostelGatePass = (id, payload) => {
     return { success: true, record: records[index] }
 }
 
-export const deleteHostelGatePass = (id) => {
+export const deleteHostelGatePass = async (id) => {
+    if (frontOfficeApiOn()) {
+        try {
+            await deleteFrontOfficeItem(COLLECTION, id)
+            return { success: true }
+        } catch (error) {
+            return { success: false, message: error?.message || 'Could not delete hostel gate pass.' }
+        }
+    }
     writeRecords(readRecords().filter((record) => record.id !== id))
     return { success: true }
 }

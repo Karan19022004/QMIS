@@ -56,6 +56,13 @@ def forward_route(
     return svc.forward(db, user, ref, body.remarks)
 
 
+@router.post("/{ref}/reject-prm")
+def reject_prm_route(
+    ref: str, body: RemarksIn, db: Session = Depends(get_db), user: User = Depends(require_permission("tc.write"))
+) -> dict:
+    return svc.reject_at_prm(db, user, ref, body.remarks)
+
+
 @router.post("/{ref}/decide")
 def decide_route(
     ref: str, body: DecideIn, db: Session = Depends(get_db), user: User = Depends(require_permission("tc.decide"))

@@ -7,6 +7,7 @@ import mo_user from '../../assets/images/no-profile.png'
 import Dropdown from '../CommonComponents/Dropdown'
 import ExportModal from '../CommonComponents/ExportModal'
 import { DEPARTMENTS, EMPLOYEES_LIST } from '../EmployeeDatabase/employeeDatabaseData'
+import { canUseEmployeeDirectoryApi, loadEmployeeDirectory } from '../../services/employeeDirectoryApi'
 
 const EmployeeDatabaseListView = ({
     routeBase,
@@ -16,16 +17,36 @@ const EmployeeDatabaseListView = ({
     showDepartmentFilter = true,
 }) => {
     const location = useLocation()
+    const api = canUseEmployeeDirectoryApi()
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
     const [search, setSearch] = useState('')
     const [departmentFilter, setDepartmentFilter] = useState(fixedDepartmentFilter)
-    const [employees, setEmployees] = useState(() => [...EMPLOYEES_LIST])
+    const [employees, setEmployees] = useState(() => (api ? [] : [...EMPLOYEES_LIST]))
+    const [loadError, setLoadError] = useState('')
 
     useEffect(() => {
-        setEmployees([...EMPLOYEES_LIST])
-    }, [location.key])
+        if (!api) {
+            setEmployees([...EMPLOYEES_LIST])
+            return undefined
+        }
+        let active = true
+        loadEmployeeDirectory()
+            .then(({ records }) => {
+                if (!active) return
+                setEmployees(records)
+                setLoadError('')
+            })
+            .catch((error) => {
+                if (!active) return
+                setEmployees([])
+                setLoadError(error?.message || 'Employees could not be loaded.')
+            })
+        return () => {
+            active = false
+        }
+    }, [api, location.key])
 
     useEffect(() => {
         setDepartmentFilter(fixedDepartmentFilter)
@@ -50,6 +71,7 @@ const EmployeeDatabaseListView = ({
 
     return (
         <section>
+            {loadError ? <p className='text-sm text-[#B42318] mb-3'>{loadError}</p> : null}
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
                     <button type='button' onClick={clearFilters} className='bg-[#515DEF] text-white uppercase text-sm px-6 py-2 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>Clear Filters</button>

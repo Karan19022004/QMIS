@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import React, { useEffect, useMemo, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -15,16 +15,37 @@ import {
     finalStatusBadgeColor,
     formatOutTimeForDisplay,
     getHostelGatePasses,
+    hydrateHostelGatePassesFromApi,
 } from './hostelGatePassData'
+import { frontOfficeApiOn } from '../frontOfficeStore'
 
 const HostelGatePassList = () => {
+    const location = useLocation()
     const [fromDate, setFromDate] = useState(null)
     const [toDate, setToDate] = useState(null)
     const [search, setSearch] = useState('')
     const [status, setStatus] = useState('')
     const [entriesPerPage, setEntriesPerPage] = useState(10)
     const [exportModal, setExportModal] = useState(false)
-    const [records, setRecords] = useState(() => getHostelGatePasses())
+    const [records, setRecords] = useState(() => (frontOfficeApiOn() ? [] : getHostelGatePasses()))
+
+    useEffect(() => {
+        if (!frontOfficeApiOn()) {
+            setRecords(getHostelGatePasses())
+            return undefined
+        }
+        let active = true
+        hydrateHostelGatePassesFromApi()
+            .then((rows) => {
+                if (active) setRecords(rows)
+            })
+            .catch(() => {
+                if (active) setRecords([])
+            })
+        return () => {
+            active = false
+        }
+    }, [location.key])
 
     const refresh = () => setRecords(getHostelGatePasses())
 
@@ -42,8 +63,8 @@ const HostelGatePassList = () => {
         setToDate(null)
     }
 
-    const handleDelete = (id) => {
-        deleteHostelGatePass(id)
+    const handleDelete = async (id) => {
+        await deleteHostelGatePass(id)
         refresh()
         toast.success('Hostel gate pass deleted.')
     }

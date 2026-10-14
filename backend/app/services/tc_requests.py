@@ -192,6 +192,29 @@ def forward(db: Session, actor: User, ref: str, remarks: str) -> dict:
     return _out(db, row)
 
 
+def reject_at_prm(db: Session, actor: User, ref: str, remarks: str) -> dict:
+    if not _has(db, actor, "tc.write"):
+        fail(403, "forbidden", "You are not allowed to reject a TC request at PRM review.")
+    row = _find(db, actor, ref)
+    if row.status != "Pending PRM Review":
+        fail(409, "wrong_status", "Only a request awaiting PRM review can be rejected here.")
+    remarks = (remarks or "").strip()
+    if not remarks:
+        fail(422, "remarks_required", "A remark is required when rejecting.")
+    if len(remarks) > REMARKS_MAX:
+        fail(422, "remarks_too_long", f"Remarks can be at most {REMARKS_MAX} characters.")
+    row.prm_remarks = remarks
+    row.status = "Rejected"
+    row.decided_on = date.today()
+    row.updated_at = utcnow()
+    write_audit(
+        db, action="TC_REJECTED_PRM", entity_type="tc_request", entity_id=str(row.id),
+        actor_id=actor.id, campus_id=actor.campus_id, details=row.code,
+    )
+    db.commit()
+    return _out(db, row)
+
+
 def decide(db: Session, actor: User, ref: str, *, decision: str, remarks: str) -> dict:
     if not _has(db, actor, "tc.decide"):
         fail(403, "forbidden", "You are not allowed to decide a TC request.")

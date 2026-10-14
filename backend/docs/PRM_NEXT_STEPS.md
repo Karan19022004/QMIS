@@ -1,19 +1,26 @@
-# PRM (Front Office) — next steps (not started)
+# PRM (Front Office) — status (14 Oct 2026 evening)
 
-**Gate:** Administrator modules stabilised (14 Oct 2026). Do not start PRM code until this hand-off is accepted.
+**Status sheet:** `erp complete documentation/QMIS-ERP-Role-Module-Status.updated.14oct-prm.docx`  
+**Counts:** 21 Completed / 0 Partial / 0 Not Completed / 0 Gap
 
-## Order of work (one module at a time)
+## What landed
 
-1. **Admission Enquiry** — wire `src/Pages/FrontOffice/AdmissionEnquiry` to existing `admissionsApi.js` / `/admissions/enquiries` with `VITE_USE_API_ADMISSIONS=true`. Preserve UI.
-2. **Admission List** — same admissions stack as Admin.
-3. **Student / Teacher lists** — reuse students (and read-only staff lists where already backed).
-4. **TC Request** — reuse `/tc-requests` with PRM permissions.
-5. **PRM-only** (new or local today): Student Transfer, Re-Enrollment, Gate Pass / Hostel / Material / Goods Received — inventory APIs before writing migrations.
-6. Shared already-on-API: Leave, Escalations, Announcements, Communication, Notifications, Attendance (confirm flags + role permissions).
+| Area | Implementation |
+|---|---|
+| Announcement / Calendar / Communication | Existing Common + APIs (`roleKey=prm`) |
+| Notifications | PRM page → `GET /notifications` |
+| TC Request | Hydrate + forward + `POST …/reject-prm` |
+| Teacher Database | Employee directory API + `hr.employees.read` |
+| My Attendance | `GET /hr/attendance` + `hr.self` |
+| Gate passes / Transfer / Re-enrollment | `front_office_records` + `/api/v1/front-office/*` (migration `0011`) |
 
-## Rules
+## Operator notes
 
-- Keep Front Office UI/design.
-- Prefer existing Admin/campus APIs; add tables only when PRM-only flows need them.
-- After each module: pytest + short browser check + update daily report (md + PDF).
-- Refresh Archify when new routers mount in `main.py`.
+1. Restart uvicorn after pull so `/api/v1/front-office` is mounted.
+2. If Word had `updated.14oct-evening.docx` open/locked, use **`updated.14oct-prm.docx`** as the current sheet.
+3. Recommended browser smoke as PRM: create student gate pass, forward a TC, open announcements/calendar.
+
+## Follow-ups (non-blocking)
+
+- Wire Add Student Transfer form submit to `student-transfers` if it still saves locally.
+- Ensure hostel/material/goods list screens call hydrate on mount (data layer supports API; some lists may still need a `useEffect` hydrate like student gate pass).

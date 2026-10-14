@@ -1,3 +1,12 @@
+import {
+    createFrontOfficeItem,
+    deleteFrontOfficeItem,
+    frontOfficeApiOn,
+    hydrateFrontOfficeCollection,
+    peekFrontOfficeCollection,
+    updateFrontOfficeItem,
+} from '../frontOfficeStore'
+
 const STORAGE_KEY = 'goods-received-pass-front-office'
 const GR_COUNTER_KEY = 'goods-received-pass-gr-counter'
 
@@ -112,6 +121,8 @@ export const generateGrNo = () => {
     return formatPassNumber(next)
 }
 
+const FO_COLLECTION = 'goods-received-passes'
+
 const hydrateRecord = (record) => ({
     ...record,
     signatories: normalizeSignatories(record.signatories),
@@ -119,7 +130,12 @@ const hydrateRecord = (record) => ({
     status: record.status ?? deriveOverallStatus(record.signatories),
 })
 
-export const getGoodsReceivedPasses = () => {
+export const hydrateGoodsReceivedPassesFromApi = async () => {
+    const rows = await hydrateFrontOfficeCollection(FO_COLLECTION)
+    return rows.map(hydrateRecord)
+}
+
+const localGoodsReceivedPasses = () => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
         const records = JSON.parse(stored).map(hydrateRecord)
@@ -131,6 +147,11 @@ export const getGoodsReceivedPasses = () => {
     return DEFAULT_GOODS_RECEIVED_PASSES.map(hydrateRecord)
 }
 
+export const getGoodsReceivedPasses = () =>
+    frontOfficeApiOn()
+        ? peekFrontOfficeCollection(FO_COLLECTION).map(hydrateRecord)
+        : localGoodsReceivedPasses()
+
 export const saveGoodsReceivedPasses = (records) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
 }
@@ -138,12 +159,10 @@ export const saveGoodsReceivedPasses = (records) => {
 export const getGoodsReceivedPassById = (id) =>
     getGoodsReceivedPasses().find((record) => record.id === id) ?? null
 
-export const addGoodsReceivedPass = (payload) => {
-    const records = getGoodsReceivedPasses()
-    const grNo = generateGrNo()
-    const record = hydrateRecord({
-        id: `grp-${grNo}`,
-        grNo,
+export const addGoodsReceivedPass = async (payload) => {
+    const grNo = frontOfficeApiOn() ? undefined : generateGrNo()
+    const draft = hydrateRecord({
+        ...(grNo ? { id: `grp-${grNo}`, grNo } : {}),
         ...payload,
         status: deriveOverallStatus(payload.signatories),
         createdAt: new Date().toLocaleString('en-IN', {
@@ -155,11 +174,14 @@ export const addGoodsReceivedPass = (payload) => {
             hour12: true,
         }).replace(',', ''),
     })
-    saveGoodsReceivedPasses([record, ...records])
-    return record
+    if (frontOfficeApiOn()) {
+        return hydrateRecord(await createFrontOfficeItem(FO_COLLECTION, draft))
+    }
+    saveGoodsReceivedPasses([draft, ...localGoodsReceivedPasses()])
+    return draft
 }
 
-export const updateGoodsReceivedPass = (id, payload) => {
+export const updateGoodsReceivedPass = async (id, payload) => {
     const records = getGoodsReceivedPasses()
     const index = records.findIndex((record) => record.id === id)
     if (index === -1) return null
@@ -168,14 +190,20 @@ export const updateGoodsReceivedPass = (id, payload) => {
         ...payload,
         status: deriveOverallStatus(payload.signatories ?? records[index].signatories),
     })
+    if (frontOfficeApiOn()) {
+        return hydrateRecord(await updateFrontOfficeItem(FO_COLLECTION, id, updated))
+    }
     records[index] = updated
     saveGoodsReceivedPasses(records)
     return updated
 }
 
-export const deleteGoodsReceivedPass = (id) => {
-    const records = getGoodsReceivedPasses().filter((record) => record.id !== id)
-    saveGoodsReceivedPasses(records)
+export const deleteGoodsReceivedPass = async (id) => {
+    if (frontOfficeApiOn()) {
+        await deleteFrontOfficeItem(FO_COLLECTION, id)
+        return
+    }
+    saveGoodsReceivedPasses(localGoodsReceivedPasses().filter((record) => record.id !== id))
 }
 
 export const getNextGrPreview = () => {

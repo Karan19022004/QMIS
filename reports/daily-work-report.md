@@ -8,6 +8,27 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026 (PRM Front Office) — Not Completed / Gap closed
+
+**Status:** PRM panel moved from **8 Completed / 1 Partial / 12 Not Completed** to **21 Completed / 0 Partial / 0 Not Completed**. Word sheet: `QMIS-ERP-Role-Module-Status.updated.14oct-prm.docx`. Migration **`0011_front_office_records`** applied on `qmis_erp`.
+
+### Done
+
+1. **Shared APIs wired for PRM:** Announcement, Calendar, Communication (Common components already API-backed); Notifications page loads `/notifications`; TC list/view hydrate `/tc-requests` with forward + new `reject-prm`.
+2. **Teacher Database:** `EmployeeDatabaseListView` uses employee directory API; PRM granted `hr.employees.read` + `hr.self`.
+3. **My Attendance:** reads `GET /hr/attendance` when signed in.
+4. **New Front Office API:** `/api/v1/front-office/{collection}` for student/hostel/material/goods gate passes, student transfers, re-enrollments (`frontoffice.read/write`). FE data layers use API when auth is on.
+5. **Tests:** `test_front_office_api.py` — 2 passed.
+
+### Open
+
+- Restart uvicorn so the new router is live in the running process.
+- Close/reopen the locked `updated.14oct-evening.docx` and copy from `updated.14oct-prm.docx` if that file should be the canonical name.
+- Browser smoke as PRM login for gate-pass create and TC forward still recommended.
+- Add Transfer form save → `student-transfers` API (list is live; add screen may still be local).
+
+---
+
 ## 14 October 2026 (stabilisation gate) — Admin locked; PRM next
 
 **Status:** Administrator panel stabilised and gated. Live matrix re-checked **26/26 PASS**, schema_check clean, DB audit + daily PDF + Archify architecture doc refreshed. **No PRM (Front Office) implementation in this step** — PRM starts only after this gate.

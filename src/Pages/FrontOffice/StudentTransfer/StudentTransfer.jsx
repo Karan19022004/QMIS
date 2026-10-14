@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus } from 'lucide-react'
@@ -7,26 +7,49 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
+import {
+    getStudentTransfers,
+    hydrateStudentTransfersFromApi,
+    mdStatusColor,
+    statusBadgeColor,
+} from './studentTransferData'
+import { frontOfficeApiOn } from '../frontOfficeStore'
 
 const StudentTransfer = () => {
+    const location = useLocation()
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
+    const [rows, setRows] = useState([])
+    const [loadError, setLoadError] = useState('')
 
-    const bagdeColor = {
-        Completed: 'bg-[#4CAF5033] text-[#4CAF50]',
-        'In Progress': 'bg-[#FF000033] text-[#FF0000]',
-    }
-
-    const statusColor = {
-        Approved: 'text-[#008000]',
-        Pending: 'text-[#FF9800]',
-    }
+    useEffect(() => {
+        if (!frontOfficeApiOn()) {
+            setRows([])
+            setLoadError('Sign in with API mode to load student transfers from the server.')
+            return undefined
+        }
+        let active = true
+        hydrateStudentTransfersFromApi()
+            .then((list) => {
+                if (active) {
+                    setRows(list)
+                    setLoadError('')
+                }
+            })
+            .catch((error) => {
+                if (active) setLoadError(error?.message || 'Could not load transfers.')
+            })
+        return () => {
+            active = false
+        }
+    }, [location.key])
 
     return (
         <section>
+            {loadError ? <p className='text-sm text-[#B42318] mb-3'>{loadError}</p> : null}
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
                     <button type='button' className='bg-[#515DEF] text-white uppercase text-sm px-6 py-2 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>Clear Filters</button>
@@ -76,16 +99,6 @@ const StudentTransfer = () => {
                         </button>
                     </div>
                 </div>
-                <div className='flex gap-x-2 items-center my-2'>
-                    <select className='px-2 py-1.5 bg-white text-[#515DEF] border border-[#515DEF] rounded-md'>
-                        <option value='10'>10</option>
-                        <option value='20'>20</option>
-                        <option value='30'>30</option>
-                        <option value='40'>40</option>
-                        <option value='50'>50</option>
-                    </select>
-                    <span className='text-sm font-normal text-[#515DEF]'>Entries Per Page</span>
-                </div>
                 <div className='relative overflow-x-auto'>
                     <table className='w-full text-sm text-left rtl:text-right'>
                         <thead className='text-xs bg-[#EDEEF5] whitespace-nowrap rounded-lg'>
@@ -102,57 +115,53 @@ const StudentTransfer = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            <tr className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
-                                <td className='px-2 py-4 rounded-s-lg'>Sandy Selva</td>
-                                <td className='px-2 py-4'>External</td>
-                                <td className='px-2 py-4'>Global Academy</td>
-                                <td className='px-2 py-4'>Class-12</td>
-                                <td className='px-2 py-4'>Parent Job Transfer</td>
-                                <td className='px-2 py-4'>02-07-2025</td>
-                                <td className='px-2 py-4'><span className={statusColor.Pending}>Pending</span></td>
-                                <td className='px-2 py-4'>
-                                    <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${bagdeColor['In Progress']}`}>In Progress</span>
-                                </td>
-                                <td className='px-2 py-4 text-center rounded-e-lg'>
-                                    <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
-                                        <button type='button' className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>View</button>
-                                        <button type='button' onClick={() => setEditRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Edit</button>
-                                        <button type='button' onClick={() => setDeleteRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Delete</button>
-                                    </Dropdown>
-                                </td>
-                            </tr>
-                            <tr className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
-                                <td className='px-2 py-4 rounded-s-lg'>Sandy Selva</td>
-                                <td className='px-2 py-4'>External</td>
-                                <td className='px-2 py-4'>Global Academy</td>
-                                <td className='px-2 py-4'>Class-12</td>
-                                <td className='px-2 py-4'>Parent Job Transfer</td>
-                                <td className='px-2 py-4'>02-07-2025</td>
-                                <td className='px-2 py-4'><span className={statusColor.Approved}>Approved</span></td>
-                                <td className='px-2 py-4'>
-                                    <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${bagdeColor.Completed}`}>Completed</span>
-                                </td>
-                                <td className='px-2 py-4 text-center rounded-e-lg'>
-                                    <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
-                                        <button type='button' className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>View</button>
-                                        <button type='button' onClick={() => setEditRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Edit</button>
-                                        <button type='button' onClick={() => setDeleteRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Delete</button>
-                                    </Dropdown>
-                                </td>
-                            </tr>
+                            {rows.length === 0 ? (
+                                <tr>
+                                    <td colSpan={9} className='px-2 py-8 text-center text-[#667085]'>
+                                        No transfer records yet. Use Add New Transfer to create one on the server.
+                                    </td>
+                                </tr>
+                            ) : (
+                                rows.map((row) => (
+                                    <tr key={row.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
+                                        <td className='px-2 py-4 rounded-s-lg'>{row.studentName || '—'}</td>
+                                        <td className='px-2 py-4'>{row.transferType || '—'}</td>
+                                        <td className='px-2 py-4'>{row.transferTo || '—'}</td>
+                                        <td className='px-2 py-4'>{row.className || '—'}</td>
+                                        <td className='px-2 py-4'>{row.reason || '—'}</td>
+                                        <td className='px-2 py-4'>{row.requestedOn || '—'}</td>
+                                        <td className='px-2 py-4'>
+                                            <span className={mdStatusColor[row.mdApprovalStatus] || mdStatusColor.Pending}>
+                                                {row.mdApprovalStatus || 'Pending'}
+                                            </span>
+                                        </td>
+                                        <td className='px-2 py-4'>
+                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusBadgeColor[row.status] || statusBadgeColor['In Progress']}`}>
+                                                {row.status || 'In Progress'}
+                                            </span>
+                                        </td>
+                                        <td className='px-2 py-4 text-center rounded-e-lg'>
+                                            <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
+                                                <button type='button' className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>View</button>
+                                                <button type='button' onClick={() => setEditRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Edit</button>
+                                                <button type='button' onClick={() => setDeleteRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Delete</button>
+                                            </Dropdown>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
                         </tbody>
                     </table>
                 </div>
             </div>
 
             <div className='flex justify-between items-center px-4 mt-4'>
-                <p className='text-sm font-medium text-[#515DEF]'>Showing 1 to 10 of 20 entries</p>
+                <p className='text-sm font-medium text-[#515DEF]'>Showing {rows.length} entries</p>
                 <div className='flex justify-center gap-x-2 flex-wrap'>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'>
                         <ChevronLeft size={16} />
                     </button>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-[#EDEDF5] text-[#515DEF] hover:bg-[#515DEF] hover:text-white border border-[#E2E8F0] rounded-full cursor-pointer'>1</button>
-                    <button type='button' className='size-8 flex justify-center items-center p-2 bg-[#EDEDF5] text-[#515DEF] hover:bg-[#515DEF] hover:text-white border border-[#E2E8F0] rounded-full cursor-pointer'>2</button>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'>
                         <ChevronRight size={16} />
                     </button>
