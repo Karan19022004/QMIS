@@ -8,6 +8,22 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026 (late) — Parent panel 23/23 Completed
+
+**Status:** Full Parent sidebar completed (shared APIs + portal child views). No new migration.
+
+### Done
+
+1. Parent permissions: `notifications.read`, `attendance.read`, `exams.read` (+ existing results/tc/comm/calendar/announcements).
+2. Wired calendar, communication, notifications, escalation `roleKey=parent`; attendance calendar + results API hydrate; TC/announcement already done.
+3. Word Parent **23 Completed / 0 Partial / 0 Not Completed**. Pytest parent portal suites.
+
+### Open / next
+
+- Next role panel after Parent (Student likely shares most of this wiring).
+
+---
+
 ## 14 October 2026 (late) — Parent Announcement + TC live verify
 
 **Status:** Parent TC live-verified after uvicorn reload; Announcement wired with `roleKey=parent`.

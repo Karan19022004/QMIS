@@ -27,6 +27,13 @@ export const ESCALATION_ROLE_CONFIG = {
         escalatesToRoleKey: 'teacher',
         hierarchyLabel: 'Student → Teacher',
     },
+    parent: {
+        roleLabel: 'Parent',
+        routeBase: '/parent/escalation-management',
+        escalatesTo: 'Teacher',
+        escalatesToRoleKey: 'teacher',
+        hierarchyLabel: 'Parent → Teacher (via child context)',
+    },
     teacher: {
         roleLabel: 'Teacher',
         routeBase: '/teacher/escalation-management',
@@ -78,7 +85,8 @@ export const ESCALATION_ROLE_CONFIG = {
     },
 }
 
-export const getRoleConfig = (roleKey) => ESCALATION_ROLE_CONFIG[roleKey]
+export const getRoleConfig = (roleKey) =>
+    ESCALATION_ROLE_CONFIG[roleKey] || ESCALATION_ROLE_CONFIG.student
 
 export const getEscalationTargetForRole = (roleKey) => {
     const config = getRoleConfig(roleKey)

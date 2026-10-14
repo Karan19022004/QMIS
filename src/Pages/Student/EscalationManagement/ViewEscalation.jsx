@@ -1,5 +1,5 @@
 import ViewEscalationPage from '../../../Common/EscalationManagement/ViewEscalationPage'
 
-const ViewEscalation = () => <ViewEscalationPage roleKey='student' />
+const ViewEscalation = ({ roleKey = 'student' }) => <ViewEscalationPage roleKey={roleKey} />
 
 export default ViewEscalation

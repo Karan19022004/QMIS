@@ -180,8 +180,12 @@ def student_month_map(
     year: int,
     month: int,
 ) -> dict[str, str]:
+    from app.deps import role_code_for
+
     student = db.get(Student, student_id)
     if student is None or student.campus_id != actor.campus_id:
+        fail(404, "not_found", "Student not found.")
+    if role_code_for(db, actor) == "parent" and str(student.parent_user_id or "") != str(actor.id):
         fail(404, "not_found", "Student not found.")
     if month < 1 or month > 12:
         fail(400, "validation_error", "Month must be 1–12.")

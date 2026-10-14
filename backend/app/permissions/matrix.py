@@ -170,7 +170,17 @@ ROLE_PERMISSIONS.update(
         "coordinator": [*_STAFF_ACADEMIC, "exams.write"],
         "principal": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.write"],
         "director": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.configure"],
-        "parent": [*_CORE, "results.read"],
+        "parent": list(
+            dict.fromkeys(
+                [
+                    *_CORE,
+                    "results.read",
+                    "notifications.read",
+                    "attendance.read",
+                    "exams.read",
+                ]
+            )
+        ),
         "jointdirector": list(_STAFF_ACADEMIC),
         "stationerystoremanager": list(dict.fromkeys([*_CORE, *_APPROVALS])),
         "hr": list(

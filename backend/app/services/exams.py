@@ -523,13 +523,19 @@ def exam_results(db: Session, actor: User, exam_id: UUID) -> dict:
     }
 
 
+def _parent_owns_student(actor: User, student: Student) -> bool:
+    if student.parent_user_id is None:
+        return False
+    return str(student.parent_user_id) == str(actor.id)
+
+
 def student_results(db: Session, actor: User, student_id: UUID) -> dict:
     student = db.get(Student, student_id)
     if not student or student.campus_id != actor.campus_id:
         fail(404, "not_found", "Student not found.")
     role = role_code_for(db, actor)
     if role == "parent":
-        if student.parent_user_id != actor.id:
+        if not _parent_owns_student(actor, student):
             fail(404, "not_found", "Student not found.")
     elif role not in VIEW_ALL_ROLES and role != "teacher":
         fail(403, "forbidden", "Not allowed to view results.")

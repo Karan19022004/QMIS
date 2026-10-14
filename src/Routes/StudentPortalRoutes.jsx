@@ -108,11 +108,11 @@ const StudentPortalRoutes = ({
                 <Route path={`${routePrefix}/star-ratings/view-ratings`} element={<ViewRatings />} />
             )}
 
-            <Route path={`${routePrefix}/academic-calendar`} element={<AcademicCalendar />} />
+            <Route path={`${routePrefix}/academic-calendar`} element={<AcademicCalendar roleKey={roleKey} />} />
 
             <Route path={`${routePrefix}/communication`} element={<Navigate to={communicationInboxBase} replace />} />
-            <Route path={`${communicationInboxBase}`} element={<CommunicationInbox />} />
-            <Route path={`${communicationInboxBase}/:conversationId`} element={<CommunicationInbox />} />
+            <Route path={`${communicationInboxBase}`} element={<CommunicationInbox roleKey={roleKey} />} />
+            <Route path={`${communicationInboxBase}/:conversationId`} element={<CommunicationInbox roleKey={roleKey} />} />
             <Route
                 path={`${routePrefix}/communication/direct-messages`}
                 element={<RedirectLegacyDirectMessages inboxBase={communicationInboxBase} />}
@@ -122,9 +122,9 @@ const StudentPortalRoutes = ({
                 element={<RedirectLegacyDirectMessages inboxBase={communicationInboxBase} />}
             />
 
-            <Route path={`${routePrefix}/escalation-management`} element={<EscalationList />} />
-            <Route path={`${routePrefix}/escalation-management/add-escalation`} element={<AddEscalation />} />
-            <Route path={`${routePrefix}/escalation-management/view/:id`} element={<ViewEscalation />} />
+            <Route path={`${routePrefix}/escalation-management`} element={<EscalationList roleKey={roleKey} />} />
+            <Route path={`${routePrefix}/escalation-management/add-escalation`} element={<AddEscalation roleKey={roleKey} />} />
+            <Route path={`${routePrefix}/escalation-management/view/:id`} element={<ViewEscalation roleKey={roleKey} />} />
 
             <Route path="*" element={<Navigate to={`${routePrefix}/dashboard`} replace />} />
         </ReactRoutes>

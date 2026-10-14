@@ -98,6 +98,17 @@ export const COMMUNICATION_ROLE_CONFIG = {
             avatarColor: '#2563EB',
         },
     },
+    parent: {
+        roleLabel: 'Parent',
+        routeBase: '/parent/communication',
+        currentUser: {
+            id: 'PAR-001',
+            name: 'Parent',
+            role: 'Parent',
+            department: 'Parent Portal',
+            avatarColor: '#0D9488',
+        },
+    },
     teacher: {
         roleLabel: 'Teacher',
         routeBase: '/teacher/communication',
@@ -111,4 +122,5 @@ export const COMMUNICATION_ROLE_CONFIG = {
     },
 }
 
-export const getCommunicationRoleConfig = (roleKey) => COMMUNICATION_ROLE_CONFIG[roleKey]
+export const getCommunicationRoleConfig = (roleKey) =>
+    COMMUNICATION_ROLE_CONFIG[roleKey] || COMMUNICATION_ROLE_CONFIG.student
