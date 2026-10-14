@@ -26,7 +26,7 @@ New days go at the top. Older days stay below so the history is in one file.
 ### Not done / open
 
 - Browser not run for Teacher/HR denial on the new screens (pytest covers 403). Communication send and TC approve were not driven in the browser.
-- Role-module status sheet and Archify overview were not regenerated (the Word review copies are open / locked).
+- Role-module status sheet for Administrator was regenerated as `erp complete documentation/QMIS-ERP-Role-Module-Status.updated.14oct-evening.docx` (Admin: **26 Completed, 0 Partial, 0 Not Completed**). The last 7 Partial items were closed by live API verify (Activities create/approve, TC create→forward→approve, Communication send) plus Roles marked Completed as read-only by design. Open that file or the HTML beside it. Archify overview was not regenerated.
 - Roles stay read-only (documented scope).
 
 ---
