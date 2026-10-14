@@ -51,7 +51,8 @@ def test_revisions_form_one_chain():
     config = Config(str(BACKEND / "alembic.ini"))
     config.set_main_option("script_location", str(BACKEND / "alembic"))
     script = ScriptDirectory.from_config(config)
-    assert script.get_heads() == ["0005_document_records"]  # later revisions extend the chain
+    assert len(script.get_heads()) == 1  # one unbroken chain; later revisions extend it (see test_migration_new_tables)
+    assert script.get_revision("0006_announcements").down_revision == "0005_document_records"
     assert script.get_revision("0005_document_records").down_revision == "0004_class_details_fields"
     assert script.get_revision("0004_class_details_fields").down_revision == "0003_class_year_uuid"
     assert script.get_revision("0003_class_year_uuid").down_revision == "0002_hr_user_id_uuid"

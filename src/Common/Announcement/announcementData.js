@@ -1,7 +1,17 @@
 import { ROLES } from '../../constants/roles'
 import { getAnnouncements as getHrAnnouncements, saveAnnouncements as saveHrAnnouncements } from '../../Pages/HR/domain/hrStore'
+import {
+    acknowledgeAnnouncementApi,
+    canUseAnnouncementsApi,
+    createAnnouncementApi,
+    getAnnouncementApi,
+    listAnnouncementsApi,
+    replyToAnnouncementApi,
+} from '../../services/announcementsApi'
+import { isoToDmy } from '../../services/documentsApi'
 
 export const STORAGE_KEY = 'school-erp-announcements'
+const RESPONSES_STORAGE_KEY = 'schoolerp-announcement-responses-v1'
 const HR_ROLE = ROLES.HR
 
 export const CATEGORY_OPTIONS = [
@@ -105,7 +115,92 @@ const isVisibleToRole = (announcement, roleKey) => {
     return audience.includes(roleKey) || announcement.senderRole === roleKey
 }
 
+// With a backend session announcements (and replies/acknowledgements) live on the server. What it returned is
+// held in memory only, never written to the browser's storage. The HR portal keeps its own store.
+let apiAnnouncements = []
+
+/** True when this role's announcements come from the server. */
+export const usesAnnouncementsApi = (roleKey) => roleKey !== HR_ROLE && canUseAnnouncementsApi()
+
+const mapApiAnnouncement = (row) => ({
+    id: row.id,
+    uuid: row.uuid,
+    title: row.title,
+    category: row.category,
+    message: row.message,
+    sentBy: row.sentBy,
+    senderRole: row.senderRole,
+    announcementDate: isoToDmy(row.announcementDate),
+    attachmentName: row.attachmentName,
+    attachmentUrl: row.attachmentUrl,
+    acknowledged: row.acknowledged,
+    acknowledgedAt: row.acknowledgedAt,
+    replies: row.replies ?? [],
+    createdAt: row.createdAt,
+    fromApi: true,
+})
+
+const remember = (row) => {
+    const mapped = mapApiAnnouncement(row)
+    apiAnnouncements = apiAnnouncements.some((item) => item.id === mapped.id)
+        ? apiAnnouncements.map((item) => (item.id === mapped.id ? mapped : item))
+        : [mapped, ...apiAnnouncements]
+    return mapped
+}
+
+const purgeBrowserAnnouncementCopies = () => {
+    try {
+        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(RESPONSES_STORAGE_KEY)
+    } catch {
+        /* ignore */
+    }
+}
+
+/** Load what the signed-in user may see from the server. */
+export const hydrateAnnouncementsFromApi = async () => {
+    const rows = await listAnnouncementsApi()
+    apiAnnouncements = rows.map(mapApiAnnouncement)
+    purgeBrowserAnnouncementCopies()
+    return apiAnnouncements
+}
+
+/** Load one announcement with the signed-in user's acknowledgement and replies. */
+export const hydrateAnnouncementFromApi = async (ref) => remember(await getAnnouncementApi(ref))
+
+/** Drop the in-memory copy (call on sign-out). */
+export const clearAnnouncementsMemory = () => {
+    apiAnnouncements = []
+}
+
+const toIsoDate = (value) => {
+    const date = value instanceof Date ? value : new Date(value)
+    if (Number.isNaN(date.getTime())) return ''
+    const pad = (part) => String(part).padStart(2, '0')
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/** Send an announcement through the API; the server sets the sender and the audience. */
+export const addAnnouncementViaApi = async ({ title, category, message, announcementDate, file }) =>
+    remember(
+        await createAnnouncementApi({
+            title: title?.trim() || '',
+            category,
+            message: message?.trim() || '',
+            announcementDate: announcementDate ? toIsoDate(announcementDate) : '',
+            file,
+        }),
+    )
+
+export const acknowledgeAnnouncementViaApi = async (ref) => remember(await acknowledgeAnnouncementApi(ref))
+
+export const replyToAnnouncementViaApi = async (ref, text) => {
+    await replyToAnnouncementApi(ref, text)
+    return hydrateAnnouncementFromApi(ref)
+}
+
 export const getAnnouncementsForRole = (roleKey) => {
+    if (usesAnnouncementsApi(roleKey)) return [...apiAnnouncements]
     return loadAnnouncements(roleKey)
         .filter((item) => isVisibleToRole(item, roleKey))
         .sort((a, b) => {
@@ -116,6 +211,7 @@ export const getAnnouncementsForRole = (roleKey) => {
 }
 
 export const getAnnouncementById = (id, roleKey) => {
+    if (usesAnnouncementsApi(roleKey)) return apiAnnouncements.find((item) => item.id === id) ?? null
     const announcement = loadAnnouncements(roleKey).find((item) => item.id === id) ?? null
     if (!announcement) return null
     if (roleKey && !isVisibleToRole(announcement, roleKey)) return null

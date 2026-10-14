@@ -82,6 +82,8 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("documents.students.write", "Upload, replace and remove student documents"),
     ("documents.employees.read", "View and download employee documents"),
     ("documents.employees.write", "Upload, replace and remove employee documents"),
+    ("announcements.read", "View announcements sent to your role"),
+    ("announcements.write", "Send announcements"),
 ]
 
 ALL_PERMISSION_CODES = [code for code, _ in PERMISSIONS]
@@ -188,3 +190,15 @@ for _code, _perms in ROLE_PERMISSIONS.items():
         for _p in ("tasks.read", "tasks.write"):
             if _p not in _perms:
                 _perms.append(_p)
+
+# Announcements: every role can read what is sent to it; only the roles that send notices can write
+# (mirrors CREATOR_ROLE_KEYS in src/Common/Announcement/announcementData.js; Super Admin and the Managing
+# Director already hold every permission).
+_ANNOUNCEMENT_SENDERS = {
+    "admin", "principal", "gatekeepermanager", "itsupportmanager", "housekeepingmanager", "hr",
+}
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if "announcements.read" not in _perms:
+        _perms.append("announcements.read")
+    if _code in _ANNOUNCEMENT_SENDERS and "announcements.write" not in _perms:
+        _perms.append("announcements.write")

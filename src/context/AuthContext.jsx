@@ -25,6 +25,7 @@ import {
 import { apiChangePassword, apiLogin, apiLogout, apiMe } from '../services/authApi'
 import { clearLeaveRequestMemory } from '../Common/LeaveRequest/leaveRequestData'
 import { clearEscalationMemory } from '../Common/EscalationManagement/escalationData'
+import { clearAnnouncementsMemory } from '../Common/Announcement/announcementData'
 import { clearEmployeeDocumentsMemory } from '../Pages/Admin/Documents/EmployeeDocuments/employeeDocumentsData'
 import { clearStudentDocumentsMemory } from '../Pages/Admin/Documents/StudentDocuments/studentDocumentsData'
 
@@ -360,6 +361,7 @@ export const AuthProvider = ({ children }) => {
         clearEscalationMemory()
         clearStudentDocumentsMemory() // uploaded-document lists are server data too
         clearEmployeeDocumentsMemory()
+        clearAnnouncementsMemory() // announcements, replies and acknowledgements are server data too
         clearActiveAdminSession()
         clearActiveCreatedUserSession()
         setIsAuthenticated(false)

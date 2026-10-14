@@ -9,6 +9,7 @@ const NotificationsListView = ({
     notificationTypes,
     typeBadgeColor,
     title = 'Notifications',
+    onOpen,
 }) => {
     const [filters, setFilters] = useState(emptyFilters)
     const [expandedId, setExpandedId] = useState(null)
@@ -125,7 +126,10 @@ const NotificationsListView = ({
 
                                     <button
                                         type='button'
-                                        onClick={() => setExpandedId(isExpanded ? null : record.id)}
+                                        onClick={() => {
+                                            setExpandedId(isExpanded ? null : record.id)
+                                            if (!isExpanded && onOpen) onOpen(record)
+                                        }}
                                         className='mt-4 text-sm font-medium text-[#515DEF] hover:underline cursor-pointer'
                                     >
                                         {isExpanded ? 'Show less' : 'Read more'}

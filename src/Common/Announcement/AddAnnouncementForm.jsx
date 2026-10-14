@@ -5,7 +5,13 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
 import { toast } from 'react-toastify'
 import DocumentFileUpload from '../../Pages/Admin/Documents/EmployeeDocuments/Components/DocumentFileUpload'
-import { addAnnouncement, canCreateAnnouncements, CATEGORY_OPTIONS } from './announcementData'
+import {
+    addAnnouncement,
+    addAnnouncementViaApi,
+    canCreateAnnouncements,
+    CATEGORY_OPTIONS,
+    usesAnnouncementsApi,
+} from './announcementData'
 import { getAnnouncementRoutes } from './announcementConfigs'
 
 const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
@@ -20,12 +26,15 @@ export default function AddAnnouncementForm({ roleKey }) {
     const [message, setMessage] = useState('')
     const [announcementDate, setAnnouncementDate] = useState(new Date())
     const [attachmentName, setAttachmentName] = useState('')
+    const [attachmentFile, setAttachmentFile] = useState(null)
+    const [saving, setSaving] = useState(false)
 
     if (!canCreateAnnouncements(roleKey)) {
         return <Navigate to={routes.list} replace />
     }
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        if (saving) return
         if (!title.trim()) {
             toast.error('Announcement title is required.')
             return
@@ -36,6 +45,31 @@ export default function AddAnnouncementForm({ roleKey }) {
         }
         if (!message.trim()) {
             toast.error('Announcement message is required.')
+            return
+        }
+
+        if (usesAnnouncementsApi(roleKey)) {
+            setSaving(true)
+            try {
+                await addAnnouncementViaApi({
+                    title,
+                    category,
+                    message,
+                    announcementDate,
+                    file: attachmentFile,
+                })
+            } catch (error) {
+                toast.error(
+                    error?.status === 403
+                        ? 'You do not have permission to send announcements.'
+                        : error?.message || 'The announcement could not be saved. Please try again.',
+                )
+                setSaving(false)
+                return
+            }
+            setSaving(false)
+            toast.success('Announcement created successfully.')
+            navigate(routes.list)
             return
         }
 
@@ -121,7 +155,13 @@ export default function AddAnnouncementForm({ roleKey }) {
                     </div>
                     <div className='col-span-full flex flex-col gap-y-2'>
                         <label className='text-base font-medium text-[#1E1E1E]'>Upload Attachment:</label>
-                        <DocumentFileUpload fileName={attachmentName} onChange={setAttachmentName} />
+                        <DocumentFileUpload
+                            fileName={attachmentName}
+                            onChange={(name, file) => {
+                                setAttachmentName(name)
+                                setAttachmentFile(file || null)
+                            }}
+                        />
                     </div>
                 </div>
             </div>

@@ -117,9 +117,11 @@ def get_file(db: Session, actor: User, file_id: uuid.UUID) -> tuple[FileAsset, P
     if row is None or row.campus_id != actor.campus_id:
         fail(404, "not_found", "File was not found.")
     # Files that belong to a student/employee document folder follow that folder's permissions.
-    from app.services.documents import authorize_file_download
+    from app.services import announcements, documents
 
-    authorize_file_download(db, actor, row)
+    documents.authorize_file_download(db, actor, row)
+    # An announcement's attachment is only for the people who can see that announcement.
+    announcements.authorize_file_download(db, actor, row)
     path = _uploads_dir() / row.stored_name
     if not path.is_file():
         fail(404, "not_found", "File bytes are missing.")

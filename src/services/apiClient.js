@@ -120,6 +120,18 @@ export const isApiDocumentsEnabled = () => {
     return isApiAuthEnabled()
 }
 
+/**
+ * Announcements (every role's list, the Administrator's add/view) come from the server whenever the user
+ * signs in with a backend account. Set VITE_USE_API_ANNOUNCEMENTS=false for the browser-only list.
+ */
+export const isApiAnnouncementsEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_ANNOUNCEMENTS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAuthEnabled()
+}
+
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {
     if (token) sessionStorage.setItem(TOKEN_KEY, token)

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus } from 'lucide-react'
@@ -13,6 +13,7 @@ import {
     parseAnnouncementDate,
 } from './announcementData'
 import { getAnnouncementRoutes, getAnnouncementViewPath } from './announcementConfigs'
+import { useAnnouncementList } from './useAnnouncementRecords'
 
 const startOfDay = (date) => {
     const value = new Date(date)
@@ -27,7 +28,6 @@ const endOfDay = (date) => {
 }
 
 export default function AnnouncementListView({ roleKey }) {
-    const location = useLocation()
     const routes = getAnnouncementRoutes(roleKey)
     const canCreate = canCreateAnnouncements(roleKey)
     const [fromDate, setFromDate] = useState(null)
@@ -35,16 +35,10 @@ export default function AnnouncementListView({ roleKey }) {
     const [search, setSearch] = useState('')
     const [categoryFilter, setCategoryFilter] = useState('')
     const [exportModal, setExportModal] = useState(false)
-    const [refreshKey, setRefreshKey] = useState(0)
+    const { status, error } = useAnnouncementList(roleKey)
 
-    useEffect(() => {
-        setRefreshKey((value) => value + 1)
-    }, [location.pathname])
-
-    const announcements = useMemo(() => {
-        void refreshKey
-        return getAnnouncementsForRole(roleKey)
-    }, [roleKey, refreshKey, location.key])
+    // Read again each time the screen opens (the hook goes loading -> ready on every visit).
+    const announcements = useMemo(() => (status === 'ready' ? getAnnouncementsForRole(roleKey) : []), [roleKey, status])
 
     const filteredAnnouncements = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -180,7 +174,11 @@ export default function AnnouncementListView({ roleKey }) {
                             {filteredAnnouncements.length === 0 ? (
                                 <tr>
                                     <td colSpan={8} className='px-2 py-8 text-center text-[#667085]'>
-                                        No announcements found.
+                                        {status === 'loading'
+                                            ? 'Loading announcements…'
+                                            : status === 'error'
+                                              ? error
+                                              : 'No announcements found.'}
                                     </td>
                                 </tr>
                             ) : (

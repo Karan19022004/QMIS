@@ -1,5 +1,6 @@
 from app.models.academics import AcademicYear, FinancialYear, SchoolClass, Section, Subject
 from app.models.admission import Admission, AdmissionEnquiry, Guardian, Student
+from app.models.announcements import Announcement, AnnouncementReply, AnnouncementResponse
 from app.models.approval import ApprovalEvent, ApprovalRequest, Notification
 from app.models.escalation import Escalation, Task, TaskEvent
 from app.models.exams import Exam, ExamType, ExamWeightage, MarkEntry, MarksBatch
@@ -24,6 +25,9 @@ __all__ = [
     "FinancialYear",
     "Admission",
     "AdmissionEnquiry",
+    "Announcement",
+    "AnnouncementReply",
+    "AnnouncementResponse",
     "ApprovalEvent",
     "ApprovalRequest",
     "AuditLog",

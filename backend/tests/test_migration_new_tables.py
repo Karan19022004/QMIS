@@ -32,6 +32,10 @@ MIGRATIONS = {
     "0005_document_records.py": ("document_records", "INSERT INTO document_records "
         "(id, campus_id, subject_type, employee_id, status, created_at) "
         "VALUES ('a', 'b', 'employee', 'c', 'In Progress', CURRENT_TIMESTAMP)"),
+    "0006_announcements.py": ("announcements", "INSERT INTO announcements "
+        "(id, campus_id, code, title, category, message, sent_by, sender_role, announcement_date, audience, "
+        "created_at) VALUES ('a', 'b', 'AN-0001', 't', 'Staff Notice', 'm', 'Admin', 'admin', '2026-10-14', '[]', "
+        "CURRENT_TIMESTAMP)"),
 }
 
 
