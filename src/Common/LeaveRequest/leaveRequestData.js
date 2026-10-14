@@ -81,7 +81,24 @@ const readStorage = (storage) => {
     }
 }
 
+// With a real backend session the server is the source of truth, so what it returned is held in
+// memory only: nothing is written to localStorage or sessionStorage, and a reload or another
+// person signing in on the same browser never sees the previous person's leave requests.
+let apiMemoryRequests = []
+const usesApiMemory = () => canUseLeaveApi()
+
+/** Drop the in-memory copy (call on sign-out). */
+export const clearLeaveRequestMemory = () => {
+    apiMemoryRequests = []
+    try {
+        window.dispatchEvent(new CustomEvent(LEAVE_REQUESTS_UPDATED_EVENT))
+    } catch {
+        /* ignore */
+    }
+}
+
 const loadRawFromStorage = () => {
+    if (usesApiMemory()) return apiMemoryRequests
     if (typeof localStorage !== 'undefined') {
         const localItems = readStorage(localStorage)
         if (localItems.length > 0) return localItems
@@ -93,6 +110,15 @@ const loadRawFromStorage = () => {
 }
 
 const saveRawToStorage = (requests) => {
+    if (usesApiMemory()) {
+        apiMemoryRequests = Array.isArray(requests) ? requests : []
+        try {
+            window.dispatchEvent(new CustomEvent(LEAVE_REQUESTS_UPDATED_EVENT))
+        } catch {
+            /* ignore */
+        }
+        return
+    }
     try {
         const payload = JSON.stringify(requests)
         localStorage.setItem(STORAGE_KEY, payload)
@@ -185,7 +211,17 @@ const mapApiLeave = (item) => {
     }
 }
 
-/** Replace the local cache with the signed-in user's server data. Returns true when the API was used. */
+/** Earlier builds mirrored server data into the browser; remove those stale copies once the API has answered. */
+const purgeBrowserLeaveCopies = () => {
+    try {
+        localStorage?.removeItem(STORAGE_KEY)
+        sessionStorage?.removeItem(STORAGE_KEY)
+    } catch {
+        /* ignore */
+    }
+}
+
+/** Replace the cache with the signed-in user's server data (kept in memory). Returns true when the API was used. */
 export const hydrateLeaveRequestsFromApi = async () => {
     if (!canUseLeaveApi()) return false
     try {
@@ -193,6 +229,7 @@ export const hydrateLeaveRequestsFromApi = async () => {
         const merged = new Map()
         ;[...mine, ...received].forEach((item) => merged.set(item.id, mapApiLeave(item)))
         saveRawToStorage([...merged.values()])
+        purgeBrowserLeaveCopies()
         return true
     } catch {
         return false
@@ -314,6 +351,7 @@ const mapLegacyManagerRequest = (request) => ({
 
 export const migrateLegacyLeaveRequestsIfNeeded = () => {
     try {
+        if (usesApiMemory()) return // the server owns leave requests; old browser copies are not imported
         if (typeof localStorage === 'undefined' && typeof sessionStorage === 'undefined') return
         if (localStorage?.getItem(MIGRATION_FLAG) === '1') return
 
@@ -348,6 +386,7 @@ export const migrateLegacyLeaveRequestsIfNeeded = () => {
 
 export const migrateSessionLeaveRequestsToLocalIfNeeded = () => {
     try {
+        if (usesApiMemory()) return
         if (typeof localStorage === 'undefined' || typeof sessionStorage === 'undefined') return
         if (localStorage.getItem(SESSION_MIGRATION_FLAG) === '1') return
 

@@ -23,6 +23,8 @@ import {
     isDemoLoginEnabled,
 } from '../services/apiClient'
 import { apiChangePassword, apiLogin, apiLogout, apiMe } from '../services/authApi'
+import { clearLeaveRequestMemory } from '../Common/LeaveRequest/leaveRequestData'
+import { clearEscalationMemory } from '../Common/EscalationManagement/escalationData'
 
 export { ROLES }
 
@@ -352,6 +354,8 @@ export const AuthProvider = ({ children }) => {
             clearAccessToken()
         }
         sessionStorage.removeItem(STORAGE_KEY)
+        clearLeaveRequestMemory() // server-sourced leave requests and escalations are held in memory; drop them with the session
+        clearEscalationMemory()
         clearActiveAdminSession()
         clearActiveCreatedUserSession()
         setIsAuthenticated(false)

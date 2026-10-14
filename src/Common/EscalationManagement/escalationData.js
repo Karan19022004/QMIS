@@ -104,8 +104,37 @@ export const isResolutionOverdue = (escalation) => {
     return getResolveByDate(escalation).getTime() < Date.now()
 }
 
+// With a real backend session the server is the source of truth, so what it returned is held in
+// memory only: nothing is written to localStorage, and a reload or another person signing in on the
+// same browser never sees the previous person's escalations.
+let apiMemoryEscalations = []
+const usesApiMemory = () => canUseEscalationsApi()
+
+/** Drop the in-memory copy (call on sign-out). */
+export const clearEscalationMemory = () => {
+    apiMemoryEscalations = []
+    try {
+        window.dispatchEvent(new CustomEvent(ESCALATIONS_UPDATED_EVENT))
+    } catch {
+        /* ignore */
+    }
+}
+
 const saveAllEscalations = (records) => {
+    if (usesApiMemory()) {
+        apiMemoryEscalations = Array.isArray(records) ? records : []
+        return
+    }
     localStorage.setItem(UNIFIED_STORAGE_KEY, JSON.stringify(records))
+}
+
+/** Earlier builds mirrored server data into the browser; remove that stale copy once the API has answered. */
+const purgeBrowserEscalationCopy = () => {
+    try {
+        localStorage?.removeItem(UNIFIED_STORAGE_KEY)
+    } catch {
+        /* ignore */
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +198,7 @@ export const hydrateEscalationsFromApi = async () => {
         const merged = new Map()
         ;[...mine, ...received].forEach((item) => merged.set(item.id, mapApiEscalation(item)))
         saveAllEscalations([...merged.values()])
+        purgeBrowserEscalationCopy()
         emitEscalationsUpdated()
         return true
     } catch {
@@ -207,6 +237,7 @@ export const setEscalationStatusViaApi = async (id, status, note) => {
 }
 
 export const getAllEscalations = () => {
+    if (usesApiMemory()) return apiMemoryEscalations.map(normalizeEscalation)
     try {
         const stored = localStorage.getItem(UNIFIED_STORAGE_KEY)
         if (stored !== null) {
