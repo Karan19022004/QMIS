@@ -14,6 +14,7 @@ from app.schemas.phase0 import (
     AcademicYearUpdate,
     ClassCreate,
     ClassOut,
+    ClassTeacherOptionOut,
     ClassUpdate,
     FinancialYearCreate,
     FinancialYearOut,
@@ -599,6 +600,38 @@ def delete_class(
     )
     db.commit()
     return out
+
+
+@router.get("/class-teacher-options", response_model=list[ClassTeacherOptionOut])
+def list_class_teacher_options(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("masters.write")),
+) -> list[ClassTeacherOptionOut]:
+    """Active teacher and coordinator logins on this campus, for the class-teacher picker.
+
+    Needs masters.write (the people who assign a class teacher), not masters.read: it lists staff
+    emails. Names come from the HR record linked to the login, when there is one.
+    """
+    rows = db.execute(
+        select(User, Role.code)
+        .join(Role, Role.id == User.role_id)
+        .where(
+            User.campus_id == user.campus_id,
+            User.is_active.is_(True),
+            Role.code.in_(_CLASS_TEACHER_ROLES),
+        )
+    ).all()
+    labels = _teacher_labels(db, {login.id for login, _ in rows})
+    options = [
+        ClassTeacherOptionOut(
+            user_id=login.id,
+            email=login.email,
+            name=labels.get(login.id, (None, None))[0],
+            role=role_code,
+        )
+        for login, role_code in rows
+    ]
+    return sorted(options, key=lambda o: ((o.name or o.email).lower(), o.email.lower()))
 
 
 @router.get("/sections", response_model=list[SectionOut])

@@ -534,3 +534,51 @@ def test_a_class_needs_an_academic_year_when_none_is_current(client):
             for year in db.scalars(select(AcademicYear).where(AcademicYear.id.in_(ids))).all():
                 year.is_current = True
             db.commit()
+
+
+# ---------------------------------------------------------------------------------------------
+# the class-teacher picker
+# ---------------------------------------------------------------------------------------------
+
+OPTIONS = "/api/v1/masters/class-teacher-options"
+
+
+def test_the_picker_lists_active_teaching_logins_of_this_campus_only(client):
+    admin = _admin(client)
+    inactive = _make_login("teacher", campus_id=_campus_id(), active=False)
+    with SessionLocal() as db:
+        other = Campus(code=_unique("OP")[:32], name="Other campus", city="Elsewhere")
+        db.add(other)
+        db.commit()
+        other_id = other.id
+    foreign = _make_login("teacher", campus_id=other_id)
+
+    response = client.get(OPTIONS, headers=admin)
+    assert response.status_code == 200, response.text
+    options = response.json()
+    ids = {o["user_id"] for o in options}
+    assert _user_id(settings.teacher_seed_email) in ids
+    assert _user_id(settings.coordinator_seed_email) in ids
+    assert _user_id(settings.principal_seed_email) not in ids  # not a teaching role
+    assert inactive not in ids and foreign not in ids
+    assert {o["role"] for o in options} <= {"teacher", "coordinator"}
+    assert all(set(o) == {"user_id", "email", "name", "role"} for o in options)
+
+
+def test_every_option_can_actually_be_assigned_as_a_class_teacher(client):
+    admin = _admin(client)
+    section = _first_section(client, admin, _new_class(client, admin)["id"])
+    for option in client.get(OPTIONS, headers=admin).json():
+        ok = client.patch(
+            f"{SECTIONS}/{section['id']}", json={"class_teacher_user_id": option["user_id"]}, headers=admin
+        )
+        assert ok.status_code == 200, (option, ok.text)
+
+
+@pytest.mark.parametrize("role,email,password", NON_ADMIN_ROLES)
+def test_the_picker_needs_masters_write(client, role, email, password):
+    assert client.get(OPTIONS, headers=_login(client, email, password)).status_code == 403
+
+
+def test_the_picker_needs_a_login(client):
+    assert client.get(OPTIONS).status_code in (401, 403)

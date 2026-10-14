@@ -1,8 +1,8 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 13 October 2026 (Admin Attendance, students and employees, connected to the attendance and HR APIs)  
-Result: **260 passed**, 0 failed, 0 skipped (full suite, `python -m pytest tests/ -q` from `backend`, about 2 min 20 s). History of this day: 218 after migration `0002`; 231 after `0003`; 246 after Class Details; 260 after Attendance (+5 API contract tests, +9 static frontend checks).  
+Last run: 13 October 2026 (role-module audit and the Student Database fix, on top of Admin Attendance)  
+Result: **264 passed**, 0 failed, 0 skipped (full suite, `python -m pytest tests/ -q` from `backend`, 3 min 20 s, on the working tree of branch `fix/student-database-admissions-lookup`). The 260 on committed code plus 4 new static checks that are **uncommitted**. History of this day: 218 after migration `0002`; 231 after `0003`; 246 after Class Details; 260 after Attendance; 264 after the Student Database fix. The audit itself added no tests.  
 Frontend: production build passes (exit 0). ESLint on the changed files (`StudentsList.jsx`, `EmployeesList.jsx`, `useAttendanceQuery.js`, `adminAttendanceApi.js`, `apiClient.js`, and the two attendance data files): no findings. Running ESLint over the whole `Pages/Admin/Attendance` folder also reports three **old** errors (unused `useState` in the three `ExportModal.jsx` files under `Employees/Components`, `LeaveRequest/Components` and `Students/Compnents`); those files were not changed. A whole-project lint count was not run.
 
 Evidence is kept apart. **Automated** = pytest. **Browser** = I drove the real screen against the running backend and the real development database. Anything not run is marked NOT RUN.
@@ -13,9 +13,32 @@ Evidence is kept apart. **Automated** = pytest. **Browser** = I drove the real s
 |---|---|---|---|
 | Admin Attendance API contract (new) | 5 | An Administrator lists every mark for a date across classes and narrows by class and by section; the roster option adds students nobody has marked (status empty, no id) and needs a class (400 otherwise); reads need a login (401), a teacher can read (200) and the date is required (422); an invalid status is refused (400) and all four valid statuses (Present, Absent, Late, Holiday) are accepted; `GET /hr/attendance` is readable by the Administrator, 401 without a token, and keeps stored dates exactly as written (`dd-mm-yyyy` and ISO) | PASS |
 | Admin Attendance frontend, static (new) | 9 | The service only reads (no POST, PUT, DELETE, no `upsertAttendanceApi`) and never touches browser storage; the roster is requested only for a class with no section; dates use the local calendar day, not UTC; the flag defaults to the auth flag; the hook derives loading from the request key (no state set before `.then` in the effect) and keeps the last good filter options; both pages keep their local branch and show loading, error with Retry and empty states; the demo data modules stay intact for the other roles; the Super Admin attendance pages do not use the new service | PASS |
+| Student Database frontend, static (new, uncommitted) | 4 | The admissions lookup sits behind the students-API flag and the server snapshot is the API-mode source; a Promise is never used as an admission record; API mode never writes the snapshot back; the mapper has no direct network call | PASS |
 | Earlier suites | 246 | Migrations `0002` and `0003` on PostgreSQL (26), Class Details API (7) and static (8), HR / login sync, admin users, P0 security, escalations and tasks, admissions, approvals, attendance, exams, finance, HR, leave, lesson plans, Phase 0, students, and the rest | PASS |
 
 The migration tests need a PostgreSQL server; they are reported as skipped, not passed, if none is reachable. This run: none skipped. There is no JavaScript test runner, so frontend behaviour is covered by the static checks above and the browser checks below.
+
+## Role-module audit (13 Oct 2026, evening): browser evidence, reads only
+
+Method: each seeded login was signed in on its own tab; each sidebar route was opened in a hidden frame with `fetch` instrumented, every non-GET `/api/v1` call blocked, and the GET calls and status codes recorded. A page loading was not counted as complete. Writes were not exercised, so every write workflow below is NOT RUN unless marked as driven in an earlier session.
+
+| # | Check | Result |
+|---|---|---|
+| A1 | Teacher: 30 routes load; own API calls on 5 (Class Attendance, My Tasks, Leave x2, Escalation); 25 modules make none | PASS (loads); 25 modules are browser-only data |
+| A2 | Coordinator: 30 routes load; own API calls on 3 (My Tasks, My Leave Requests, Escalation); 27 make none | PASS (loads); 27 modules are browser-only data |
+| A3 | Director: 24 routes load; own API calls on 6 (Tasks x2, Student Database, Leave x2, Escalation); 18 make none | PASS (loads); 18 modules are browser-only data |
+| A4 | HR: 35 routes load; every page returns the same 25 `/hr/*` collections with 200 | PASS |
+| A5 | Account Head: 22 routes load; every page returns `GET /finance/state` 200 on a fresh load | PASS |
+| A6 | Account Head signed in through the sign-in page: no finance request, banner "Finance API ... load failed" until reload | **FAIL** (defect: the provider pulls once before sign-in) |
+| A7 | `GET /finance/state` for non-finance roles | **FAIL** (403 on every fresh load for Teacher, Coordinator, Director, Principal, HR) |
+| A8 | Student Database before the fix: Principal and Director `GET /admissions/{id}` 403 per student (9 of 9); Administrator 9 requests; detail page blanks where the API had values | **FAIL** (defect, fixed in A9) |
+| A9 | Student Database after the fix, Principal and Administrator: 0 admissions requests; list 10 rows; detail shows the API values | PASS |
+| A10 | Teacher attendance can be marked from the screen | **FAIL** (`upsertAttendanceApi` has no caller in the frontend; read-only) |
+| A11 | Runtime errors, 5xx or network failures on any of the 141 routes | PASS (none seen); one blocked-write check is inconclusive for HR batch 1 because the log kept only 10 calls per page |
+
+Not run: any create, edit or approve workflow in this audit, API-outage behaviour (HR is fail-closed in code, not tested), panels with no seeded login, opening the review `.docx` in Word or LibreOffice (neither installed), and local (browser-only) mode after the Student Database fix. Earlier sessions drove tasks (Principal, Teacher, Director, Admin), the Teacher to Principal to HR leave chain, escalations, user creation, the employee directory, class details and admin attendance in a browser.
+
+Review copy of the status sheet (`QMIS-ERP-Role-Module-Status.review.docx`): 25 structural checks, all PASS. They cover the original being byte-identical to its backup, the file being well formed, summary and TOTAL matching the module rows (480 / 122 / 51 / 305 / 2), Administrator at 10 / 4 / 12, status colours matching status text, no remaining Ops reference, the 18 un-re-checked panels keeping their original statuses, an evidence label on every re-checked note, and no password in the text.
 
 ## Browser: Admin Attendance (Administrator, live backend, real database)
 

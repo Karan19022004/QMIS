@@ -6,7 +6,7 @@ import SectionInfo from './Components/SectionInfo'
 import { saveClassDetails } from '../../../../Common/RBAC/academicsCatalogData'
 import { getCreatedUsersByRole, syncCreatedUsersFromApi } from '../../../../Common/RBAC/createdUsersData'
 import { saveClassWithSections } from '../../../../services/classDetailsApi'
-import { useClassDirectory } from './useClassDirectory'
+import { useClassDirectory, useClassTeacherOptions } from './useClassDirectory'
 
 const emptyForm = {
     className: '',
@@ -16,12 +16,20 @@ const emptyForm = {
     classRoomNumber: '',
 }
 
+// API mode keeps room and the class teacher (a login id) per section; local mode keeps its old shape.
+const blankSection = (apiMode) => (
+    apiMode
+        ? { name: '', capacity: '', roomNumber: '', classTeacherUserId: '' }
+        : { name: '', capacity: '' }
+)
+
 const AddClassDetails = () => {
     const navigate = useNavigate()
-    // API mode: the server stores the class, its sections and its academic year. Capacity, class
-    // teacher and room number have no server field yet, so those inputs are not shown.
+    // API mode: the server stores the class, its academic year and, per section, the capacity, room
+    // and class teacher (chosen from real teacher logins, never typed as a name).
     const directory = useClassDirectory('')
     const apiMode = directory.apiMode
+    const teacherPicker = useClassTeacherOptions(apiMode)
     const [saving, setSaving] = useState(false)
     const [academicYearId, setAcademicYearId] = useState('')
     const [teacherRecords, setTeacherRecords] = useState(() => getCreatedUsersByRole('teacher'))
@@ -32,7 +40,7 @@ const AddClassDetails = () => {
 
     // In API mode the server owns the user list; refresh the local mirror before showing teachers.
     useEffect(() => {
-        if (apiMode) return undefined // teachers are not picked in API mode
+        if (apiMode) return undefined // API mode picks teachers from the masters API (useClassTeacherOptions)
         let cancelled = false
         syncCreatedUsersFromApi()
             .then((mapped) => {
@@ -42,7 +50,7 @@ const AddClassDetails = () => {
         return () => { cancelled = true }
     }, [apiMode])
     const [form, setForm] = useState(emptyForm)
-    const [sections, setSections] = useState([{ name: '', capacity: '' }])
+    const [sections, setSections] = useState(() => [blankSection(apiMode)])
     const [error, setError] = useState('')
 
     const updateForm = (keyOrPatch, value) => {
@@ -60,7 +68,7 @@ const AddClassDetails = () => {
     }
 
     const addSectionRow = () => {
-        setSections((prev) => [...prev, { name: '', capacity: '' }])
+        setSections((prev) => [...prev, blankSection(apiMode)])
     }
 
     const removeSectionRow = (index) => {
@@ -69,7 +77,7 @@ const AddClassDetails = () => {
 
     const handleDiscard = () => {
         setForm(emptyForm)
-        setSections([{ name: '', capacity: '' }])
+        setSections([blankSection(apiMode)])
         setError('')
         navigate('/admin/class/class-details')
     }
@@ -157,8 +165,9 @@ const AddClassDetails = () => {
                 />
                 {apiMode && (
                     <p className='text-xs text-[#667085] mt-4'>
-                        Choosing a class that already exists adds only the new sections to it. Class capacity, class
-                        teacher and room number are not stored by the server yet.
+                        A class belongs to one academic year. Choosing a class that already exists in that year adds
+                        only the new sections to it; sections it already has are left as they are (edit them from
+                        the class list). Capacity, room and class teacher are saved with each section.
                     </p>
                 )}
             </div>
@@ -171,6 +180,11 @@ const AddClassDetails = () => {
                     onAddSection={addSectionRow}
                     onRemoveSection={removeSectionRow}
                     showCapacity={!apiMode}
+                    apiMode={apiMode}
+                    teacherOptions={teacherPicker.options}
+                    teacherStatus={teacherPicker.status}
+                    teacherError={teacherPicker.error}
+                    onRetryTeachers={teacherPicker.reload}
                 />
             </div>
 

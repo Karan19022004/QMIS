@@ -136,13 +136,21 @@ export const saveClassDetails = (payload) => {
 /**
  * Mirrors the server's classes and sections into this browser catalog so the screens that still
  * read it (student allocation, assigned classes, activities, lesson plans, documents) offer the
- * same classes. Server wins on the class and its section names; fields only the browser knows
- * (teacher, capacities, room) are kept when a local entry has the same class name. Classes cannot
- * be deleted through the API, so nothing is removed here. Writes only when something changed.
+ * same classes. The server is the source of truth for a mirrored class: its name, sections,
+ * capacities, room and class teacher all come from the server. `records` must be the complete list
+ * of ACTIVE classes of the current academic year, so an API-sourced class that is no longer in it
+ * (deactivated, deleted or from an old year) leaves the browser catalog and the other screens'
+ * dropdowns. Entries created only in the browser (no `apiId`) are never removed. Writes only when
+ * something changed.
  */
 export const mirrorApiClassDetails = (records) => {
     const catalog = loadCatalog()
     const before = JSON.stringify(catalog)
+
+    const mirroredIds = new Set((records || []).map((record) => String(record.id)))
+    catalog.classDetails = catalog.classDetails.filter(
+        (item) => !(item.source === 'api' && item.apiId && !mirroredIds.has(String(item.apiId))),
+    )
 
     ;(records || []).forEach((record) => {
         const className = String(record.className || '').trim()
@@ -151,23 +159,23 @@ export const mirrorApiClassDetails = (records) => {
             (item) => String(item.className).toLowerCase() === className.toLowerCase(),
         )
         const local = index >= 0 ? catalog.classDetails[index] : null
-        const capacityByName = new Map(
-            (local?.sections || []).map((section) => [String(section.name).toUpperCase(), section.capacity || '']),
-        )
+        const sections = record.sections || []
+        const taught = sections.find((section) => section.classTeacherName)
+        const roomed = sections.find((section) => section.roomNumber)
         const now = new Date().toISOString()
         const next = {
-            classTeacher: '',
             classTeacherEmail: '',
-            classCapacity: '',
-            classRoomNumber: '',
             ...local,
             id: local?.id || `CD-API-${String(record.id).slice(0, 8)}`,
             className,
             displayName: local?.displayName || className,
-            sections: (record.sections || []).map((section) => ({
+            sections: sections.map((section) => ({
                 name: String(section.name).toUpperCase(),
-                capacity: capacityByName.get(String(section.name).toUpperCase()) || '',
+                capacity: section.capacity ? String(section.capacity) : '',
             })),
+            classCapacity: record.capacity ? String(record.capacity) : '',
+            classTeacher: taught?.classTeacherName || '',
+            classRoomNumber: roomed?.roomNumber || '',
             source: 'api',
             apiId: record.id,
             academicYearId: record.academicYearId || '',

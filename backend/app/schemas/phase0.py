@@ -130,6 +130,15 @@ class ClassOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ClassTeacherOptionOut(BaseModel):
+    """A login that may be chosen as a class teacher."""
+
+    user_id: UUID
+    email: str
+    name: str | None = None
+    role: str
+
+
 class SectionCreate(BaseModel):
     class_id: UUID
     name: str = Field(min_length=1, max_length=20)
