@@ -1,17 +1,17 @@
 {
   "schemaVersion": 1,
-  "receiptId": "978fa1a3-a61b-45e0-b808-3426c8ed5b3f",
+  "receiptId": "52d4900c-71f4-405f-8b04-dde32be6acd8",
   "status": "current",
   "command": "deliver",
   "type": "architecture",
   "input": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
   "output": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
   "specification": {
-    "sha256": "436f2b9f77dcd407b2bdd2535fd32e321738996f5d6a20e54fbefd44a856d16d",
-    "bytes": 16195
+    "sha256": "81e3909351f1a0ab7ceac64b590a715636b036baa96cc5e2062ab0bdb21606e2",
+    "bytes": 16959
   },
   "artifact": {
-    "sha256": "ea047c7ec41f6ab51467ba2085e8da0f09a6c565e3e2fb44d08d09c2b6d48509",
-    "bytes": 790949
+    "sha256": "ed03725fa1ef2c0b0fb70b567ff27e23f4da4eb1d59130f1ba8e0815e9215437",
+    "bytes": 793219
   }
 }

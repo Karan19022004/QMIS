@@ -57,7 +57,7 @@ ROUTER_META = {
     "masters_router": {
         "id": "mod_masters",
         "label": "Masters",
-        "sublabel": "years · classes · sections",
+        "sublabel": "classes · sections",
         "path": "backend/app/api/v1/endpoints/masters.py",
         "line": 23,
         "end_line": 80,
@@ -97,7 +97,7 @@ ROUTER_META = {
     "approvals_router": {
         "id": "mod_workflows",
         "label": "Workflows",
-        "sublabel": "approvals · leave · exams · tasks",
+        "sublabel": "leave · tasks · exams",
         "path": "backend/app/api/v1/endpoints/approvals.py",
         "line": 1,
         "end_line": 10,
@@ -105,7 +105,7 @@ ROUTER_META = {
     "lesson_plans_router": {
         "id": "mod_workflows",
         "label": "Workflows",
-        "sublabel": "approvals · leave · exams · tasks",
+        "sublabel": "leave · tasks · exams",
         "path": "backend/app/api/v1/endpoints/lesson_plans.py",
         "line": 1,
         "end_line": 10,
@@ -113,7 +113,7 @@ ROUTER_META = {
     "exams_router": {
         "id": "mod_workflows",
         "label": "Workflows",
-        "sublabel": "approvals · leave · exams · tasks",
+        "sublabel": "leave · tasks · exams",
         "path": "backend/app/api/v1/endpoints/exams.py",
         "line": 1,
         "end_line": 10,
@@ -121,7 +121,7 @@ ROUTER_META = {
     "leave_router": {
         "id": "mod_workflows",
         "label": "Workflows",
-        "sublabel": "approvals · leave · exams · tasks",
+        "sublabel": "leave · tasks · exams",
         "path": "backend/app/api/v1/endpoints/leave.py",
         "line": 1,
         "end_line": 10,
@@ -129,7 +129,7 @@ ROUTER_META = {
     "escalations_router": {
         "id": "mod_workflows",
         "label": "Workflows",
-        "sublabel": "approvals · leave · exams · tasks",
+        "sublabel": "leave · tasks · exams",
         "path": "backend/app/api/v1/endpoints/escalations.py",
         "line": 1,
         "end_line": 10,
@@ -145,10 +145,67 @@ ROUTER_META = {
     "files_router": {
         "id": "mod_files",
         "label": "Files",
-        "sublabel": "upload stub",
+        "sublabel": "upload · download",
         "path": "backend/app/api/v1/endpoints/files.py",
         "line": 13,
         "end_line": 39,
+    },
+    # Several Admin campus routers share one diagram node (same pattern as Y-0..Y-5 workflows).
+    "documents_router": {
+        "id": "mod_admin_campus",
+        "label": "Admin campus",
+        "sublabel": "docs · TC · activities",
+        "path": "backend/app/api/v1/endpoints/documents.py",
+        "line": 1,
+        "end_line": 68,
+    },
+    "announcements_router": {
+        "id": "mod_admin_campus",
+        "label": "Admin campus",
+        "sublabel": "docs · TC · activities",
+        "path": "backend/app/api/v1/endpoints/announcements.py",
+        "line": 1,
+        "end_line": 65,
+    },
+    "calendar_router": {
+        "id": "mod_admin_campus",
+        "label": "Admin campus",
+        "sublabel": "docs · TC · activities",
+        "path": "backend/app/api/v1/endpoints/calendar.py",
+        "line": 1,
+        "end_line": 61,
+    },
+    "tc_requests_router": {
+        "id": "mod_admin_campus",
+        "label": "Admin campus",
+        "sublabel": "docs · TC · activities",
+        "path": "backend/app/api/v1/endpoints/tc_requests.py",
+        "line": 1,
+        "end_line": 63,
+    },
+    "activities_router": {
+        "id": "mod_admin_campus",
+        "label": "Admin campus",
+        "sublabel": "docs · TC · activities",
+        "path": "backend/app/api/v1/endpoints/activities.py",
+        "line": 1,
+        "end_line": 101,
+    },
+    "communication_router": {
+        "id": "mod_admin_campus",
+        "label": "Admin campus",
+        "sublabel": "docs · TC · activities",
+        "path": "backend/app/api/v1/endpoints/communication.py",
+        "line": 1,
+        "end_line": 83,
+    },
+    "dashboard_router": {
+        "id": "mod_admin_campus",
+        "label": "Admin campus",
+        "sublabel": "docs · TC · activities",
+        "path": "backend/app/api/v1/endpoints/dashboard.py",
+        "line": 1,
+        "end_line": 16,
     },
     "finance_router": {
         "id": "mod_finance",
@@ -248,7 +305,7 @@ def place_grid(modules: list[dict], start_x: int, start_y: int, cols: int, gap_x
             "label": mod["label"],
             "sublabel": mod["sublabel"],
             "pos": [start_x + col * gap_x, start_y + row * gap_y],
-            "size": [150, 64],
+            "size": [148, 60],
             "sources": [
                 {
                     "path": mod["path"],
@@ -266,10 +323,10 @@ def place_grid(modules: list[dict], start_x: int, start_y: int, cols: int, gap_x
 def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> dict:
     live = list(modules)
     planned = list(PLANNED)
-    # Main journey: users → web → client → tall api; db/uploads under api; module rack on the right
-    live_nodes = place_grid(live, 1080, 80, cols=2, gap_x=170, gap_y=100)
-    planned_y = 80 + 100 * ((len(live) + 1) // 2)
-    planned_nodes = place_grid(planned, 1080, planned_y + 20, cols=2, gap_x=170, gap_y=100)
+    # Compact rack so showcase desktop scale keeps edge labels ≥6px (viewBox width ≲1200).
+    live_nodes = place_grid(live, 800, 40, cols=2, gap_x=160, gap_y=92)
+    planned_y = 40 + 92 * ((len(live) + 1) // 2)
+    planned_nodes = place_grid(planned, 800, planned_y + 20, cols=2, gap_x=160, gap_y=92)
     client_label = f"{len(clients)} *Api.js clients"  # full list is on the "Clients found" card
 
     components = [
@@ -278,8 +335,8 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "type": "external",
             "label": "School users",
             "sublabel": "role portals",
-            "pos": [40, 280],
-            "size": [140, 64],
+            "pos": [24, 200],
+            "size": [120, 64],
             "icon": "person",
             "sources": [{"path": "src/App.jsx", "line": 34, "end_line": 60}],
         },
@@ -288,8 +345,8 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "type": "frontend",
             "label": "React portal",
             "sublabel": "Vite :5173",
-            "pos": [220, 280],
-            "size": [140, 64],
+            "pos": [220, 200],
+            "size": [130, 64],
             "sources": [{"path": "src/App.jsx", "line": 1, "end_line": 32}],
         },
         {
@@ -297,36 +354,36 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "type": "frontend",
             "label": "API clients",
             "sublabel": client_label or "services",
-            "pos": [400, 280],
-            "size": [160, 64],
+            "pos": [400, 200],
+            "size": [150, 64],
             "sources": [{"path": "src/services/apiClient.js", "line": 1, "end_line": 30}],
         },
         {
             "id": "api",
             "type": "backend",
             "label": "FastAPI",
-            "sublabel": "QMIS ERP :8000",
-            "pos": [600, 160],
-            "size": [160, 200],
+            "sublabel": ":8000",
+            "pos": [580, 120],
+            "size": [140, 180],
             "tag": "UUID stack",
-            "sources": [{"path": "backend/app/main.py", "line": 38, "end_line": 57}],
+            "sources": [{"path": "backend/app/main.py", "line": 38, "end_line": 88}],
         },
         {
             "id": "db",
             "type": "database",
             "label": "PostgreSQL",
             "sublabel": "qmis_erp",
-            "pos": [610, 420],
-            "size": [140, 64],
+            "pos": [400, 360],
+            "size": [130, 64],
             "sources": [{"path": "backend/app/core/config.py", "line": 4, "end_line": 20}],
         },
         {
             "id": "alembic",
             "type": "backend",
             "label": "Alembic",
-            "sublabel": "0001 to 0004",
-            "pos": [370, 430],
-            "size": [140, 64],
+            "sublabel": "0001–0010",
+            "pos": [220, 360],
+            "size": [130, 64],
             "tag": "by hand",
             "sources": [{"path": "backend/alembic/env.py", "line": 17, "end_line": 32}],
         },
@@ -334,9 +391,9 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "id": "uploads",
             "type": "database",
             "label": "Uploads",
-            "sublabel": "backend/uploads",
-            "pos": [610, 540],
-            "size": [140, 64],
+            "sublabel": "disk files",
+            "pos": [400, 480],
+            "size": [130, 64],
             "sources": [{"path": "backend/app/services/files.py", "line": 18, "end_line": 25}],
         },
         *live_nodes,
@@ -352,7 +409,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
         {"id": "client-api", "from": "client", "to": "api", "label": "JWT", "variant": "security"},
         {"id": "api-db", "from": "api", "to": "db", "label": "SQL"},
         {"id": "api-uploads", "from": "api", "to": "uploads", "label": "files", "variant": "dashed"},
-        {"id": "alembic-db", "from": "alembic", "to": "db", "label": "upgrade head"},
+        {"id": "alembic-db", "from": "alembic", "to": "db", "label": "migrate"},
     ]
     for nid in live_ids:
         connections.append({"id": f"api-{nid}", "from": "api", "to": nid})
@@ -412,9 +469,9 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                     "Leave, bell notifications, escalations and tasks wired to UI (leaveApi, notificationsApi, escalationApi, taskApi); each flow checked in browser",
                     "Tasks: remarks + history, retry-safe create, assignment hierarchy enforced on the backend",
                     "Y-0..Y-5 backend built",
-                    "Administrator screens on the API: User Creation and Roles, Employee Database, Class Details, student and employee Attendance (read-only); each checked in a browser",
-                    "Schema changes are Alembic revisions 0001 to 0003, applied by hand after a backup; startup only warns when behind",
-                    "Verified: 260 pytest passed (13 Oct 2026)",
+                    "Administrator screens on the API: User Creation and Roles, Employee Database, Class Details, Attendance (read-only), Documents, Announcements, Calendar, TC, Activities, Communication, Dashboard",
+                    "Alembic head 0010_communication (0001–0010 applied by hand after backup); startup only warns when behind",
+                    "Administrator audit 14 Oct 2026: live matrix 26/26 PASS; pytest 400 passed; READY WITH KNOWN LIMITATIONS",
                 ],
             },
             {

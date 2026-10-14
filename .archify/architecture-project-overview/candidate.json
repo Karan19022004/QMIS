@@ -10,7 +10,7 @@
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "10c239e212d6e7aa9f6c6c7a3b8afb87ba1b2642"
+      "revision": "10ac4fc7c6e24e81ba580c73f8476de4d7c074d6"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -52,7 +52,8 @@
           "mod_workflows",
           "mod_finance",
           "mod_hr",
-          "mod_files"
+          "mod_files",
+          "mod_admin_campus"
         ],
         "note": "Routers mounted in main.py"
       },
@@ -85,11 +86,11 @@
       "label": "School users",
       "sublabel": "role portals",
       "pos": [
-        40,
-        280
+        24,
+        200
       ],
       "size": [
-        140,
+        120,
         64
       ],
       "icon": "person",
@@ -108,10 +109,10 @@
       "sublabel": "Vite :5173",
       "pos": [
         220,
-        280
+        200
       ],
       "size": [
-        140,
+        130,
         64
       ],
       "sources": [
@@ -126,13 +127,13 @@
       "id": "client",
       "type": "frontend",
       "label": "API clients",
-      "sublabel": "17 *Api.js clients",
+      "sublabel": "24 *Api.js clients",
       "pos": [
         400,
-        280
+        200
       ],
       "size": [
-        160,
+        150,
         64
       ],
       "sources": [
@@ -147,21 +148,21 @@
       "id": "api",
       "type": "backend",
       "label": "FastAPI",
-      "sublabel": "QMIS ERP :8000",
+      "sublabel": ":8000",
       "pos": [
-        600,
-        160
+        580,
+        120
       ],
       "size": [
-        160,
-        200
+        140,
+        180
       ],
       "tag": "UUID stack",
       "sources": [
         {
           "path": "backend/app/main.py",
           "line": 38,
-          "end_line": 57
+          "end_line": 88
         }
       ]
     },
@@ -171,11 +172,11 @@
       "label": "PostgreSQL",
       "sublabel": "qmis_erp",
       "pos": [
-        610,
-        420
+        400,
+        360
       ],
       "size": [
-        140,
+        130,
         64
       ],
       "sources": [
@@ -190,13 +191,13 @@
       "id": "alembic",
       "type": "backend",
       "label": "Alembic",
-      "sublabel": "0001 to 0004",
+      "sublabel": "0001\u20130010",
       "pos": [
-        370,
-        430
+        220,
+        360
       ],
       "size": [
-        140,
+        130,
         64
       ],
       "tag": "by hand",
@@ -212,13 +213,13 @@
       "id": "uploads",
       "type": "database",
       "label": "Uploads",
-      "sublabel": "backend/uploads",
+      "sublabel": "disk files",
       "pos": [
-        610,
-        540
+        400,
+        480
       ],
       "size": [
-        140,
+        130,
         64
       ],
       "sources": [
@@ -235,12 +236,12 @@
       "label": "Auth",
       "sublabel": "/api/v1/auth",
       "pos": [
-        1080,
-        80
+        800,
+        40
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -256,12 +257,12 @@
       "label": "Audit",
       "sublabel": "/api/v1/audit-logs",
       "pos": [
-        1250,
-        80
+        960,
+        40
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -277,12 +278,12 @@
       "label": "Admin users",
       "sublabel": "users \u00b7 roles",
       "pos": [
-        1080,
-        180
+        800,
+        132
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -296,14 +297,14 @@
       "id": "mod_masters",
       "type": "backend",
       "label": "Masters",
-      "sublabel": "years \u00b7 classes \u00b7 sections",
+      "sublabel": "classes \u00b7 sections",
       "pos": [
-        1250,
-        180
+        960,
+        132
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -319,12 +320,12 @@
       "label": "Admissions",
       "sublabel": "enquiry \u2192 enroll",
       "pos": [
-        1080,
-        280
+        800,
+        224
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -340,12 +341,12 @@
       "label": "Parents",
       "sublabel": "me/children",
       "pos": [
-        1250,
-        280
+        960,
+        224
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -361,12 +362,12 @@
       "label": "Students",
       "sublabel": "list \u00b7 detail",
       "pos": [
-        1080,
-        380
+        800,
+        316
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -382,12 +383,12 @@
       "label": "Attendance",
       "sublabel": "class marks",
       "pos": [
-        1250,
-        380
+        960,
+        316
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -401,14 +402,14 @@
       "id": "mod_workflows",
       "type": "backend",
       "label": "Workflows",
-      "sublabel": "approvals \u00b7 leave \u00b7 exams \u00b7 tasks",
+      "sublabel": "leave \u00b7 tasks \u00b7 exams",
       "pos": [
-        1080,
-        480
+        800,
+        408
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -424,12 +425,12 @@
       "label": "Finance",
       "sublabel": "snapshot + actions",
       "pos": [
-        1250,
-        480
+        960,
+        408
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -445,12 +446,12 @@
       "label": "HR",
       "sublabel": "partner vertical",
       "pos": [
-        1080,
-        580
+        800,
+        500
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -464,14 +465,14 @@
       "id": "mod_files",
       "type": "backend",
       "label": "Files",
-      "sublabel": "upload stub",
+      "sublabel": "upload \u00b7 download",
       "pos": [
-        1250,
-        580
+        960,
+        500
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -482,17 +483,38 @@
       ]
     },
     {
+      "id": "mod_admin_campus",
+      "type": "backend",
+      "label": "Admin campus",
+      "sublabel": "docs \u00b7 TC \u00b7 activities",
+      "pos": [
+        800,
+        592
+      ],
+      "size": [
+        148,
+        60
+      ],
+      "sources": [
+        {
+          "path": "backend/app/api/v1/endpoints/documents.py",
+          "line": 1,
+          "end_line": 68
+        }
+      ]
+    },
+    {
       "id": "mod_ops",
       "type": "cloud",
       "label": "Ops",
       "sublabel": "Phase 3+",
       "pos": [
-        1080,
-        700
+        800,
+        704
       ],
       "size": [
-        150,
-        64
+        148,
+        60
       ],
       "sources": [
         {
@@ -529,7 +551,8 @@
         "mod_workflows",
         "mod_finance",
         "mod_hr",
-        "mod_files"
+        "mod_files",
+        "mod_admin_campus"
       ]
     },
     {
@@ -586,7 +609,7 @@
       "id": "alembic-db",
       "from": "alembic",
       "to": "db",
-      "label": "upgrade head"
+      "label": "migrate"
     },
     {
       "id": "api-mod_auth",
@@ -649,6 +672,11 @@
       "to": "mod_files"
     },
     {
+      "id": "api-mod_admin_campus",
+      "from": "api",
+      "to": "mod_admin_campus"
+    },
+    {
       "id": "api-mod_ops",
       "from": "api",
       "to": "mod_ops",
@@ -663,15 +691,16 @@
         "Auth \u2014 /api/v1/auth",
         "Audit \u2014 /api/v1/audit-logs",
         "Admin users \u2014 users \u00b7 roles",
-        "Masters \u2014 years \u00b7 classes \u00b7 sections",
+        "Masters \u2014 classes \u00b7 sections",
         "Admissions \u2014 enquiry \u2192 enroll",
         "Parents \u2014 me/children",
         "Students \u2014 list \u00b7 detail",
         "Attendance \u2014 class marks",
-        "Workflows \u2014 approvals \u00b7 leave \u00b7 exams \u00b7 tasks",
+        "Workflows \u2014 leave \u00b7 tasks \u00b7 exams",
         "Finance \u2014 snapshot + actions",
         "HR \u2014 partner vertical",
-        "Files \u2014 upload stub",
+        "Files \u2014 upload \u00b7 download",
+        "Admin campus \u2014 docs \u00b7 TC \u00b7 activities",
         "Each screen has a VITE_USE_API_* flag; most default to the sign-in flag, off = browser-only demo data",
         "Parents /me/children (P1-4) live",
         "HR + Finance: API is SoT",
@@ -680,9 +709,9 @@
         "Leave, bell notifications, escalations and tasks wired to UI (leaveApi, notificationsApi, escalationApi, taskApi); each flow checked in browser",
         "Tasks: remarks + history, retry-safe create, assignment hierarchy enforced on the backend",
         "Y-0..Y-5 backend built",
-        "Administrator screens on the API: User Creation and Roles, Employee Database, student and employee Attendance (read-only), and Class Details with capacity, room, class teacher per section, edit, deactivate and delete; each checked in a browser",
-        "Schema changes are Alembic revisions 0001 to 0004, applied by hand after a backup; startup only warns when behind",
-        "Verified: 314 pytest passed (14 Oct 2026)"
+        "Administrator screens on the API: User Creation and Roles, Employee Database, Class Details, Attendance (read-only), Documents, Announcements, Calendar, TC, Activities, Communication, Dashboard",
+        "Alembic head 0010_communication (0001\u20130010 applied by hand after backup); startup only warns when behind",
+        "Administrator audit 14 Oct 2026: live matrix 26/26 PASS; pytest 400 passed; READY WITH KNOWN LIMITATIONS"
       ]
     },
     {
@@ -698,12 +727,18 @@
       "dot": "slate",
       "title": "Clients found",
       "items": [
+        "activitiesApi.js",
         "adminAttendanceApi.js",
         "adminUsersApi.js",
         "admissionsApi.js",
+        "announcementsApi.js",
         "attendanceApi.js",
         "authApi.js",
+        "calendarApi.js",
         "classDetailsApi.js",
+        "communicationApi.js",
+        "dashboardApi.js",
+        "documentsApi.js",
         "employeeDirectoryApi.js",
         "escalationApi.js",
         "filesApi.js",
@@ -714,6 +749,7 @@
         "parentsApi.js",
         "studentsApi.js",
         "taskApi.js",
+        "tcApi.js",
         "apiClient.js"
       ]
     },
@@ -724,7 +760,7 @@
         "UI not wired yet: lesson plans, marks (need decisions/screens)",
         "Tasks: no attachments, no Admin/Director all-tasks screen",
         "Admin screens still local: Announcement, Communication, Calendar, Notifications page, TC approval, Activities, Documents, Dashboard",
-        "No student punch times; class capacity is not checked against enrolment; Class Details is not yet checked in a browser for non-admin roles",
+        "Server stores no class capacity, class teacher or room; no student punch times; no class edit or delete",
         "Alembic not run at startup; three other drifted columns still need revisions",
         "24h clock needs a scheduler (runs on list reads + admin sweep today)",
         "Live SMTP/WhatsApp/Paytm when school ready",

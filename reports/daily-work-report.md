@@ -10,7 +10,7 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ## 14 October 2026 (evening)
 
-**Status:** The remaining Administrator modules now persist on the server: Documents (`cd2ec2f`), Notifications and Announcements (`d745b0d`), Calendar, TC Request Approval, Activities, Communication and the Dashboard (this tree). Migrations `0005`–`0010` are on the development database (backup taken before each apply). Existing screens are wired; layout and navigation are unchanged except `/dashboard` is now allowed for the Admin role so the sidebar link works. Full backend suite **400 passed**.
+**Status:** The remaining Administrator modules now persist on the server: Documents (`cd2ec2f`), Notifications and Announcements (`d745b0d`), Calendar, TC Request Approval, Activities, Communication and the Dashboard. Migrations `0005`–`0010` are on the development database. Full backend suite **400 passed**. End-to-end Administrator audit: live matrix **26/26 PASS**, build PASS, decision **READY WITH KNOWN LIMITATIONS** (`backend/docs/ADMINISTRATOR_MODULE_AUDIT.md`). Role-module Word sheet: Admin **26 Completed / 0 Partial**. Archify project overview regenerated to include Documents, Announcements, Calendar, TC, Activities, Communication and Admin dashboard.
 
 ### Done this evening
 
@@ -18,16 +18,18 @@ New days go at the top. Older days stay below so the history is in one file.
 2. **Notifications page.** Admin list reads `GET /notifications` and marks a card read when it is opened. Sample cards stay only when there is no backend session.
 3. **Announcements (`0006`).** Send, list, view, acknowledge, reply, attachment. Sender and audience are server-set. Browser: list shows the two notices that exist on this campus (`AN-0001`, `AN-0002`).
 4. **Calendar (`0007`).** 17 seeded 2026–27 items plus activity overlays. Browser: after load, Upcoming shows Annual Sports Day, Diwali and Unit Test.
-5. **TC requests (`0008`).** File / forward / approve / reject. Admin approval screen reads the server. Browser list is empty (no live requests); API lifecycle is covered by pytest.
-6. **Activities (`0009`).** Cultural / sports / competition CRUD, chess players, MD approval. Overlay onto the calendar.
-7. **Communication (`0010`).** Real two-person inbox from campus logins. Attachments follow the same file rules.
+5. **TC requests (`0008`).** File / forward / approve / reject. Admin approval screen reads the server. Live API create→forward→approve verified; browser approve click not re-run.
+6. **Activities (`0009`).** Cultural / sports / competition CRUD, chess players, MD approval. Overlay onto the calendar. Live API create/approve verified.
+7. **Communication (`0010`).** Real two-person inbox from campus logins. Attachments follow the same file rules. Live API start/send verified.
 8. **Dashboard.** `GET /api/v1/admin/dashboard`. Browser as Administrator: Students 10, Employees 17, Leave 1, Escalations 0, TC 0, Unread 28, Announcements this month 2.
+9. **Administrator audit + status sheet.** Live matrix 26/26; Word sheet coloured by status; totals recalculated (TOTAL 138 Completed / 47 Partial / 293 Not Completed / 2 Gap across all role panels).
+10. **Archify overview.** `.archify/architecture-project-overview/` rebuilt (showcase finalize PASS) so the diagram lists the new Admin API modules as `mod_admin_campus` (Documents, Announcements, Calendar, TC, Activities, Communication, Dashboard).
 
 ### Not done / open
 
-- Browser not run for Teacher/HR denial on the new screens (pytest covers 403). Communication send and TC approve were not driven in the browser.
-- Role-module status sheet for Administrator was regenerated as `erp complete documentation/QMIS-ERP-Role-Module-Status.updated.14oct-evening.docx` (Admin: **26 Completed, 0 Partial, 0 Not Completed**). The last 7 Partial items were closed by live API verify (Activities create/approve, TC create→forward→approve, Communication send) plus Roles marked Completed as read-only by design. Open that file or the HTML beside it. Archify overview was not regenerated.
-- Roles stay read-only (documented scope).
+- Browser UI click-through for Activities add, TC approve button, and Communication compose was not re-run this evening (live API covers those writes). Teacher/HR denial in the browser not re-run (live API 403 PASS).
+- Roles stay read-only (documented scope). Documents list Delete remains a Super Admin request stub.
+- Other role panels (Teacher/Parent/…) were not re-audited this evening.
 
 ---
 
