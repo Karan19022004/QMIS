@@ -8,6 +8,23 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026 (late) — Parent TC Request API + push
+
+**Status:** Pushed PRM Goods Received work; started Parent panel with **TC Request** (shared `tc_requests`).
+
+### Done
+
+1. Pushed `0597b89` (Goods Received await + Word PRM 21/21).
+2. Parent TC: FE list/add/view use `/tc-requests`; create awaits API. Backend scopes parent to linked children; blocks parent forward/reject-prm.
+3. Pytest `test_parent_tc_requests.py` + existing TC suite green. Word: Parent TC → Completed via `update_parent_status_14oct.py`.
+
+### Open / next
+
+- Parent Announcement / Calendar / Communication / Notifications — pass `roleKey=parent` and hydrate shared APIs.
+- Remaining Parent Not Completed / Partial modules (class, fees, etc.) reuse-first.
+
+---
+
 ## 14 October 2026 (late) — PRM Goods Received + Word status 21/21
 
 **Status:** Goods Received Pass Add/Edit await API. Role-module Word sheet updated: PRM **21 Completed / 0 Partial / 0 Not Completed**.

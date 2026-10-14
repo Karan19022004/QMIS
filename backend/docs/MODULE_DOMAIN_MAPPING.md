@@ -90,14 +90,29 @@ Migration required? **No** means use existing tables; **Yes** only when a new do
 
 ---
 
-## Other role panels (480 − Admin − PRM)
+## Parent (23 modules) — in progress
 
-Remaining sidebar rows (Parent, Student, Teacher, …) **must follow the reuse rule** before any migration.
+| Sidebar module | Domain | FE | API | Tables | Migration? | Verified |
+|---|---|---|---|---|---|---|
+| TC Request | TC (shared) | Student portal TC pages (used under `/parent`) | `/tc-requests` create/list/get | `tc_requests` | No (`0008`) | PASS (parent scoped; pytest) |
+| Escalation Management | Escalations | Student portal escalation pages | existing | `escalations` | No | PASS (sheet already Completed; parents have no escalation write path by design) |
+| Announcement / Communication / Calendar / Notifications | Shared | Still `roleKey=student` wrappers in StudentPortalRoutes | existing | existing | No | NOT RUN (next Parent shared-domain wiring) |
+| Class / Evaluation / Fees / Library / Transport / Hostel | Student portal demos / Partial | StudentPortalRoutes | partial | various | Only if new persistence needed | NOT RUN / Partial on sheet |
+
+### Parent verification notes (14 Oct 2026)
+
+- Select Child already uses `GET /parents/me/children` when API auth is on.
+- TC: parent create/list scoped to linked children; forward/reject-prm blocked for parent.
+- Word: Parent TC Request → **Completed**; sheet recount after script.
+
+## Other role panels (480 − Admin − PRM − Parent in progress)
+
+Remaining sidebar rows **must follow the reuse rule** before any migration.
 
 | Role panel | Modules (sheet) | Default approach |
 |---|---|---|
 | Super Admin | 40 | Mostly shared Admin + broader permissions; reuse Admin domains |
-| Parent / Student | 23 each | Prefer shared students/results/fees/announcements/TC/communication |
+| Student | 23 | Same shared domains as Parent where applicable |
 | Teacher / Coordinator | 30 each | Academics (lesson plans, marks, attendance) already partly in DB |
 | Principal / Director | 21 / 24 | Shared approvals + announcements + calendar; extend permissions |
 | HR | 35 | Prefer `hr_employees` / `hr_records`; new tables only for true payroll gaps |

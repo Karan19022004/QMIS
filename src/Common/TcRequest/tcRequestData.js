@@ -1,12 +1,13 @@
 import {
     canUseTcApi,
+    createTcRequestApi,
     decideTcRequestApi,
     forwardTcRequestApi,
     getTcRequestApi,
     listTcRequestsApi,
     rejectTcRequestAtPrmApi,
 } from '../../services/tcApi'
-import { isoToDmy } from '../../services/documentsApi'
+import { dmyToIso, isoToDmy } from '../../services/documentsApi'
 
 const STORAGE_KEY = 'schoolerp-tc-requests'
 
@@ -170,7 +171,7 @@ const generateRequestId = (requests) => {
     return `TC-REQ-${String(nextNumber).padStart(3, '0')}`
 }
 
-export const createTcRequest = ({
+export const createTcRequest = async ({
     studentId,
     studentName,
     classSection,
@@ -180,6 +181,20 @@ export const createTcRequest = ({
     lastDateOfAttendance,
     requestedBy,
 }) => {
+    if (canUseTcApi()) {
+        const mapped = mapApiRequest(
+            await createTcRequestApi({
+                studentRef: studentId || admissionNumber,
+                reason,
+                transferTo,
+                lastDateOfAttendance: dmyToIso(lastDateOfAttendance) || null,
+                requestedBy: requestedBy || '',
+            }),
+        )
+        apiRequests = [mapped, ...apiRequests.filter((item) => item.id !== mapped.id)]
+        return mapped
+    }
+
     const requests = loadRequests()
     const requestId = generateRequestId(requests)
     const newRequest = {

@@ -1,9 +1,14 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Download } from 'lucide-react'
 import pdf_icon from '../../../assets/images/pdf-icon.png'
 import { useActiveStudent } from '../../../context/ActiveStudentContext'
-import { getTcRequestById, statusBadgeColor } from '../../../Common/TcRequest/tcRequestData'
+import {
+    getTcRequestById,
+    hydrateTcRequestFromApi,
+    statusBadgeColor,
+} from '../../../Common/TcRequest/tcRequestData'
+import { canUseTcApi } from '../../../services/tcApi'
 
 const Section = ({ title, children }) => (
     <div className='bg-white rounded-2xl shadow-md p-4'>
@@ -23,7 +28,38 @@ const ViewTcRequest = () => {
     const { id } = useParams()
     const navigate = useNavigate()
     const { routePrefix } = useActiveStudent()
-    const request = getTcRequestById(id)
+    const [request, setRequest] = useState(() => getTcRequestById(id))
+    const [loadError, setLoadError] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    useEffect(() => {
+        if (!canUseTcApi()) {
+            setRequest(getTcRequestById(id))
+            setLoadError('')
+            return undefined
+        }
+        let active = true
+        setLoading(true)
+        hydrateTcRequestFromApi(id)
+            .then((row) => {
+                if (active) {
+                    setRequest(row)
+                    setLoadError('')
+                }
+            })
+            .catch((error) => {
+                if (active) {
+                    setRequest(null)
+                    setLoadError(error?.message || 'TC request could not be loaded.')
+                }
+            })
+            .finally(() => {
+                if (active) setLoading(false)
+            })
+        return () => {
+            active = false
+        }
+    }, [id])
 
     return (
         <section className='space-y-6'>
@@ -36,7 +72,11 @@ const ViewTcRequest = () => {
                 Back to list
             </button>
 
-            {!request ? (
+            {loading ? (
+                <div className='bg-white rounded-2xl shadow-md p-8 text-center text-[#667085]'>Loading…</div>
+            ) : loadError ? (
+                <div className='bg-white rounded-2xl shadow-md p-8 text-center text-[#B42318]'>{loadError}</div>
+            ) : !request ? (
                 <div className='bg-white rounded-2xl shadow-md p-8 text-center text-[#667085]'>TC request not found.</div>
             ) : (
                 <>

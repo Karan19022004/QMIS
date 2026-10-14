@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import String, cast, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -25,10 +25,34 @@ STATUSES = (
 REASON_MAX = 2000
 TRANSFER_MAX = 200
 REMARKS_MAX = 1000
+_TC_FORWARDERS = {"prm", "admin", "superadmin", "managing_director"}
+_TC_CAMPUS_READERS = {"prm", "admin", "superadmin", "managing_director", "principal", "director"}
 
 
 def _has(db: Session, actor: User, code: str) -> bool:
     return code in permission_codes_for(db, actor)
+
+
+def _parent_child_ids(db: Session, actor: User) -> set[UUID]:
+    parent_key = str(actor.id)
+    rows = db.scalars(
+        select(Student.id).where(
+            Student.campus_id == actor.campus_id,
+            or_(
+                Student.parent_user_id == actor.id,
+                cast(Student.parent_user_id, String) == parent_key,
+            ),
+        )
+    ).all()
+    return set(rows)
+
+
+def _assert_parent_owns_student(db: Session, actor: User, student: Student) -> None:
+    if role_code_for(db, actor) != "parent":
+        return
+    kids = _parent_child_ids(db, actor)
+    if student.id not in kids:
+        fail(403, "forbidden", "You can only file TC requests for your linked children.")
 
 
 def _student(db: Session, actor: User, ref: str) -> Student:
@@ -51,6 +75,9 @@ def _find(db: Session, actor: User, ref: str) -> TcRequest:
     except ValueError:
         row = db.scalar(select(TcRequest).where(TcRequest.campus_id == actor.campus_id, TcRequest.code == ref.strip().upper()))
     if row is None or row.campus_id != actor.campus_id:
+        fail(404, "not_found", "TC request not found.")
+    role = role_code_for(db, actor)
+    if role == "parent" and row.student_id not in _parent_child_ids(db, actor):
         fail(404, "not_found", "TC request not found.")
     return row
 
@@ -88,6 +115,13 @@ def list_requests(db: Session, actor: User) -> list[dict]:
     rows = db.scalars(
         select(TcRequest).where(TcRequest.campus_id == actor.campus_id).order_by(TcRequest.created_at.desc())
     ).all()
+    role = role_code_for(db, actor)
+    if role == "parent":
+        kids = _parent_child_ids(db, actor)
+        rows = [row for row in rows if row.student_id in kids]
+    elif role not in _TC_CAMPUS_READERS:
+        # Other roles with tc.read (if any) do not see campus-wide lists.
+        rows = []
     return [_out(db, row) for row in rows]
 
 
@@ -116,6 +150,7 @@ def create(
     if not _has(db, actor, "tc.write"):
         fail(403, "forbidden", "You are not allowed to file a TC request.")
     student = _student(db, actor, student_ref)
+    _assert_parent_owns_student(db, actor, student)
     reason = (reason or "").strip()
     transfer_to = (transfer_to or "").strip()
     if not reason:
@@ -169,6 +204,8 @@ def create(
 def forward(db: Session, actor: User, ref: str, remarks: str) -> dict:
     if not _has(db, actor, "tc.write"):
         fail(403, "forbidden", "You are not allowed to forward a TC request.")
+    if role_code_for(db, actor) not in _TC_FORWARDERS:
+        fail(403, "forbidden", "Only Front Office or administrators can forward TC requests.")
     row = _find(db, actor, ref)
     if row.status != "Pending PRM Review":
         fail(409, "wrong_status", "Only a request awaiting PRM review can be forwarded.")
@@ -195,6 +232,8 @@ def forward(db: Session, actor: User, ref: str, remarks: str) -> dict:
 def reject_at_prm(db: Session, actor: User, ref: str, remarks: str) -> dict:
     if not _has(db, actor, "tc.write"):
         fail(403, "forbidden", "You are not allowed to reject a TC request at PRM review.")
+    if role_code_for(db, actor) not in _TC_FORWARDERS:
+        fail(403, "forbidden", "Only Front Office or administrators can reject TC requests at PRM review.")
     row = _find(db, actor, ref)
     if row.status != "Pending PRM Review":
         fail(409, "wrong_status", "Only a request awaiting PRM review can be rejected here.")
