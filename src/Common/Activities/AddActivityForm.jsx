@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import DatePicker from 'react-datepicker'
@@ -7,13 +7,17 @@ import { Calendar } from 'lucide-react'
 import {
     MD_APPROVAL_STATUS,
     addActivity,
+    addActivityViaApi,
     formatEventDate,
     formatTimeLabel,
     getActivityById,
+    hydrateActivitiesFromApi,
     parseEventDateForInput,
     parseTimeForInput,
     updateActivity,
+    updateActivityViaApi,
 } from './activitiesData'
+import { canUseActivitiesApi } from '../../services/activitiesApi'
 import { getActivityConfig, getActivityRoutes } from './activityConfigs'
 import { getClassSelectOptions } from '../RBAC/academicsCatalogData'
 import MdApprovalSubmitModal from './MdApprovalSubmitModal'
@@ -48,9 +52,22 @@ export default function AddActivityForm({ roleKey, activityType, mode = 'add' })
     const navigate = useNavigate()
     const config = getActivityConfig(activityType)
     const routes = getActivityRoutes(activityType, roleKey)
+    const [hydrated, setHydrated] = useState(!canUseActivitiesApi())
+    useEffect(() => {
+        if (!canUseActivitiesApi()) return undefined
+        let active = true
+        hydrateActivitiesFromApi(activityType).then(() => {
+            if (active) setHydrated(true)
+        }).catch(() => {
+            if (active) setHydrated(true)
+        })
+        return () => {
+            active = false
+        }
+    }, [activityType])
     const existing = useMemo(
-        () => (isEdit && id ? getActivityById(id) : null),
-        [isEdit, id],
+        () => (hydrated && isEdit && id ? getActivityById(id) : null),
+        [hydrated, isEdit, id],
     )
     const classOptions = useMemo(() => getClassSelectOptions(), [])
 
@@ -109,6 +126,32 @@ export default function AddActivityForm({ roleKey, activityType, mode = 'add' })
         setError('')
 
         const payload = buildPayload()
+
+        if (canUseActivitiesApi()) {
+            const run = isEdit ? updateActivityViaApi(id, payload) : addActivityViaApi(payload)
+            run.then(() => {
+                if (isEdit) {
+                    toast.success(
+                        roleKey === 'admin'
+                            ? 'Activity updated and sent for Super Admin approval.'
+                            : 'Activity updated.',
+                    )
+                    navigate(routes.list)
+                    return
+                }
+                if (roleKey === 'admin') {
+                    setApprovalModal(true)
+                    setForm(emptyForm(config.personField))
+                    toast.success('Activity submitted for Super Admin approval.')
+                    return
+                }
+                toast.success('Activity saved and added to the calendar.')
+                navigate(routes.list)
+            }).catch((caught) => {
+                setError(caught?.message || 'The activity could not be saved.')
+            })
+            return
+        }
 
         if (isEdit) {
             updateActivity(id, payload)

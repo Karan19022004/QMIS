@@ -3,12 +3,12 @@ import { Search, X } from 'lucide-react'
 import { DIRECTORY_CONTACTS } from '../communicationData'
 import UserAvatar from './UserAvatar'
 
-const NewMessageModal = ({ open, onClose, currentUserId, existingParticipantIds = [], onSelect }) => {
+const NewMessageModal = ({ open, onClose, currentUserId, existingParticipantIds = [], onSelect, contacts: supplied }) => {
     const [query, setQuery] = useState('')
 
     const contacts = useMemo(() => {
         const q = query.trim().toLowerCase()
-        return DIRECTORY_CONTACTS.filter((contact) => {
+        return (supplied || DIRECTORY_CONTACTS).filter((contact) => {
             if (contact.id === currentUserId) return false
             if (!q) return true
             return (
@@ -18,7 +18,7 @@ const NewMessageModal = ({ open, onClose, currentUserId, existingParticipantIds 
                 contact.department.toLowerCase().includes(q)
             )
         })
-    }, [currentUserId, query])
+    }, [currentUserId, query, supplied])
 
     if (!open) return null
 

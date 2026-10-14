@@ -1,3 +1,6 @@
+import { canUseTcApi, decideTcRequestApi, getTcRequestApi, listTcRequestsApi } from '../../services/tcApi'
+import { isoToDmy } from '../../services/documentsApi'
+
 const STORAGE_KEY = 'schoolerp-tc-requests'
 
 export const TC_STATUSES = [
@@ -61,7 +64,49 @@ const SEED_REQUESTS = [
     },
 ]
 
+let apiRequests = []
+
+const mapApiRequest = (row) => ({
+    ...row,
+    requestedOn: isoToDmy(row.requestedOn) || row.requestedOn,
+    lastDateOfAttendance: isoToDmy(row.lastDateOfAttendance) || row.lastDateOfAttendance || '—',
+    forwardedOn: isoToDmy(row.forwardedOn) || row.forwardedOn,
+    approvedOn: isoToDmy(row.approvedOn) || row.approvedOn,
+    rejectedOn: isoToDmy(row.rejectedOn) || row.rejectedOn,
+    tcIssuedDate: isoToDmy(row.tcIssuedDate) || row.tcIssuedDate,
+    fromApi: true,
+})
+
+export const hydrateTcRequestsFromApi = async () => {
+    apiRequests = (await listTcRequestsApi()).map(mapApiRequest)
+    try {
+        sessionStorage.removeItem(STORAGE_KEY)
+    } catch {
+        /* ignore */
+    }
+    return apiRequests
+}
+
+export const hydrateTcRequestFromApi = async (ref) => {
+    const mapped = mapApiRequest(await getTcRequestApi(ref))
+    apiRequests = apiRequests.some((item) => item.id === mapped.id)
+        ? apiRequests.map((item) => (item.id === mapped.id ? mapped : item))
+        : [mapped, ...apiRequests]
+    return mapped
+}
+
+export const clearTcRequestMemory = () => {
+    apiRequests = []
+}
+
+export const decideTcRequestViaApi = async (ref, decision, remarks) => {
+    const mapped = mapApiRequest(await decideTcRequestApi(ref, decision, remarks))
+    apiRequests = apiRequests.map((item) => (item.id === mapped.id ? mapped : item))
+    return mapped
+}
+
 const loadRequests = () => {
+    if (canUseTcApi()) return [...apiRequests]
     try {
         const stored = sessionStorage.getItem(STORAGE_KEY)
         if (stored) {
@@ -75,6 +120,7 @@ const loadRequests = () => {
 }
 
 const saveRequests = (requests) => {
+    if (canUseTcApi()) return
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(requests))
 }
 

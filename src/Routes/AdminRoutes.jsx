@@ -86,13 +86,14 @@ import UserCreationPage from '../Pages/Admin/RBAC/UserCreationPage'
 import CreateUserPage from '../Pages/Admin/RBAC/CreateUserPage'
 import RolesPage from '../Pages/Admin/RBAC/RolesPage'
 
-// import Dashboard from '../Pages/Dashboard/Dashboard'
+import Dashboard from '../Pages/Admin/Dashboard/Dashboard'
 
 const AdminRoutes = () => {
     return (
         <ReactRoutes>
 
-            <Route path="/dashboard" element={<div>Admin Dashboard</div>} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/admin/dashboard" element={<Dashboard />} />
             <Route path="*" element={<div>Admin Home</div>} />
 
             {/* Front Office */}

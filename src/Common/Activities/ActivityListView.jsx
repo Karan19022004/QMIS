@@ -10,10 +10,12 @@ import {
     MD_APPROVAL_STATUS,
     deleteActivity,
     getActivitiesByType,
+    hydrateActivitiesFromApi,
     getPersonInCharge,
     mdApprovalBadgeColor,
 } from './activitiesData'
 import { getActivityConfig, getActivityRoutes, getActivityEditPath, getActivityViewPath } from './activityConfigs'
+import { canUseActivitiesApi } from '../../services/activitiesApi'
 import { getClassDisplayLabel, getClassSelectOptions } from '../RBAC/academicsCatalogData'
 
 export default function ActivityListView({ roleKey, activityType }) {
@@ -37,6 +39,21 @@ export default function ActivityListView({ roleKey, activityType }) {
     useEffect(() => {
         setRefreshKey((value) => value + 1)
     }, [location.pathname])
+
+    useEffect(() => {
+        if (!canUseActivitiesApi()) return undefined
+        let active = true
+        hydrateActivitiesFromApi(activityType)
+            .then(() => {
+                if (active) setRefreshKey((value) => value + 1)
+            })
+            .catch(() => {
+                if (active) toast.error('Activities could not be loaded.')
+            })
+        return () => {
+            active = false
+        }
+    }, [activityType, location.key])
 
     const filteredActivities = useMemo(() => {
         const query = search.trim().toLowerCase()

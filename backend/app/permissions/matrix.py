@@ -84,6 +84,17 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("documents.employees.write", "Upload, replace and remove employee documents"),
     ("announcements.read", "View announcements sent to your role"),
     ("announcements.write", "Send announcements"),
+    ("calendar.read", "View the academic calendar"),
+    ("calendar.write", "Add, change and remove academic calendar events"),
+    ("tc.read", "View transfer-certificate requests"),
+    ("tc.write", "File or forward a transfer-certificate request"),
+    ("tc.decide", "Approve or reject a transfer-certificate request"),
+    ("activities.read", "View cultural, sports and competition activities"),
+    ("activities.write", "Add, change and remove activities"),
+    ("activities.approve", "Approve or reject an activity"),
+    ("communication.read", "View own inbox"),
+    ("communication.write", "Send messages"),
+    ("dashboard.read", "View administrator dashboard figures"),
 ]
 
 ALL_PERMISSION_CODES = [code for code, _ in PERMISSIONS]
@@ -202,3 +213,44 @@ for _code, _perms in ROLE_PERMISSIONS.items():
         _perms.append("announcements.read")
     if _code in _ANNOUNCEMENT_SENDERS and "announcements.write" not in _perms:
         _perms.append("announcements.write")
+
+# Academic calendar: every role can read it; the school office roles that plan the year can change it
+# (Super Admin and the Managing Director already hold every permission).
+_CALENDAR_EDITORS = {"admin", "principal"}
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if "calendar.read" not in _perms:
+        _perms.append("calendar.read")
+    if _code in _CALENDAR_EDITORS and "calendar.write" not in _perms:
+        _perms.append("calendar.write")
+
+# TC requests: parents and front office file them; PRM forwards; administrators decide.
+# Super Admin / Managing Director already hold every permission.
+_TC_FILERS = {"parent", "prm", "admin"}
+_TC_FORWARDERS = {"prm", "admin"}
+_TC_DECIDERS = {"admin"}
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code in {"admin", "superadmin", "managing_director", "prm", "parent"} and "tc.read" not in _perms:
+        _perms.append("tc.read")
+    if _code in _TC_FILERS and "tc.write" not in _perms:
+        _perms.append("tc.write")
+    if _code in _TC_DECIDERS and "tc.decide" not in _perms:
+        _perms.append("tc.decide")
+
+# Activities: every staff role can read; the office roles that run events can write; Super Admin decides.
+_ACTIVITY_EDITORS = {"admin", "principal", "director", "coordinator"}
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code != "parent" and "activities.read" not in _perms:
+        _perms.append("activities.read")
+    if _code in _ACTIVITY_EDITORS and "activities.write" not in _perms:
+        _perms.append("activities.write")
+
+# Communication: every signed-in role may use the inbox.
+for _code, _perms in ROLE_PERMISSIONS.items():
+    for _p in ("communication.read", "communication.write"):
+        if _p not in _perms:
+            _perms.append(_p)
+
+# Administrator dashboard figures (the /dashboard page). Super Admin already holds every permission.
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code == "admin" and "dashboard.read" not in _perms:
+        _perms.append("dashboard.read")

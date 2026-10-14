@@ -1,12 +1,16 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
+import { toast } from 'react-toastify'
 import {
     approveTcRequest,
+    decideTcRequestViaApi,
     getTcRequestById,
+    hydrateTcRequestFromApi,
     rejectTcRequest,
     statusBadgeColor,
 } from '../../../Common/TcRequest/tcRequestData'
+import { canUseTcApi } from '../../../services/tcApi'
 
 const Section = ({ title, children }) => (
     <div className='bg-white rounded-2xl shadow-md p-4'>
@@ -27,13 +31,53 @@ const ViewTcRequestApproval = () => {
     const navigate = useNavigate()
     const [request, setRequest] = useState(() => getTcRequestById(id))
     const [superAdminRemarks, setSuperAdminRemarks] = useState(request?.superAdminRemarks ?? '')
+    const [busy, setBusy] = useState(false)
 
-    const handleApprove = () => {
+    useEffect(() => {
+        if (!canUseTcApi()) return undefined
+        let active = true
+        hydrateTcRequestFromApi(id)
+            .then((row) => {
+                if (!active) return
+                setRequest(row)
+                setSuperAdminRemarks(row.superAdminRemarks || '')
+            })
+            .catch(() => {
+                if (active) setRequest(null)
+            })
+        return () => {
+            active = false
+        }
+    }, [id])
+
+    const handleApprove = async () => {
+        if (canUseTcApi()) {
+            if (busy) return
+            setBusy(true)
+            try {
+                setRequest(await decideTcRequestViaApi(id, 'approve', superAdminRemarks))
+            } catch (error) {
+                toast.error(error?.message || 'The request could not be approved.')
+            }
+            setBusy(false)
+            return
+        }
         const updated = approveTcRequest(id, superAdminRemarks)
         if (updated) setRequest(updated)
     }
 
-    const handleReject = () => {
+    const handleReject = async () => {
+        if (canUseTcApi()) {
+            if (busy) return
+            setBusy(true)
+            try {
+                setRequest(await decideTcRequestViaApi(id, 'reject', superAdminRemarks))
+            } catch (error) {
+                toast.error(error?.message || 'The request could not be rejected.')
+            }
+            setBusy(false)
+            return
+        }
         const updated = rejectTcRequest(id, superAdminRemarks, 'admin')
         if (updated) setRequest(updated)
     }

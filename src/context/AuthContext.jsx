@@ -26,6 +26,9 @@ import { apiChangePassword, apiLogin, apiLogout, apiMe } from '../services/authA
 import { clearLeaveRequestMemory } from '../Common/LeaveRequest/leaveRequestData'
 import { clearEscalationMemory } from '../Common/EscalationManagement/escalationData'
 import { clearAnnouncementsMemory } from '../Common/Announcement/announcementData'
+import { clearCalendarMemory } from '../Common/AcademicCalendar/academicCalendarData'
+import { clearActivitiesMemory } from '../Common/Activities/activitiesData'
+import { clearTcRequestMemory } from '../Common/TcRequest/tcRequestData'
 import { clearEmployeeDocumentsMemory } from '../Pages/Admin/Documents/EmployeeDocuments/employeeDocumentsData'
 import { clearStudentDocumentsMemory } from '../Pages/Admin/Documents/StudentDocuments/studentDocumentsData'
 
@@ -362,6 +365,9 @@ export const AuthProvider = ({ children }) => {
         clearStudentDocumentsMemory() // uploaded-document lists are server data too
         clearEmployeeDocumentsMemory()
         clearAnnouncementsMemory() // announcements, replies and acknowledgements are server data too
+        clearCalendarMemory()
+        clearActivitiesMemory()
+        clearTcRequestMemory()
         clearActiveAdminSession()
         clearActiveCreatedUserSession()
         setIsAuthenticated(false)

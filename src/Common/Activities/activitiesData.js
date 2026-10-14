@@ -1,3 +1,12 @@
+import {
+    canUseActivitiesApi,
+    createActivityApi,
+    listActivitiesApi,
+    updateActivityApi,
+    approveActivityApi as approveActivityOnServer,
+} from '../../services/activitiesApi'
+import { dmyToIso, isoToDmy } from '../../services/documentsApi'
+
 const STORAGE_KEY = 'school-erp-activities'
 
 export const MD_APPROVAL_STATUS = {
@@ -46,7 +55,72 @@ const mergeDefaultActivities = (records) => {
     return missingDefaults.length > 0 ? [...missingDefaults, ...records] : records
 }
 
+let apiActivities = []
+
+const mapApiActivity = (row) => ({
+    ...row,
+    eventDate: isoToDmy(row.eventDate) || row.eventDate,
+    submittedDate: isoToDmy(row.submittedDate) || row.submittedDate,
+    fromApi: true,
+})
+
+export const hydrateActivitiesFromApi = async (type) => {
+    const rows = (await listActivitiesApi(type)).map(mapApiActivity)
+    if (type) {
+        apiActivities = [...apiActivities.filter((item) => item.type !== type), ...rows]
+    } else {
+        apiActivities = rows
+    }
+    try {
+        localStorage.removeItem(STORAGE_KEY)
+    } catch {
+        /* ignore */
+    }
+    return type ? rows : apiActivities
+}
+
+export const clearActivitiesMemory = () => {
+    apiActivities = []
+}
+
+const toApiPayload = (payload) => ({
+    type: payload.type,
+    eventName: payload.eventName,
+    eventType: payload.eventType,
+    className: payload.className,
+    eventDate: dmyToIso(payload.eventDate) || payload.eventDate,
+    startTime: payload.startTime,
+    endTime: payload.endTime,
+    venue: payload.venue,
+    coordinator: payload.coordinator,
+    coach: payload.coach,
+    description: payload.description,
+    players: payload.players,
+})
+
+export const addActivityViaApi = async (payload) => {
+    const mapped = mapApiActivity(await createActivityApi(toApiPayload(payload)))
+    apiActivities = [mapped, ...apiActivities.filter((item) => item.id !== mapped.id)]
+    notifyCalendarUpdated()
+    return mapped
+}
+
+export const updateActivityViaApi = async (id, payload) => {
+    const mapped = mapApiActivity(await updateActivityApi(id, toApiPayload({ ...payload, type: payload.type })))
+    apiActivities = apiActivities.map((item) => (item.id === mapped.id ? mapped : item))
+    notifyCalendarUpdated()
+    return mapped
+}
+
+export const approveActivityViaApi = async (id, status) => {
+    const mapped = mapApiActivity(await approveActivityOnServer(id, status))
+    apiActivities = apiActivities.map((item) => (item.id === mapped.id ? mapped : item))
+    notifyCalendarUpdated()
+    return mapped
+}
+
 export const getActivities = () => {
+    if (canUseActivitiesApi()) return [...apiActivities]
     try {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) {
@@ -66,6 +140,7 @@ export const getActivities = () => {
 }
 
 export const saveActivities = (records) => {
+    if (canUseActivitiesApi()) return
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
 }
 
@@ -101,7 +176,7 @@ export const parseActivityDateToIso = (dateStr) => {
     return ''
 }
 
-export const notifyCalendarUpdated = () => {
+export function notifyCalendarUpdated() {
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event(CALENDAR_UPDATED_EVENT))
     }

@@ -132,6 +132,18 @@ export const isApiAnnouncementsEnabled = () => {
     return isApiAuthEnabled()
 }
 
+const flagOrAuth = (envName) => {
+    const explicit = import.meta.env[envName]
+    if (explicit !== undefined && explicit !== '') return String(explicit) === 'true'
+    return isApiAuthEnabled()
+}
+
+export const isApiCalendarEnabled = () => flagOrAuth('VITE_USE_API_CALENDAR')
+export const isApiTcEnabled = () => flagOrAuth('VITE_USE_API_TC')
+export const isApiActivitiesEnabled = () => flagOrAuth('VITE_USE_API_ACTIVITIES')
+export const isApiCommunicationEnabled = () => flagOrAuth('VITE_USE_API_COMMUNICATION')
+export const isApiDashboardEnabled = () => flagOrAuth('VITE_USE_API_DASHBOARD')
+
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {
     if (token) sessionStorage.setItem(TOKEN_KEY, token)

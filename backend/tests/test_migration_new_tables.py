@@ -36,6 +36,21 @@ MIGRATIONS = {
         "(id, campus_id, code, title, category, message, sent_by, sender_role, announcement_date, audience, "
         "created_at) VALUES ('a', 'b', 'AN-0001', 't', 'Staff Notice', 'm', 'Admin', 'admin', '2026-10-14', '[]', "
         "CURRENT_TIMESTAMP)"),
+    "0007_calendar_events.py": ("calendar_events", "INSERT INTO calendar_events "
+        "(id, campus_id, code, event_type, title, start_date, end_date, description, created_at) "
+        "VALUES ('a', 'b', 'hol-1', 'holiday', 't', '2026-01-26', '2026-01-26', '', CURRENT_TIMESTAMP)"),
+    "0008_tc_requests.py": ("tc_requests", "INSERT INTO tc_requests "
+        "(id, campus_id, code, student_id, reason, transfer_to, requested_by, requested_on, status, "
+        "prm_remarks, admin_remarks, tc_number, created_at) VALUES "
+        "('a', 'b', 'TC-REQ-001', 'c', 'r', 's', 'Parent', '2026-10-14', 'Pending PRM Review', '', '', '', "
+        "CURRENT_TIMESTAMP)"),
+    "0009_activities.py": ("activities", "INSERT INTO activities "
+        "(id, campus_id, code, activity_type, event_name, event_type, class_name, event_date, start_time, "
+        "end_time, venue, coordinator, coach, description, submitted_by, submitted_date, md_approval_status, "
+        "created_at) VALUES ('a', 'b', 'ACT-CUL-001', 'cultural', 'n', '', '', '2026-10-14', '', '', '', '', "
+        "'', '', 'Admin', '2026-10-14', 'Pending', CURRENT_TIMESTAMP)"),
+    "0010_communication.py": ("conversations", "INSERT INTO conversations "
+        "(id, campus_id, pair_key, created_at) VALUES ('a', 'b', 'x:y', CURRENT_TIMESTAMP)"),
 }
 
 

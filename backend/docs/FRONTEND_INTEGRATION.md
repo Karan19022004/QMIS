@@ -30,7 +30,7 @@ Archify overview: `.archify/architecture-project-overview/qmis-erp-overview.html
 | principal@qmis.edu | principal |
 | director@qmis.edu | director |
 
-Passwords come from the seed settings (*_SEED_PASSWORD in ackend/.env). Demo accounts are created only when ENVIRONMENT=development.
+Passwords come from the seed settings (*_SEED_PASSWORD in backend/.env). Demo accounts are created only when ENVIRONMENT=development.
 
 ### Run
 
@@ -184,5 +184,22 @@ Known gaps in the wired modules:
 - `connectHrApi` and `connectFinanceApi` sign in with hard-coded seeded accounts when no token exists, instead of using the signed-in user. Fine for demo, must change before production.
 - Logout cannot revoke a JWT (stateless); the client discards the token.
 - Backend approval states are Pending / Approved / Denied (leave maps to the FE's Pending / Approved / Rejected).
+
+### Administrator modules added 14 Oct 2026
+
+Flags default on whenever API sign-in is on. Set `VITE_USE_API_<NAME>=false` to keep the browser-only copy. Server data is held in memory and cleared on sign-out.
+
+| Area | Flag | Routes | Notes |
+|---|---|---|---|
+| Documents | `VITE_USE_API_DOCUMENTS` | `/api/v1/documents/{students\|employees}` | Migration `0005`. Student status is automatic (Completed only when all four files are in). Employee labels are free text. Downloads use the bearer header (not `?token=`). |
+| Announcements | `VITE_USE_API_ANNOUNCEMENTS` | `/api/v1/announcements` | Migration `0006`. Sender and audience are set by the server. HR portal keeps its own store. |
+| Calendar | `VITE_USE_API_CALENDAR` | `/api/v1/calendar` | Migration `0007`. Seeds the 2026–27 holidays/exams/events once per campus. Approved and pending activities overlay as `event` items. |
+| TC requests | `VITE_USE_API_TC` | `/api/v1/tc-requests` | Migration `0008`. File → PRM forward → administrator approve/reject. Reject needs a remark. One open request per student. |
+| Activities | `VITE_USE_API_ACTIVITIES` | `/api/v1/activities` | Migration `0009`. Types `cultural` / `sports` / `competition`. Chess results are sports rows whose name or type contains "chess", plus `players`. |
+| Communication | `VITE_USE_API_COMMUNICATION` | `/api/v1/communication` | Migration `0010`. Two-person threads. Attachments are PDF/JPG/PNG up to 5 MB. Directory is the campus's active logins. |
+| Notifications page | `VITE_USE_API_NOTIFICATIONS` | `GET /api/v1/notifications`, `POST …/{id}/read` | Existing inbox API. The Admin list maps `entityType` to the card type. Opening a card marks it read. |
+| Dashboard | `VITE_USE_API_DASHBOARD` | `GET /api/v1/admin/dashboard` | Live counts. The Admin sidebar `/dashboard` is allowed through `App.jsx` (admin routes otherwise require `/admin`). |
+
+**Apply:** back up, then from `backend`: `alembic upgrade head`. Head is `0010_communication`. Revisions `0005`–`0010` only add missing tables and refuse to downgrade while those tables hold rows.
 
 Next frontend work, in order: lesson plans and marks (blocked on product decisions: weekly vs monthly plans, and an exam-schedule screen), each behind its own `VITE_USE_API_*` flag.

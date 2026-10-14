@@ -9,7 +9,9 @@ import {
     ACADEMIC_EVENT_TYPES,
     getAcademicCalendarRoleConfig,
     getAllCalendarItems,
+    hydrateCalendarFromApi,
 } from './academicCalendarData'
+import { canUseCalendarApi } from '../../services/calendarApi'
 import { CALENDAR_UPDATED_EVENT } from '../Activities/activitiesData'
 import {
     format,
@@ -45,6 +47,8 @@ const AcademicCalendarPage = ({ roleKey }) => {
     const [selectedDate, setSelectedDate] = useState(null)
     const [activeTypes, setActiveTypes] = useState(() => new Set(TYPE_KEYS))
     const [calendarRefresh, setCalendarRefresh] = useState(0)
+    const [serverItems, setServerItems] = useState(null)
+    const [loadError, setLoadError] = useState('')
 
     useEffect(() => {
         const refresh = () => setCalendarRefresh((value) => value + 1)
@@ -56,10 +60,29 @@ const AcademicCalendarPage = ({ roleKey }) => {
         }
     }, [])
 
+    useEffect(() => {
+        if (!canUseCalendarApi()) return undefined
+        let active = true
+        hydrateCalendarFromApi()
+            .then((rows) => {
+                if (active) {
+                    setServerItems(rows)
+                    setLoadError('')
+                }
+            })
+            .catch((error) => {
+                if (active) setLoadError(error?.message || 'The calendar could not be loaded.')
+            })
+        return () => {
+            active = false
+        }
+    }, [])
+
     const filteredItems = useMemo(() => {
         void calendarRefresh
-        return getAllCalendarItems().filter((item) => activeTypes.has(item.type))
-    }, [activeTypes, calendarRefresh])
+        const source = canUseCalendarApi() ? (serverItems ?? []) : getAllCalendarItems()
+        return source.filter((item) => activeTypes.has(item.type))
+    }, [activeTypes, calendarRefresh, serverItems])
 
     const cells = useMemo(() => getMonthCells(currentDate), [currentDate])
     const monthItems = useMemo(
@@ -114,6 +137,7 @@ const AcademicCalendarPage = ({ roleKey }) => {
                         <p className="mt-0.5 text-sm text-[#667085]">
                             View holidays, exam timelines, and school events including Cultural, Sports & Competition activities.
                         </p>
+                        {loadError ? <p className="mt-1 text-sm text-[#B42318]">{loadError}</p> : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <button

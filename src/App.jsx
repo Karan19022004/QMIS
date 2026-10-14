@@ -249,7 +249,7 @@ const App = () => {
   }
 
   if (role === ROLES.ADMIN) {
-    if (!pathname.startsWith("/admin")) {
+    if (!pathname.startsWith("/admin") && pathname !== "/dashboard") {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.ADMIN]} replace />;
     }
     return <AdminLayout />;

@@ -8,6 +8,29 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 14 October 2026 (evening)
+
+**Status:** The remaining Administrator modules now persist on the server: Documents (`cd2ec2f`), Notifications and Announcements (`d745b0d`), Calendar, TC Request Approval, Activities, Communication and the Dashboard (this tree). Migrations `0005`–`0010` are on the development database (backup taken before each apply). Existing screens are wired; layout and navigation are unchanged except `/dashboard` is now allowed for the Admin role so the sidebar link works. Full backend suite **400 passed**.
+
+### Done this evening
+
+1. **Documents (committed `cd2ec2f`).** Student and employee folders on `/api/v1/documents`, authorised download, 5 MB PDF/JPG/PNG with signature checks. Browser: add/replace student files, employee upload and status change, delete folders. Teacher denied; HR employees-only.
+2. **Notifications page.** Admin list reads `GET /notifications` and marks a card read when it is opened. Sample cards stay only when there is no backend session.
+3. **Announcements (`0006`).** Send, list, view, acknowledge, reply, attachment. Sender and audience are server-set. Browser: list shows the two notices that exist on this campus (`AN-0001`, `AN-0002`).
+4. **Calendar (`0007`).** 17 seeded 2026–27 items plus activity overlays. Browser: after load, Upcoming shows Annual Sports Day, Diwali and Unit Test.
+5. **TC requests (`0008`).** File / forward / approve / reject. Admin approval screen reads the server. Browser list is empty (no live requests); API lifecycle is covered by pytest.
+6. **Activities (`0009`).** Cultural / sports / competition CRUD, chess players, MD approval. Overlay onto the calendar.
+7. **Communication (`0010`).** Real two-person inbox from campus logins. Attachments follow the same file rules.
+8. **Dashboard.** `GET /api/v1/admin/dashboard`. Browser as Administrator: Students 10, Employees 17, Leave 1, Escalations 0, TC 0, Unread 28, Announcements this month 2.
+
+### Not done / open
+
+- Browser not run for Teacher/HR denial on the new screens (pytest covers 403). Communication send and TC approve were not driven in the browser.
+- Role-module status sheet and Archify overview were not regenerated (the Word review copies are open / locked).
+- Roles stay read-only (documented scope).
+
+---
+
 ## 14 October 2026
 
 **Status:** Class Details now stores capacity, room and class teacher on the server, per academic year, and the Administrator can edit, deactivate and delete classes from the screen. Backend, migration `0004` (applied to the development database after a backup and a rehearsal on a copy), frontend and tests are done; checked in a browser as Administrator. Nothing is pushed or merged.

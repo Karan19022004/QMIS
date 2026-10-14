@@ -1,10 +1,13 @@
+import { useEffect, useState } from 'react'
 import { NavLink, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import {
     getActivityById,
     getPersonInCharge,
+    hydrateActivitiesFromApi,
     mdApprovalBadgeColor,
 } from './activitiesData'
+import { canUseActivitiesApi } from '../../services/activitiesApi'
 import { getActivityConfig, getActivityRoutes } from './activityConfigs'
 import { getClassDisplayLabel } from '../RBAC/academicsCatalogData'
 
@@ -19,7 +22,20 @@ export default function ViewActivityPage({ roleKey, activityType }) {
     const { id } = useParams()
     const config = getActivityConfig(activityType)
     const routes = getActivityRoutes(activityType, roleKey)
-    const activity = getActivityById(id)
+    const [ready, setReady] = useState(!canUseActivitiesApi())
+    useEffect(() => {
+        if (!canUseActivitiesApi()) return undefined
+        let active = true
+        hydrateActivitiesFromApi(activityType).then(() => {
+            if (active) setReady(true)
+        }).catch(() => {
+            if (active) setReady(true)
+        })
+        return () => {
+            active = false
+        }
+    }, [activityType])
+    const activity = ready ? getActivityById(id) : null
     const approvalStatusHeader = roleKey === 'admin' ? 'Super Admin Approval Status' : 'MD Approval Status'
     const players = activity?.players || []
 

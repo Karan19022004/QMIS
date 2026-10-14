@@ -1,4 +1,5 @@
 import { getActivityCalendarItems } from '../Activities/activitiesData'
+import { canUseCalendarApi, listCalendarApi } from '../../services/calendarApi'
 
 export const ACADEMIC_EVENT_TYPES = {
     holiday: {
@@ -163,11 +164,22 @@ export const ACADEMIC_CALENDAR_ITEMS = [
     },
 ]
 
-/** Static holidays/exams/events plus Cultural, Sports & Competition activities. */
-export const getAllCalendarItems = () => [
-    ...ACADEMIC_CALENDAR_ITEMS,
-    ...getActivityCalendarItems(),
-]
+let apiItems = []
+
+export const hydrateCalendarFromApi = async () => {
+    apiItems = await listCalendarApi()
+    return apiItems
+}
+
+export const clearCalendarMemory = () => {
+    apiItems = []
+}
+
+/** Server events (including activity overlays) when signed in; otherwise the static year plus local activities. */
+export const getAllCalendarItems = () =>
+    canUseCalendarApi()
+        ? [...apiItems]
+        : [...ACADEMIC_CALENDAR_ITEMS, ...getActivityCalendarItems()]
 
 export const ACADEMIC_CALENDAR_ROLE_CONFIG = {
     superAdmin: { roleLabel: 'Super Admin', routeBase: '/super-admin/academic-calendar' },

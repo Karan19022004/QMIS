@@ -7,8 +7,13 @@ from app.api.v1.endpoints.admissions import router as admissions_router
 from app.api.v1.endpoints.admin_users import router as admin_users_router
 from app.api.v1.endpoints.audit import router as audit_router
 from app.api.v1.endpoints.auth import router as auth_router
+from app.api.v1.endpoints.activities import router as activities_router
 from app.api.v1.endpoints.announcements import router as announcements_router
+from app.api.v1.endpoints.calendar import router as calendar_router
+from app.api.v1.endpoints.communication import router as communication_router
+from app.api.v1.endpoints.dashboard import router as dashboard_router
 from app.api.v1.endpoints.documents import router as documents_router
+from app.api.v1.endpoints.tc_requests import router as tc_requests_router
 from app.api.v1.endpoints.files import router as files_router
 from app.api.v1.endpoints.finance import router as finance_router
 from app.api.v1.endpoints.hr import router as hr_router
@@ -76,6 +81,11 @@ app.include_router(hr_router)
 app.include_router(files_router)
 app.include_router(documents_router)
 app.include_router(announcements_router)
+app.include_router(calendar_router)
+app.include_router(tc_requests_router)
+app.include_router(activities_router)
+app.include_router(communication_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/health")
