@@ -1,5 +1,5 @@
 import CommunicationPage from '../../../Common/Communication/CommunicationPage'
 
-const DirectMessages = () => <CommunicationPage roleKey='teacher' mode='direct' />
+const DirectMessages = () => <CommunicationPage roleKey='coordinator' mode='direct' />
 
 export default DirectMessages
