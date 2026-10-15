@@ -14,11 +14,16 @@ import {
     examStatusColor,
     getClassSectionLabel,
     getExamTimetables,
+    mapExamApiToTimetableRecord,
 } from './examinationTimetableData'
+import { canUseExamsApi, listExamsApi } from '../../../services/examsApi'
 
 const ExaminationTimetableList = () => {
     const location = useLocation()
-    const [records, setRecords] = useState(() => getExamTimetables())
+    const api = canUseExamsApi()
+    const [records, setRecords] = useState(() => (api ? [] : getExamTimetables()))
+    const [loadError, setLoadError] = useState('')
+    const [loading, setLoading] = useState(api)
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [editRequestModal, setEditRequestModal] = useState(false)
@@ -29,8 +34,34 @@ const ExaminationTimetableList = () => {
     const [statusFilter, setStatusFilter] = useState('')
 
     useEffect(() => {
-        setRecords(getExamTimetables())
-    }, [location.key])
+        if (!api) {
+            setRecords(getExamTimetables())
+            setLoading(false)
+            setLoadError('')
+            return undefined
+        }
+        let cancelled = false
+        setLoading(true)
+        listExamsApi()
+            .then((rows) => {
+                if (!cancelled) {
+                    setRecords(rows.map(mapExamApiToTimetableRecord))
+                    setLoadError('')
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setRecords([])
+                    setLoadError(err?.message || 'Could not load campus exams.')
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [api, location.key])
 
     const filteredRecords = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -116,8 +147,12 @@ const ExaminationTimetableList = () => {
                     <div>
                         <h2 className='text-xl font-medium text-black'>Examination Timetable List</h2>
                         <p className='text-sm text-[#667085] mt-1'>
-                            Create examination timetables for Director approval.
+                            {api
+                                ? 'Campus exams from GET /exams (exams.write for create/submit).'
+                                : 'Create examination timetables for Director approval.'}
                         </p>
+                        {loading && <p className='text-sm text-[#667085] mt-1'>Loading exams…</p>}
+                        {loadError && <p className='text-sm text-[#B42318] mt-1'>{loadError}</p>}
                     </div>
                     <div className='flex gap-x-2'>
                         <NavLink

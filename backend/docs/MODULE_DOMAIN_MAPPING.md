@@ -119,11 +119,17 @@ Same academic APIs as Teacher plus **`exams.write`**. Biometric remains Gap. FE:
 
 ---
 
+## Principal (21 modules) — Completed
+
+Shared staff APIs with **`exams.write`**, **`calendar.write`**, **`announcements.write`**, **`leave.decide`**. FE: `roleKey=principal`; Notifications hydrate GET `/notifications`; Examination Timetable list/create use `/exams` (+ submit). Portal-only screens (stars, class TT, allocations, home fun, my attendance) marked Completed per Teacher/Coordinator parity.
+
+---
+
 ## Other role panels
 
 | Role panel | Default approach |
 |---|---|
-| Principal / Director | Shared approvals + announcements + calendar |
+| Director | Shared approvals + announcements + calendar (next slice) |
 | HR / Account Head / others | Reuse first; migrate only for true new domains |
 
 ---

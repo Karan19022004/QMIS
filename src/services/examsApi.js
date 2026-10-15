@@ -17,6 +17,16 @@ export async function getExamApi(examId) {
     return apiRequest(`/exams/${examId}`)
 }
 
+/** @returns {Promise<object>} */
+export async function createExamApi(body) {
+    return apiRequest('/exams', { method: 'POST', body })
+}
+
+/** @returns {Promise<object>} */
+export async function submitExamApi(examId) {
+    return apiRequest(`/exams/${examId}/submit`, { method: 'POST' })
+}
+
 /** @returns {Promise<Array<object>>} */
 export async function listMarksBatchesApi(params = {}) {
     const qs = new URLSearchParams()

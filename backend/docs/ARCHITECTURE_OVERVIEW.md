@@ -59,7 +59,7 @@ Open the HTML in a browser (dark/light themes, export PNG/SVG from the diagram U
 | Doc | Purpose |
 |---|---|
 | `DATABASE_ARCHITECTURE_RULES.md` | Rules for all 480 sidebar modules (reuse first; migrate only when needed) |
-| `MODULE_DOMAIN_MAPPING.md` | Role module → API → tables map (Admin 26 + PRM 21 + Parent 23 + Student 23; baseline 48 tables @ `0012`) |
+| `MODULE_DOMAIN_MAPPING.md` | Role module → API → tables map (Admin 26 + PRM 21 + Parent 23 + Student 23 + Teacher/Coord + Principal 21; baseline 48 tables @ `0012`) |
 | `ADMINISTRATOR_MODULE_AUDIT.md` | Admin 26-module E2E scorecard |
 | `DATABASE_INTEGRATION_AUDIT.md` | DB, config inventory, persistence, authz |
 | `FRONTEND_INTEGRATION.md` | Route and flag details |
@@ -70,9 +70,9 @@ Open the HTML in a browser (dark/light themes, export PNG/SVG from the diagram U
 
 ## Delivery gate (15 Oct)
 
-**Completed panels:** Administrator **26/26**, PRM **21/21**, Parent **23/23**, Student **23/23**, Teacher **29/1 Gap**, Coordinator **29/1 Gap**.  
-**Stability audit:** [`SYSTEM_STABILITY_AUDIT_15OCT.md`](SYSTEM_STABILITY_AUDIT_15OCT.md) → **READY WITH LIMITATIONS** (Alembic **0012**, **48** tables, **415** pytest passed; High follow-ups: orphan file IDOR, `must_change_password` API gate, FE API fail-closed hydrate).  
-Next delivery slice: Principal / Director panels (after critical audit fixes).
+**Completed panels:** Administrator **26/26**, PRM **21/21**, Parent **23/23**, Student **23/23**, Teacher **29/1 Gap**, Coordinator **29/1 Gap**, Principal **21/21**.  
+**Stability audit:** [`SYSTEM_STABILITY_AUDIT_15OCT.md`](SYSTEM_STABILITY_AUDIT_15OCT.md) → **READY WITH LIMITATIONS** (Alembic **0012**, **48** tables; High follow-ups pushed).  
+Next delivery slice: Director panel.
 
 ### Request flow (verified)
 

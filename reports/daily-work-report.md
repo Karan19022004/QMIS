@@ -8,6 +8,25 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 15 October 2026 — Principal panel 21/21 Completed
+
+**Status:** Principal sidebar shared APIs + portal screens marked Completed (Teacher/Coordinator parity; no biometric Gap).
+
+### Done
+
+1. Notifications hydrate GET `/notifications` (Teacher pattern).
+2. Examination Timetable: list from GET `/exams`; create POST `/exams` + submit for Director approval.
+3. Word Principal **21 Completed**; TOTAL **267 / 27 / 184 / 2**.
+4. Pytest `test_principal_portal_apis` **1 passed**.
+5. Earlier High audit follow-ups committed and pushed (`9d32a62`).
+
+### Open / next
+
+- Director panel.
+- Medium: attendance mark-save UI; mark-entry → `/marks-batches`; JS bundle split.
+
+---
+
 ## 15 October 2026 — Audit High follow-ups (IDOR, password gate, FE hydrate)
 
 **Status:** High findings from stability audit addressed. Decision remains **READY WITH LIMITATIONS**. Pytest **415 passed**.

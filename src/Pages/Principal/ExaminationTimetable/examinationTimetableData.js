@@ -65,6 +65,34 @@ const DEFAULT_EXAM_TIMETABLES = [
     },
 ]
 
+/** Map campus GET /exams row into the Principal timetable list shape. */
+export const mapExamApiToTimetableRecord = (exam) => {
+    const statusRaw = String(exam.status || '').toLowerCase()
+    const status = statusRaw.includes('publish') || statusRaw === 'approved' ? 'Published' : 'Draft'
+    const approvalStatus =
+        statusRaw.includes('pending') || statusRaw.includes('await')
+            ? 'Pending'
+            : statusRaw === 'approved' || statusRaw.includes('publish')
+              ? 'Approved'
+              : statusRaw.includes('reject') || statusRaw.includes('den')
+                ? 'Denied'
+                : 'Pending'
+    return {
+        id: String(exam.id),
+        examName: exam.name || exam.examName || '',
+        className: exam.className || exam.class_name || '',
+        section: exam.section || '',
+        teacherName: '',
+        status,
+        startDate: exam.startDate || exam.start_date || '',
+        endDate: exam.endDate || exam.end_date || '',
+        createdDate: '',
+        approvalStatus,
+        timelines: Array.isArray(exam.timelines) ? exam.timelines : [],
+        source: 'api',
+    }
+}
+
 export const getExamTimetables = () => {
     try {
         const stored = localStorage.getItem(STORAGE_KEY)
