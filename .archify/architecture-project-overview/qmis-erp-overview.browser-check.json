@@ -6,11 +6,11 @@
   "status": "pass",
   "visualReview": "not-requested",
   "provenance": "current",
-  "deliveryReceiptId": "3da13d6c-875d-49f2-8190-f34198d7101c",
+  "deliveryReceiptId": "3b84d91f-e4f8-4dbd-96f2-f0392582fd82",
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "c88ef1ed79c1d0d004d3ac98abf7f295dd69c5b09975a56e21510e17d16cbcad",
-    "bytes": 795057
+    "sha256": "0378dc95ab747db8c6b80d05a27b449d129b7723fa0ce003bab3ffda84ae3f32",
+    "bytes": 856542
   },
   "state": {
     "detail": "read",

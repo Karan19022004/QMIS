@@ -421,7 +421,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
         "diagram_type": "architecture",
         "meta": {
             "title": "QMIS School ERP — project overview",
-            "subtitle": "15 Oct live stack — Principal 21/21 · Medium UX/bundle fixes · Alembic 0012",
+            "subtitle": "Single current overview · Archify 3.1.0 · Principal 21/21 · Alembic 0012",
             "locale": "en",
             "quality_profile": "showcase",
             "repository": {
@@ -469,6 +469,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                     "Alembic head 0012_students_student_user_id; 48 application tables",
                     "HR + Finance API SoT; Gateway/SMTP/WA env-gated (demo/stub)",
                     "15 Oct 2026 stability audit READY WITH LIMITATIONS; pytest 416 passed",
+                    "Request path: User → lazy React → apiClient JWT → FastAPI deps/RBAC → service → PostgreSQL (+ uploads)",
                 ],
             },
             {
@@ -478,12 +479,19 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                     "Mount router in backend/app/main.py",
                     "Add src/services/<name>Api.js for the UI",
                     "Run python .archify/build_project_overview.py then finalize (same folder only)",
+                    "Keep one current Archify HTML: .archify/architecture-project-overview/qmis-erp-overview.html",
                 ],
             },
             {
                 "dot": "slate",
-                "title": "Clients found",
-                "items": clients or ["(none yet)"],
+                "title": "Archify 3.1.0 toolkit",
+                "items": [
+                    "Installed skill 3.1.0 (doctor ready)",
+                    "Core types: architecture · workflow · sequence · dataflow · lifecycle",
+                    "New in 3.1: erd · tree · class · timeline · waterfall",
+                    "This project ships one current architecture overview file only",
+                    "Clients: " + (", ".join(clients[:8]) + ("…" if len(clients) > 8 else "") if clients else "(none yet)"),
+                ],
             },
             {
                 "dot": "rose",

@@ -8,21 +8,37 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
-## 15 October 2026 — Archify refresh + full pytest
+## 15 October 2026 — Archify 3.1 single overview + daily PDF
 
-**Status:** Architecture overview and request-flow sequence regenerated; docs updated; suite **416 passed**.
+**Status:** Archify upgraded to **3.1.0**; one current overview HTML; manager PDF regenerated from markdown SoT.
 
 ### Done
 
-1. Rebuilt `.archify/architecture-project-overview` (Principal 21/21, Medium fixes, Alembic 0012 cards).
-2. Added `.archify/sequence-request-lifecycle/qmis-request-flow.html` (JWT → RBAC → SQL path).
-3. Both Archify showcase finalize gates **PASS** (validate/deliver/check/browser-check).
-4. Full backend pytest **416 passed**.
+1. Installed Archify **3.1.0** (doctor ready; types include erd, tree, class, timeline, waterfall).
+2. Rebuilt single SoT diagram: `.archify/architecture-project-overview/qmis-erp-overview.html` (request path + 3.1 toolkit cards).
+3. Retired separate sequence HTML as a second “current” file; specialized types remain available for later slices.
+4. Regenerated manager PDF: `erp complete documentation/QMIS-ERP-Daily-Work-Report.pdf` from `reports/daily-work-report.md`.
+5. Earlier today: Principal 21/21, Medium UX/bundle fixes, full pytest **416 passed**.
 
 ### Open / next
 
 - Director panel.
-- Optional Archify skill update 3.0.1 → 3.1.0 (notice only).
+
+---
+
+## 15 October 2026 — Archify refresh + full pytest
+
+**Status:** Architecture overview regenerated (later consolidated to single file under Archify 3.1); suite **416 passed**.
+
+### Done
+
+1. Rebuilt project overview for Principal 21/21 and Medium fixes.
+2. Temporary sequence diagram produced, then superseded by single-overview policy.
+3. Showcase finalize **PASS**; pytest **416 passed**.
+
+### Open / next
+
+- Director panel.
 
 ---
 

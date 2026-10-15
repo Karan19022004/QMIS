@@ -3,14 +3,14 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "QMIS School ERP \u2014 project overview",
-    "subtitle": "15 Oct live stack \u2014 Principal 21/21 \u00b7 Medium UX/bundle fixes \u00b7 Alembic 0012",
+    "subtitle": "Single current overview \u00b7 Archify 3.1.0 \u00b7 Principal 21/21 \u00b7 Alembic 0012",
     "locale": "en",
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "438cf27d022f7a1c75fc3870a99034bec4da71f2"
+      "revision": "f2cba367400734d961eb7d9f6574efe0d6049110"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -738,7 +738,8 @@
         "must_change_password gated in get_current_user; orphan file downloads ACL-hardened",
         "Alembic head 0012_students_student_user_id; 48 application tables",
         "HR + Finance API SoT; Gateway/SMTP/WA env-gated (demo/stub)",
-        "15 Oct 2026 stability audit READY WITH LIMITATIONS; pytest 416 passed"
+        "15 Oct 2026 stability audit READY WITH LIMITATIONS; pytest 416 passed",
+        "Request path: User \u2192 lazy React \u2192 apiClient JWT \u2192 FastAPI deps/RBAC \u2192 service \u2192 PostgreSQL (+ uploads)"
       ]
     },
     {
@@ -747,41 +748,19 @@
       "items": [
         "Mount router in backend/app/main.py",
         "Add src/services/<name>Api.js for the UI",
-        "Run python .archify/build_project_overview.py then finalize (same folder only)"
+        "Run python .archify/build_project_overview.py then finalize (same folder only)",
+        "Keep one current Archify HTML: .archify/architecture-project-overview/qmis-erp-overview.html"
       ]
     },
     {
       "dot": "slate",
-      "title": "Clients found",
+      "title": "Archify 3.1.0 toolkit",
       "items": [
-        "activitiesApi.js",
-        "adminAttendanceApi.js",
-        "adminUsersApi.js",
-        "admissionsApi.js",
-        "announcementsApi.js",
-        "attendanceApi.js",
-        "authApi.js",
-        "calendarApi.js",
-        "classDetailsApi.js",
-        "communicationApi.js",
-        "dashboardApi.js",
-        "documentsApi.js",
-        "employeeDirectoryApi.js",
-        "escalationApi.js",
-        "examsApi.js",
-        "filesApi.js",
-        "financeApi.js",
-        "frontOfficeApi.js",
-        "hrApi.js",
-        "leaveApi.js",
-        "lessonPlansApi.js",
-        "notificationsApi.js",
-        "parentsApi.js",
-        "resultsApi.js",
-        "studentsApi.js",
-        "taskApi.js",
-        "tcApi.js",
-        "apiClient.js"
+        "Installed skill 3.1.0 (doctor ready)",
+        "Core types: architecture \u00b7 workflow \u00b7 sequence \u00b7 dataflow \u00b7 lifecycle",
+        "New in 3.1: erd \u00b7 tree \u00b7 class \u00b7 timeline \u00b7 waterfall",
+        "This project ships one current architecture overview file only",
+        "Clients: activitiesApi.js, adminAttendanceApi.js, adminUsersApi.js, admissionsApi.js, announcementsApi.js, attendanceApi.js, authApi.js, calendarApi.js\u2026"
       ]
     },
     {
