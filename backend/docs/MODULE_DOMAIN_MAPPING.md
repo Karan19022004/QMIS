@@ -113,11 +113,16 @@ Teacher reuses shared staff domains (`_STAFF_ACADEMIC` + matrix loops). Biometri
 
 ---
 
+## Coordinator (30 modules) — Completed (1 Gap)
+
+Same academic APIs as Teacher plus **`exams.write`**. Biometric remains Gap. FE: `roleKey=coordinator`; Students List / Exam Schedule / Class Attendance aligned with Teacher API screens.
+
+---
+
 ## Other role panels
 
 | Role panel | Default approach |
 |---|---|
-| Coordinator | Same academic APIs as Teacher (+ exams.write) |
 | Principal / Director | Shared approvals + announcements + calendar |
 | HR / Account Head / others | Reuse first; migrate only for true new domains |
 

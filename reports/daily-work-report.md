@@ -8,6 +8,22 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 15 October 2026 — Coordinator panel 29 Completed / 1 Gap
+
+**Status:** Coordinator aligned with Teacher shared APIs (+ exams.write). Biometric Gap.
+
+### Done
+
+1. Students List + Exam Schedule API hydrate; Communication/Notifications/Attendance/Leave already fixed earlier today.
+2. Word Coordinator **29 Completed / 1 Gap**; TOTAL **249 / 30 / 199 / 2**.
+3. Pytest `test_coordinator_portal_apis` **1 passed**.
+
+### Open / next
+
+- Principal panel.
+
+---
+
 ## 15 October 2026 — Teacher panel 29 Completed / 1 Gap
 
 **Status:** Teacher sidebar shared APIs + portal screens marked Completed; Biometric remains Gap.
