@@ -16,6 +16,9 @@ import StudentLMS from '../Pages/Principal/LMS/StudentLMS'
 import TeacherLMS from '../Pages/Principal/LMS/TeacherLMS'
 import ViewStudentLMS from '../Pages/Principal/LMS/ViewStudentLMS'
 import ViewTeacherLMS from '../Pages/Principal/LMS/ViewTeacherLMS'
+import AddStudentHomeFun from '../Pages/Principal/LMS/AddStudentHomeFun'
+import AddTeacherHomeFun from '../Pages/Principal/LMS/AddTeacherHomeFun'
+import ViewExtraClass from '../Pages/Teacher/ExtraClass/ViewExtraClass'
 import EscalationList from '../Pages/Principal/EscalationManagement/EscalationList'
 import AddEscalation from '../Pages/Principal/EscalationManagement/AddEscalation'
 import ViewEscalation from '../Pages/Principal/EscalationManagement/ViewEscalation'
@@ -75,8 +78,12 @@ const PrincipalRoutes = () => {
             <Route path="/principal/employees-management/gatekeepers" element={<Navigate to="/principal/user-management/employee-database" replace />} />
             <Route path="/principal/employees-management/view-gatekeeper" element={<Navigate to="/principal/user-management/employee-database" replace />} />
             <Route path="/principal/lms/student-lms" element={<StudentLMS />} />
+            <Route path="/principal/lms/student-lms/add" element={<AddStudentHomeFun />} />
+            <Route path="/principal/lms/student-lms/view/:id" element={<ViewStudentLMS />} />
             <Route path="/principal/lms/view-student-lms" element={<ViewStudentLMS />} />
             <Route path="/principal/lms/teacher-lms" element={<TeacherLMS />} />
+            <Route path="/principal/lms/teacher-lms/add" element={<AddTeacherHomeFun />} />
+            <Route path="/principal/lms/teacher-lms/view/:id" element={<ViewTeacherLMS />} />
             <Route path="/principal/lms/view-teacher-lms" element={<ViewTeacherLMS />} />
             <Route path="/principal/academic-calendar" element={<AcademicCalendar />} />
             <Route path="/principal/notifications" element={<Notifications />} />
@@ -103,8 +110,19 @@ const PrincipalRoutes = () => {
             <Route path="/principal/leave-request/my-requests/view/:id" element={<ViewMyLeaveRequest />} />
             <Route path="/principal/leave-request/received" element={<ReceivedLeaveRequests />} />
             <Route path="/principal/leave-request/received/view/:id" element={<ViewReceivedLeaveRequest />} />
-            <Route path="/principal/class/extra-class" element={<ExtraClass canCreate listPath="/principal/class/extra-class" addPath="/principal/class/extra-class/add" />} />
+            <Route
+                path="/principal/class/extra-class"
+                element={(
+                    <ExtraClass
+                        canCreate
+                        listPath="/principal/class/extra-class"
+                        addPath="/principal/class/extra-class/add"
+                        viewPath="/principal/class/extra-class/view"
+                    />
+                )}
+            />
             <Route path="/principal/class/extra-class/add" element={<AddExtraClass listPath="/principal/class/extra-class" />} />
+            <Route path="/principal/class/extra-class/view/:id" element={<ViewExtraClass listPath="/principal/class/extra-class" />} />
             <Route path="*" element={<Navigate to="/principal/dashboard" replace />} />
         </ReactRoutes>
     )

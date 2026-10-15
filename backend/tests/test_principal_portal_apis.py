@@ -62,3 +62,22 @@ def test_principal_shared_reads_and_exams_write(client):
     exam_id = created.json()["id"]
     submitted = client.post(f"/api/v1/exams/{exam_id}/submit", headers=headers)
     assert submitted.status_code == 200, submitted.text
+
+    cal = client.post(
+        "/api/v1/calendar",
+        headers=headers,
+        json={
+            "type": "event",
+            "title": "Principal Assembly",
+            "startDate": "2026-10-20",
+            "endDate": "2026-10-20",
+            "description": "All-hands assembly for Grades 6–12.",
+        },
+    )
+    assert cal.status_code == 201, cal.text
+    assert cal.json()["title"] == "Principal Assembly"
+
+    assert client.get("/api/v1/leave-requests", params={"box": "mine"}, headers=headers).status_code == 200
+    assert client.get("/api/v1/leave-requests", params={"box": "received"}, headers=headers).status_code == 200
+    assert client.get("/api/v1/hr/portal/employees", headers=headers).status_code == 200
+    # leave.decide already asserted via permissions on /auth/me above

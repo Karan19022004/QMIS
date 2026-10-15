@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -9,13 +9,25 @@ import { hydrateEnrolledStudentsFromApi } from '../StudentDatabase/enrolledStude
 import { getStudentProfileImage, getStudentsList } from '../StudentDatabase/studentDatabaseData'
 import { isApiStudentsEnabled } from '../../services/apiClient'
 
+const parseLooseDate = (value) => {
+    if (!value || value === '—') return null
+    const direct = new Date(value)
+    if (!Number.isNaN(direct.getTime())) return direct
+    const parts = String(value).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (!parts) return null
+    const parsed = new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1]))
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 const StudentDatabaseListView = ({
     routeBase,
     title = 'Student Database',
     renderExtraActions,
 }) => {
-    const [fromDate, setFromDate] = useState(new Date())
-    const [toDate, setToDate] = useState(new Date())
+    const [fromDate, setFromDate] = useState(null)
+    const [toDate, setToDate] = useState(null)
+    const [search, setSearch] = useState('')
+    const [statusFilter, setStatusFilter] = useState('')
     const [exportModal, setExportModal] = useState(false)
     const [rows, setRows] = useState(() => getStudentsList())
     const [loading, setLoading] = useState(isApiStudentsEnabled())
@@ -40,11 +52,49 @@ const StudentDatabaseListView = ({
         }
     }, [])
 
+    const statusOptions = useMemo(() => {
+        const values = new Set()
+        rows.forEach((row) => {
+            const status = String(row.status || '').trim()
+            if (status && status !== '—') values.add(status)
+        })
+        return Array.from(values).sort()
+    }, [rows])
+
+    const filteredRows = useMemo(() => {
+        const query = search.trim().toLowerCase()
+        const fromTime = fromDate ? new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate()).getTime() : null
+        const toTime = toDate ? new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate(), 23, 59, 59, 999).getTime() : null
+
+        return rows.filter((student) => {
+            if (statusFilter && String(student.status || '') !== statusFilter) return false
+            if (query) {
+                const haystack = `${student.admissionNumber} ${student.name} ${student.email} ${student.mobileNumber}`.toLowerCase()
+                if (!haystack.includes(query)) return false
+            }
+            if (fromTime != null || toTime != null) {
+                const dob = parseLooseDate(student.dateOfBirth)
+                if (!dob) return false
+                const t = dob.getTime()
+                if (fromTime != null && t < fromTime) return false
+                if (toTime != null && t > toTime) return false
+            }
+            return true
+        })
+    }, [rows, search, statusFilter, fromDate, toDate])
+
+    const clearFilters = () => {
+        setSearch('')
+        setStatusFilter('')
+        setFromDate(null)
+        setToDate(null)
+    }
+
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
-                    <button type='button' className='bg-[#515DEF] text-white uppercase text-sm px-6 py-2 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>Clear Filters</button>
+                    <button type='button' onClick={clearFilters} className='bg-[#515DEF] text-white uppercase text-sm px-6 py-2 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>Clear Filters</button>
                     <select className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full md:max-w-xs sm:max-w-full'>
                         <option value=''>From Beginning</option>
                     </select>
@@ -52,25 +102,38 @@ const StudentDatabaseListView = ({
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>
                     <div className='flex flex-col gap-y-2'>
                         <label className='text-base font-medium text-[#808080]'>Search</label>
-                        <input type='text' placeholder='Admission no, name...' className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full' />
+                        <input
+                            type='text'
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder='Admission no, name...'
+                            className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                        />
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label className='text-base font-medium text-[#808080]'>Status</label>
-                        <select className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                        >
                             <option value=''>All</option>
+                            {statusOptions.map((status) => (
+                                <option key={status} value={status}>{status}</option>
+                            ))}
                         </select>
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label className='text-base font-medium text-[#808080]'>From</label>
                         <div className='relative'>
-                            <DatePicker selected={fromDate} onChange={setFromDate} isClearable showMonthYearDropdown scrollableMonthYearDropdown className='w-full text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-3 py-2 pr-10 focus:outline-none' />
+                            <DatePicker selected={fromDate} onChange={setFromDate} isClearable showMonthYearDropdown scrollableMonthYearDropdown placeholderText='DOB from' className='w-full text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-3 py-2 pr-10 focus:outline-none' />
                             <Calendar size={16} className='absolute right-3 top-1/2 -translate-y-1/2 text-[#808080] pointer-events-none' />
                         </div>
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label className='text-base font-medium text-[#808080]'>To</label>
                         <div className='relative'>
-                            <DatePicker selected={toDate} onChange={setToDate} isClearable showMonthYearDropdown scrollableMonthYearDropdown className='w-full text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-3 py-2 pr-10 focus:outline-none' />
+                            <DatePicker selected={toDate} onChange={setToDate} isClearable showMonthYearDropdown scrollableMonthYearDropdown placeholderText='DOB to' className='w-full text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-3 py-2 pr-10 focus:outline-none' />
                             <Calendar size={16} className='absolute right-3 top-1/2 -translate-y-1/2 text-[#808080] pointer-events-none' />
                         </div>
                     </div>
@@ -110,14 +173,16 @@ const StudentDatabaseListView = ({
                                     </td>
                                 </tr>
                             )}
-                            {!loading && rows.length === 0 && (
+                            {!loading && filteredRows.length === 0 && (
                                 <tr>
                                     <td colSpan={11} className='px-2 py-10 text-center text-[#667085]'>
-                                        No enrolled students yet. Enroll a student from the Admission List to see them here.
+                                        {rows.length === 0
+                                            ? 'No enrolled students yet. Enroll a student from the Admission List to see them here.'
+                                            : 'No students match the current filters.'}
                                     </td>
                                 </tr>
                             )}
-                            {!loading && rows.map((student) => (
+                            {!loading && filteredRows.map((student) => (
                                 <tr key={student.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7]'>
                                     <td className='px-2 py-4 flex justify-center rounded-s-lg'>
                                         <img src={getStudentProfileImage(student)} alt='' className='w-9 h-9 rounded-full object-cover' />
@@ -146,9 +211,9 @@ const StudentDatabaseListView = ({
 
             <div className='flex justify-between items-center px-4 mt-4'>
                 <p className='text-sm font-medium text-[#515DEF]'>
-                    {loading || rows.length === 0
+                    {loading || filteredRows.length === 0
                         ? 'Showing 0 entries'
-                        : `Showing 1 to ${rows.length} of ${rows.length} entries`}
+                        : `Showing 1 to ${filteredRows.length} of ${filteredRows.length} entries`}
                 </p>
                 <div className='flex gap-x-2'>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'><ChevronLeft size={16} /></button>

@@ -4,9 +4,12 @@ import {
     ChevronLeft,
     ChevronRight,
     Filter,
+    Plus,
 } from 'lucide-react'
 import {
     ACADEMIC_EVENT_TYPES,
+    canWriteCalendar,
+    createCalendarEventViaApi,
     getAcademicCalendarRoleConfig,
     getAllCalendarItems,
     hydrateCalendarFromApi,
@@ -41,14 +44,27 @@ const TypeBadge = ({ type }) => {
     )
 }
 
+const emptyEventForm = () => ({
+    type: 'event',
+    title: '',
+    startDate: '',
+    endDate: '',
+    description: '',
+})
+
 const AcademicCalendarPage = ({ roleKey }) => {
     const roleConfig = getAcademicCalendarRoleConfig(roleKey)
+    const showAddForm = canWriteCalendar(roleKey) && canUseCalendarApi()
     const [currentDate, setCurrentDate] = useState(() => new Date(2026, 6, 1)) // Jul 2026 — has sample exams
     const [selectedDate, setSelectedDate] = useState(null)
     const [activeTypes, setActiveTypes] = useState(() => new Set(TYPE_KEYS))
     const [calendarRefresh, setCalendarRefresh] = useState(0)
     const [serverItems, setServerItems] = useState(null)
     const [loadError, setLoadError] = useState('')
+    const [eventForm, setEventForm] = useState(emptyEventForm)
+    const [formError, setFormError] = useState('')
+    const [formSaving, setFormSaving] = useState(false)
+    const [formOpen, setFormOpen] = useState(false)
 
     useEffect(() => {
         const refresh = () => setCalendarRefresh((value) => value + 1)
@@ -77,6 +93,34 @@ const AcademicCalendarPage = ({ roleKey }) => {
             active = false
         }
     }, [])
+
+    const handleCreateEvent = async (event) => {
+        event.preventDefault()
+        if (!showAddForm) return
+        setFormError('')
+        if (!eventForm.title.trim() || !eventForm.startDate) {
+            setFormError('Title and start date are required.')
+            return
+        }
+        setFormSaving(true)
+        try {
+            const rows = await createCalendarEventViaApi({
+                type: eventForm.type,
+                title: eventForm.title,
+                startDate: eventForm.startDate,
+                endDate: eventForm.endDate || undefined,
+                description: eventForm.description,
+            })
+            setServerItems(rows)
+            setEventForm(emptyEventForm())
+            setFormOpen(false)
+            setCalendarRefresh((value) => value + 1)
+        } catch (error) {
+            setFormError(error?.message || 'Could not create the event.')
+        } finally {
+            setFormSaving(false)
+        }
+    }
 
     const filteredItems = useMemo(() => {
         void calendarRefresh
@@ -140,6 +184,19 @@ const AcademicCalendarPage = ({ roleKey }) => {
                         {loadError ? <p className="mt-1 text-sm text-[#B42318]">{loadError}</p> : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        {showAddForm ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFormOpen((open) => !open)
+                                    setFormError('')
+                                }}
+                                className="inline-flex items-center gap-1.5 rounded-md bg-[#515DEF] px-3 py-2 text-sm font-medium text-white hover:bg-[#4048C9]"
+                            >
+                                <Plus size={16} />
+                                Add Event
+                            </button>
+                        ) : null}
                         <button
                             type="button"
                             onClick={goToday}
@@ -170,6 +227,91 @@ const AcademicCalendarPage = ({ roleKey }) => {
                         </div>
                     </div>
                 </div>
+
+                {showAddForm && formOpen ? (
+                    <form
+                        onSubmit={handleCreateEvent}
+                        className="mt-4 grid gap-3 rounded-xl border border-[#E4E7EC] bg-[#F8F9FC] p-4 sm:grid-cols-2 lg:grid-cols-3"
+                    >
+                        <label className="block text-xs font-medium text-[#344054]">
+                            Type
+                            <select
+                                value={eventForm.type}
+                                onChange={(e) => setEventForm((prev) => ({ ...prev, type: e.target.value }))}
+                                className="mt-1 w-full rounded-md border border-[#D0D5DD] bg-white px-3 py-2 text-sm text-[#101828]"
+                            >
+                                {TYPE_KEYS.map((key) => (
+                                    <option key={key} value={key}>
+                                        {ACADEMIC_EVENT_TYPES[key].label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="block text-xs font-medium text-[#344054] sm:col-span-2 lg:col-span-2">
+                            Title
+                            <input
+                                type="text"
+                                value={eventForm.title}
+                                onChange={(e) => setEventForm((prev) => ({ ...prev, title: e.target.value }))}
+                                className="mt-1 w-full rounded-md border border-[#D0D5DD] bg-white px-3 py-2 text-sm text-[#101828]"
+                                placeholder="e.g. Staff meeting"
+                                required
+                            />
+                        </label>
+                        <label className="block text-xs font-medium text-[#344054]">
+                            Start date
+                            <input
+                                type="date"
+                                value={eventForm.startDate}
+                                onChange={(e) => setEventForm((prev) => ({ ...prev, startDate: e.target.value }))}
+                                className="mt-1 w-full rounded-md border border-[#D0D5DD] bg-white px-3 py-2 text-sm text-[#101828]"
+                                required
+                            />
+                        </label>
+                        <label className="block text-xs font-medium text-[#344054]">
+                            End date
+                            <input
+                                type="date"
+                                value={eventForm.endDate}
+                                onChange={(e) => setEventForm((prev) => ({ ...prev, endDate: e.target.value }))}
+                                className="mt-1 w-full rounded-md border border-[#D0D5DD] bg-white px-3 py-2 text-sm text-[#101828]"
+                            />
+                        </label>
+                        <label className="block text-xs font-medium text-[#344054] sm:col-span-2 lg:col-span-3">
+                            Description
+                            <textarea
+                                value={eventForm.description}
+                                onChange={(e) => setEventForm((prev) => ({ ...prev, description: e.target.value }))}
+                                rows={2}
+                                className="mt-1 w-full rounded-md border border-[#D0D5DD] bg-white px-3 py-2 text-sm text-[#101828]"
+                                placeholder="Optional details"
+                            />
+                        </label>
+                        {formError ? (
+                            <p className="text-sm text-[#B42318] sm:col-span-2 lg:col-span-3">{formError}</p>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-3">
+                            <button
+                                type="submit"
+                                disabled={formSaving}
+                                className="rounded-md bg-[#515DEF] px-4 py-2 text-sm font-medium text-white hover:bg-[#4048C9] disabled:opacity-60"
+                            >
+                                {formSaving ? 'Saving…' : 'Save event'}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFormOpen(false)
+                                    setFormError('')
+                                    setEventForm(emptyEventForm())
+                                }}
+                                className="rounded-md border border-[#D0D5DD] px-4 py-2 text-sm font-medium text-[#344054] hover:bg-white"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                ) : null}
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#667085]">

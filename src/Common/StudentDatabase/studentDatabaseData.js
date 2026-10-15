@@ -109,6 +109,7 @@ const toListRow = (record) => {
         country: admission.country || record.country || '—',
         state: admission.state || record.state || '—',
         city: admission.city || record.city || '—',
+        status: record.status || admission.status || 'Active',
         profileImage: admission.profileImage || record.profileImage || null,
     }
 }

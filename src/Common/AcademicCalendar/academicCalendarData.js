@@ -1,5 +1,14 @@
-import { getActivityCalendarItems } from '../Activities/activitiesData'
-import { canUseCalendarApi, listCalendarApi } from '../../services/calendarApi'
+import { getActivityCalendarItems, CALENDAR_UPDATED_EVENT } from '../Activities/activitiesData'
+import {
+    canUseCalendarApi,
+    createCalendarApi,
+    listCalendarApi,
+} from '../../services/calendarApi'
+
+/** Roles that hold calendar.write on the backend (admin, principal; superAdmin has all). */
+export const CALENDAR_WRITE_ROLE_KEYS = new Set(['admin', 'principal', 'superAdmin'])
+
+export const canWriteCalendar = (roleKey) => CALENDAR_WRITE_ROLE_KEYS.has(roleKey)
 
 export const ACADEMIC_EVENT_TYPES = {
     holiday: {
@@ -169,6 +178,25 @@ let apiItems = []
 export const hydrateCalendarFromApi = async () => {
     apiItems = await listCalendarApi()
     return apiItems
+}
+
+/** Create via API when signed in; refreshes in-memory list and notifies listeners. */
+export const createCalendarEventViaApi = async ({ type, title, startDate, endDate, description }) => {
+    if (!canUseCalendarApi()) {
+        throw new Error('Calendar API is not available.')
+    }
+    await createCalendarApi({
+        type,
+        title: title?.trim() || '',
+        startDate,
+        endDate: endDate || undefined,
+        description: description?.trim() || '',
+    })
+    const rows = await hydrateCalendarFromApi()
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event(CALENDAR_UPDATED_EVENT))
+    }
+    return rows
 }
 
 export const clearCalendarMemory = () => {

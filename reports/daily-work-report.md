@@ -8,6 +8,26 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 15 October 2026 — Principal panel build (3/3/15 → 16/5/0)
+
+**Status:** Principal built from browser-verified baseline **Completed 3 · Partial 3 · Not Completed 15** to **Completed 16 · Partial 5 · Not Completed 0**.
+
+### Done
+
+1. Student Database: list filters (search / status / DOB) + status on list rows; still hydrates `GET /students`.
+2. Calendar: `create/update/delete` in `calendarApi.js`; Principal Add Event when `calendar.write` + API on.
+3. Home Fun: Student/Teacher LMS pages wrap Teacher `HomeFun` SoT (+ add/view routes).
+4. Extended Class: principal list/add/view paths (no longer hard-linked to `/teacher/...`).
+5. My Attendance: working client filters on demo staff rows.
+6. Portal API test expanded (exams write, calendar POST, leave boxes, HR employees); Word status updated.
+7. Remaining Partial (no dedicated REST yet): Star Ratings SOM/SOY, Class Timetable, Teacher Allocation, My Attendance.
+
+### Open / next
+
+- Close Principal Partials (ratings / class timetable / teacher allocation / staff attendance APIs) or start Director panel.
+
+---
+
 ## 15 October 2026 — Archify 3.1 single overview + daily PDF
 
 **Status:** Archify upgraded to **3.1.0**; one current overview HTML; manager PDF regenerated from markdown SoT.
@@ -18,7 +38,7 @@ New days go at the top. Older days stay below so the history is in one file.
 2. Rebuilt single SoT diagram: `.archify/architecture-project-overview/qmis-erp-overview.html` (request path + 3.1 toolkit cards).
 3. Retired separate sequence HTML as a second “current” file; specialized types remain available for later slices.
 4. Regenerated manager PDF: `erp complete documentation/QMIS-ERP-Daily-Work-Report.pdf` from `reports/daily-work-report.md`.
-5. Earlier today: Principal 21/21, Medium UX/bundle fixes, full pytest **416 passed**.
+5. Earlier today: Medium UX/bundle fixes, full pytest **416 passed**.
 
 ### Open / next
 

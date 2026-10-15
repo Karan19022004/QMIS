@@ -9,7 +9,12 @@ import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import { EXTRA_CLASSES, SUBJECTS, CLASSES, SECTIONS } from './extraClassData'
 
-const ExtraClass = ({ canCreate = false, addPath = '/teacher/class/extra-class/add' }) => {
+const ExtraClass = ({
+    canCreate = false,
+    listPath = '/teacher/class/extra-class',
+    addPath = '/teacher/class/extra-class/add',
+    viewPath = '/teacher/class/extra-class/view',
+}) => {
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
@@ -154,7 +159,7 @@ const ExtraClass = ({ canCreate = false, addPath = '/teacher/class/extra-class/a
                                     <td className='px-2 py-4 text-center rounded-e-lg'>
                                         <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
                                             <NavLink
-                                                to={`/teacher/class/extra-class/view/${record.id}`}
+                                                to={`${viewPath}/${record.id}`}
                                                 className='block w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
                                             >
                                                 View

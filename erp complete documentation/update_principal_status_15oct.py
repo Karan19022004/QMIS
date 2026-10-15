@@ -1,4 +1,4 @@
-"""Mark Principal (21) modules Completed after shared-API / portal wiring (15 Oct 2026)."""
+"""Update Principal (21) module statuses after API + portal build (15 Oct 2026)."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ BASE = Path(__file__).resolve().parent
 
 for candidate in (
     BASE / "QMIS-ERP-Role-Module-Status.docx",
-    BASE / "QMIS-ERP-Role-Module-Status.updated.15oct-coordinator.docx",
     BASE / "QMIS-ERP-Role-Module-Status.updated.15oct-principal.docx",
+    BASE / "QMIS-ERP-Role-Module-Status.ADMIN-UPDATED-14oct.docx",
 ):
     if candidate.exists():
         SRC = candidate
@@ -27,8 +27,8 @@ OUTS = [
     BASE / "QMIS-ERP-Role-Module-Status.updated.15oct-principal.docx",
 ]
 
-NOTE_PORTAL = "Principal portal UI wired; shared screens use roleKey=principal."
-NOTE_API = "Shared domain API with principal permissions (+ exams.write, calendar.write, announcements.write, leave.decide) (15 Oct 2026)."
+NOTE_API = "Shared domain API with principal permissions (15 Oct 2026 build)."
+NOTE_PORTAL = "Principal portal UI; shared Teacher/Common SoT (local until dedicated API)."
 
 UPDATES = {
     "Task Management > Assign Tasks": (
@@ -39,26 +39,50 @@ UPDATES = {
         "Completed",
         f"{NOTE_API} Tasks API via TaskManagementRoutes.",
     ),
-    "Star Ratings > Star of the Month": ("Completed", f"{NOTE_PORTAL} Star ratings SOM."),
-    "Star Ratings > Star of the Year": ("Completed", f"{NOTE_PORTAL} Star of the year."),
+    "Star Ratings > Star of the Month": (
+        "Partial",
+        f"{NOTE_PORTAL} Staff SOM UI present; no ratings REST API yet.",
+    ),
+    "Star Ratings > Star of the Year": (
+        "Partial",
+        f"{NOTE_PORTAL} Staff SOY UI present; no ratings REST API yet.",
+    ),
     "Examination Timetable": (
         "Completed",
         f"{NOTE_API} List hydrates GET /exams; create POSTs /exams + submit for Director approval.",
     ),
-    "Class Timetable": ("Completed", f"{NOTE_PORTAL} Class timetable + change-request UI."),
+    "Class Timetable": (
+        "Partial",
+        f"{NOTE_PORTAL} Class timetable + change-request UI; no class-timetable REST module yet.",
+    ),
     "User Database > Student Database": (
         "Completed",
-        f"{NOTE_API} StudentDatabaseListView hydrates GET /students.",
+        f"{NOTE_API} StudentDatabaseListView hydrates GET /students; search/status/DOB filters wired.",
     ),
     "User Database > Employee Database": (
         "Completed",
-        f"{NOTE_API} EmployeeDatabaseListView campus directory.",
+        f"{NOTE_API} EmployeeDatabaseListView campus directory GET /hr/portal/employees.",
     ),
-    "Teacher Allocation": ("Completed", f"{NOTE_PORTAL} Teacher allocation screen."),
-    "Student Allocation": ("Completed", f"{NOTE_PORTAL} Student allocation approval UI."),
-    "Extended Class": ("Completed", f"{NOTE_PORTAL} Extended / extra class screen."),
-    "Home Fun > Student Home Fun": ("Completed", f"{NOTE_PORTAL} Student Home Fun deliverables."),
-    "Home Fun > Teacher Home Fun": ("Completed", f"{NOTE_PORTAL} Teacher Home Fun deliverables."),
+    "Teacher Allocation": (
+        "Partial",
+        f"{NOTE_PORTAL} Allocation screens + localStorage SoT; no teacher-allocation API yet.",
+    ),
+    "Student Allocation": (
+        "Completed",
+        f"{NOTE_PORTAL} Allocator approval UI (StudentAllocationList mode=allocator).",
+    ),
+    "Extended Class": (
+        "Completed",
+        f"{NOTE_PORTAL} Reuses Teacher ExtraClass with principal list/add/view paths.",
+    ),
+    "Home Fun > Student Home Fun": (
+        "Completed",
+        f"{NOTE_PORTAL} Wraps Teacher HomeFun SoT at /principal/lms/student-lms (+ add/view).",
+    ),
+    "Home Fun > Teacher Home Fun": (
+        "Completed",
+        f"{NOTE_PORTAL} Wraps Teacher HomeFun SoT at /principal/lms/teacher-lms (+ add/view).",
+    ),
     "Leave Request > My Leave Requests": (
         "Completed",
         f"{NOTE_API} MyLeaveRequestsList roleKey=principal.",
@@ -67,7 +91,10 @@ UPDATES = {
         "Completed",
         f"{NOTE_API} ReceivedLeaveRequestsList roleKey=principal (leave.decide).",
     ),
-    "My Attendance": ("Completed", f"{NOTE_PORTAL} Staff my-attendance UI."),
+    "My Attendance": (
+        "Partial",
+        f"{NOTE_PORTAL} Staff my-attendance UI + filters; no dedicated staff self-attendance API yet.",
+    ),
     "Announcement": (
         "Completed",
         f"{NOTE_API} AnnouncementListView roleKey=principal (announcements.write).",
@@ -78,7 +105,7 @@ UPDATES = {
     ),
     "Calendar": (
         "Completed",
-        f"{NOTE_API} AcademicCalendarPage roleKey=principal (calendar.write).",
+        f"{NOTE_API} AcademicCalendarPage roleKey=principal; GET + Add Event POST (calendar.write).",
     ),
     "Notifications": (
         "Completed",
@@ -121,7 +148,14 @@ def apply(doc: Document) -> tuple[dict, dict]:
         status, note = UPDATES[mod]
         row.cells[1].text = status
         row.cells[2].text = note
-        fill = "C6EFCE" if status.startswith("Completed") else ("FFC7CE" if status.startswith("Gap") else "FFEB9C")
+        if status.startswith("Completed"):
+            fill = "C6EFCE"
+        elif status.startswith("Partial"):
+            fill = "FFEB9C"
+        elif status.startswith("Gap"):
+            fill = "D9D9D9"
+        else:
+            fill = "FFC7CE"
         set_cell_shading(row.cells[1], fill)
 
     counts = {"Completed": 0, "Partial": 0, "Not Completed": 0, "Gap": 0}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download } from 'lucide-react'
@@ -9,16 +9,57 @@ import {
     statusBadgeColor,
 } from './myAttendanceData'
 
+const parseLooseDate = (value) => {
+    if (!value) return null
+    const direct = new Date(value)
+    if (!Number.isNaN(direct.getTime())) return direct
+    const parts = String(value).match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (!parts) return null
+    const parsed = new Date(Number(parts[3]), Number(parts[2]) - 1, Number(parts[1]))
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
 const MyAttendance = () => {
-    const [fromDate, setFromDate] = useState(new Date())
-    const [toDate, setToDate] = useState(new Date())
+    const [fromDate, setFromDate] = useState(null)
+    const [toDate, setToDate] = useState(null)
+    const [search, setSearch] = useState('')
+    const [statusFilter, setStatusFilter] = useState('')
     const [exportModal, setExportModal] = useState(false)
+
+    const filtered = useMemo(() => {
+        const query = search.trim().toLowerCase()
+        const fromTime = fromDate ? new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate()).getTime() : null
+        const toTime = toDate ? new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate(), 23, 59, 59, 999).getTime() : null
+
+        return MY_ATTENDANCE_LIST.filter((record) => {
+            if (statusFilter && record.attendanceStatus !== statusFilter) return false
+            if (query) {
+                const haystack = `${record.employeeId} ${record.name}`.toLowerCase()
+                if (!haystack.includes(query)) return false
+            }
+            if (fromTime != null || toTime != null) {
+                const day = parseLooseDate(record.date)
+                if (!day) return false
+                const t = day.getTime()
+                if (fromTime != null && t < fromTime) return false
+                if (toTime != null && t > toTime) return false
+            }
+            return true
+        })
+    }, [search, statusFilter, fromDate, toDate])
+
+    const clearFilters = () => {
+        setSearch('')
+        setStatusFilter('')
+        setFromDate(null)
+        setToDate(null)
+    }
 
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
-                    <button type='button' className='bg-[#515DEF] text-white uppercase text-sm px-6 py-1.5 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>
+                    <button type='button' onClick={clearFilters} className='bg-[#515DEF] text-white uppercase text-sm px-6 py-1.5 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>
                         Clear Filters
                     </button>
                     <select className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full md:max-w-xs sm:max-w-full'>
@@ -28,11 +69,23 @@ const MyAttendance = () => {
                 <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='search' className='text-base font-medium text-[#808080]'>Search</label>
-                        <input type='text' id='search' placeholder='Employee ID, name...' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full' />
+                        <input
+                            type='text'
+                            id='search'
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder='Employee ID, name...'
+                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                        />
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='status-filter' className='text-base font-medium text-[#808080]'>Attendance Status</label>
-                        <select id='status-filter' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
+                        <select
+                            id='status-filter'
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                        >
                             <option value=''>All</option>
                             {ATTENDANCE_STATUSES.map((status) => (
                                 <option key={status} value={status}>{status}</option>
@@ -105,7 +158,13 @@ const MyAttendance = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {MY_ATTENDANCE_LIST.map((record) => (
+                            {filtered.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className='px-2 py-10 text-center text-[#667085]'>
+                                        No attendance rows match the current filters.
+                                    </td>
+                                </tr>
+                            ) : filtered.map((record) => (
                                 <tr key={record.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
                                     <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{record.employeeId}</td>
                                     <td className='px-2 py-4 font-medium text-[#1E1E1E]'>{record.name}</td>
@@ -126,7 +185,9 @@ const MyAttendance = () => {
 
             <div className='flex justify-between items-center px-4 mt-4'>
                 <p className='text-sm font-medium text-[#515DEF]'>
-                    Showing 1 to {MY_ATTENDANCE_LIST.length} of {MY_ATTENDANCE_LIST.length} entries
+                    {filtered.length === 0
+                        ? 'Showing 0 entries'
+                        : `Showing 1 to ${filtered.length} of ${filtered.length} entries`}
                 </p>
                 <div className='flex justify-center gap-x-2 flex-wrap'>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'>
