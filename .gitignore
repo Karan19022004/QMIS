@@ -28,11 +28,17 @@ dist-ssr
 # miscellaneous
 /scripts
 
-# Keep project READMEs; ignore other local notes if needed
+# Keep project READMEs + manager reports + backend docs; ignore other local notes
 *.md
 !README.md
 !backend/README.md
 !backend/docs/**/*.md
+!reports/daily-work-report.md
+!reports/testing-report.md
+
+# Local credential / seed dumps must never be committed
+cred.txt
+**/cred.txt
 
 # Python / FastAPI backend
 backend/.venv/
@@ -51,5 +57,8 @@ backend/*.sqlite3
 backend/qmis_erp.db
 backend/uploads/
 
-# Word lock files
+# Word lock / temp / lock-workaround copies (SoT remains the non-unlocked .docx)
 ~$*
+*.docx.tmp
+*.unlocked.docx
+erp complete documentation/*.docx.tmp

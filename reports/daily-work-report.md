@@ -8,6 +8,25 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 15 October 2026 — Safe structure cleanup + architecture audit
+
+**Status:** Read-only audit completed; only conclusive junk removed. Monorepo layout preserved (no frontend/backend folder split).
+
+### Done
+
+1. Audited Git `main` @ prior Principal commit; remotes `origin` = GitHub `karan4533/ERP-dev`.
+2. Removed tracked junk: `.vscode/tasks.json` (folderOpen task running a font binary via `node`), `QMIS-ERP-Role-Module-Status.docx.tmp`.
+3. Stopped tracking `cred.txt` and lock-workaround `*.unlocked.docx`; extended `.gitignore` (cred, unlocked/tmp Word, reports markdown exceptions).
+4. Documented final layout + Principal **16/5** in `ARCHITECTURE_OVERVIEW.md`, `MODULE_DOMAIN_MAPPING.md`, `DATABASE_ARCHITECTURE_RULES.md`.
+5. Left historical Word status snapshots, client-review xlsx, reference PDFs, Alembic `0001`–`0012`, and all app source untouched.
+
+### Open / next
+
+- Optional later: prune duplicate client-review xlsx / historical status docx with explicit manager approval.
+- Director panel / Principal Partials.
+
+---
+
 ## 15 October 2026 — Principal panel build (3/3/15 → 16/5/0)
 
 **Status:** Principal built from browser-verified baseline **Completed 3 · Partial 3 · Not Completed 15** to **Completed 16 · Partial 5 · Not Completed 0**.

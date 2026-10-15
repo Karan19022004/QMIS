@@ -119,9 +119,15 @@ Same academic APIs as Teacher plus **`exams.write`**. Biometric remains Gap. FE:
 
 ---
 
-## Principal (21 modules) — Completed
+## Principal (21 modules) — 16 Completed / 5 Partial (15 Oct build)
 
-Shared staff APIs with **`exams.write`**, **`calendar.write`**, **`announcements.write`**, **`leave.decide`**. FE: `roleKey=principal`; Notifications hydrate GET `/notifications`; Examination Timetable list/create use `/exams` (+ submit). Portal-only screens (stars, class TT, allocations, home fun, my attendance) marked Completed per Teacher/Coordinator parity.
+Shared staff APIs with **`exams.write`**, **`calendar.write`**, **`announcements.write`**, **`leave.decide`**. FE: `roleKey=principal`.
+
+| Status | Modules |
+|---|---|
+| **Completed (API)** | Tasks Assign/My, Escalation, Examination Timetable (`/exams`), Student + Employee Database, Leave My/Received, Announcement, Communication, Calendar (read + Add Event write), Notifications |
+| **Completed (portal / shared FE SoT)** | Student Allocation, Extended Class (Teacher ExtraClass paths), Home Fun Student/Teacher (Teacher HomeFun SoT) |
+| **Partial (UI; no dedicated REST yet)** | Star Ratings SOM/SOY, Class Timetable, Teacher Allocation, My Attendance |
 
 ---
 

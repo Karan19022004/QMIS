@@ -71,8 +71,33 @@ Manager daily PDF (from markdown SoT):
 
 ---
 
+## Repository layout (keep as-is)
+
+Do **not** split into a second `frontend/` + `backend/` tree — the monorepo already has a clear split:
+
+```text
+ERP-dev/                         # React + Vite at repo root
+├── src/                         # Frontend (Pages/, Common/, services/, Routes/, Layout/)
+├── public/ · index.html · vite.config.js · package.json
+├── backend/                     # FastAPI + SQLAlchemy + Alembic
+│   ├── app/                     # api/v1/endpoints, core, models, schemas, services, main.py
+│   ├── alembic/versions/        # 0001–0012 (never delete old revisions)
+│   ├── tests/ · docs/ · requirements.txt · alembic.ini
+├── .archify/                    # Single current overview HTML + candidate.json
+├── reports/                     # daily-work-report.md · testing-report.md only
+├── erp complete documentation/  # Manager PDFs, Word status, PDF builders
+└── README.md · .env.example
+```
+
+**Entry points:** Vite `npm run dev` / `npm run build` · FastAPI `backend/app/main.py` · Alembic `backend/alembic.ini`.  
+**Config:** root `.env.example` + `backend/.env.example` (never commit `.env` / `cred.txt`).  
+**Tests:** `cd backend && python -m pytest tests/ -q` · Frontend: `npm run build` (+ `npm run lint` when configured).
+
+---
+
 ## Delivery gate (15 Oct)
 
-**Completed panels:** Administrator **26/26**, PRM **21/21**, Parent **23/23**, Student **23/23**, Teacher **29/1 Gap**, Coordinator **29/1 Gap**, Principal **21/21**.  
+**Completed panels:** Administrator **26/26**, PRM **21/21**, Parent **23/23**, Student **23/23**, Teacher **29/1 Gap**, Coordinator **29/1 Gap**, Principal **16 Completed / 5 Partial**.  
 **Stability:** READY WITH LIMITATIONS · Alembic **0012** · **48** tables · pytest **416 passed**.  
-**Next:** Director panel.
+**Next:** Close Principal Partials or start Director panel.  
+**Structure policy:** Prefer delete-only conclusive junk (Word `.tmp`, editor malware tasks, untracked unlock copies); defer large folder renames.

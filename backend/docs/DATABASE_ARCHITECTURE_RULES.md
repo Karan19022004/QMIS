@@ -1,9 +1,11 @@
 # School ERP — Database Architecture Rules (all 480 sidebar modules)
 
-**Status:** Canonical delivery rules (14 October 2026)  
-**Verified baseline (re-checked 14 Oct 2026):** PostgreSQL `qmis_erp`, Alembic head **`0012_students_student_user_id`**, **48** application tables matching SQLAlchemy `Base.metadata` exactly (plus `alembic_version`; no extras / no missing). Additive column: `students.student_user_id`.
+**Status:** Canonical delivery rules (14–15 October 2026)  
+**Verified baseline (re-checked 15 Oct 2026):** PostgreSQL `qmis_erp`, Alembic head **`0012_students_student_user_id`**, **48** application tables matching SQLAlchemy `Base.metadata` exactly (plus `alembic_version`; no extras / no missing). Additive column: `students.student_user_id`.
 
 These rules apply before any new role panel, API, or migration work. They override the mistaken idea that 480 sidebar rows require 480 tables.
+
+**Structure note:** Keep the existing monorepo (`src/` + `backend/`). Never delete Alembic revisions `0001`–`0012`. Prefer shared domains over new tables (see mapping).
 
 ---
 
