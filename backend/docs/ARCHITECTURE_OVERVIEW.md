@@ -72,6 +72,7 @@ Open the HTML in a browser (dark/light themes, export PNG/SVG from the diagram U
 
 **Completed panels:** Administrator **26/26**, PRM **21/21**, Parent **23/23**, Student **23/23**, Teacher **29/1 Gap**, Coordinator **29/1 Gap**, Principal **21/21**.  
 **Stability audit:** [`SYSTEM_STABILITY_AUDIT_15OCT.md`](SYSTEM_STABILITY_AUDIT_15OCT.md) → **READY WITH LIMITATIONS** (Alembic **0012**, **48** tables; High follow-ups pushed).  
+Medium stability items (attendance write UX, marks-batches UI, role-layout code-split) closed 15 Oct.  
 Next delivery slice: Director panel.
 
 ### Request flow (verified)

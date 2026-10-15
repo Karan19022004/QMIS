@@ -1,17 +1,15 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 15 October 2026 (Principal panel + prior High audit follow-ups)
+Last run: 15 October 2026 (Medium items: attendance write UX, marks batches, code-split)
 
 | Check | Result |
 |---|---|
-| `python -m pytest tests/test_principal_portal_apis.py` | **1 passed** |
-| Focused portal + security regression | **6 passed** (principal/coordinator/teacher + password gate + orphan file) |
+| Attendance + exams + teacher portal pytest | **13 passed** |
+| `npm run build` | **PASS** (~53 s); entry `index-*.js` **~354 kB** gzip **~98 kB**; role layouts split |
 | Prior full suite (High follow-ups) | **415 passed** |
-| Live DB vs ORM | **48** tables, Alembic **`0012_students_student_user_id`** |
 | Browser E2E | NOT RUN |
 | Load / soak | NOT RUN |
-| Live email / WhatsApp / payments | NOT RUN (policy) |
 
-Word: Principal **21/21 Completed**; TOTAL **267 / 27 / 184 / 2**  
-Decision: **READY WITH LIMITATIONS** (Medium items still open)
+Medium items M-01 / M-02 / M-03: **FIXED**  
+Decision: **READY WITH LIMITATIONS** (Director panel next; integrations stub/demo)

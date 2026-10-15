@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, Download, Upload } from 'lucide-react'
@@ -15,6 +15,8 @@ import {
     STATUS_FILTERS,
     SUBJECTS,
     TERMS,
+    buildContextKey,
+    createEmptyEntries,
     filterStudentsForTable,
     formatClassLabel,
     getEntryWithComputed,
@@ -28,6 +30,18 @@ import {
     saveMarkEntrySession,
     submitMarkEntrySession,
 } from './markEntryApprovalData'
+import {
+    canUseExamsApi,
+    createMarksBatchApi,
+    getMarksBatchApi,
+    listExamsApi,
+    listMarksBatchesApi,
+    mapExamFromApi,
+    mapMarksBatchFromApi,
+    submitMarksBatchApi,
+    updateMarksBatchEntriesApi,
+} from '../../services/examsApi'
+import { listStudentsApi, mapStudentListFromApi } from '../../services/studentsApi'
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-2.5 w-full bg-white'
@@ -63,19 +77,53 @@ const getSubmitMessage = (session) => {
     return 'Marks have already been submitted for this examination.'
 }
 
+const mapBatchStatus = (batch) => {
+    const raw = String(batch?.status || 'draft').toLowerCase()
+    if (raw.includes('draft') || !batch) {
+        return { status: 'draft', approvalStatus: null }
+    }
+    if (raw.includes('publish') || raw === 'approved') {
+        return { status: 'submitted', approvalStatus: 'Approved' }
+    }
+    if (raw.includes('reject')) {
+        return { status: 'submitted', approvalStatus: 'Rejected' }
+    }
+    return { status: 'submitted', approvalStatus: 'Pending' }
+}
+
+const entriesPayloadFromSession = (session) =>
+    session.students
+        .map((student) => {
+            const entry = session.entries[student.id] || {}
+            const absent = Boolean(entry.absent)
+            const hasMarks = entry.obtainedMarks !== null && entry.obtainedMarks !== undefined && entry.obtainedMarks !== ''
+            if (!absent && !hasMarks) return null
+            return {
+                studentId: student.id,
+                marks: absent ? null : Number(entry.obtainedMarks),
+                absent,
+                remarks: entry.remarks || '',
+            }
+        })
+        .filter(Boolean)
+
 const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
+    const api = canUseExamsApi()
     const [academicYear, setAcademicYear] = useState(ACADEMIC_YEARS[0])
     const [term, setTerm] = useState(TERMS[0])
     const [exam, setExam] = useState(EXAM_OPTIONS[0].name)
+    const [examId, setExamId] = useState('')
+    const [campusExams, setCampusExams] = useState([])
     const [className, setClassName] = useState(() => CLASSES[0] || '')
     const [section, setSection] = useState(() => SECTIONS[0] || '')
     const [subject, setSubject] = useState(() => SUBJECTS[0] || '')
     const [examDate, setExamDate] = useState(parseDisplayDate('15/07/2026'))
 
-    const catalogEmpty = CLASSES.length === 0 || SECTIONS.length === 0 || SUBJECTS.length === 0
+    const catalogEmpty = !api && (CLASSES.length === 0 || SECTIONS.length === 0 || SUBJECTS.length === 0)
 
     const [session, setSession] = useState(null)
     const [loaded, setLoaded] = useState(false)
+    const [loading, setLoading] = useState(false)
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('All')
     const [exportModal, setExportModal] = useState(false)
@@ -83,6 +131,28 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     const [submitModal, setSubmitModal] = useState(false)
     const [saveMessage, setSaveMessage] = useState('')
     const [submitMessage, setSubmitMessage] = useState('')
+
+    useEffect(() => {
+        if (!api) return undefined
+        let cancelled = false
+        listExamsApi()
+            .then((rows) => {
+                if (cancelled) return
+                const mapped = rows.map(mapExamFromApi)
+                setCampusExams(mapped)
+                if (mapped.length > 0) {
+                    setExamId((current) => current || mapped[0].id)
+                    setExam((current) => (current === EXAM_OPTIONS[0].name ? mapped[0].name : current))
+                    if (mapped[0].className) setClassName(mapped[0].className)
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setCampusExams([])
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [api])
 
     const stats = useMemo(() => {
         if (!session) return null
@@ -96,34 +166,109 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
 
     const isLocked = isSessionLocked(session)
 
-    const handleLoadStudents = () => {
+    const handleLoadStudents = async () => {
         if (!className || !section || !subject) {
-            setSaveMessage('Create classes and sections under Class Details, and subjects under RBAC, before entering marks.')
+            setSaveMessage('Select class, section, and subject before entering marks.')
             setLoaded(false)
             setSession(null)
             return
         }
 
-        const nextSession = loadMarkEntrySession({
-            academicYear,
-            term,
-            exam,
-            className,
-            section,
-            subject,
-            examDate: formatDate(examDate),
-            maxMarks: getExamMaxMarks(exam),
-        })
-        setSession(nextSession)
-        setLoaded(true)
-        setSearch('')
-        setStatusFilter('All')
-        setSaveMessage(
-            nextSession.students.length === 0
-                ? 'No students are assigned to this class and section yet.'
-                : '',
-        )
-        setSubmitMessage(getSubmitMessage(nextSession))
+        if (!api) {
+            const nextSession = loadMarkEntrySession({
+                academicYear,
+                term,
+                exam,
+                className,
+                section,
+                subject,
+                examDate: formatDate(examDate),
+                maxMarks: getExamMaxMarks(exam),
+            })
+            setSession(nextSession)
+            setLoaded(true)
+            setSearch('')
+            setStatusFilter('All')
+            setSaveMessage(
+                nextSession.students.length === 0
+                    ? 'No students are assigned to this class and section yet.'
+                    : '',
+            )
+            setSubmitMessage(getSubmitMessage(nextSession))
+            return
+        }
+
+        if (!examId) {
+            setSaveMessage('Select a campus exam (approved schedule) before entering marks.')
+            return
+        }
+
+        setLoading(true)
+        setSaveMessage('')
+        try {
+            const [studentRows, batches] = await Promise.all([
+                listStudentsApi({ className }),
+                listMarksBatchesApi({ examId, mine: true }),
+            ])
+            const students = studentRows
+                .map(mapStudentListFromApi)
+                .filter((row) => !row.section || row.section === section || row.section === '—')
+                .map((row) => ({
+                    ...row,
+                    rollNumber: row.rollNumber || row.admissionNumber || '',
+                    section: row.section || section,
+                }))
+            const match = batches
+                .map(mapMarksBatchFromApi)
+                .find((batch) => batch.subject === subject && (!batch.section || batch.section === section))
+            let batchDetail = match
+            if (match?.id) {
+                batchDetail = mapMarksBatchFromApi(await getMarksBatchApi(match.id))
+            }
+            const context = {
+                academicYear,
+                term,
+                exam,
+                examId,
+                className,
+                section,
+                subject,
+                examDate: formatDate(examDate),
+                maxMarks: Number(batchDetail?.maxMarks) || getExamMaxMarks(exam) || 100,
+            }
+            const entries = createEmptyEntries(students)
+            if (Array.isArray(batchDetail?.entries)) {
+                batchDetail.entries.forEach((entry) => {
+                    entries[String(entry.studentId)] = {
+                        obtainedMarks: entry.marks ?? null,
+                        absent: Boolean(entry.absent),
+                        remarks: entry.remarks || '',
+                    }
+                })
+            }
+            const statusBits = mapBatchStatus(batchDetail)
+            const nextSession = {
+                contextKey: buildContextKey(context),
+                ...context,
+                batchId: batchDetail?.id || null,
+                ...statusBits,
+                entries,
+                students,
+                source: 'api',
+            }
+            setSession(nextSession)
+            setLoaded(true)
+            setSearch('')
+            setStatusFilter('All')
+            setSaveMessage(students.length === 0 ? 'No students found for this class.' : '')
+            setSubmitMessage(getSubmitMessage(nextSession))
+        } catch (err) {
+            setLoaded(false)
+            setSession(null)
+            setSaveMessage(err?.message || 'Could not load mark entry from campus API.')
+        } finally {
+            setLoading(false)
+        }
     }
 
     const updateEntry = (studentId, patch) => {
@@ -152,12 +297,47 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
         setSubmitMessage('')
     }
 
-    const handleSaveDraft = () => {
+    const handleSaveDraft = async () => {
         if (entryBlocked('Mark Entry', submittedByRole)) return
         if (!session || isLocked) return
-        const saved = saveMarkEntrySession({ ...session, status: 'draft', approvalStatus: null })
-        setSession(saved)
-        setSaveMessage('Draft saved successfully. You can continue entering marks later.')
+        if (!api || session.source !== 'api') {
+            const saved = saveMarkEntrySession({ ...session, status: 'draft', approvalStatus: null })
+            setSession(saved)
+            setSaveMessage('Draft saved successfully. You can continue entering marks later.')
+            return
+        }
+        const entries = entriesPayloadFromSession(session)
+        if (entries.length === 0) {
+            setSaveMessage('Enter marks or mark absent for at least one student before saving draft.')
+            return
+        }
+        try {
+            let batch
+            if (session.batchId) {
+                batch = mapMarksBatchFromApi(await updateMarksBatchEntriesApi(session.batchId, entries))
+            } else {
+                batch = mapMarksBatchFromApi(
+                    await createMarksBatchApi({
+                        examId: session.examId,
+                        subject: session.subject,
+                        section: session.section,
+                        maxMarks: session.maxMarks,
+                        entries,
+                    }),
+                )
+            }
+            setSession((current) => ({
+                ...current,
+                batchId: batch.id,
+                status: 'draft',
+                approvalStatus: null,
+                maxMarks: batch.maxMarks ?? current.maxMarks,
+            }))
+            setSaveMessage('Draft saved to campus marks batch. You can continue entering marks later.')
+            setSubmitMessage('')
+        } catch (err) {
+            setSaveMessage(err?.message || 'Could not save draft to campus API.')
+        }
     }
 
     const handleSubmitClick = () => {
@@ -169,14 +349,50 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
         setSubmitModal(true)
     }
 
-    const handleConfirmSubmit = () => {
+    const handleConfirmSubmit = async () => {
         if (entryBlocked('Mark Entry', submittedByRole)) return
         if (!session) return
-        const submitted = submitMarkEntrySession(session, { submittedByRole })
-        setSession(submitted)
-        setSubmitModal(false)
-        setSubmitMessage(getSubmitMessage(submitted))
-        setSaveMessage('')
+        if (!api || session.source !== 'api') {
+            const submitted = submitMarkEntrySession(session, { submittedByRole })
+            setSession(submitted)
+            setSubmitModal(false)
+            setSubmitMessage(getSubmitMessage(submitted))
+            setSaveMessage('')
+            return
+        }
+        const entries = entriesPayloadFromSession(session)
+        try {
+            let batchId = session.batchId
+            if (!batchId) {
+                const created = mapMarksBatchFromApi(
+                    await createMarksBatchApi({
+                        examId: session.examId,
+                        subject: session.subject,
+                        section: session.section,
+                        maxMarks: session.maxMarks,
+                        entries,
+                    }),
+                )
+                batchId = created.id
+            } else {
+                await updateMarksBatchEntriesApi(batchId, entries)
+            }
+            const submitted = mapMarksBatchFromApi(await submitMarksBatchApi(batchId))
+            const statusBits = mapBatchStatus(submitted)
+            setSession((current) => ({
+                ...current,
+                batchId,
+                ...statusBits,
+                submittedByRole,
+                submittedAt: new Date().toISOString(),
+            }))
+            setSubmitModal(false)
+            setSubmitMessage('Marks submitted for Director approval via campus API.')
+            setSaveMessage('')
+        } catch (err) {
+            setSubmitModal(false)
+            setSaveMessage(err?.message || 'Could not submit marks batch.')
+        }
     }
 
     return (
@@ -224,11 +440,34 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='exam' className='text-base font-medium text-[#808080]'>Exam</label>
-                        <select id='exam' value={exam} onChange={(e) => setExam(e.target.value)} className={inputClass}>
-                            {EXAM_OPTIONS.map((item) => (
-                                <option key={item.name} value={item.name}>{item.name}</option>
-                            ))}
-                        </select>
+                        {api ? (
+                            <select
+                                id='exam'
+                                value={examId}
+                                onChange={(e) => {
+                                    const next = campusExams.find((item) => item.id === e.target.value)
+                                    setExamId(e.target.value)
+                                    if (next) {
+                                        setExam(next.name)
+                                        if (next.className) setClassName(next.className)
+                                    }
+                                }}
+                                className={inputClass}
+                            >
+                                <option value=''>Select campus exam</option>
+                                {campusExams.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.name} — {item.className} ({item.status || 'scheduled'})
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <select id='exam' value={exam} onChange={(e) => setExam(e.target.value)} className={inputClass}>
+                                {EXAM_OPTIONS.map((item) => (
+                                    <option key={item.name} value={item.name}>{item.name}</option>
+                                ))}
+                            </select>
+                        )}
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='class' className='text-base font-medium text-[#808080]'>Class</label>
@@ -273,10 +512,11 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     <div className='flex items-end'>
                         <button
                             type='button'
+                            disabled={loading}
                             onClick={handleLoadStudents}
-                            className='w-full bg-[#515DEF] text-white text-sm px-6 py-2.5 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer'
+                            className='w-full bg-[#515DEF] text-white text-sm px-6 py-2.5 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer disabled:opacity-60'
                         >
-                            Load Students
+                            {loading ? 'Loading…' : 'Load Students'}
                         </button>
                     </div>
                 </div>

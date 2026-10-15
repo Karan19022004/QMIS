@@ -43,6 +43,24 @@ export async function createMarksBatchApi(body) {
     return apiRequest('/marks-batches', { method: 'POST', body })
 }
 
+/** @returns {Promise<object>} */
+export async function getMarksBatchApi(batchId) {
+    return apiRequest(`/marks-batches/${batchId}`)
+}
+
+/** @returns {Promise<object>} */
+export async function updateMarksBatchEntriesApi(batchId, entries) {
+    return apiRequest(`/marks-batches/${batchId}/entries`, {
+        method: 'PUT',
+        body: { entries },
+    })
+}
+
+/** @returns {Promise<object>} */
+export async function submitMarksBatchApi(batchId) {
+    return apiRequest(`/marks-batches/${batchId}/submit`, { method: 'POST' })
+}
+
 export function mapExamFromApi(row) {
     return {
         id: String(row.id),
@@ -60,11 +78,22 @@ export function mapMarksBatchFromApi(row) {
     return {
         id: String(row.id),
         examId: row.examId || row.exam_id || '',
+        examName: row.examName || row.exam_name || '',
+        className: row.className || row.class_name || '',
         subject: row.subject || '',
         section: row.section || '',
         maxMarks: row.maxMarks ?? row.max_marks ?? null,
         status: row.status || '',
-        entries: Array.isArray(row.entries) ? row.entries : [],
+        entries: Array.isArray(row.entries)
+            ? row.entries.map((entry) => ({
+                  studentId: String(entry.studentId || entry.student_id || ''),
+                  studentName: entry.studentName || entry.student_name || '',
+                  admissionNumber: entry.admissionNumber || entry.admission_number || '',
+                  marks: entry.marks ?? null,
+                  absent: Boolean(entry.absent),
+                  remarks: entry.remarks || '',
+              }))
+            : [],
         source: 'api',
     }
 }

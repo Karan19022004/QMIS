@@ -8,6 +8,23 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 15 October 2026 — Medium audit items (attendance, marks, bundle)
+
+**Status:** All three Medium stability items closed before Director panel.
+
+### Done
+
+1. Class Attendance: section filter, Present/Absent editors, mark-all, Save → `POST /attendance` (fixed double JSON stringify).
+2. Mark Entry: campus exam dropdown, students from `/students`, draft/submit via `/marks-batches` (+ entries/submit helpers).
+3. Bundle: lazy role layouts in `App.jsx` + vendor chunks; production entry JS ~354 kB (build PASS).
+4. Regression: attendance/exams/teacher portal pytest **13 passed**.
+
+### Open / next
+
+- Director panel.
+
+---
+
 ## 15 October 2026 — Principal panel 21/21 Completed
 
 **Status:** Principal sidebar shared APIs + portal screens marked Completed (Teacher/Coordinator parity; no biometric Gap).

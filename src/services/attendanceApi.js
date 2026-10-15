@@ -15,7 +15,7 @@ export async function listAttendanceApi({ date, className, section, roster = fal
 export async function upsertAttendanceApi(payload) {
     return apiRequest('/attendance', {
         method: 'POST',
-        body: JSON.stringify(payload),
+        body: payload,
     })
 }
 

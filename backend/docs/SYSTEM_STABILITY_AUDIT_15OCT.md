@@ -37,8 +37,9 @@ Browser (Vite :5173)
 | API-mode localStorage fallback | **FIXED** | Students + lesson plans: fail-closed to `[]` until hydrate (no stale localStorage when API flag on). SubmitLessonPlan hydrates `/lesson-plans?mine=true`. |
 | Hardcoded production hosts | PASS | No prod host hardcoded in client |
 | Hybrid demo screens | PARTIAL | Deliverables, star ratings, some timetables, biometric remain local/demo by design |
-| Class attendance write UI | PARTIAL | Read API wired; mark-save POST not fully UI-complete (backend write tested) |
-| Bundle size | PARTIAL | Production build PASS; main JS ~9 MB (code-split recommended) |
+| Class attendance write UI | **FIXED** | Teacher/Coordinator ClassAttendance: editable Present/Absent + Save → `POST /attendance` |
+| Mark Entry → `/marks-batches` | **FIXED** | Shared MarkEntryPage loads exams/students; draft/submit via marks-batches APIs |
+| Bundle size | **FIXED** | Role layouts lazy-loaded in `App.jsx` + vendor manualChunks; entry JS ~354 kB (was ~9 MB monolith) |
 
 **Frontend production build:** PASS (~45 s).
 
@@ -65,11 +66,11 @@ Browser (Vite :5173)
 |---|---|---|---|---|
 | Auth / users | PASS | PASS | PASS | Seed + admin users API |
 | Admissions → students | PASS | PASS | PASS | Parent + optional student login link |
-| Attendance | PASS | PASS | PASS (API) | FE write path partial |
+| Attendance | PASS | PASS | PASS | ClassAttendance Save → POST /attendance |
 | Leave / escalations / tasks | PASS | PASS | PASS | Mounted under leave + escalations routers |
 | Announcements / calendar / TC / communication | PASS | PASS | PASS | Shared campus APIs |
 | Front office records | PASS | PASS | PASS | PRM collections |
-| Lesson plans / exams / marks | PASS | PASS | PASS | Backend; FE hydrate PARTIAL for marks UI |
+| Lesson plans / exams / marks | PASS | PASS | PASS | Mark Entry wired to /marks-batches |
 | Finance / HR | PASS | PASS | PASS | Partner-style SoT |
 | Documents / files | PASS | PASS | PASS | Domain ACL + orphan upload IDOR closed |
 
@@ -131,9 +132,9 @@ Backend matrix: `backend/app/permissions/matrix.py`. Authorization is enforced i
 | H-02 | **High** | Orphan `/files/{id}/download` was campus-readable (IDOR for generic uploads) | **FIXED** in `app/services/files.py` (uploader or elevated staff only) |
 | H-03 | **High** | `must_change_password` flagged on login but JWT still used for all APIs | **FIXED** in `app/deps.py` + query-token download path |
 | H-04 | **High** | API-flagged FE modules fell back to stale localStorage before/without hydrate | **FIXED** students + lesson plans; SubmitLessonPlan API hydrate |
-| M-01 | Medium | Class attendance UI lacks complete mark-save UX (API exists + pytest) | Open |
-| M-02 | Medium | Mark entry UI still primarily localStorage; `/marks-batches` API exists | Open |
-| M-03 | Medium | Main JS bundle ~9 MB uncompressed | Open (perf) |
+| M-01 | Medium | Class attendance UI lacks complete mark-save UX (API exists + pytest) | **FIXED** |
+| M-02 | Medium | Mark entry UI still primarily localStorage; `/marks-batches` API exists | **FIXED** |
+| M-03 | Medium | Main JS bundle ~9 MB uncompressed | **FIXED** (lazy role layouts) |
 | L-01 | Low | Unused `api/v1/router.py` duplicate include path | Open |
 | L-02 | Low | Dual `Base` definitions historically (`models` vs `db/session`) — app uses `app.models.Base` | Open |
 | L-03 | Low | Working tree: deleted `.vscode/tasks.json`, leftover unlocked Word copies | Cleanup optional |
@@ -161,7 +162,7 @@ Do not invent scalability claims.
 | Suite | Result |
 |---|---|
 | Backend `pytest tests/ -q` | **415 passed**, 1 warning (Starlette TestClient deprecation) — re-verified after H-02–H-04 |
-| Frontend `npm run build` | **PASS** |
+| Frontend `npm run build` | **PASS** (entry ~354 kB after layout code-split; 15 Oct Medium fix) |
 | Browser E2E / Playwright | NOT RUN |
 | Live payment/email/WhatsApp | NOT RUN (by policy) |
 | Load / soak | NOT RUN |
@@ -176,6 +177,7 @@ Do not invent scalability claims.
 | PRM (Front Office) | 21/21 Completed | PASS for `front_office_records` + admissions; READY WITH LIMITATIONS |
 | Parent / Student | 23/23 | PASS (self-scoped) |
 | Teacher / Coordinator | 29 Completed / 1 Gap | PASS except biometric Gap |
+| Principal | 21/21 Completed | PASS (exams.write + shared APIs) |
 
 ---
 
@@ -192,14 +194,12 @@ Do not invent scalability claims.
 
 ### **READY WITH LIMITATIONS**
 
-**Why not READY:** Remaining Medium items (attendance write UX, mark-entry deep-wire, bundle size) and incomplete role panels beyond Teacher/Coordinator; integrations are stub/demo unless configured.
+**Why not READY:** Incomplete role panels beyond Principal (Director next); integrations remain stub/demo unless configured; some portal screens still local-only by design; further route-level lazy loading can shrink large role chunks.
 
-**Why not NOT READY:** No unresolved Critical security blockers; High IDOR / password-gate / FE stale-cache issues fixed; DB schema matches ORM at head **0012**; **415** automated tests PASS; Admin/PRM/Parent/Student essential API paths verified.
+**Why not NOT READY:** No unresolved Critical/High stability blockers; Medium attendance/marks/bundle items fixed; DB schema matches ORM at head **0012**; Admin/PRM/Parent/Student/Teacher/Coordinator/Principal essential paths verified.
 
-**Recommended next steps (after this audit):**
+**Recommended next steps:**
 
-1. Commit High follow-up fixes (do not push unless approved).
-2. Principal / Director panel wiring (same shared domains).
-3. Attendance mark-save UI + Mark Entry → `/marks-batches`.
-4. Optional Archify refresh noting 0012 + Teacher/Coordinator completion.
-5. Code-split frontend bundle before production hardening.
+1. Director panel wiring (same shared domains).
+2. Optional deeper page-level lazy imports inside largest role route trees.
+3. Optional Archify refresh noting Principal 21/21 + Medium fixes.

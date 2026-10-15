@@ -1,35 +1,45 @@
+import React, { Suspense, lazy } from "react";
 import { Navigate, useLocation } from "react-router-dom";
-import AuthLayout from "./Layout/AuthLayout";
-import SuperAdminLayout from "./Layout/SuperAdminLayout";
-import AdminLayout from "./Layout/AdminLayout";
-import LibrarianLayout from "./Layout/LibrarianLayout";
-import GateKeeperLayout from "./Layout/GateKeeperLayout";
-import GateKeeperManagerLayout from "./Layout/GateKeeperManagerLayout";
-import DirectorLayout from "./Layout/DirectorLayout";
-import PrincipalLayout from "./Layout/PrincipalLayout";
-import CanteenManagerLayout from "./Layout/CanteenManagerLayout";
-import ITSupportManagerLayout from "./Layout/ITSupportManagerLayout";
-import StationeryStoreManagerLayout from "./Layout/StationeryStoreManagerLayout";
-import HousekeepingManagerLayout from "./Layout/HousekeepingManagerLayout";
-import TransportManagerLayout from "./Layout/TransportManagerLayout";
-import TeacherLayout from "./Layout/TeacherLayout";
-import CoordinatorLayout from "./Layout/CoordinatorLayout";
-import JointDirectorLayout from "./Layout/JointDirectorLayout";
-import JointDirectorAssistantLayout from "./Layout/JointDirectorAssistantLayout";
-import JointDirectorAuditLayout from "./Layout/JointDirectorAuditLayout";
-import ProcessAuditorLayout from "./Layout/ProcessAuditorLayout";
-import QualityAuditorLayout from "./Layout/QualityAuditorLayout";
-import HRLayout from "./Layout/HRLayout";
-import AccountHeadLayout from "./Layout/AccountHeadLayout";
-import DriverLayout from "./Layout/DriverLayout";
-import PRMLayout from "./Layout/PRMLayout";
-import StudentLayout from "./Layout/StudentLayout";
-import ParentLayout from "./Layout/ParentLayout";
 import ChangePassword from "./Pages/Authentication/ChangePassword";
 import { ROLE_HOME_PATHS, ROLES, useAuth } from "./context/AuthContext";
 import './App.css'
 
+const AuthLayout = lazy(() => import("./Layout/AuthLayout"));
+const SuperAdminLayout = lazy(() => import("./Layout/SuperAdminLayout"));
+const AdminLayout = lazy(() => import("./Layout/AdminLayout"));
+const LibrarianLayout = lazy(() => import("./Layout/LibrarianLayout"));
+const GateKeeperLayout = lazy(() => import("./Layout/GateKeeperLayout"));
+const GateKeeperManagerLayout = lazy(() => import("./Layout/GateKeeperManagerLayout"));
+const DirectorLayout = lazy(() => import("./Layout/DirectorLayout"));
+const PrincipalLayout = lazy(() => import("./Layout/PrincipalLayout"));
+const CanteenManagerLayout = lazy(() => import("./Layout/CanteenManagerLayout"));
+const ITSupportManagerLayout = lazy(() => import("./Layout/ITSupportManagerLayout"));
+const StationeryStoreManagerLayout = lazy(() => import("./Layout/StationeryStoreManagerLayout"));
+const HousekeepingManagerLayout = lazy(() => import("./Layout/HousekeepingManagerLayout"));
+const TransportManagerLayout = lazy(() => import("./Layout/TransportManagerLayout"));
+const TeacherLayout = lazy(() => import("./Layout/TeacherLayout"));
+const CoordinatorLayout = lazy(() => import("./Layout/CoordinatorLayout"));
+const JointDirectorLayout = lazy(() => import("./Layout/JointDirectorLayout"));
+const JointDirectorAssistantLayout = lazy(() => import("./Layout/JointDirectorAssistantLayout"));
+const JointDirectorAuditLayout = lazy(() => import("./Layout/JointDirectorAuditLayout"));
+const ProcessAuditorLayout = lazy(() => import("./Layout/ProcessAuditorLayout"));
+const QualityAuditorLayout = lazy(() => import("./Layout/QualityAuditorLayout"));
+const HRLayout = lazy(() => import("./Layout/HRLayout"));
+const AccountHeadLayout = lazy(() => import("./Layout/AccountHeadLayout"));
+const DriverLayout = lazy(() => import("./Layout/DriverLayout"));
+const PRMLayout = lazy(() => import("./Layout/PRMLayout"));
+const StudentLayout = lazy(() => import("./Layout/StudentLayout"));
+const ParentLayout = lazy(() => import("./Layout/ParentLayout"));
+
 const AUTH_ROUTES = ["/signin", "/signup", "/select-profile"];
+
+const RouteFallback = () => (
+  <div className="min-h-screen flex items-center justify-center text-sm text-[#667085]">
+    Loading panel…
+  </div>
+);
+
+const withSuspense = (node) => <Suspense fallback={<RouteFallback />}>{node}</Suspense>;
 
 const App = () => {
   const location = useLocation();
@@ -49,7 +59,7 @@ const App = () => {
       }
       return <Navigate to={ROLE_HOME_PATHS[role] ?? "/dashboard"} replace />;
     }
-    return <AuthLayout />;
+    return withSuspense(<AuthLayout />);
   }
 
   if (!isAuthenticated) {
@@ -80,154 +90,154 @@ const App = () => {
     if (!pathname.startsWith("/student")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.STUDENT]} replace />;
     }
-    return <StudentLayout />;
+    return withSuspense(<StudentLayout />);
   }
 
   if (role === ROLES.PARENT) {
     if (!pathname.startsWith("/parent")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.PARENT]} replace />;
     }
-    return <ParentLayout />;
+    return withSuspense(<ParentLayout />);
   }
 
   if (role === ROLES.LIBRARIAN) {
     if (!pathname.startsWith("/librarian")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.LIBRARIAN]} replace />;
     }
-    return <LibrarianLayout />;
+    return withSuspense(<LibrarianLayout />);
   }
 
   if (role === ROLES.PRM) {
     if (!pathname.startsWith("/front-office")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.PRM]} replace />;
     }
-    return <PRMLayout />;
+    return withSuspense(<PRMLayout />);
   }
 
   if (role === ROLES.GATEKEEPER_MANAGER) {
     if (!pathname.startsWith("/gatekeeper-manager")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.GATEKEEPER_MANAGER]} replace />;
     }
-    return <GateKeeperManagerLayout />;
+    return withSuspense(<GateKeeperManagerLayout />);
   }
 
   if (role === ROLES.GATEKEEPER) {
     if (!pathname.startsWith("/gate-keeper")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.GATEKEEPER]} replace />;
     }
-    return <GateKeeperLayout />;
+    return withSuspense(<GateKeeperLayout />);
   }
 
   if (role === ROLES.DIRECTOR) {
     if (!pathname.startsWith("/director")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.DIRECTOR]} replace />;
     }
-    return <DirectorLayout />;
+    return withSuspense(<DirectorLayout />);
   }
 
   if (role === ROLES.PRINCIPAL) {
     if (!pathname.startsWith("/principal")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.PRINCIPAL]} replace />;
     }
-    return <PrincipalLayout />;
+    return withSuspense(<PrincipalLayout />);
   }
 
   if (role === ROLES.CANTEEN_MANAGER) {
     if (!pathname.startsWith("/canteen-manager")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.CANTEEN_MANAGER]} replace />;
     }
-    return <CanteenManagerLayout />;
+    return withSuspense(<CanteenManagerLayout />);
   }
 
   if (role === ROLES.IT_SUPPORT_MANAGER) {
     if (!pathname.startsWith("/it-support-manager")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.IT_SUPPORT_MANAGER]} replace />;
     }
-    return <ITSupportManagerLayout />;
+    return withSuspense(<ITSupportManagerLayout />);
   }
 
   if (role === ROLES.STATIONERY_STORE_MANAGER) {
     if (!pathname.startsWith("/stationery-store-manager")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.STATIONERY_STORE_MANAGER]} replace />;
     }
-    return <StationeryStoreManagerLayout />;
+    return withSuspense(<StationeryStoreManagerLayout />);
   }
 
   if (role === ROLES.HOUSEKEEPING_MANAGER) {
     if (!pathname.startsWith("/housekeeping-manager")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.HOUSEKEEPING_MANAGER]} replace />;
     }
-    return <HousekeepingManagerLayout />;
+    return withSuspense(<HousekeepingManagerLayout />);
   }
 
   if (role === ROLES.TRANSPORT_MANAGER) {
     if (!pathname.startsWith("/transport-manager")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.TRANSPORT_MANAGER]} replace />;
     }
-    return <TransportManagerLayout />;
+    return withSuspense(<TransportManagerLayout />);
   }
 
   if (role === ROLES.COORDINATOR) {
     if (!pathname.startsWith("/coordinator")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.COORDINATOR]} replace />;
     }
-    return <CoordinatorLayout />;
+    return withSuspense(<CoordinatorLayout />);
   }
 
   if (role === ROLES.TEACHER) {
     if (!pathname.startsWith("/teacher")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.TEACHER]} replace />;
     }
-    return <TeacherLayout />;
+    return withSuspense(<TeacherLayout />);
   }
 
   if (role === ROLES.PROCESS_AUDITOR) {
     if (!pathname.startsWith("/process-auditor")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.PROCESS_AUDITOR]} replace />;
     }
-    return <ProcessAuditorLayout />;
+    return withSuspense(<ProcessAuditorLayout />);
   }
 
   if (role === ROLES.QUALITY_AUDITOR) {
     if (!pathname.startsWith("/quality-auditor")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.QUALITY_AUDITOR]} replace />;
     }
-    return <QualityAuditorLayout />;
+    return withSuspense(<QualityAuditorLayout />);
   }
 
   if (role === ROLES.HR) {
     if (!pathname.startsWith("/hr")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.HR]} replace />;
     }
-    return <HRLayout />;
+    return withSuspense(<HRLayout />);
   }
 
   if (role === ROLES.ACCOUNT_HEAD) {
     if (!pathname.startsWith("/account-head")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.ACCOUNT_HEAD]} replace />;
     }
-    return <AccountHeadLayout />;
+    return withSuspense(<AccountHeadLayout />);
   }
 
   if (role === ROLES.DRIVER) {
     if (!pathname.startsWith("/driver")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.DRIVER]} replace />;
     }
-    return <DriverLayout />;
+    return withSuspense(<DriverLayout />);
   }
 
   if (role === ROLES.JOINT_DIRECTOR_AUDIT) {
     if (!pathname.startsWith("/joint-director-audit")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.JOINT_DIRECTOR_AUDIT]} replace />;
     }
-    return <JointDirectorAuditLayout />;
+    return withSuspense(<JointDirectorAuditLayout />);
   }
 
   if (role === ROLES.JOINT_DIRECTOR_ASSISTANT) {
     if (!pathname.startsWith("/joint-director-assistant")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.JOINT_DIRECTOR_ASSISTANT]} replace />;
     }
-    return <JointDirectorAssistantLayout />;
+    return withSuspense(<JointDirectorAssistantLayout />);
   }
 
   if (role === ROLES.JOINT_DIRECTOR) {
@@ -238,21 +248,21 @@ const App = () => {
     ) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.JOINT_DIRECTOR]} replace />;
     }
-    return <JointDirectorLayout />;
+    return withSuspense(<JointDirectorLayout />);
   }
 
   if (role === ROLES.SUPER_ADMIN) {
     if (!pathname.startsWith("/super-admin")) {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.SUPER_ADMIN]} replace />;
     }
-    return <SuperAdminLayout />;
+    return withSuspense(<SuperAdminLayout />);
   }
 
   if (role === ROLES.ADMIN) {
     if (!pathname.startsWith("/admin") && pathname !== "/dashboard") {
       return <Navigate to={ROLE_HOME_PATHS[ROLES.ADMIN]} replace />;
     }
-    return <AdminLayout />;
+    return withSuspense(<AdminLayout />);
   }
 
   if (
