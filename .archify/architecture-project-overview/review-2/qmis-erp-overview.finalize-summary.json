@@ -1,354 +1,361 @@
 {
   "schemaVersion": 1,
-  "ok": true,
+  "ok": false,
   "command": "finalize",
-  "status": "pass",
+  "status": "fail",
   "type": "architecture",
   "quality": "showcase",
   "specification": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
-    "sha256": "90f06e2b355d6ee223ac0aa32467ed526f51c2b9d6f7ea06e2ab53ac932ad2f6",
-    "bytes": 12788
+    "sha256": "2e416623709e7fb4efab031dec1b0e6f3c540ec66a2954a1445d5144e28b70e4",
+    "bytes": 16227
   },
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "ce3a2b98ec24486907d7a7c315c1dd6880eccdbd625d9cd5395b9aeba6d8a2aa",
-    "bytes": 782845
+    "sha256": "c88ef1ed79c1d0d004d3ac98abf7f295dd69c5b09975a56e21510e17d16cbcad",
+    "bytes": 795057
   },
   "gates": {
-    "validate": "pass",
-    "deliver": "pass",
-    "check": "pass",
-    "browser-check": "pass"
+    "validate": "fail",
+    "deliver": "not-run",
+    "check": "not-run",
+    "browser-check": "not-run"
   },
-  "diagnostics": [],
+  "failedStage": "validate",
+  "diagnostics": [
+    {
+      "code": "layout/constraint",
+      "severity": "error",
+      "message": "Boundary label \"Backend (FastAPI)\" extends outside the viewBox — move wrapped components away from the canvas edge, shorten the label, or increase the viewBox.",
+      "subject": {
+        "diagramType": "architecture"
+      }
+    },
+    {
+      "code": "layout/boundary-out-of-bounds",
+      "severity": "error",
+      "message": "Boundary \"Backend (FastAPI)\" extends outside the viewBox (top by 14px) — preserve wraps membership and repair the measured canvas side.",
+      "subject": {
+        "diagramType": "architecture",
+        "boundary": {
+          "kind": "region",
+          "label": "Backend (FastAPI)",
+          "wraps": [
+            "api",
+            "mod_auth",
+            "mod_audit",
+            "mod_admin_users",
+            "mod_masters",
+            "mod_admissions",
+            "mod_parents",
+            "mod_students",
+            "mod_attendance",
+            "mod_workflows",
+            "mod_finance",
+            "mod_hr",
+            "mod_files",
+            "mod_admin_campus",
+            "mod_front_office"
+          ]
+        }
+      },
+      "evidence": {
+        "bounds": {
+          "x": 550,
+          "y": -14,
+          "width": 748,
+          "height": 944
+        },
+        "viewBox": [
+          1338,
+          1073
+        ],
+        "overflow": {
+          "left": 0,
+          "top": 14,
+          "right": 0,
+          "bottom": 0
+        },
+        "members": [
+          {
+            "id": "api",
+            "type": "backend",
+            "label": "FastAPI",
+            "x": 580,
+            "y": 120,
+            "width": 140,
+            "height": 180,
+            "pos": [
+              580,
+              120
+            ]
+          },
+          {
+            "id": "mod_auth",
+            "type": "backend",
+            "label": "Auth",
+            "x": 760,
+            "y": 16,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              760,
+              16
+            ]
+          },
+          {
+            "id": "mod_audit",
+            "type": "backend",
+            "label": "Audit",
+            "x": 940,
+            "y": 16,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              940,
+              16
+            ]
+          },
+          {
+            "id": "mod_admin_users",
+            "type": "backend",
+            "label": "Admin users",
+            "x": 1120,
+            "y": 16,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              1120,
+              16
+            ]
+          },
+          {
+            "id": "mod_masters",
+            "type": "backend",
+            "label": "Masters",
+            "x": 860,
+            "y": 100,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              100
+            ]
+          },
+          {
+            "id": "mod_admissions",
+            "type": "backend",
+            "label": "Admissions",
+            "x": 860,
+            "y": 175,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              175
+            ]
+          },
+          {
+            "id": "mod_parents",
+            "type": "backend",
+            "label": "Parents",
+            "x": 860,
+            "y": 250,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              250
+            ]
+          },
+          {
+            "id": "mod_students",
+            "type": "backend",
+            "label": "Students",
+            "x": 860,
+            "y": 325,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              325
+            ]
+          },
+          {
+            "id": "mod_attendance",
+            "type": "backend",
+            "label": "Attendance",
+            "x": 860,
+            "y": 400,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              400
+            ]
+          },
+          {
+            "id": "mod_workflows",
+            "type": "backend",
+            "label": "Workflows",
+            "x": 860,
+            "y": 475,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              475
+            ]
+          },
+          {
+            "id": "mod_finance",
+            "type": "backend",
+            "label": "Finance",
+            "x": 860,
+            "y": 550,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              550
+            ]
+          },
+          {
+            "id": "mod_hr",
+            "type": "backend",
+            "label": "HR",
+            "x": 860,
+            "y": 625,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              625
+            ]
+          },
+          {
+            "id": "mod_files",
+            "type": "backend",
+            "label": "Files",
+            "x": 860,
+            "y": 700,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              700
+            ]
+          },
+          {
+            "id": "mod_admin_campus",
+            "type": "backend",
+            "label": "Admin campus",
+            "x": 860,
+            "y": 775,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              775
+            ]
+          },
+          {
+            "id": "mod_front_office",
+            "type": "backend",
+            "label": "Front Office",
+            "x": 860,
+            "y": 850,
+            "width": 148,
+            "height": 60,
+            "pos": [
+              860,
+              850
+            ]
+          }
+        ]
+      },
+      "supportedFixes": [
+        "move the wrapped components right by at least 0px and down by at least 14px, then revalidate connected routes and the opposite canvas sides; enlarging meta.viewBox cannot fix left/top overflow"
+      ]
+    },
+    {
+      "code": "layout/route-out-of-bounds",
+      "severity": "error",
+      "message": "Connection \"api-mod_admin_users\" extends outside the viewBox — move the measured outside route points inward or enlarge an authored viewBox for right/bottom overflow.",
+      "subject": {
+        "diagramType": "architecture",
+        "collection": "connections",
+        "index": 8,
+        "id": "api-mod_admin_users",
+        "from": "api",
+        "to": "mod_admin_users"
+      },
+      "evidence": {
+        "viewBox": [
+          1338,
+          1073
+        ],
+        "outsidePoints": [
+          [
+            636,
+            -8
+          ],
+          [
+            1194,
+            -8
+          ]
+        ],
+        "points": [
+          [
+            636,
+            120
+          ],
+          [
+            636,
+            -8
+          ],
+          [
+            1194,
+            -8
+          ],
+          [
+            1194,
+            16
+          ]
+        ]
+      },
+      "supportedFixes": [
+        "move negative route coordinates inside the canvas; for right/bottom overflow, enlarge meta.viewBox or reroute inward; preserve endpoints, direction and labels, then revalidate"
+      ]
+    }
+  ],
   "diagnosticSummary": {
-    "total": 0,
-    "shown": 0,
+    "total": 3,
+    "shown": 3,
     "truncated": false
   },
   "evidence": {
     "receipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\review-2\\qmis-erp-overview.finalize.json",
-    "summaryReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\review-2\\qmis-erp-overview.finalize-summary.json",
-    "browserCheckReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\review-2\\qmis-erp-overview.browser-check.json"
+    "summaryReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\review-2\\qmis-erp-overview.finalize-summary.json"
   },
   "update": {
-    "status": "current",
+    "status": "update_available",
     "installedVersion": "3.0.1",
-    "availableVersion": "3.0.1",
-    "releaseNotes": null,
-    "checkedAt": "2026-10-12T16:57:15.843Z",
+    "availableVersion": "3.1.0",
+    "releaseNotes": "https://github.com/tt-a1i/archify/releases/tag/v3.1.0",
+    "severity": "normal",
+    "checkedAt": "2026-10-15T13:24:59.580Z",
     "source": "cache",
-    "noticeRequired": false,
-    "noticeText": null
+    "noticeRequired": true,
+    "noticeText": "Archify update: 3.0.1 → 3.1.0. A previous check at 2026-10-15T13:24:59.580Z found a newer release. Release notes: https://github.com/tt-a1i/archify/releases/tag/v3.1.0. The installed Skill has not changed; ask to snooze or ignore this reminder.",
+    "eventKey": "archify@sha256:ffedc53390c9da6e859f41e432c5d2d0615a23cf00a503181f07efbba88a7ce8"
   },
   "visualReview": "not-requested",
-  "durationMs": 8429,
-  "visualReviewRecommendation": {
-    "action": "inspect-route-readability",
-    "signals": {
-      "resolvedCrossovers": 9,
-      "routesOverSuggestedBends": 7,
-      "routesOverSuggestedStretch": 1
-    },
-    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
-    "affectedRoutes": {
-      "crossings": [
-        {
-          "left": {
-            "id": "api-mod_masters",
-            "from": "api",
-            "to": "mod_masters",
-            "label": "",
-            "collectionIndex": 7,
-            "artifactIndex": 8
-          },
-          "right": {
-            "id": "api-mod_admissions",
-            "from": "api",
-            "to": "mod_admissions",
-            "label": "",
-            "collectionIndex": 8,
-            "artifactIndex": 9
-          },
-          "point": [
-            694,
-            136
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_parents",
-            "from": "api",
-            "to": "mod_parents",
-            "label": "",
-            "collectionIndex": 9,
-            "artifactIndex": 10
-          },
-          "right": {
-            "id": "api-mod_students",
-            "from": "api",
-            "to": "mod_students",
-            "label": "",
-            "collectionIndex": 10,
-            "artifactIndex": 11
-          },
-          "point": [
-            784,
-            260
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_parents",
-            "from": "api",
-            "to": "mod_parents",
-            "label": "",
-            "collectionIndex": 9,
-            "artifactIndex": 10
-          },
-          "right": {
-            "id": "api-mod_academics",
-            "from": "api",
-            "to": "mod_academics",
-            "label": "",
-            "collectionIndex": 14,
-            "artifactIndex": 15
-          },
-          "point": [
-            978,
-            260
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_students",
-            "from": "api",
-            "to": "mod_students",
-            "label": "",
-            "collectionIndex": 10,
-            "artifactIndex": 11
-          },
-          "right": {
-            "id": "api-mod_academics",
-            "from": "api",
-            "to": "mod_academics",
-            "label": "",
-            "collectionIndex": 14,
-            "artifactIndex": 15
-          },
-          "point": [
-            978,
-            206
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_finance",
-            "from": "api",
-            "to": "mod_finance",
-            "label": "",
-            "collectionIndex": 11,
-            "artifactIndex": 12
-          },
-          "right": {
-            "id": "api-mod_hr",
-            "from": "api",
-            "to": "mod_hr",
-            "label": "",
-            "collectionIndex": 12,
-            "artifactIndex": 13
-          },
-          "point": [
-            900,
-            302
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_finance",
-            "from": "api",
-            "to": "mod_finance",
-            "label": "",
-            "collectionIndex": 11,
-            "artifactIndex": 12
-          },
-          "right": {
-            "id": "api-mod_academics",
-            "from": "api",
-            "to": "mod_academics",
-            "label": "",
-            "collectionIndex": 14,
-            "artifactIndex": 15
-          },
-          "point": [
-            978,
-            357
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_hr",
-            "from": "api",
-            "to": "mod_hr",
-            "label": "",
-            "collectionIndex": 12,
-            "artifactIndex": 13
-          },
-          "right": {
-            "id": "api-mod_academics",
-            "from": "api",
-            "to": "mod_academics",
-            "label": "",
-            "collectionIndex": 14,
-            "artifactIndex": 15
-          },
-          "point": [
-            978,
-            302
-          ],
-          "sharedNode": "api"
-        },
-        {
-          "left": {
-            "id": "api-mod_files",
-            "from": "api",
-            "to": "mod_files",
-            "label": "",
-            "collectionIndex": 13,
-            "artifactIndex": 14
-          },
-          "right": {
-            "id": "api-mod_academics",
-            "from": "api",
-            "to": "mod_academics",
-            "label": "",
-            "collectionIndex": 14,
-            "artifactIndex": 15
-          },
-          "point": [
-            978,
-            384
-          ],
-          "sharedNode": "api"
-        }
-      ],
-      "detours": [
-        {
-          "relationship": {
-            "id": "api-db",
-            "from": "api",
-            "to": "db",
-            "label": "SQL",
-            "collectionIndex": 3,
-            "artifactIndex": 4
-          },
-          "bends": 3,
-          "stretch": 1.34
-        },
-        {
-          "relationship": {
-            "id": "api-uploads",
-            "from": "api",
-            "to": "uploads",
-            "label": "files",
-            "collectionIndex": 4,
-            "artifactIndex": 5
-          },
-          "bends": 4,
-          "stretch": 1.781,
-          "directCorridorBlockers": [
-            {
-              "id": "db",
-              "label": "PostgreSQL",
-              "box": [
-                610,
-                420,
-                140,
-                64
-              ]
-            }
-          ]
-        },
-        {
-          "relationship": {
-            "id": "api-mod_masters",
-            "from": "api",
-            "to": "mod_masters",
-            "label": "",
-            "collectionIndex": 7,
-            "artifactIndex": 8
-          },
-          "bends": 3,
-          "stretch": 1.131
-        },
-        {
-          "relationship": {
-            "id": "api-mod_students",
-            "from": "api",
-            "to": "mod_students",
-            "label": "",
-            "collectionIndex": 10,
-            "artifactIndex": 11
-          },
-          "bends": 3,
-          "stretch": 1.078
-        },
-        {
-          "relationship": {
-            "id": "api-mod_files",
-            "from": "api",
-            "to": "mod_files",
-            "label": "",
-            "collectionIndex": 13,
-            "artifactIndex": 14
-          },
-          "bends": 3,
-          "stretch": 1
-        },
-        {
-          "relationship": {
-            "id": "api-mod_academics",
-            "from": "api",
-            "to": "mod_academics",
-            "label": "",
-            "collectionIndex": 14,
-            "artifactIndex": 15
-          },
-          "bends": 3,
-          "stretch": 1
-        },
-        {
-          "relationship": {
-            "id": "api-mod_ops",
-            "from": "api",
-            "to": "mod_ops",
-            "label": "",
-            "collectionIndex": 15,
-            "artifactIndex": 16
-          },
-          "bends": 3,
-          "stretch": 1.078
-        }
-      ],
-      "truncated": true
-    },
-    "hints": [
-      "api → mod_masters and api → mod_admissions cross next to api: move node mod_masters or mod_admissions so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_parents and api → mod_students cross next to api: move node mod_parents or mod_students so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_parents and api → mod_academics cross next to api: move node mod_parents or mod_academics so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_students and api → mod_academics cross next to api: move node mod_students or mod_academics so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_finance and api → mod_hr cross next to api: move node mod_finance or mod_hr so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_finance and api → mod_academics cross next to api: move node mod_finance or mod_academics so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_hr and api → mod_academics cross next to api: move node mod_hr or mod_academics so the two reach api from different sides (for example one level with it, one directly above or below it).",
-      "api → mod_files and api → mod_academics cross next to api: move node mod_files or mod_academics so the two reach api from different sides (for example one level with it, one directly above or below it)."
-    ],
-    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  "durationMs": 2285,
+  "nextAction": {
+    "action": "edit-in-place",
+    "candidate": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
+    "constraint": "Preserve all semantics and user-fixed geometry. Use references/architecture-layout-repair.md to choose a local repair or connected-scene reflow; edit the existing candidate.",
+    "then": "finalize-once"
   }
 }
