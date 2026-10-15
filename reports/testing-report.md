@@ -1,13 +1,11 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 14 October 2026 (Student panel 23/23)  
-Result: `python -m pytest tests/ -q` → **412 passed**, 1 warning (~4 m 32 s).
+Last run: 15 October 2026 (Teacher panel)  
+Result: `tests/test_teacher_portal_apis.py` → **2 passed**, 1 warning (~5 s).
 
-Includes new `test_student_portal_apis` (me / announcements / calendar / notifications / communication / results / attendance / TC self-scope).
-
-Word: Student **23 Completed / 0 Partial / 0 Not Completed**; TOTAL **195 / 34 / 249 / 2 Gap** (review + updated/unlocked copies; main `.docx` locked during write).
+Word: Teacher **29 Completed / 0 Partial / 0 Not Completed / 1 Gap** (biometric); TOTAL **222 / 31 / 225 / 2 Gap**.
 
 ## Decision
 
-Student role panel completed (API + FE hydrate + Word + Alembic 0012).
+Teacher role panel completed except biometric Gap; ready to push and continue with Coordinator.

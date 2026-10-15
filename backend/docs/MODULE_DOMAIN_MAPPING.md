@@ -97,11 +97,27 @@ Student portal reuses `StudentPortalRoutes` with `roleKey=student` and `ActiveSt
 
 ---
 
+## Teacher (30 modules) — Completed (1 Gap)
+
+Teacher reuses shared staff domains (`_STAFF_ACADEMIC` + matrix loops). Biometric remains Gap.
+
+| Sidebar module | Domain | FE | API | Tables | Migration? | Verified |
+|---|---|---|---|---|---|---|
+| Class Attendance | Attendance | `ClassAttendance.jsx` | `/attendance` | `student_attendance` | No | PASS |
+| Lesson Plan | Lesson plans | MyLessonPlan + submit | `/lesson-plans` | lesson plan + approvals | No | PASS |
+| Students List | Students | Teacher StudentsList | `/students` | `students` | No | PASS |
+| Exam | Exams | ExamSchedule | `/exams` | exams | No | PASS |
+| Announcement / Calendar / Communication / Notifications / Escalation / Tasks / Leave | Shared | roleKey=teacher | matching `/api/v1/*` | shared | No | PASS |
+| Deliverables / stars / timetable / online / books / profile | Portal UI | Teacher pages | — | — | No | PASS (portal) |
+| Biometric Attendance | — | placeholder | — | — | No | Gap |
+
+---
+
 ## Other role panels
 
 | Role panel | Default approach |
 |---|---|
-| Teacher / Coordinator | Academics already partly in DB |
+| Coordinator | Same academic APIs as Teacher (+ exams.write) |
 | Principal / Director | Shared approvals + announcements + calendar |
 | HR / Account Head / others | Reuse first; migrate only for true new domains |
 

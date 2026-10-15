@@ -53,20 +53,25 @@ const LessonPlanEntryForm = ({ submitterName, submitterRole, successPath }) => {
     const setHeaderField = (key, value) => setHeader((current) => ({ ...current, [key]: value }))
     const updateRow = (id, key, value) => setRows((current) => current.map((row) => (row.id === id ? { ...row, [key]: value } : row)))
 
-    const submit = () => {
+    const submit = async () => {
         if (!header.subject || !header.className || !header.section || !header.academicYear || !header.month || !header.weekNo || !header.fromDate || !header.toDate) return
         if (!rows.length) return
-        addLessonPlan({
-            ...header,
-            ...summary,
-            fromDate: toDisplayDate(header.fromDate),
-            toDate: toDisplayDate(header.toDate),
-            planningRows: rows,
-            attachment: header.attachmentName,
-            submitterName,
-            submitterRole,
-        })
-        navigate(successPath)
+        try {
+            await addLessonPlan({
+                ...header,
+                ...summary,
+                fromDate: toDisplayDate(header.fromDate),
+                toDate: toDisplayDate(header.toDate),
+                planningRows: rows,
+                attachment: header.attachmentName,
+                submitterName,
+                submitterRole,
+            })
+            navigate(successPath)
+        } catch (error) {
+            console.error(error)
+            window.alert(error?.message || 'Could not submit lesson plan.')
+        }
     }
 
     return (

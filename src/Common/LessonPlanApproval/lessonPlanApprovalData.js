@@ -1,7 +1,15 @@
 import { SECTIONS, SUBJECTS, getClasses } from '../../Pages/Teacher/AssignedClass/assignedClassData'
 import { liveArray } from '../RBAC/liveArray'
+import {
+    canUseLessonPlansApi,
+    createLessonPlanApi,
+    listLessonPlansApi,
+    mapLessonPlanFromApi,
+} from '../../services/lessonPlansApi'
 
 const STORAGE_KEY = 'school-erp-lesson-plan-approvals'
+let apiCache = null
+let apiHydratePromise = null
 
 export const TEACHER_NAME = 'Mr. Anil Kumar'
 export const TEACHER_ROLE = 'Teacher'
@@ -49,6 +57,7 @@ export const markAsDoneBarColor = {
 const DEFAULT_LESSON_PLANS = []
 
 export const getLessonPlans = () => {
+    if (canUseLessonPlansApi() && apiCache) return apiCache
     try {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) return JSON.parse(stored)
@@ -59,7 +68,30 @@ export const getLessonPlans = () => {
 }
 
 export const saveLessonPlans = (plans) => {
+    if (canUseLessonPlansApi()) {
+        apiCache = plans
+        return
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(plans))
+}
+
+/** Hydrate lesson plans from GET /lesson-plans (mine by default for teacher portal). */
+export async function hydrateLessonPlansFromApi({ mine = true, status } = {}) {
+    if (!canUseLessonPlansApi()) return getLessonPlans()
+    if (apiHydratePromise) return apiHydratePromise
+    apiHydratePromise = listLessonPlansApi({ mine, status })
+        .then((rows) => {
+            apiCache = rows.map(mapLessonPlanFromApi)
+            return apiCache
+        })
+        .catch(() => {
+            apiCache = apiCache || []
+            return apiCache
+        })
+        .finally(() => {
+            apiHydratePromise = null
+        })
+    return apiHydratePromise
 }
 
 export const formatSubmittedAt = () => {
@@ -120,7 +152,29 @@ const buildLessonPlanRecord = (plans, payload, submittedAt) => {
     }
 }
 
-export const addLessonPlan = (payload) => {
+export const addLessonPlan = async (payload) => {
+    if (canUseLessonPlansApi()) {
+        const monthValue = (() => {
+            if (/^\d{4}-\d{2}$/.test(String(payload.month || ''))) return payload.month
+            const now = new Date()
+            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+        })()
+        const created = await createLessonPlanApi({
+            className: String(payload.className || '').replace(/^Grade\s+/i, ''),
+            section: payload.section || null,
+            subject: payload.subject,
+            month: monthValue,
+            title: payload.chapterName || payload.title || null,
+            content: {
+                ...payload,
+                planningRows: payload.planningRows || [],
+            },
+            fileId: payload.fileId || null,
+        })
+        const mapped = mapLessonPlanFromApi(created)
+        apiCache = [mapped, ...(apiCache || [])]
+        return mapped
+    }
     const plans = getLessonPlans()
     const submittedAt = formatSubmittedAt()
     const record = buildLessonPlanRecord(plans, payload, submittedAt)

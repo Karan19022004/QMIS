@@ -8,6 +8,24 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 15 October 2026 — Teacher panel 29 Completed / 1 Gap
+
+**Status:** Teacher sidebar shared APIs + portal screens marked Completed; Biometric remains Gap.
+
+### Done
+
+1. Notifications hydrate GET /notifications; Students List hydrates GET /students.
+2. Lesson plans: FE client + MyLessonPlan hydrate / submit via `/lesson-plans`; Exam schedule lists `/exams`.
+3. Word Teacher **29 Completed / 0 Partial / 0 Not Completed / 1 Gap**; TOTAL **222 / 31 / 225 / 2**.
+4. Pytest `test_teacher_portal_apis` **2 passed**.
+
+### Open / next
+
+- Coordinator panel (same academic APIs; exams.write).
+- Optional deeper Mark Entry → `/marks-batches` write path.
+
+---
+
 ## 14 October 2026 (late) — Student panel 23/23 + Archify/docs refresh
 
 **Status:** Full Student sidebar completed (shared APIs + self-scoped portal). Migration **0012** (`students.student_user_id`). Word main sheet + Archify overview refreshed and pushed.
