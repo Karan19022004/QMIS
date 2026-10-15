@@ -15,7 +15,8 @@
 | Class attendance (Y-1) | Done — `GET/POST /attendance`; `attendanceApi.js`; Teacher Class Attendance list |
 
 See `ADMISSIONS_ANALYSIS.md`, `FINANCE_ANALYSIS.md`, and **`API_SOT_CUTOVER.md`** (HR/Finance API-only; no silent localStorage SoT).  
-Archify overview: `.archify/architecture-project-overview/qmis-erp-overview.html` (includes Parents module).
+Archify overview: `.archify/architecture-project-overview/qmis-erp-overview.html` (includes Parents module).  
+Request flow: `.archify/sequence-request-lifecycle/qmis-request-flow.html`.
 
 ### Seed logins
 

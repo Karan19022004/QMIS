@@ -3,14 +3,14 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "QMIS School ERP \u2014 project overview",
-    "subtitle": "Live routers from main.py; new modules appear when mounted",
+    "subtitle": "15 Oct live stack \u2014 Principal 21/21 \u00b7 Medium UX/bundle fixes \u00b7 Alembic 0012",
     "locale": "en",
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "336c1e449dad1837969b4384d24c9cd93849ac74"
+      "revision": "438cf27d022f7a1c75fc3870a99034bec4da71f2"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -98,8 +98,8 @@
       "sources": [
         {
           "path": "src/App.jsx",
-          "line": 34,
-          "end_line": 60
+          "line": 44,
+          "end_line": 72
         }
       ]
     },
@@ -107,7 +107,7 @@
       "id": "web",
       "type": "frontend",
       "label": "React portal",
-      "sublabel": "Vite :5173",
+      "sublabel": "lazy layouts",
       "pos": [
         220,
         200
@@ -120,7 +120,7 @@
         {
           "path": "src/App.jsx",
           "line": 1,
-          "end_line": 32
+          "end_line": 42
         }
       ]
     },
@@ -128,7 +128,7 @@
       "id": "client",
       "type": "frontend",
       "label": "API clients",
-      "sublabel": "26 *Api.js clients",
+      "sublabel": "28 *Api.js clients",
       "pos": [
         400,
         200
@@ -163,7 +163,7 @@
         {
           "path": "backend/app/main.py",
           "line": 38,
-          "end_line": 88
+          "end_line": 90
         }
       ]
     },
@@ -192,7 +192,7 @@
       "id": "alembic",
       "type": "backend",
       "label": "Alembic",
-      "sublabel": "0001\u20130010",
+      "sublabel": "0001\u20130012",
       "pos": [
         220,
         360
@@ -731,19 +731,14 @@
         "Files \u2014 upload \u00b7 download",
         "Admin campus \u2014 docs \u00b7 TC \u00b7 activities",
         "Front Office \u2014 auto from main.py",
-        "Each screen has a VITE_USE_API_* flag; most default to the sign-in flag, off = browser-only demo data",
-        "Parents /me/children (P1-4) live",
-        "Students /me + student_user_id (0012) \u2014 Student portal 23/23",
-        "Parent portal 23/23 + PRM Front Office 21/21 + Admin 26/26",
-        "HR + Finance: API is SoT",
-        "Phase 1: Head/Assistant + FY Apr\u2013Mar",
-        "Gateway/SMTP/WA: env-gated (demo/stub)",
-        "Leave, bell notifications, escalations and tasks wired to UI (leaveApi, notificationsApi, escalationApi, taskApi); each flow checked in browser",
-        "Tasks: remarks + history, retry-safe create, assignment hierarchy enforced on the backend",
-        "Y-0..Y-5 backend built",
-        "Administrator screens on the API: User Creation and Roles, Employee Database, Class Details, Attendance (read-only), Documents, Announcements, Calendar, TC, Activities, Communication, Dashboard",
-        "Alembic head 0012_students_student_user_id (0001\u20130012); startup only warns when behind",
-        "14 Oct 2026: Admin/PRM/Parent/Student panels Completed; pytest 412 passed"
+        "VITE_USE_API_* flags default with auth (fail-closed hydrate; no stale localStorage when API on)",
+        "Completed panels: Admin 26/26 \u00b7 PRM 21/21 \u00b7 Parent 23/23 \u00b7 Student 23/23 \u00b7 Teacher 29/1 Gap \u00b7 Coordinator 29/1 Gap \u00b7 Principal 21/21",
+        "Class Attendance Save \u2192 POST /attendance; Mark Entry \u2192 /marks-batches",
+        "App.jsx lazy-loads role layouts (entry JS ~354 kB after code-split)",
+        "must_change_password gated in get_current_user; orphan file downloads ACL-hardened",
+        "Alembic head 0012_students_student_user_id; 48 application tables",
+        "HR + Finance API SoT; Gateway/SMTP/WA env-gated (demo/stub)",
+        "15 Oct 2026 stability audit READY WITH LIMITATIONS; pytest 416 passed"
       ]
     },
     {
@@ -773,11 +768,13 @@
         "documentsApi.js",
         "employeeDirectoryApi.js",
         "escalationApi.js",
+        "examsApi.js",
         "filesApi.js",
         "financeApi.js",
         "frontOfficeApi.js",
         "hrApi.js",
         "leaveApi.js",
+        "lessonPlansApi.js",
         "notificationsApi.js",
         "parentsApi.js",
         "resultsApi.js",
@@ -791,14 +788,12 @@
       "dot": "rose",
       "title": "Still open",
       "items": [
-        "UI not wired yet: lesson plans, marks (need decisions/screens)",
-        "Tasks: no attachments, no Admin/Director all-tasks screen",
-        "Admin screens still local: Announcement, Communication, Calendar, Notifications page, TC approval, Activities, Documents, Dashboard",
-        "Server stores no class capacity, class teacher or room; no student punch times; no class edit or delete",
-        "Alembic not run at startup; three other drifted columns still need revisions",
-        "24h clock needs a scheduler (runs on list reads + admin sweep today)",
-        "Live SMTP/WhatsApp/Paytm when school ready",
-        "RFID / eSSL if school confirms (still off)"
+        "Next panel: Director (shared approvals + campus APIs)",
+        "Teacher/Coordinator biometric remains Gap",
+        "Further page-level lazy imports inside largest role route trees",
+        "Live SMTP/WhatsApp/payments when school configures providers",
+        "RFID / eSSL import still off unless enabled",
+        "Integrations accept \u2260 delivery verified"
       ]
     }
   ]

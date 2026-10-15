@@ -1,15 +1,19 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 15 October 2026 (Medium items: attendance write UX, marks batches, code-split)
+Last run: 15 October 2026 (Archify refresh + full suite)
 
 | Check | Result |
 |---|---|
-| Attendance + exams + teacher portal pytest | **13 passed** |
-| `npm run build` | **PASS** (~53 s); entry `index-*.js` **~354 kB** gzip **~98 kB**; role layouts split |
-| Prior full suite (High follow-ups) | **415 passed** |
+| `python -m pytest tests/ -q` | **416 passed**, 1 warning (~4 m 13 s) |
+| Archify architecture finalize | **PASS** (showcase) |
+| Archify sequence finalize | **PASS** (showcase) |
+| `npm run build` (Medium code-split) | **PASS** (prior; entry ~354 kB) |
 | Browser E2E | NOT RUN |
 | Load / soak | NOT RUN |
 
-Medium items M-01 / M-02 / M-03: **FIXED**  
-Decision: **READY WITH LIMITATIONS** (Director panel next; integrations stub/demo)
+Diagrams:  
+- `.archify/architecture-project-overview/qmis-erp-overview.html`  
+- `.archify/sequence-request-lifecycle/qmis-request-flow.html`  
+
+Decision: **READY WITH LIMITATIONS** (Director panel next)

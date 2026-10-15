@@ -8,6 +8,24 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 15 October 2026 — Archify refresh + full pytest
+
+**Status:** Architecture overview and request-flow sequence regenerated; docs updated; suite **416 passed**.
+
+### Done
+
+1. Rebuilt `.archify/architecture-project-overview` (Principal 21/21, Medium fixes, Alembic 0012 cards).
+2. Added `.archify/sequence-request-lifecycle/qmis-request-flow.html` (JWT → RBAC → SQL path).
+3. Both Archify showcase finalize gates **PASS** (validate/deliver/check/browser-check).
+4. Full backend pytest **416 passed**.
+
+### Open / next
+
+- Director panel.
+- Optional Archify skill update 3.0.1 → 3.1.0 (notice only).
+
+---
+
 ## 15 October 2026 — Medium audit items (attendance, marks, bundle)
 
 **Status:** All three Medium stability items closed before Director panel.
