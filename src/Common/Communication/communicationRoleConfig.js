@@ -120,6 +120,17 @@ export const COMMUNICATION_ROLE_CONFIG = {
             avatarColor: '#DB2777',
         },
     },
+    coordinator: {
+        roleLabel: 'Coordinator',
+        routeBase: '/coordinator/communication',
+        currentUser: {
+            id: 'EMP-CRD-001',
+            name: 'Academic Coordinator',
+            role: 'Coordinator',
+            department: 'Academics',
+            avatarColor: '#7C3AED',
+        },
+    },
 }
 
 export const getCommunicationRoleConfig = (roleKey) =>
