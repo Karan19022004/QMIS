@@ -13,19 +13,24 @@ import {
     emptyLessonPlanFilters,
     filterLessonPlans,
     getActiveFilterLabels,
+    getLessonPlans,
     getLessonPlansBySubmitter,
     groupLessonPlansByTeacherSubject,
+    hydrateLessonPlansFromApi,
     SECTION_OPTIONS,
     SUBJECT_OPTIONS,
     TEACHER_NAME,
 } from '../../../Common/LessonPlanApproval/lessonPlanApprovalData'
+import { canUseLessonPlansApi } from '../../../services/lessonPlansApi'
 
 const filterInputClass =
     'text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full bg-white'
 
 const SubmitLessonPlan = () => {
     const location = useLocation()
-    const [plans, setPlans] = useState(() => getLessonPlansBySubmitter(TEACHER_NAME))
+    const [plans, setPlans] = useState(() =>
+        canUseLessonPlansApi() ? getLessonPlans() : getLessonPlansBySubmitter(TEACHER_NAME),
+    )
     const [filters, setFilters] = useState(emptyLessonPlanFilters)
     const [exportModal, setExportModal] = useState(false)
 
@@ -35,7 +40,17 @@ const SubmitLessonPlan = () => {
     const routePrefix = location.pathname.startsWith('/coordinator') ? '/coordinator' : '/teacher'
 
     useEffect(() => {
-        setPlans(getLessonPlansBySubmitter(TEACHER_NAME))
+        let cancelled = false
+        if (!canUseLessonPlansApi()) {
+            setPlans(getLessonPlansBySubmitter(TEACHER_NAME))
+            return undefined
+        }
+        hydrateLessonPlansFromApi({ mine: true }).then((rows) => {
+            if (!cancelled) setPlans(rows)
+        })
+        return () => {
+            cancelled = true
+        }
     }, [location.key])
 
     const updateFilter = (key, value) => {

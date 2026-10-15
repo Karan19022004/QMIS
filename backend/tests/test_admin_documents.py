@@ -295,8 +295,8 @@ def test_hr_manages_employee_documents_but_cannot_touch_student_documents(client
     assert client.get(student_item["download_url"], headers=hr).status_code == 403
 
 
-def test_other_files_keep_their_existing_download_rules(client):
-    """The generic /files route is unchanged for files that are not in a document folder."""
+def test_orphan_uploads_are_not_campus_wide_readable(client):
+    """Generic /files downloads require uploader or elevated staff — closes campus IDOR."""
     hr = _login(client, HR)
     teacher = _login(client, TEACHER)
     uploaded = client.post(
@@ -307,7 +307,7 @@ def test_other_files_keep_their_existing_download_rules(client):
     )
     assert uploaded.status_code == 201, uploaded.text
     assert client.get(uploaded.json()["download_url"], headers=hr).content == b"plain note"
-    assert client.get(uploaded.json()["download_url"], headers=teacher).status_code == 200
+    assert client.get(uploaded.json()["download_url"], headers=teacher).status_code == 403
 
 
 def test_every_change_is_audited_without_the_file_contents(client):

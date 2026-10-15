@@ -112,6 +112,39 @@ def save_upload(
     return _public(row)
 
 
+def _is_domain_linked_file(db: Session, row: FileAsset) -> bool:
+    """True when a domain module owns this file and applies its own download ACL."""
+    from sqlalchemy import select
+
+    from app.models import Announcement, DocumentItem, Message
+
+    if db.scalar(select(DocumentItem.id).where(DocumentItem.file_id == row.id).limit(1)):
+        return True
+    if db.scalar(select(Announcement.id).where(Announcement.attachment_file_id == row.id).limit(1)):
+        return True
+    if db.scalar(select(Message.id).where(Message.file_id == row.id).limit(1)):
+        return True
+    return False
+
+
+def _can_download_orphan_file(db: Session, actor: User, row: FileAsset) -> bool:
+    """Generic uploads are not campus-wide; only the uploader or elevated staff may read them."""
+    if row.uploaded_by == actor.id:
+        return True
+    from app.deps import permission_codes_for
+
+    elevated = {
+        "hr.write",
+        "hr.employees.write",
+        "admissions.write",
+        "documents.students.read",
+        "documents.employees.read",
+        "audit.read",
+        "users.write",
+    }
+    return bool(elevated.intersection(permission_codes_for(db, actor)))
+
+
 def get_file(db: Session, actor: User, file_id: uuid.UUID) -> tuple[FileAsset, Path]:
     row = db.get(FileAsset, file_id)
     if row is None or row.campus_id != actor.campus_id:
@@ -123,6 +156,9 @@ def get_file(db: Session, actor: User, file_id: uuid.UUID) -> tuple[FileAsset, P
     # An announcement's attachment is only for the people who can see that announcement.
     announcements.authorize_file_download(db, actor, row)
     communication.authorize_file_download(db, actor, row)
+    # Orphan / generic FileAsset rows: close campus-wide IDOR (uploader or elevated staff only).
+    if not _is_domain_linked_file(db, row) and not _can_download_orphan_file(db, actor, row):
+        fail(403, "forbidden", "You do not have permission to download this file.")
     path = _uploads_dir() / row.stored_name
     if not path.is_file():
         fail(404, "not_found", "File bytes are missing.")

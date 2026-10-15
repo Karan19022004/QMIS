@@ -8,6 +8,43 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 15 October 2026 — Audit High follow-ups (IDOR, password gate, FE hydrate)
+
+**Status:** High findings from stability audit addressed. Decision remains **READY WITH LIMITATIONS**. Pytest **415 passed**.
+
+### Done
+
+1. Orphan file download IDOR: generic uploads only for uploader or elevated staff (`files.py`); teacher download of HR orphan → **403**.
+2. Server-side `must_change_password` gate in `get_current_user` (allow only change-password / me / logout); query-token download path updated.
+3. FE fail-closed for API-mode students + lesson plans; SubmitLessonPlan hydrates API.
+4. Tests updated (`auth_test_helpers.login_headers`); full suite **415 passed**.
+
+### Open / next
+
+- Commit when approved (do not push without approval).
+- Medium items unchanged; next panel: Principal.
+
+---
+
+## 15 October 2026 — System-wide stability audit
+
+**Status:** Discovery + audit completed. Decision **READY WITH LIMITATIONS**. No new role panels started for this slice.
+
+### Done
+
+1. Verified stack (React/Vite + FastAPI + SQLAlchemy + PostgreSQL + Alembic **0012**, **48** tables matching ORM).
+2. Ran full backend pytest **415 passed**; frontend production build **PASS**.
+3. Fixed High connectivity bug: students/leave/attendance/tasks/escalations/notifications flags now default with API auth (aligned to `.env.example`).
+4. Wrote `backend/docs/SYSTEM_STABILITY_AUDIT_15OCT.md` with workflow, RBAC, integrations, bugs, and go/no-go.
+
+### Open / next
+
+- Commit audit artifacts when approved (do not push without approval per audit brief).
+- Medium: attendance mark-save UI; mark-entry → `/marks-batches`; JS bundle split.
+- Next panel after audit acceptance: Principal.
+
+---
+
 ## 15 October 2026 — Coordinator panel 29 Completed / 1 Gap
 
 **Status:** Coordinator aligned with Teacher shared APIs (+ exams.write). Biometric Gap.

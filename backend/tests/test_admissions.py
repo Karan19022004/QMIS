@@ -92,7 +92,10 @@ def test_rich_enquiry_admission_enroll_with_parent(client):
     )
     assert parent_login.status_code == 200, parent_login.text
     assert parent_login.json()["role"] == "parent"
-    parent_headers = {"Authorization": f"Bearer {parent_login.json()['access_token']}"}
+    assert parent_login.json()["must_change_password"] is True
+    from auth_test_helpers import login_headers
+
+    parent_headers = login_headers(client, "parent.aariv@example.com", "Parent-Test-2026")
     parent_me = client.get("/api/v1/auth/me", headers=parent_headers)
     assert parent_me.status_code == 200
     assert parent_me.json()["role"] == "parent"

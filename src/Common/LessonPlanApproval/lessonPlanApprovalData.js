@@ -57,7 +57,8 @@ export const markAsDoneBarColor = {
 const DEFAULT_LESSON_PLANS = []
 
 export const getLessonPlans = () => {
-    if (canUseLessonPlansApi() && apiCache) return apiCache
+    // API mode: never fall back to stale localStorage (fail closed until hydrate).
+    if (canUseLessonPlansApi()) return apiCache || []
     try {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) return JSON.parse(stored)

@@ -25,9 +25,9 @@ def client():
 
 
 def _login(client, email, password):
-    response = client.post("/api/v1/auth/login", json={"email": email, "password": password})
-    assert response.status_code == 200, response.text
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+    from auth_test_helpers import login_headers
+
+    return login_headers(client, email, password)
 
 
 def _enroll(client, admin):

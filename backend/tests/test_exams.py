@@ -28,10 +28,10 @@ def client():
 
 
 def _h(client, who: str, creds=None) -> dict:
+    from auth_test_helpers import login_headers
+
     email, password = creds or USERS[who]
-    r = client.post("/api/v1/auth/login", json={"email": email, "password": password})
-    assert r.status_code == 200, r.text
-    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+    return login_headers(client, email, password)
 
 
 def _enroll(client, admin, name: str, cls: str, parent_email: str) -> str:

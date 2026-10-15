@@ -19,7 +19,8 @@ let apiCache = null
 let apiHydratePromise = null
 
 const loadStudents = () => {
-    if (isApiStudentsEnabled() && apiCache) return apiCache
+    // API mode: never fall back to stale localStorage (fail closed until hydrate).
+    if (isApiStudentsEnabled()) return apiCache || []
     try {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) {

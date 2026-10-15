@@ -321,12 +321,14 @@ def test_employee_sees_only_own_profile(client):
         json={"id": "EMP-SELF-1", "name": "Self View", "email": "self.view@school.com", "role": "teacher", "department": "Academic"},
     )
     assert created.status_code == 201, created.text
-    token = client.post("/api/v1/auth/login", json={"email": "self.view@school.com", "password": created.json()["temporaryPassword"]})
-    assert token.status_code == 200, token.text
-    visible = client.get("/api/v1/hr/portal/employees", headers={"Authorization": f"Bearer {token.json()['access_token']}"})
+    temporary = created.json()["temporaryPassword"]
+    from auth_test_helpers import login_headers
+
+    staff_headers = login_headers(client, "self.view@school.com", temporary)
+    visible = client.get("/api/v1/hr/portal/employees", headers=staff_headers)
     assert visible.status_code == 200, visible.text
     assert [row["id"] for row in visible.json()] == ["EMP-SELF-1"]
-    hidden = client.get("/api/v1/hr/employees/EMP-OTHER-1", headers={"Authorization": f"Bearer {token.json()['access_token']}"})
+    hidden = client.get("/api/v1/hr/employees/EMP-OTHER-1", headers=staff_headers)
     assert hidden.status_code == 404
 
 

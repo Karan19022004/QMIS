@@ -468,6 +468,12 @@ def test_strong_password_change_succeeds_and_new_password_works(client):
     finally:
         db.close()
     token = _login(client, "policy.user@example.com", "Old-Pass-2025-ab").json()["access_token"]
+    # While must_change_password is set, only change-password / me / logout are allowed.
+    blocked = client.get("/api/v1/hr/employees", headers={"Authorization": f"Bearer {token}"})
+    assert blocked.status_code == 403
+    assert blocked.json()["detail"]["code"] == "password_change_required"
+    me_ok = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me_ok.status_code == 200
     changed = client.post(
         "/api/v1/auth/change-password",
         headers={"Authorization": f"Bearer {token}"},

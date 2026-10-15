@@ -68,7 +68,16 @@ Open the HTML in a browser (dark/light themes, export PNG/SVG from the diagram U
 
 ---
 
-## Delivery gate (14 Oct)
+## Delivery gate (15 Oct)
 
-**Completed panels:** Administrator **26/26**, PRM (Front Office) **21/21**, Parent **23/23**, Student **23/23** (shared portal routes; `GET /students/me` + Alembic **0012**).  
-Next delivery slice: Teacher / Coordinator academic panels.
+**Completed panels:** Administrator **26/26**, PRM **21/21**, Parent **23/23**, Student **23/23**, Teacher **29/1 Gap**, Coordinator **29/1 Gap**.  
+**Stability audit:** [`SYSTEM_STABILITY_AUDIT_15OCT.md`](SYSTEM_STABILITY_AUDIT_15OCT.md) → **READY WITH LIMITATIONS** (Alembic **0012**, **48** tables, **415** pytest passed; High follow-ups: orphan file IDOR, `must_change_password` API gate, FE API fail-closed hydrate).  
+Next delivery slice: Principal / Director panels (after critical audit fixes).
+
+### Request flow (verified)
+
+```
+User → Vite (:5173) → apiClient (Bearer JWT, VITE_* flags)
+     → FastAPI (:8000) + CORS + permission matrix
+     → SQLAlchemy → PostgreSQL qmis_erp (+ uploads/)
+```

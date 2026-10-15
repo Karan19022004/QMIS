@@ -1,7 +1,7 @@
 from uuid import UUID
 
 import jwt
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,8 +13,16 @@ from app.services.errors import fail
 
 bearer = HTTPBearer(auto_error=False)
 
+# Routes allowed while must_change_password is still set (server-side gate).
+_PASSWORD_CHANGE_ALLOWED_PATHS = {
+    "/api/v1/auth/change-password",
+    "/api/v1/auth/me",
+    "/api/v1/auth/logout",
+}
+
 
 def get_current_user(
+    request: Request,
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
 ) -> User:
@@ -28,6 +36,8 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None or not user.is_active:
         fail(401, "invalid_token", "Sign in required.")
+    if user.must_change_password and request.url.path not in _PASSWORD_CHANGE_ALLOWED_PATHS:
+        fail(403, "password_change_required", "Change your password before continuing.")
     return user
 
 

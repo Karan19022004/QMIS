@@ -23,9 +23,9 @@ def client():
 
 
 def _login(client: TestClient, email: str, password: str) -> dict:
-    response = client.post("/api/v1/auth/login", json={"email": email, "password": password})
-    assert response.status_code == 200, response.text
-    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+    from auth_test_helpers import login_headers
+
+    return login_headers(client, email, password)
 
 
 def test_phase0_through_finance_campus_journey(client):

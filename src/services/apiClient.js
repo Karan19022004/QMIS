@@ -8,15 +8,18 @@ export const isApiAdmissionsEnabled = () =>
     String(import.meta.env.VITE_USE_API_ADMISSIONS || 'false') === 'true'
 export const isApiFinanceEnabled = () =>
     String(import.meta.env.VITE_USE_API_FINANCE || 'true') === 'true'
-/** Student UIS list/detail — defaults on when admissions API is on. */
+/**
+ * Student UIS list/detail. Defaults on whenever API sign-in is on (matches .env.example).
+ * Admissions write flows stay behind VITE_USE_API_ADMISSIONS separately.
+ */
 export const isApiStudentsEnabled = () => {
     const explicit = import.meta.env.VITE_USE_API_STUDENTS
     if (explicit !== undefined && explicit !== '') {
         return String(explicit) === 'true'
     }
-    return isApiAdmissionsEnabled()
+    return isApiAuthEnabled()
 }
-/** Class attendance SoT — defaults on when admissions/students API is on. */
+/** Class attendance SoT — defaults on with students/auth API. */
 export const isApiAttendanceEnabled = () => {
     const explicit = import.meta.env.VITE_USE_API_ATTENDANCE
     if (explicit !== undefined && explicit !== '') {
@@ -25,7 +28,7 @@ export const isApiAttendanceEnabled = () => {
     return isApiStudentsEnabled()
 }
 
-/** Leave requests SoT — defaults on when the admissions/students API is on. */
+/** Leave requests SoT — defaults on with students/auth API. */
 export const isApiLeaveEnabled = () => {
     const explicit = import.meta.env.VITE_USE_API_LEAVE
     if (explicit !== undefined && explicit !== '') {
@@ -33,7 +36,7 @@ export const isApiLeaveEnabled = () => {
     }
     return isApiStudentsEnabled()
 }
-/** Escalations (24h clock) SoT — defaults on when the admissions/students API is on. */
+/** Escalations (24h clock) SoT — defaults on with students/auth API. */
 export const isApiEscalationsEnabled = () => {
     const explicit = import.meta.env.VITE_USE_API_ESCALATIONS
     if (explicit !== undefined && explicit !== '') {
@@ -41,7 +44,7 @@ export const isApiEscalationsEnabled = () => {
     }
     return isApiStudentsEnabled()
 }
-/** Task Management SoT — defaults on when the admissions/students API is on. */
+/** Task Management SoT — defaults on with students/auth API. */
 export const isApiTasksEnabled = () => {
     const explicit = import.meta.env.VITE_USE_API_TASKS
     if (explicit !== undefined && explicit !== '') {
@@ -49,7 +52,7 @@ export const isApiTasksEnabled = () => {
     }
     return isApiStudentsEnabled()
 }
-/** Notifications + approvals inbox — defaults on when the admissions/students API is on. */
+/** Notifications + approvals inbox — defaults on with students/auth API. */
 export const isApiNotificationsEnabled = () => {
     const explicit = import.meta.env.VITE_USE_API_NOTIFICATIONS
     if (explicit !== undefined && explicit !== '') {

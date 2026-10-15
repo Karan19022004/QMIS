@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
@@ -27,6 +27,7 @@ async def upload_file_route(
 @router.get("/{file_id}/download")
 def download_file_route(
     file_id: UUID,
+    request: Request,
     token: str | None = Query(None),
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     db: Session = Depends(get_db),
@@ -34,6 +35,6 @@ def download_file_route(
     auth = credentials
     if auth is None and token:
         auth = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
-    user = get_current_user(auth, db)
+    user = get_current_user(request, auth, db)
     row, path = get_file(db, user, file_id)
     return FileResponse(path, media_type=row.content_type, filename=row.original_name)

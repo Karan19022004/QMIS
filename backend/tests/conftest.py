@@ -14,7 +14,6 @@ os.environ["INTEGRATIONS_MODE"] = ""
 os.environ.setdefault("RFID_IMPORT_ENABLED", "false")
 os.environ["ENVIRONMENT"] = "development"
 
-
 @pytest.fixture(autouse=True)
 def _stub_integrations_unless_test_overrides(monkeypatch):
     """Reset after any test that set INTEGRATIONS_MODE=demo; clear brute-force counters."""
