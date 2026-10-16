@@ -8,9 +8,40 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — Five-role functional audit (HR → Admin → Teacher → PRM → Principal)
+
+**Status:** Live API audit across five roles completed; pytest **421 passed**; production build **PASS**. Intended fixes already on `main` at `d4bd49c` (message was generic — follow-up cleans audit junk + reports). SMTP / WhatsApp still local-queue only.
+
+### Audit summary (API smoke, not every browser click)
+
+| Role | Result | Notes |
+|---|---|---|
+| HR | **PASS** | Employees, docs verify, jobs/candidates/leave/payroll/attendance/training/performance/claims; staff create provisions login |
+| Administrator | **PASS** | Dashboard, students, announcements, calendar, tasks, leave, TC, notifications, escalations, communication; enquiries at `/admissions/enquiries` |
+| Teacher | **PASS** | Students, tasks, leave, announcements, exams, notifications; FO correctly **403** |
+| PRM / Front Office | **PASS** | All six FO collections list; create+delete audit gate pass; TC list |
+| Principal | **PASS** | Campus employee directory (19), students, announcements, calendar, leave, exams; HR write **403**; TC list **403** (no Principal TC menu — correct RBAC) |
+
+### Bugs fixed earlier today (included in `d4bd49c`)
+
+1. Leave/TC UI sync (busy, toast, mapped API response).
+2. Export modal no-op → real CSV/Excel/PDF via `exportDownload.js` on demo-critical lists.
+3. Message send now creates recipient notification; inbox poll every 20s.
+4. HR Add Employee: DatePicker joining date + clear designation; docs **Verify** action.
+5. Demo seed script + principal/teacher portal permission tests.
+
+### Remaining limitations
+
+- Not every secondary Export button across 100+ screens is wired.
+- Some Teacher/Principal academic screens remain portal/localStorage **PARTIAL**.
+- Full browser tour of every sidebar control: **NOT RUN** this pass.
+- Real email of temporary passwords: still demo `DEMO_SENT` (HR must share password from toast).
+
+---
+
 ## 16 October 2026 — UI sync, export/download, demo sample data
 
-**Status:** Mutation UI sync hardened for leave/TC; Export/Download wired for demo-critical lists; idempotent DEV-only demo seed added. **Not committed / not pushed** (awaiting approval). SMTP / WhatsApp still local-queue only.
+**Status:** Mutation UI sync hardened for leave/TC; Export/Download wired for demo-critical lists; idempotent DEV-only demo seed added. Landed in commit `d4bd49c`. SMTP / WhatsApp still local-queue only.
 
 ### Done
 

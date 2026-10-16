@@ -62,3 +62,6 @@ backend/uploads/
 *.docx.tmp
 *.unlocked.docx
 erp complete documentation/*.docx.tmp
+
+backend/_audit_results.json
+
