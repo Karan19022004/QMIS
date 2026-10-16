@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import React, { useEffect, useMemo, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus, Printer } from 'lucide-react'
@@ -10,8 +10,10 @@ import {
     deleteMaterialGatePass,
     formatDisplayTime,
     getMaterialGatePasses,
+    hydrateMaterialGatePassesFromApi,
     statusBadgeColor,
 } from './materialGatePassData'
+import { frontOfficeApiOn } from '../frontOfficeStore'
 
 const parseDate = (value) => {
     if (!value) return null
@@ -21,7 +23,9 @@ const parseDate = (value) => {
 }
 
 const MaterialGatePassList = () => {
-    const [records, setRecords] = useState(() => getMaterialGatePasses())
+    const location = useLocation()
+    const [records, setRecords] = useState(() => (frontOfficeApiOn() ? [] : getMaterialGatePasses()))
+    const [loadError, setLoadError] = useState('')
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
     const [fromDate, setFromDate] = useState(null)
@@ -31,6 +35,31 @@ const MaterialGatePassList = () => {
     const [exportModal, setExportModal] = useState(false)
     const [deleteModal, setDeleteModal] = useState(false)
     const [selectedId, setSelectedId] = useState(null)
+
+    useEffect(() => {
+        if (!frontOfficeApiOn()) {
+            setRecords(getMaterialGatePasses())
+            setLoadError('')
+            return undefined
+        }
+        let active = true
+        hydrateMaterialGatePassesFromApi()
+            .then((rows) => {
+                if (active) {
+                    setRecords(rows)
+                    setLoadError('')
+                }
+            })
+            .catch((error) => {
+                if (active) {
+                    setRecords([])
+                    setLoadError(error?.message || 'Could not load material gate passes.')
+                }
+            })
+        return () => {
+            active = false
+        }
+    }, [location.key])
 
     const filteredRecords = useMemo(() => {
         return records.filter((record) => {
@@ -73,6 +102,7 @@ const MaterialGatePassList = () => {
 
     return (
         <section>
+            {loadError ? <p className='text-sm text-[#B42318] mb-3'>{loadError}</p> : null}
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
                     <button

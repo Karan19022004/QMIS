@@ -10,12 +10,15 @@ import {
     ROUTE_BASE,
     STATUS_OPTIONS,
     getReEnrollments,
+    hydrateReEnrollmentsFromApi,
     statusBadgeColor,
 } from './studentReEnrollmentData'
+import { frontOfficeApiOn } from '../frontOfficeStore'
 
 const StudentReEnrollmentList = () => {
     const location = useLocation()
-    const [records, setRecords] = useState(() => getReEnrollments())
+    const [records, setRecords] = useState(() => (frontOfficeApiOn() ? [] : getReEnrollments()))
+    const [loadError, setLoadError] = useState('')
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
     const [exportModal, setExportModal] = useState(false)
@@ -23,7 +26,28 @@ const StudentReEnrollmentList = () => {
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
 
     useEffect(() => {
-        setRecords(getReEnrollments())
+        if (!frontOfficeApiOn()) {
+            setRecords(getReEnrollments())
+            setLoadError('')
+            return undefined
+        }
+        let active = true
+        hydrateReEnrollmentsFromApi()
+            .then(() => {
+                if (active) {
+                    setRecords(getReEnrollments())
+                    setLoadError('')
+                }
+            })
+            .catch((error) => {
+                if (active) {
+                    setRecords([])
+                    setLoadError(error?.message || 'Could not load re-enrollment records.')
+                }
+            })
+        return () => {
+            active = false
+        }
     }, [location.key])
 
     const filteredRecords = useMemo(() => {
@@ -38,6 +62,7 @@ const StudentReEnrollmentList = () => {
 
     return (
         <section>
+            {loadError ? <p className='text-sm text-[#B42318] mb-3'>{loadError}</p> : null}
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
                     <div className='flex flex-col gap-y-2'>

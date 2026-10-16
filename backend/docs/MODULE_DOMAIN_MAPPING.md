@@ -41,9 +41,30 @@ See prior Admin audit — **26/26 PASS** (shared domains above). Word sheet Admi
 
 ---
 
-## PRM — Front Office (21 modules)
+## PRM — Front Office (21 modules) — 21/21 Completed (regression 15–16 Oct 2026)
 
-See prior PRM map — **21/21 Completed**. Gate passes / transfer / re-enrollment on `front_office_records` (`0011`).
+Gate passes / transfer / re-enrollment on `front_office_records` (Alembic **0011**). API: `/api/v1/front-office/{collection}`.
+
+| Collection | CRUD (Admin/PRM write) | Evidence |
+|---|---|---|
+| `student-gate-passes` | list/create/get/update/delete | Live regression + pytest |
+| `hostel-gate-passes` | list/create/get/update/delete | Live regression + pytest |
+| `material-gate-passes` | list/create/get/update/delete | Live regression + pytest; FE list hydrate fixed |
+| `goods-received-passes` | list/create/get/update/delete | Live regression + pytest; FE list hydrate fixed |
+| `student-transfers` | list/create/get/update/delete | Live regression + pytest; browser list verified |
+| `student-re-enrollments` | list/create/get/update/delete | Live regression + pytest; FE list hydrate fixed |
+
+**RBAC (verified):** Admin/PRM write; Principal/Director `frontoffice.read` only; Teacher 403; unauth 401.  
+**Seed:** `prm@qmis.edu` / `prm12345` (demo). Shared admissions/enquiries remain on `/api/v1/admissions*`.  
+**Limitation:** Transfer list default date filters can hide older rows until Clear Filters.
+
+---
+
+## Director (24 modules) — gap (next panel)
+
+Word baseline: **Completed 3 · Partial 3 · Gap/Not Completed 18**.  
+Shared already: Tasks, Escalation (API). Partial: Student DB, Leave.  
+**Recommended first task:** wire Director **Exam Timetable Approvals** to `/exams` + `/approvals` (backend decide path exists; UI still demo).
 
 ---
 

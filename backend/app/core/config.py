@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     coordinator_seed_password: str = "coord123"
     principal_seed_email: str = "principal@qmis.edu"
     principal_seed_password: str = "principal123"
+    prm_seed_email: str = "prm@qmis.edu"
+    prm_seed_password: str = "prm12345"
     director_seed_email: str = "director@qmis.edu"
     director_seed_password: str = "director123"
     upload_dir: str = "uploads"

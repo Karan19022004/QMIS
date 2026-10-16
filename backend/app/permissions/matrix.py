@@ -288,9 +288,13 @@ for _code, _perms in ROLE_PERMISSIONS.items():
     if _code == "admin" and "dashboard.read" not in _perms:
         _perms.append("dashboard.read")
 
-# Front Office campus records: Admin can also read/write (shared campus office).
+# Front Office campus records:
+# - Admin + PRM write (shared campus office); Super Admin / Managing Director already hold all perms.
+# - Principal + Director read-only — matches front_office service _READERS.
 for _code, _perms in ROLE_PERMISSIONS.items():
     if _code in {"admin", "prm"}:
         for _p in ("frontoffice.read", "frontoffice.write"):
             if _p not in _perms:
                 _perms.append(_p)
+    if _code in {"principal", "director"} and "frontoffice.read" not in _perms:
+        _perms.append("frontoffice.read")

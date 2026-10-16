@@ -1,18 +1,20 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 15 October 2026 (safe structure cleanup)
+Last run: 16 October 2026 (PRM Front Office regression)
 
 | Check | Result |
 |---|---|
-| `python -m pytest tests/ -q` | **416 passed**, 1 warning (~3 m 51 s) — **PASS** |
-| `npm run build` | **PASS** (~57 s; chunk-size warnings only) |
-| `npm run lint` | **NOT RUN** |
-| Alembic / live PostgreSQL connectivity | **NOT RUN** (no destructive DB ops in this cleanup) |
-| Browser E2E | **NOT RUN** |
-| Load / soak | **NOT RUN** |
+| Live FO API CRUD × 6 collections (marker create → DB → delete) | **PASS** |
+| RBAC unauth 401 / teacher 403 / principal read 200 write 403 / PRM write 201 | **PASS** |
+| Admissions + enquiries still 200 | **PASS** |
+| `pytest tests/test_front_office_api.py` | **PASS** — **11 passed** |
+| Browser PRM login + Admission Enquiry | **PASS** |
+| Browser Material Gate Pass list (after hydrate fix) | **PASS** — showed API `BrowserDriver` / `TN-BR-9999` |
+| Browser Student Transfer list | **PASS** — showed `Browser Transfer Kid` after Clear Filters |
+| Full pytest suite / lint / production build | **NOT RUN** this pass |
+| Main Word unlock / overwrite | **NOT RUN** (preserved) |
 
-Secret scan (working tree commit set): removed tracked `cred.txt` from index; `.env` remains ignored.  
-Diagrams: `.archify/architecture-project-overview/qmis-erp-overview.html` (single current).
+Hardening applied (uncommitted until approved): PRM seed, principal/director `frontoffice.read`, Material/Goods/Re-enrollment list API hydrate.
 
-Decision: **READY WITH LIMITATIONS** — structure cleanup safe; Director / Principal Partials next
+Decision: **PRM READY** (21/21 retained with evidence). **Director next** — first task Exam Timetable Approvals.

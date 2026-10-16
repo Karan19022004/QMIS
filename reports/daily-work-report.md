@@ -8,6 +8,45 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — PRM Front Office regression + hardening
+
+**Status:** PRM FO API regression **PASS** (6/6 collections). FE hydrate gaps fixed for Material / Goods / Re-enrollment lists. Director gap analysis ready; **no push** pending confirmation.
+
+### Done
+
+1. Live API CRUD + DB checks for all six `front_office_records` collections (marker-tagged creates, cleaned up).
+2. RBAC: Admin/PRM write; Principal read-only (matrix aligned); Teacher 403; unauth 401; unknown collection 404.
+3. Hardening: PRM demo seed (`prm@qmis.edu`); `frontoffice.read` for principal/director; pytest FO suite **11 passed**.
+4. Browser (PRM login): Admission Enquiry API data; Material Gate Pass list shows API rows after hydrate fix; Student Transfer list shows API rows (after Clear Filters).
+5. Director readiness: Word **24 / 3 Completed / 3 Partial / 18 Gap**; first task = Exam Timetable Approvals wiring.
+
+### Open / next
+
+- Confirm + commit/push PRM hardening diffs when approved.
+- Director Exam Timetable Approvals (shared `/exams` + `/approvals`).
+
+---
+
+## 15 October 2026 — Final verification (post-70e5cb9)
+
+**Status:** Live DB + Admin browser verification completed. **READY WITH LIMITATIONS** — no critical blockers for next work.
+
+### Done
+
+1. PostgreSQL connect **PASS**; Alembic **0012** current=head; **48/48** model tables match DB.
+2. Admin API: login, students/admissions/announcements/calendar/notifications/users **200**; FO material-gate-pass create/get/update; announcement multipart create+retrieve; calendar POST; teacher RBAC denials **403**; unauth **401**.
+3. Browser Admin: sign-in → admissions list, announcements (shows persisted verify row), calendar (Add Event), user database — no console errors on sampled paths.
+4. `npm run build` **PASS** (chunk-size warnings). `npm run lint` **FAIL** (pre-existing hook/refresh rules; not treated as ship blocker).
+5. Docs mismatch noted: main Word file locked at Principal **3/3/15**; updated/review copies **16/5**. `system_audit_logs` unmounted backlog (PARTIAL).
+
+### Open / next
+
+- Close Word lock and sync main status SoT to Principal **16/5**.
+- Implementation: PRM is already **21/21** — use regression plan below, or start **Director**.
+- No further git push from this verification (await branch/diff confirmation).
+
+---
+
 ## 15 October 2026 — Safe structure cleanup + architecture audit
 
 **Status:** Read-only audit completed; only conclusive junk removed. Monorepo layout preserved (no frontend/backend folder split).

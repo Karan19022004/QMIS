@@ -104,6 +104,7 @@ def _seed_demo_users(db: Session, campus: Campus, roles_by_code: dict[str, Role]
         ("teacher", settings.teacher_seed_email, settings.teacher_seed_password),
         ("coordinator", settings.coordinator_seed_email, settings.coordinator_seed_password),
         ("principal", settings.principal_seed_email, settings.principal_seed_password),
+        ("prm", settings.prm_seed_email, settings.prm_seed_password),
         ("director", settings.director_seed_email, settings.director_seed_password),
     ):
         if role_code in roles_by_code:

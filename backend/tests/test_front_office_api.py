@@ -201,3 +201,81 @@ def test_admin_can_create_and_list_student_transfer(client):
     fetched = client.get(f"/api/v1/front-office/student-transfers/{body['id']}", headers=headers)
     assert fetched.status_code == 200
     assert fetched.json()["reason"] == "Relocation"
+
+
+def test_admin_can_create_update_delete_student_re_enrollment(client):
+    headers = _login(client, ADMIN)
+    created = client.post(
+        "/api/v1/front-office/student-re-enrollments",
+        headers=headers,
+        json={
+            "studentName": "ReEnroll Student",
+            "previousAdmissionNo": "ADM-OLD-1",
+            "className": "Grade 3",
+            "reason": "Returned TC",
+            "requestedOn": "15-10-2026",
+            "status": "Pending",
+        },
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["id"].startswith("SRE-")
+
+    updated = client.put(
+        f"/api/v1/front-office/student-re-enrollments/{body['id']}",
+        headers=headers,
+        json={**body, "status": "Approved"},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["status"] == "Approved"
+
+    missing = client.get("/api/v1/front-office/student-re-enrollments/SRE-DOES-NOT-EXIST", headers=headers)
+    assert missing.status_code == 404
+
+    deleted = client.delete(f"/api/v1/front-office/student-re-enrollments/{body['id']}", headers=headers)
+    assert deleted.status_code == 204
+    assert client.get(f"/api/v1/front-office/student-re-enrollments/{body['id']}", headers=headers).status_code == 404
+
+
+def test_principal_can_read_but_not_write_front_office(client):
+    principal = (settings.principal_seed_email, settings.principal_seed_password)
+    headers = _login(client, principal)
+    listed = client.get("/api/v1/front-office/material-gate-passes", headers=headers)
+    assert listed.status_code == 200, listed.text
+    created = client.post(
+        "/api/v1/front-office/material-gate-passes",
+        headers=headers,
+        json={"driverName": "Nope", "vehicleNo": "TN-00", "timePeriod": "AM", "time": "09:00"},
+    )
+    assert created.status_code == 403
+
+
+def test_prm_seed_can_write_front_office(client):
+    prm = (settings.prm_seed_email, settings.prm_seed_password)
+    headers = _login(client, prm)
+    created = client.post(
+        "/api/v1/front-office/student-gate-passes",
+        headers=headers,
+        json={
+            "studentId": "STU-PRM",
+            "studentName": "PRM Seed Student",
+            "classSection": "2-B",
+            "reason": "Dental",
+            "date": "15-10-2026",
+            "outTime": "11:00",
+            "status": "Pending",
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["id"].startswith("SGP-")
+
+
+def test_unauthenticated_front_office_is_401(client):
+    response = client.get("/api/v1/front-office/student-gate-passes")
+    assert response.status_code == 401
+
+
+def test_unknown_front_office_collection_is_404(client):
+    headers = _login(client, ADMIN)
+    response = client.get("/api/v1/front-office/not-a-collection", headers=headers)
+    assert response.status_code == 404
