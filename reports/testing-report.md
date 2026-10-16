@@ -16,6 +16,8 @@ Last run: 16 October 2026 (browser-level five-role audit + export wiring + regre
 | Browser: Teacher class-attendance Export | **PASS** (earlier in session; 5 records CSV) |
 | Browser: PRM / Front Office sidebar (21) | **PASS** |
 | Browser: Principal sidebar (21) | **PASS** |
+| Browser: Super Admin sidebar (43) | **PASS** (activity Approve verified; Activity Logs / Module Health PARTIAL UI shells) |
+| Super Admin login seed | **PASS** (`superadmin@qmis.edu`) |
 | Onboarding password delivery (API; secret not logged) | **PASS** (`temporaryPassword` returned to creator; comms status `DEMO_SENT`) |
 | RBAC: Principal `/tc-requests` | **PASS** (403 expected) |
 | Frontend ESLint full suite | **NOT RUN** |

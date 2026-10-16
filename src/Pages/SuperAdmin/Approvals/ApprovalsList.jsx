@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -12,6 +12,7 @@ import {
     formatAmount,
     getAllApprovalRequests,
     getApprovalSummary,
+    hydrateApprovalsFromApi,
     priorityBadgeColor,
     REQUEST_CATEGORIES,
     ROUTE_BASE,
@@ -20,8 +21,9 @@ import {
 
 const ApprovalsList = () => {
     const [records, setRecords] = useState(() => getAllApprovalRequests())
-    const [fromDate, setFromDate] = useState(new Date())
-    const [toDate, setToDate] = useState(new Date())
+    const [loading, setLoading] = useState(false)
+    const [fromDate, setFromDate] = useState(null)
+    const [toDate, setToDate] = useState(null)
     const [search, setSearch] = useState('')
     const [category, setCategory] = useState('')
     const [status, setStatus] = useState('')
@@ -34,14 +36,42 @@ const ApprovalsList = () => {
         [records, search, category, status],
     )
 
-    const refreshRequests = () => setRecords(getAllApprovalRequests())
+    const refreshRequests = async () => {
+        setLoading(true)
+        try {
+            const rows = await hydrateApprovalsFromApi()
+            setRecords(rows)
+        } catch {
+            setRecords(getAllApprovalRequests())
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        let active = true
+        setLoading(true)
+        hydrateApprovalsFromApi()
+            .then((rows) => {
+                if (active) setRecords(rows)
+            })
+            .catch(() => {
+                if (active) setRecords(getAllApprovalRequests())
+            })
+            .finally(() => {
+                if (active) setLoading(false)
+            })
+        return () => {
+            active = false
+        }
+    }, [])
 
     const clearFilters = () => {
         setSearch('')
         setCategory('')
         setStatus('')
-        setFromDate(new Date())
-        setToDate(new Date())
+        setFromDate(null)
+        setToDate(null)
     }
 
     return (
@@ -49,7 +79,7 @@ const ApprovalsList = () => {
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h1 className='text-xl font-semibold text-black'>Approvals</h1>
                 <p className='text-sm text-[#667085] mt-2'>
-                    Central inbox for requests routed to Super Admin — finance, data changes, HR, procurement, budget, and policy updates.
+                    Central inbox for Super Admin — pending activity approvals (cultural / sports / competitions), plus finance, data changes, HR, procurement, budget, and policy requests.
                 </p>
             </div>
 
@@ -179,9 +209,10 @@ const ApprovalsList = () => {
                         <button
                             type='button'
                             onClick={refreshRequests}
-                            className='bg-white text-[#515DEF] text-sm px-4 py-2 rounded-md border border-[#515DEF] hover:bg-[#515DEF] hover:text-white transition-all duration-200 cursor-pointer'
+                            disabled={loading}
+                            className='bg-white text-[#515DEF] text-sm px-4 py-2 rounded-md border border-[#515DEF] hover:bg-[#515DEF] hover:text-white transition-all duration-200 cursor-pointer disabled:opacity-60'
                         >
-                            Refresh
+                            {loading ? 'Loading…' : 'Refresh'}
                         </button>
                         <button
                             type='button'
@@ -213,7 +244,7 @@ const ApprovalsList = () => {
                             {filteredRecords.length === 0 ? (
                                 <tr>
                                     <td colSpan={10} className='px-2 py-8 text-center text-[#667085]'>
-                                        No approval requests found.
+                                        {loading ? 'Loading approval requests…' : 'No approval requests found.'}
                                     </td>
                                 </tr>
                             ) : (
@@ -243,7 +274,7 @@ const ApprovalsList = () => {
                                         <td className='px-2 py-4 text-center rounded-e-lg'>
                                             <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
                                                 <NavLink
-                                                    to={`${ROUTE_BASE}/view/${request.id}`}
+                                                    to={request.viewPath || `${ROUTE_BASE}/view/${request.id}`}
                                                     className='block w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
                                                 >
                                                     View

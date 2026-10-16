@@ -8,6 +8,30 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — Super Admin seed + browser module audit
+
+**Status:** Seeded `superadmin@qmis.edu` / `superadmin123`; Super Admin **Activities** (cultural/sports/competitions) with Approve/Reject; browser crawl of **43** sidebar leaf routes.
+
+### Super Admin module results (browser)
+
+| Module group | Result | Notes |
+|---|---|---|
+| Dashboard | **PASS** | Loads |
+| Attendance (students/employees) | **PASS** | Lists + Export present |
+| User Database / User Creation | **PASS** | Lists + Export |
+| Gate Pass / Transport Overview | **PASS** | Lists load |
+| Finance (7 screens) | **PASS** | Overview + fees/collections/wallets/transport/accounting/reports load (no crash) |
+| Audit Reports (6 screens) | **PASS** | Overview + section lists load |
+| Star Ratings / Tasks / Leave / Approvals | **PASS** | Lists + Export where present |
+| Activities (cultural/sports/competitions) | **PASS** | Pending filter + **Approve** action verified in browser/API |
+| Announcement / Communication / Calendar / Notifications / Escalation | **PASS** | Routes load |
+| Activity Logs (6) / Re-entry / Module Health | **PARTIAL** | Pages load; some breadcrumbs show generic “School ERP”; demo/log screens are UI shells |
+| Console | **PARTIAL** | React duplicate-key warnings on some navigations; no crash banners |
+
+Login also shown on `/signin` Demo test logins.
+
+---
+
 ## 16 October 2026 — Browser-level five-role audit (from `e8623e3`)
 
 **Status:** Browser sidebar crawl + export wiring for five demo roles; pytest **421 passed**; `npm run build` **PASS**. Baseline was `e8623e3` on `main`.
@@ -21,6 +45,7 @@ New days go at the top. Older days stay below so the history is in one file.
 | Teacher | **PARTIAL** | **30** sidebar routes crawled; Class Attendance Export CSV verified earlier; hard-nav Unit Tests OK; several academic modules still localStorage SoT |
 | PRM (Front Office) | **PASS** | All **21** sidebar routes crawled with expected titles (admissions, gate passes, TC, tasks, leave, student/teacher DB) |
 | Principal | **PASS** | All **21** sidebar routes crawled (timetables, allocation, LMS, star ratings, student allocation approval, directories) |
+| Super Admin | **PASS** (see section above) | **43** routes crawled after seed login; activity Approve verified |
 
 ### Exports
 

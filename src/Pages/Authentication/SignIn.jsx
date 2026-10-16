@@ -21,6 +21,7 @@ const takeSessionNotice = () => {
 const DEMO_TEST_LOGINS = [
     { role: 'Super Admin', email: 'superadmin@qmis.edu', password: 'superadmin123' },
     { role: 'Admin', email: 'admin@qmis.edu', password: 'admin123' },
+    { role: 'Account Head', email: 'accounthead@qmis.edu', password: 'accounts123' },
     { role: 'HR', email: 'hr@qmis.edu', password: 'hr12345' },
     { role: 'Teacher', email: 'teacher@qmis.edu', password: 'teacher123' },
     { role: 'PRM', email: 'prm@qmis.edu', password: 'prm12345' },

@@ -143,7 +143,7 @@ export default function ActivityListView({ roleKey, activityType }) {
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label className='text-base font-medium text-[#808080]'>
-                            {roleKey === 'admin' ? 'Super Admin Approval Status' : 'MD Approval Status'}
+                            {roleKey === 'admin' || roleKey === 'superadmin' ? 'Super Admin Approval Status' : 'MD Approval Status'}
                         </label>
                         <select
                             value={statusFilter}

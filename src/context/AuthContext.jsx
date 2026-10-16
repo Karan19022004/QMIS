@@ -67,7 +67,7 @@ export const FAKE_CREDENTIALS = {
     [ROLES.PROCESS_AUDITOR]: { email: 'processauditor@school.com' },
     [ROLES.QUALITY_AUDITOR]: { email: 'qualityauditor@school.com' },
     [ROLES.HR]: { email: 'hr@school.com' },
-    [ROLES.ACCOUNT_HEAD]: { email: 'accounthead@school.com' },
+    [ROLES.ACCOUNT_HEAD]: { email: 'accounthead@qmis.edu' },
     [ROLES.DRIVER]: { email: 'driver@school.com' },
 }
 

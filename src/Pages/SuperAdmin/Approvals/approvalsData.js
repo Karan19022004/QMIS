@@ -1,3 +1,11 @@
+import {
+    MD_APPROVAL_STATUS,
+    getActivities,
+    hydrateActivitiesFromApi,
+} from '../../../Common/Activities/activitiesData'
+import { getActivityViewPath } from '../../../Common/Activities/activityConfigs'
+import { canUseActivitiesApi } from '../../../services/activitiesApi'
+
 const STORAGE_KEY = 'schoolerp-super-admin-approvals'
 
 export const ROUTE_BASE = '/super-admin/approvals'
@@ -7,6 +15,7 @@ export const REQUESTED_TO = 'Super Admin'
 export const APPROVAL_STATUSES = ['Pending', 'Approved', 'Rejected']
 
 export const REQUEST_CATEGORIES = [
+    'Activity Approval',
     'Finance Request',
     'Data Change Request',
     'HR Request',
@@ -14,6 +23,12 @@ export const REQUEST_CATEGORIES = [
     'Budget Request',
     'Policy Change Request',
 ]
+
+const ACTIVITY_TYPE_LABEL = {
+    cultural: 'Cultural',
+    sports: 'Sports',
+    competition: 'Competition',
+}
 
 export const PRIORITY_LEVELS = ['High', 'Normal', 'Low']
 
@@ -24,6 +39,7 @@ export const statusBadgeColor = {
 }
 
 export const categoryBadgeColor = {
+    'Activity Approval': 'bg-[#0C1E5B33] text-[#0C1E5B]',
     'Finance Request': 'bg-[#515DEF33] text-[#515DEF]',
     'Data Change Request': 'bg-[#2196F333] text-[#2196F3]',
     'HR Request': 'bg-[#9C27B033] text-[#9C27B0]',
@@ -317,7 +333,10 @@ const SEED_REQUESTS = [
 const loadRequests = () => {
     try {
         const stored = sessionStorage.getItem(STORAGE_KEY)
-        if (stored) return JSON.parse(stored)
+        if (stored) {
+            const parsed = JSON.parse(stored)
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed
+        }
     } catch {
         /* ignore */
     }
@@ -329,13 +348,60 @@ const saveRequests = (requests) => {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(requests))
 }
 
-export const getAllApprovalRequests = () => loadRequests()
+/** Map a pending activity into the Super Admin Approvals row shape. */
+export const activityToApprovalRequest = (activity) => {
+    const typeLabel = ACTIVITY_TYPE_LABEL[activity.type] || 'Activity'
+    return {
+        id: activity.id,
+        requestId: activity.id,
+        category: 'Activity Approval',
+        requestDate: activity.submittedDate || activity.eventDate || '—',
+        requestedBy: activity.submittedBy || 'Admin',
+        role: 'Administrator',
+        department: typeLabel,
+        title: activity.eventName || `${typeLabel} activity`,
+        amount: null,
+        priority: 'High',
+        status: activity.mdApprovalStatus || MD_APPROVAL_STATUS.PENDING,
+        requestedTo: REQUESTED_TO,
+        description: activity.description || '',
+        source: 'activity',
+        activityType: activity.type,
+        viewPath: getActivityViewPath(activity.type, 'superadmin', activity.id),
+        superAdminRemarks: '',
+    }
+}
+
+export const getPendingActivityApprovals = () =>
+    getActivities()
+        .filter((item) => item.mdApprovalStatus === MD_APPROVAL_STATUS.PENDING)
+        .map(activityToApprovalRequest)
+
+/** Demo seed rows plus live pending activity approvals (activities first). */
+export const getAllApprovalRequests = () => {
+    const seeded = loadRequests()
+    const live = getPendingActivityApprovals()
+    const liveIds = new Set(live.map((row) => row.id))
+    return [...live, ...seeded.filter((row) => !liveIds.has(row.id))]
+}
+
+/** Pull activities from API when signed in, then rebuild the merged list. */
+export const hydrateApprovalsFromApi = async () => {
+    if (canUseActivitiesApi()) {
+        await Promise.all([
+            hydrateActivitiesFromApi('cultural'),
+            hydrateActivitiesFromApi('sports'),
+            hydrateActivitiesFromApi('competition'),
+        ])
+    }
+    return getAllApprovalRequests()
+}
 
 export const getApprovalRequestById = (id) =>
-    loadRequests().find((request) => request.id === id) ?? null
+    getAllApprovalRequests().find((request) => request.id === id) ?? null
 
 export const getPendingApprovalCount = () =>
-    loadRequests().filter((request) => request.status === 'Pending').length
+    getAllApprovalRequests().filter((request) => request.status === 'Pending').length
 
 export const updateApprovalRequestStatus = (id, status, superAdminRemarks = '') => {
     const requests = loadRequests()
