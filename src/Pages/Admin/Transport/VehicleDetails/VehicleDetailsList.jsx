@@ -8,6 +8,10 @@ import ExportModal from '../../../../Common/CommonComponents/ExportModal';
 import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteRequestModal';
 import EditRequestModal from '../../../../Common/CommonComponents/EditRequestModal';
 
+const EXPORT_ROWS = [
+    {vehicle_id: 'VH001', vehicle_number: 'TN55 AB 1234', vehicle_type: 'Bus', capacity: '50', driver_name: 'Ramesh Kumar', driver_contact: '9876543210', insurance_expiry_date: '02-07-2025'},
+]
+
 const VehicleDetailsList = () => {
 
     const [fromDate, setFromDate] = useState(new Date());
@@ -171,7 +175,13 @@ const VehicleDetailsList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='vehicle-details-list'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
 

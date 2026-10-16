@@ -8,6 +8,10 @@ import ExportModal from '../../../../Common/CommonComponents/ExportModal';
 import EditRequestModal from '../../../../Common/CommonComponents/EditRequestModal';
 import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteRequestModal';
 
+const EXPORT_ROWS = [
+    {competitions_name: 'Quiz Competition', category: 'Academic', class: '9 - A vs 9 - B', event_date: '15-08-2025', start_time: '10:00 AM', end_time: '11:30 AM', venue: 'School Auditorium', coordinator: 'Mr. Kumar', description: 'Team-based quiz, no mobile phones allowed'},
+]
+
 const Competitions = () => {
 
     const [fromDate, setFromDate] = useState(new Date());
@@ -175,7 +179,13 @@ const Competitions = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='competitions'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
 

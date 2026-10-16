@@ -8,6 +8,10 @@ import ExportModal from '../../../../Common/CommonComponents/ExportModal';
 import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteRequestModal';
 import EditRequestModal from '../../../../Common/CommonComponents/EditRequestModal';
 
+const EXPORT_ROWS = [
+    {employee_id: 'EMP001', employee_name: 'Ravi Kumar', role: 'Teacher', month: 'March 2026', net_salary: '₹27,592', payment_date: '25-03-2026', payment_mode: 'Bank Transfer', status: 'Paid'},
+]
+
 const SalariesList = () => {
 
     const [fromDate, setFromDate] = useState(new Date());
@@ -183,7 +187,13 @@ const SalariesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='salaries-list'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
 

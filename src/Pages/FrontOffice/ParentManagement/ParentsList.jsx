@@ -151,7 +151,13 @@ const ParentsList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='parents-list'
+                rows={Array.isArray(PARENTS_LIST) ? PARENTS_LIST : []}
+                exportDescription={<>You are exporting {Array.isArray(PARENTS_LIST) ? PARENTS_LIST.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
         </section>
     )

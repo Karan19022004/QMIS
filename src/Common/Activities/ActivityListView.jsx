@@ -293,7 +293,13 @@ export default function ActivityListView({ roleKey, activityType }) {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='activity-list-view'
+                rows={Array.isArray(filteredActivities) ? filteredActivities : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredActivities) ? filteredActivities.length : 0} record(s).</>}
+            />
         </section>
     )
 }

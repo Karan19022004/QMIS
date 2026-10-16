@@ -244,7 +244,13 @@ const SubmitLessonPlan = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} exportDescription={exportDescription} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='submit-lesson-plans'
+                rows={Array.isArray(filteredPlans) ? filteredPlans : []}
+                exportDescription={exportDescription}
+            />
         </section>
     )
 }

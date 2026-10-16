@@ -213,7 +213,13 @@ const OnlineClass = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='online-class'
+                rows={Array.isArray(ONLINE_CLASSES) ? ONLINE_CLASSES : []}
+                exportDescription={<>You are exporting {Array.isArray(ONLINE_CLASSES) ? ONLINE_CLASSES.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>

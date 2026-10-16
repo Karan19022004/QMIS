@@ -8,6 +8,10 @@ import ExportModal from '../../../../Common/CommonComponents/ExportModal';
 import EditRequestModal from '../../../../Common/CommonComponents/EditRequestModal';
 import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteRequestModal';
 
+const EXPORT_ROWS = [
+    {period_number: '1', time_duration: '09:00 AM - 09:45 AM', subject: 'English', teacher: 'Sandy Selva'},
+]
+
 const TimeTable = () => {
 
     const [exportModal, setExportModal] = useState(false);
@@ -134,7 +138,13 @@ const TimeTable = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='time-table'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
 

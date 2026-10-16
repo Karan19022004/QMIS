@@ -196,7 +196,13 @@ const ExtraClass = ({
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='extra-class'
+                rows={Array.isArray(EXTRA_CLASSES) ? EXTRA_CLASSES : []}
+                exportDescription={<>You are exporting {Array.isArray(EXTRA_CLASSES) ? EXTRA_CLASSES.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>

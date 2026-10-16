@@ -301,7 +301,13 @@ const AdminssionList = () => {
                 )}
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='adminssion-list'
+                rows={Array.isArray(filteredRecords) ? filteredRecords : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredRecords) ? filteredRecords.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
         </section>
     )

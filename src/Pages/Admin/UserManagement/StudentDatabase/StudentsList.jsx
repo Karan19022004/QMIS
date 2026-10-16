@@ -153,7 +153,13 @@ const StudentsList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='students-list'
+                rows={Array.isArray(rows) ? rows : []}
+                exportDescription={<>You are exporting {Array.isArray(rows) ? rows.length : 0} record(s).</>}
+            />
         </section>
     )
 }

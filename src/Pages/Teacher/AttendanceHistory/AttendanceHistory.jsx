@@ -144,7 +144,13 @@ const AttendanceHistory = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='attendance-history'
+                rows={Array.isArray(ATTENDANCE_HISTORY) ? ATTENDANCE_HISTORY : []}
+                exportDescription={<>You are exporting {Array.isArray(ATTENDANCE_HISTORY) ? ATTENDANCE_HISTORY.length : 0} record(s).</>}
+            />
         </section>
     )
 }

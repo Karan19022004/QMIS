@@ -194,7 +194,13 @@ const EmployeesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='employees-list'
+                rows={Array.isArray(filteredEmployees) ? filteredEmployees : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredEmployees) ? filteredEmployees.length : 0} record(s).</>}
+            />
         </section>
     )
 }

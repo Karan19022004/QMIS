@@ -9,6 +9,10 @@ import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteReques
 import EditRequestModal from '../../../../Common/CommonComponents/EditRequestModal';
 
 
+const EXPORT_ROWS = [
+    {class: 'Class 12th', yearly_fees: '50,000', half_yearly_fees: '25,000', quarterly_fees: '12,500', monthly_fees: '5,000', fees_currency: 'IND', late_fees: '1 %'},
+]
+
 const ClassFeeDetails = () => {
 
     const [fromDate, setFromDate] = useState(new Date());
@@ -173,7 +177,13 @@ const ClassFeeDetails = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='class-fee-details'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
 

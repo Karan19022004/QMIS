@@ -260,7 +260,13 @@ const TeacherAllocationList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} exportDescription={exportDescription} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='teacher-allocation'
+                rows={Array.isArray(filteredRows) ? filteredRows : []}
+                exportDescription={exportDescription}
+            />
             <RemoveAllocationModal
                 open={Boolean(removeTarget)}
                 teacherName={removeTarget?.name}

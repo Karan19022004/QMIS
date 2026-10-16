@@ -223,7 +223,13 @@ const MyLessonPlan = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} exportDescription={exportDescription} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='lesson-plans'
+                rows={Array.isArray(filteredPlans) ? filteredPlans : []}
+                exportDescription={exportDescription}
+            />
         </section>
     )
 }

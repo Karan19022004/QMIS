@@ -137,7 +137,13 @@ const BooksBorrowed = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='books-borrowed'
+                rows={Array.isArray(BORROWED_BOOKS_LIST) ? BORROWED_BOOKS_LIST : []}
+                exportDescription={<>You are exporting {Array.isArray(BORROWED_BOOKS_LIST) ? BORROWED_BOOKS_LIST.length : 0} record(s).</>}
+            />
         </section>
     )
 }

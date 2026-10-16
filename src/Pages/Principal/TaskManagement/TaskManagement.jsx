@@ -8,6 +8,10 @@ import ExportModal from '../../../Common/CommonComponents/ExportModal';
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal';
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal';
 
+const EXPORT_ROWS = [
+    {task_id: 'TASK001', task_title: 'Submit Monthly Attendance Report', task_description: 'Prepare and submit the attendance report for all Grade 9 students.', assigned_to: 'Mr. Ravi', priority: 'High', assigned_date: '01-08-2025', due_date: '05-08-2025', status: 'Completed'},
+]
+
 const TaskManagement = () => {
 
     const [fromDate, setFromDate] = useState(new Date());
@@ -240,7 +244,13 @@ const TaskManagement = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='task-management'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
 

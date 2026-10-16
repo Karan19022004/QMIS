@@ -9,6 +9,10 @@ import ExportModal from '../../../Common/CommonComponents/ExportModal';
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal';
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal';
 
+const EXPORT_ROWS = [
+    {document_id: 'DOC001', document_name: 'Government Education Circular', document_format: 'Education-Circle-Circular.pdf', document_category: 'Government Orders', document_description: 'Latest government guidelines for school administration.', uploaded_by: 'Director', upload_date: '10-08-2025'},
+]
+
 const Documents = () => {
     
     const [fromDate, setFromDate] = useState(new Date());
@@ -177,7 +181,13 @@ const Documents = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='documents'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
 

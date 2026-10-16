@@ -8,6 +8,10 @@ import ExportModal from '../../../../Common/CommonComponents/ExportModal';
 import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteRequestModal';
 import EditRequestModal from '../../../../Common/CommonComponents/EditRequestModal';
 
+const EXPORT_ROWS = [
+    {book_name: 'Science Textbook Set', expense_type: 'Purchase', amount: '₹12,000', date: '15-03-2026', description: 'Purchase of science books for class 8', vendors: 'ABC Book Suppliers', status: 'Paid'},
+]
+
 const LibraryExpensesList = () => {
     const [fromDate, setFromDate] = useState(new Date());
     const [toDate, setToDate] = useState(new Date());
@@ -180,7 +184,13 @@ const LibraryExpensesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='library-expenses-list'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
 

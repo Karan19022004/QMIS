@@ -8,6 +8,51 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — Browser-level five-role audit (from `e8623e3`)
+
+**Status:** Browser sidebar crawl + export wiring for five demo roles; pytest **421 passed**; `npm run build` **PASS**. Baseline was `e8623e3` on `main`.
+
+### Role / module results (browser)
+
+| Role | Result | What was actually tested |
+|---|---|---|
+| HR | **PASS** | All **36** sidebar leaf routes loaded with expected titles; Employees Export CSV (20 rows); attendance status Present after refresh; notifications/announcements reachable |
+| Administrator | **PASS** | **25** sidebar routes crawled (no crash banners); employee/student DB, docs, admissions, leave, tasks, escalations, communication, calendar, competitions |
+| Teacher | **PARTIAL** | **30** sidebar routes crawled; Class Attendance Export CSV verified earlier; hard-nav Unit Tests OK; several academic modules still localStorage SoT |
+| PRM (Front Office) | **PASS** | All **21** sidebar routes crawled with expected titles (admissions, gate passes, TC, tasks, leave, student/teacher DB) |
+| Principal | **PASS** | All **21** sidebar routes crawled (timetables, allocation, LMS, star ratings, student allocation approval, directories) |
+
+### Exports
+
+- Wired remaining five-role `ExportModal` usages to real `rows` (list vars or static `EXPORT_ROWS` from visible table demo data).
+- Verified live: HR employees CSV; Teacher class-attendance CSV.
+- Non–five-role roles (Account Head, auditors, etc.) still have many bare ExportModals — **NOT RUN** / out of scope this pass.
+
+### Teacher / Principal localStorage vs backend need
+
+| Area | Storage today | Needs real backend? |
+|---|---|---|
+| Teacher exam schedule / enter marks / result summary | localStorage | **Yes** — `examsApi` / `resultsApi` exist; multi-user SoT should move off browser |
+| Teacher unit tests, Q-bank, home-fun, study materials, sample questions, student transfer | localStorage | **Yes** for shared campus use; OK as demo-only until APIs exist |
+| Teacher notifications file still has LS helpers | mixed | Prefer `notificationsApi` (already used elsewhere) |
+| Principal class / exam timetable + teacher allocation | localStorage | **Yes** — shared scheduling must not stay device-local |
+
+### Onboarding / password delivery
+
+- Staff create returns `temporaryPassword` to HR UI only; comms row status `DEMO_SENT` (no real SMTP). Credentials not logged in audit output.
+
+### Console / RBAC
+
+- No crash banners on crawled routes after export fix.
+- Principal TC list remains **403** (expected RBAC).
+
+### Still open
+
+- Interactive deep controls on every page (every Approve/Edit/Delete) not exhaustively clicked — reported as route-level crawl + targeted mutations.
+- Roles outside the five demo personas: export gaps remain.
+
+---
+
 ## 16 October 2026 — Five-role functional audit (HR → Admin → Teacher → PRM → Principal)
 
 **Status:** Live API audit across five roles completed; pytest **421 passed**; production build **PASS**. Intended fixes already on `main` at `d4bd49c` (message was generic — follow-up cleans audit junk + reports). SMTP / WhatsApp still local-queue only.
@@ -34,7 +79,7 @@ New days go at the top. Older days stay below so the history is in one file.
 
 - Not every secondary Export button across 100+ screens is wired.
 - Some Teacher/Principal academic screens remain portal/localStorage **PARTIAL**.
-- Full browser tour of every sidebar control: **NOT RUN** this pass.
+- Full browser tour of every sidebar control: superseded by later browser crawl section above.
 - Real email of temporary passwords: still demo `DEMO_SENT` (HR must share password from toast).
 
 ---

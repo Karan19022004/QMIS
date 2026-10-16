@@ -740,7 +740,13 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                 </>
             )}
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='mark-entry-page'
+                rows={Array.isArray(students) ? students : []}
+                exportDescription={<>You are exporting {Array.isArray(students) ? students.length : 0} record(s).</>}
+            />
             <IncompleteMarksModal open={incompleteModal} onClose={() => setIncompleteModal(false)} stats={stats} />
             <SubmitMarksConfirmModal
                 open={submitModal}

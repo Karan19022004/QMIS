@@ -266,7 +266,13 @@ const StudyMaterialsList = ({ items, routeBase, viewMode }) => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='study-materials'
+                rows={Array.isArray(filteredItems) ? filteredItems : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredItems) ? filteredItems.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </>

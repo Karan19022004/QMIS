@@ -157,7 +157,13 @@ const DriversList = ({ basePath }) => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='drivers-list'
+                rows={Array.isArray(DRIVERS) ? DRIVERS : []}
+                exportDescription={<>You are exporting {Array.isArray(DRIVERS) ? DRIVERS.length : 0} record(s).</>}
+            />
         </section>
     )
 }

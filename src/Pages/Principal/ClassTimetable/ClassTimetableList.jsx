@@ -235,7 +235,13 @@ const ClassTimetableList = () => {
 
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='class-timetable-list'
+                rows={Array.isArray(filteredRecords) ? filteredRecords : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredRecords) ? filteredRecords.length : 0} record(s).</>}
+            />
             <ClassTimeTableModal
                 open={Boolean(selectedRecord)}
                 onClose={() => setSelectedRecord(null)}

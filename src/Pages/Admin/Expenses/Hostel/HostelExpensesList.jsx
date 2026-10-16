@@ -8,6 +8,10 @@ import ExportModal from '../../../../Common/CommonComponents/ExportModal';
 import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteRequestModal';
 import EditRequestModal from '../../../../Common/CommonComponents/EditRequestModal';
 
+const EXPORT_ROWS = [
+    {expense_type: 'Food', amount: '₹25,000', date: '01-03-2026', description: 'Monthly groceries and vegetables purchase', vendors: 'Fresh Mart Suppliers', status: 'Paid'},
+]
+
 const HostelExpensesList = () => {
 
     const [fromDate, setFromDate] = useState(new Date());
@@ -179,7 +183,13 @@ const HostelExpensesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='hostel-expenses-list'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
 

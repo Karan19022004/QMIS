@@ -8,6 +8,10 @@ import ExportModal from '../../../../Common/CommonComponents/ExportModal';
 import EditRequestModal from '../../../../Common/CommonComponents/EditRequestModal';
 import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteRequestModal';
 
+const EXPORT_ROWS = [
+    {class: 'Class 12', section: 'A', teacher: 'Sandy Selva', subject: 'English', created_by: 'Admin User', created_date: '02/04/2026', scheduled_date: '10/04/2026', start_time: '6:30', end_time: '7:30', venue: 'Seminar Hall Room 1'},
+]
+
 const ExtendedClass = () => {
 
     const [fromDate, setFromDate] = useState(new Date());
@@ -178,7 +182,13 @@ const ExtendedClass = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='extended-class'
+                rows={EXPORT_ROWS}
+                exportDescription={<>You are exporting {EXPORT_ROWS.length} record(s).</>}
+            />
 
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
 
