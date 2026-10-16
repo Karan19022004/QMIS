@@ -225,7 +225,20 @@ const ActivityLogList = ({ logType }) => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename={`super-admin-activity-logs-${logType}`}
+                title={config.listTitle || config.label}
+                rows={filteredRecords.map((row) => {
+                    const out = {}
+                    columns.forEach((col) => {
+                        out[col.key] = getCellValue(row, col)
+                    })
+                    return out
+                })}
+                exportDescription={<>You are exporting {filteredRecords.length} record(s).</>}
+            />
         </section>
     )
 }

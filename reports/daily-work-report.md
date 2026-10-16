@@ -8,6 +8,46 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — Super Admin backend data flow (students / employees / attendance)
+
+**Status:** Super Admin User Database + Attendance now use the **same API SoT as Admin** (no separate mock lists).
+
+### Wired to backend
+- **Students List / View** → `hydrateEnrolledStudentsFromApi` / `GET /students` (verified **17** enrolled in browser)
+- **Employee List / View** → `useEmployeeDirectory` / HR portal + User Creation merge (verified **21** in browser)
+- **Student & Employee Attendance** → `adminAttendanceApi` + `useAttendanceQuery` (verified student attendance rows for today)
+
+### Still separate / demo shells (unchanged this pass)
+- Finance / Audit / Dashboard KPI cards (static demo datasets)
+- Gate Pass aggregates Front Office local modules
+- Approvals seed rows + live activity approvals (activities already API)
+
+---
+
+## 16 October 2026 — Super Admin inch-by-inch re-audit
+
+**Status:** Full Super Admin route crawl (48 screens) after blank-page fix; approval flows verified; title/export/sidebar fixes applied.
+
+### Crawl result
+- **48/48** list/overview routes rendered (no blank root, no module-load crash).
+- Earlier blank Super Admin panel: missing `createCalendarEventViaApi` export — **restored**.
+- Approvals: list shows Pending rows; **Approve/Reject** on detail (`/approvals/view/:id`) — verified.
+- Activities Cultural: **Approve/Reject** in row menu for Pending — verified.
+- Leave: Super Admin is configured as approver; decision on leave detail page.
+- Announcement: Super Admin is **view/export only** (no Create — not in creator roles); `/announcement/add` redirects to list by design.
+
+### Fixes from this pass
+- Unique Super Admin sidebar link ids (removed duplicate `id: 19`).
+- Header titles for Activities, My Tasks, Demo Activity, Re-entry, Module Health.
+- ExportModal wired with real filtered rows on Approvals, Gate Pass, Attendance, User DB, User Creation, Activity Logs, Star Ratings.
+
+### Still PARTIAL (demo shells / intentional)
+- Date filters on some lists do not narrow rows (UI present).
+- Re-entry / Module Health / Demo Activity remain lightweight demo screens.
+- Export on shared Announcement list still empty-rows until that common view is wired.
+
+---
+
 ## 16 October 2026 — Super Admin seed + browser module audit
 
 **Status:** Seeded `superadmin@qmis.edu` / `superadmin123`; Super Admin **Activities** (cultural/sports/competitions) with Approve/Reject; browser crawl of **43** sidebar leaf routes.

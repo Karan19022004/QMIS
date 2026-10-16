@@ -306,7 +306,24 @@ const ApprovalsList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="super-admin-approvals"
+                title="Received Approval Requests"
+                rows={filteredRecords.map((row) => ({
+                    request_id: row.requestId,
+                    date: row.requestDate,
+                    category: row.category,
+                    title: row.title,
+                    requested_by: row.requestedBy,
+                    department: row.department,
+                    amount: formatAmount(row.amount),
+                    priority: row.priority,
+                    status: row.status,
+                }))}
+                exportDescription={<>You are exporting {filteredRecords.length} record(s).</>}
+            />
         </section>
     )
 }

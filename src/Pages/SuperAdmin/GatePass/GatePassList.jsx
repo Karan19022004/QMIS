@@ -211,7 +211,22 @@ const GatePassList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="super-admin-gate-passes"
+                title="Gate Pass List"
+                rows={filteredRecords.map((row) => ({
+                    pass_id: row.passId,
+                    date: row.date,
+                    subject: row.subjectName,
+                    detail: row.subjectDetail,
+                    category: row.passCategory,
+                    status: row.status,
+                    created_by: row.createdBy,
+                }))}
+                exportDescription={<>You are exporting {filteredRecords.length} record(s).</>}
+            />
         </section>
     )
 }

@@ -36,9 +36,14 @@
 
     "/super-admin/task-management/assign-tasks": "Assign Tasks List",
     "/super-admin/task-management/assign-tasks/add": "Assign Task",
+    "/super-admin/task-management/my-tasks": "My Tasks",
     "/super-admin/leave-request/received": "Received Leave Requests",
 
     "/super-admin/approvals": "Approvals",
+
+    "/super-admin/activities/cultural-list": "Cultural List",
+    "/super-admin/activities/sports-list": "Sports List",
+    "/super-admin/activities/competitions-list": "Competitions List",
 
     "/super-admin/announcement": "Announcement List",
     "/super-admin/announcement/add": "Add Announcement",
@@ -54,6 +59,9 @@
     "/super-admin/activity-logs/approval-actions": "Approval Actions",
     "/super-admin/activity-logs/audit-logs": "Audit Logs",
     "/super-admin/activity-logs/failed-logins": "Failed Logins",
+    "/super-admin/activity-logs/demo-activity": "Demo Activity",
+    "/super-admin/reentry": "Re-entry Approvals",
+    "/super-admin/module-health": "Module Health",
 
     // Front Office
     "/front-office/dashboard": "Front Office Dashboard",

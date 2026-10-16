@@ -200,7 +200,20 @@ const AdminUsersList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="super-admin-users"
+                title="Admin Users"
+                rows={filteredRecords.map((row) => ({
+                    name: row.name,
+                    email: row.email,
+                    role: row.roleLabel || 'Administrator',
+                    permissions: `${getPermissionCount(row.permissions)} modules`,
+                    status: row.status,
+                }))}
+                exportDescription={<>You are exporting {filteredRecords.length} record(s).</>}
+            />
         </section>
     )
 }
