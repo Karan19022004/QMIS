@@ -57,7 +57,7 @@ import {
     pickPersistedSequence,
     saveFinanceState,
 } from './financeStorage'
-import { isApiFinanceEnabled } from '../../../services/apiClient'
+import { getAccessToken, isApiFinanceEnabled } from '../../../services/apiClient'
 import {
     applyHrConcessionsApi,
     collectPaymentApi,
@@ -68,6 +68,8 @@ import {
     sendReceiptApi,
     settleChequeApi,
 } from '../../../services/financeApi'
+import { useAuth } from '../../../context/AuthContext'
+import { ROLES } from '../../../constants/roles'
 import { FLEET_VEHICLES } from '../TransportFinance/transportFinanceData'
 import { RECHARGE_RECORDS, USER_WALLETS } from '../WalletManagement/walletManagementData'
 import { PENDING_REQUESTS } from '../Approvals/approvalsData'
@@ -109,7 +111,15 @@ const createEmptyFinanceState = () => ({
 
 const apiMode = () => isApiFinanceEnabled()
 
+/** Roles that may call GET /finance/state. Others skip hydrate (avoids pre-login + cross-role 403 noise). */
+const FINANCE_API_ROLES = new Set([
+    ROLES.ACCOUNT_HEAD,
+    ROLES.ADMIN,
+    ROLES.SUPER_ADMIN,
+])
+
 export const FinanceProvider = ({ children }) => {
+    const { isAuthenticated, role } = useAuth()
     const offlineAllowed = !apiMode()
     const savedEnvelopeRef = useRef(undefined)
     if (savedEnvelopeRef.current === undefined) {
@@ -889,7 +899,26 @@ export const FinanceProvider = ({ children }) => {
     }, [applyFinanceData])
 
     useEffect(() => {
-        if (!isApiFinanceEnabled() || apiHydratedRef.current) return undefined
+        if (!isApiFinanceEnabled()) return undefined
+
+        // Signed out (or token cleared): reset so the next Account Head login hydrates cleanly.
+        if (!isAuthenticated || !getAccessToken()) {
+            apiHydratedRef.current = false
+            setFinanceError(null)
+            setFinanceStatus('loading')
+            return undefined
+        }
+
+        // Non-finance roles must not pull — FinanceProvider is app-wide and would 403 otherwise.
+        if (!FINANCE_API_ROLES.has(role)) {
+            apiHydratedRef.current = false
+            setFinanceError(null)
+            setFinanceStatus('ready')
+            return undefined
+        }
+
+        if (apiHydratedRef.current) return undefined
+
         let cancelled = false
         setFinanceStatus('loading')
         pullFinanceState()
@@ -920,7 +949,7 @@ export const FinanceProvider = ({ children }) => {
                 }
             })
         return () => { cancelled = true }
-    }, [applyFinanceData])
+    }, [applyFinanceData, isAuthenticated, role])
 
     const moneyInTransactions = useMemo(
         () => transactions.filter((item) => item.direction === TRANSACTION_DIRECTIONS.IN),
@@ -939,7 +968,14 @@ export const FinanceProvider = ({ children }) => {
         const today = toIsoDate(new Date())
         const todaysCollection = postedInflow
             .filter((item) => item.transactionDate === today && item.sourceModule === SOURCE_MODULES.FEES)
-            .reduce((sum, item) => sum + item.amount, 0)
+            .reduce((sum, item) => sum + Number(item.amount || 0), 0)
+        const todaysExpenses = transactions
+            .filter((item) => (
+                item.direction === TRANSACTION_DIRECTIONS.OUT
+                && item.status === TRANSACTION_STATUSES.POSTED
+                && item.transactionDate === today
+            ))
+            .reduce((sum, item) => sum + Number(item.amount || 0), 0)
         const currentDue = hydratedInstallments
             .filter((row) => row.status === 'UNPAID' || row.status === 'PARTIALLY_PAID')
             .reduce((sum, row) => sum + row.balanceAmount, 0)
@@ -952,17 +988,29 @@ export const FinanceProvider = ({ children }) => {
         const netDemand = hydratedInstallments.reduce((sum, row) => sum + row.netAmount, 0)
         const collected = hydratedInstallments.reduce((sum, row) => sum + row.paidAmount, 0)
         const efficiency = netDemand > 0 ? (collected / netDemand) * 100 : 0
+        const pendingApprovals = approvals.filter((row) => {
+            const status = String(row.status || '').toLowerCase()
+            return status === 'pending' || status === ''
+        }).length
+        const refundRequests = approvals.filter((row) => {
+            const type = String(row.type || row.requestType || row.category || '').toLowerCase()
+            const status = String(row.status || '').toLowerCase()
+            return type.includes('refund') && (status === 'pending' || status === '')
+        }).length
 
         return {
             todaysCollection,
+            todaysExpenses,
             currentDue,
             overdue,
             chequePending,
             collectionEfficiency: efficiency,
             collected,
             netDemand,
+            pendingApprovals,
+            refundRequests,
         }
-    }, [cheques, hydratedInstallments, postedInflow])
+    }, [approvals, cheques, hydratedInstallments, postedInflow, transactions])
 
     useEffect(() => {
         if (skipPersistRef.current) {

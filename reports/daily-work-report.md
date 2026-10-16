@@ -8,6 +8,98 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — Account Head complete functional audit
+
+**Status:** End-to-end Account Head audit against live finance API. Suite **426 passed** / build **PASS**. One demo-blocking KPI defect fixed.
+
+### Verified
+- Auth + finance permissions; Teacher blocked from finance; AH blocked from `/admin/users` and `/hr/attendance`
+- `GET /finance/state` hydrates and refreshes; campus has **17 students**, **0** fee installments/receipts/approvals
+- Collect-payment with temporary student/installment persisted (receipt id returned + present on re-GET); temp cleaned
+- Dashboard KPIs now use **only** finance snapshot metrics (no seed ₹2,45,000 mix); Refresh reloads API; recent collections = live receipts only
+
+### Still PARTIAL / demo
+- Charts on dashboard still illustrative (labeled)
+- Wallet, Transport, Reports, Book Fee, MFP largely mock/placeholder
+- Empty fee ledger limits browser fee-collection demo until installments exist
+
+### Fix shipped
+- `Dashboard.jsx` + `FinanceContext` dashboardMetrics (`todaysExpenses`, pending/refund approval counts)
+
+---
+
+## 16 October 2026 — Director identity + Star Ratings / Home Fun architecture
+
+**Status:** Attendance identity mapping confirmed; Star Ratings / Home Fun remain demo-only with documented recommendations. No fabricated attendance. Suite **426 passed** / build **PASS**.
+
+### 1. Director ↔ HrEmployee identity
+- Correct relationship: `User` (auth) links to `HrEmployee` via **`user_id` FK** (preferred) or **matching email** (`_own_employee` in `hr.py`)
+- Seed creates login Users only (`director@qmis.edu`, etc.) — **no** matching `HrEmployee` rows in the demo DB
+- `GET /hr/attendance/mine` correctly returns `[]` for Director (self-only; peers not exposed)
+- UI now diagnoses **unlinked** vs **linked_empty** using portal email match + mine results — still never loads campus-wide attendance into this screen
+- **Not done (by design):** inventing Director employee or punch rows
+
+### 2. Star Ratings — recommendation
+- Requirements (from UI): staff SOM (1–3 stars for teacher/coordinator by month) + SOY average across months; Director can add ratings
+- Existing: FE mocks only; Student Star Ratings is a **separate** localStorage domain; `/hr/performance` is annual HR BSC reviews — wrong shape
+- **Recommend new domain** `staff_ratings` (API + table) after architecture review — do not duplicate HR performance or student SOM
+
+### 3. Home Fun — recommendation
+- Intended workflow: Teacher/Coordinator assign Assignment/Homework → students submit → Director/Principal oversee
+- Existing: Teacher Home Fun = `localStorage`; Principal wraps that SoT; Director LMS = **independent static mocks**; no deliverables REST (catalog key only)
+- **Recommend:** short-term reuse Teacher Home Fun SoT (Principal pattern); long-term design a **deliverables** API — no new tables until that design lands
+
+### 4. Demo-only markers
+- Star Ratings + Home Fun banners now say **DEMO ONLY / not live** (amber)
+
+---
+
+## 16 October 2026 — Director finish + pytest green
+
+**Status:** Three prior “demo-chip” failures resolved by aligning outdated static guards with confirmed product intent; Director My Attendance live; Star Ratings / Home Fun remain blocked (no backend).
+
+### Pytest / auth static guards
+- Confirmed failures were **outdated tests**, not auth defects: SignIn `DEMO_TEST_LOGINS` is fill-only (must still press Login); Super Admin attendance intentionally shares Admin read-only SoT
+- Updated `test_frontend_auth_static.py` and `test_frontend_admin_attendance_static.py` accordingly — still forbid seeded passwords outside SignIn, still forbid auto-login / write paths
+- Full suite: **425 passed**, 0 failed
+
+### Director screens
+- **My Attendance** → `GET /hr/attendance/mine` (new endpoint; server returns only linked employee; Director has no HrEmployee link → verified empty, no peer leak); UI loading/empty/error
+- **Star Ratings** → **BLOCKER**: no star-ratings model/API; kept mock + demo banner
+- **Home Fun (Student/Teacher LMS)** → **BLOCKER**: Teacher/Coordinator Home Fun is local-only; no deliverables API; kept mock + demo banner
+- Approvals regression (API): Teacher blocked (403), Director approve/deny persist, deny requires reason, duplicate decide blocked, inbox updates
+
+### Still open
+- Account Head static KPI chrome / write CRUD re-audit
+- Link Director login to an HrEmployee (HR) so My Attendance can show real punches
+- Build Star Ratings + Home Fun backend before removing mocks
+
+---
+
+## 16 October 2026 — Director + Account Head panel work
+
+**Status:** Moved next focus to Director and Account Head per role-module status sheet.
+
+### Account Head
+- Fixed FinanceProvider hydrate: it used to pull `/finance/state` before sign-in, stick on error, and require a reload
+- Now hydrates only when authenticated + finance role (accounthead/admin/superadmin); resets on logout
+- Verified: Account Head dashboard loads finance on first navigation (no “load failed” banner)
+
+### Director
+- Notifications wired to `GET /notifications` (same pattern as Admin/SA)
+- Lesson Plan Approval hydrates from `GET /lesson-plans` (campus list, not mine-only)
+- Students/Employees/Activities/Calendar/Announcements already on shared Common/API paths
+- **Mark Entry Approval** → live marks-batches list + decide via `/approvals/{id}/decide`
+- **Exam Timetable Approvals** → live `listExams` + approve/deny through approvals API
+- **Request Approvals** → live `GET /approvals/inbox` with Approve/Reject; verified Director approved a pending PRM leave (inbox 1 → 0)
+- Added `src/services/approvalsApi.js` for inbox/mine/decide helpers
+
+### Still open on these panels (superseded by section above)
+- See “16 October 2026 — Director finish + pytest green”
+- Account Head: Dashboard still mixes some static KPI chrome; write-path browser CRUD not re-audited this pass
+
+---
+
 ## 16 October 2026 — Seven-role demo verification audit
 
 **Status:** All seven SignIn demo roles verified; 199 sidebar leaf pages render; Teacher Mark Entry blank screen fixed.

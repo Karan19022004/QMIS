@@ -15,6 +15,7 @@ from app.services.hr import (
     leave_bundle,
     list_employees,
     list_items,
+    list_my_attendance,
     patch_item,
     payroll_bundle,
     portal_employees,
@@ -138,6 +139,15 @@ def _register_collection(collection: str) -> None:
 
 for _name in LIST_COLLECTIONS:
     _register_collection(_name)
+
+
+@router.get("/attendance/mine", operation_id="get_hr_attendance_mine")
+def my_attendance_route(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_any("hr.read", "hr.self")),
+) -> list[dict]:
+    """Own punch / status rows only — never another employee's attendance."""
+    return list_my_attendance(db, user)
 
 
 @router.get("/leave", operation_id="get_hr_leave")

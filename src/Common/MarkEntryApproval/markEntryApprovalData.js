@@ -1,8 +1,16 @@
 import { CLASSES, SECTIONS, SUBJECTS } from '../../Pages/Teacher/AssignedClass/assignedClassData'
 import { getStudentsList } from '../../Pages/Teacher/StudentsList/studentsListData'
 import { PARENT_CHILD_PROFILES } from '../../Pages/Parent/parentStudentProfiles'
+import { decideApprovalApi } from '../../services/approvalsApi'
+import {
+    canUseExamsApi,
+    getMarksBatchApi,
+    listMarksBatchesApi,
+    mapMarksBatchFromApi,
+} from '../../services/examsApi'
 
 export { CLASSES, SECTIONS, SUBJECTS }
+export { canUseExamsApi }
 
 export const ACADEMIC_YEARS = ['2026 - 2027', '2025 - 2026']
 export const TERMS = ['Term 1', 'Term 2', 'Term 3']
@@ -140,6 +148,95 @@ export const getAllMarkSessions = () =>
 
 export const getMarkSessionByKey = (contextKey) => readSessions()[contextKey] ?? null
 
+/** Map a marks-batch API row into the Director approval session shape. */
+export const mapMarksBatchToApprovalSession = (batch) => {
+    const status = String(batch.status || '').toLowerCase()
+    let approvalStatus = 'Pending'
+    if (status === 'published' || status === 'approved') approvalStatus = 'Approved'
+    else if (status === 'denied' || status === 'rejected') approvalStatus = 'Rejected'
+
+    const students = (batch.entries || []).map((entry) => ({
+        id: entry.studentId,
+        name: entry.studentName || 'Student',
+        admissionNumber: entry.admissionNumber || '',
+        rollNo: entry.admissionNumber || '—',
+    }))
+    const entries = {}
+    for (const entry of batch.entries || []) {
+        entries[entry.studentId] = {
+            obtainedMarks: entry.absent ? null : entry.marks,
+            absent: Boolean(entry.absent),
+            remarks: entry.remarks || '',
+        }
+    }
+
+    return {
+        contextKey: batch.id,
+        batchId: batch.id,
+        approvalId: batch.approvalId || null,
+        exam: batch.examName || batch.examId || 'Exam',
+        className: batch.className || '',
+        section: batch.section || '',
+        subject: batch.subject || '',
+        term: '—',
+        academicYear: '—',
+        examDate: '—',
+        maxMarks: batch.maxMarks ?? 100,
+        status: 'submitted',
+        approvalStatus,
+        students,
+        entries,
+        submittedByRole: batch.teacherEmail || 'Teacher',
+        submittedAt: batch.submittedAt || null,
+        source: 'api',
+    }
+}
+
+/** Director list: submitted / published / denied batches (not drafts). */
+export async function hydrateMarkApprovalsFromApi() {
+    if (!canUseExamsApi()) return getAllMarkSessions().filter((s) => s.status === 'submitted')
+    const rows = await listMarksBatchesApi({})
+    const submitted = (Array.isArray(rows) ? rows : [])
+        .map(mapMarksBatchFromApi)
+        .filter((batch) => {
+            const status = String(batch.status || '').toLowerCase()
+            return status === 'submitted' || status === 'published' || status === 'denied'
+        })
+
+    const detailed = await Promise.all(
+        submitted.map(async (batch) => {
+            try {
+                return mapMarksBatchFromApi(await getMarksBatchApi(batch.id))
+            } catch {
+                return batch
+            }
+        }),
+    )
+    return detailed.map(mapMarksBatchToApprovalSession)
+}
+
+export async function getMarkApprovalSessionFromApi(batchId) {
+    if (!canUseExamsApi()) return getMarkSessionByKey(batchId)
+    const batch = mapMarksBatchFromApi(await getMarksBatchApi(batchId))
+    return mapMarksBatchToApprovalSession(batch)
+}
+
+/** Approve or reject a marks batch via the shared approvals decide endpoint. */
+export async function decideMarkApprovalViaApi(session, approvalStatus, rejectionReason = '') {
+    if (!session?.approvalId) {
+        return { success: false, message: 'This submission has no approval request yet.' }
+    }
+    const decision = approvalStatus === 'Approved' ? 'approve' : 'deny'
+    if (decision === 'deny' && !String(rejectionReason || '').trim()) {
+        return { success: false, message: 'A rejection reason is required.' }
+    }
+    await decideApprovalApi(session.approvalId, {
+        decision,
+        comment: rejectionReason || undefined,
+    })
+    return { success: true }
+}
+
 export const getPendingMarkSessions = () =>
     getAllMarkSessions().filter(
         (session) => session.status === 'submitted' && session.approvalStatus === 'Pending',
@@ -210,6 +307,17 @@ export const updateMarkSessionApproval = (contextKey, approvalStatus, rejectionR
     sessions[contextKey] = updated
     writeSessions(sessions)
     return updated
+}
+
+/** LocalStorage path when API is off; API path when session.source === 'api'. */
+export async function resolveMarkSessionApproval(session, approvalStatus, rejectionReason = '') {
+    if (session?.source === 'api' || (canUseExamsApi() && session?.approvalId)) {
+        return decideMarkApprovalViaApi(session, approvalStatus, rejectionReason)
+    }
+    const updated = updateMarkSessionApproval(session.contextKey, approvalStatus, rejectionReason)
+    return updated
+        ? { success: true, session: updated }
+        : { success: false, message: 'Mark entry session not found.' }
 }
 
 export const filterMarkSessions = (sessions, { search = '', approvalStatus = '' } = {}) => {

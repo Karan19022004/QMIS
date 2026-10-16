@@ -90,11 +90,11 @@ const StarRatings = ({ view = 'som' }) => {
                     >
                         Clear Filters
                     </button>
-                    {!isSom && (
-                        <p className='text-sm text-[#667085]'>
-                            Annual rating consolidated from {SOY_MONTH_COUNT} months of SOM data.
-                        </p>
-                    )}
+                    <p className='text-sm text-[#B8860B]'>
+                        {isSom
+                            ? 'DEMO ONLY — staff Star of the Month uses local mock data. No star-ratings REST API or table exists; not live.'
+                            : `DEMO ONLY — Star of the Year is derived from local SOM mocks (${SOY_MONTH_COUNT} months). No live API; not persisted.`}
+                    </p>
                 </div>
 
                 <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:mt-6 mt-2'>

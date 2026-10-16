@@ -6,12 +6,12 @@ import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
     APPROVAL_STATUSES,
     approvalStatusColor,
+    canUseExamsApi,
     encodeContextKey,
     filterMarkSessions,
     formatClassLabel,
     getAllMarkSessions,
-    getPendingApprovalCount,
-    getSessionDisplayLabel,
+    hydrateMarkApprovalsFromApi,
 } from '../../../Common/MarkEntryApproval/markEntryApprovalData'
 
 const filterInputClass =
@@ -19,16 +19,47 @@ const filterInputClass =
 
 const MarkEntryApproval = () => {
     const location = useLocation()
-    const [sessions, setSessions] = useState(() => getAllMarkSessions())
+    const api = canUseExamsApi()
+    const [sessions, setSessions] = useState(() => getAllMarkSessions().filter((s) => s.status === 'submitted'))
+    const [loading, setLoading] = useState(api)
+    const [error, setError] = useState('')
     const [search, setSearch] = useState('')
     const [approvalStatus, setApprovalStatus] = useState('')
     const [exportModal, setExportModal] = useState(false)
 
     useEffect(() => {
-        setSessions(getAllMarkSessions())
-    }, [location.key])
+        let cancelled = false
+        if (!api) {
+            setSessions(getAllMarkSessions().filter((s) => s.status === 'submitted'))
+            setLoading(false)
+            return undefined
+        }
+        setLoading(true)
+        hydrateMarkApprovalsFromApi()
+            .then((rows) => {
+                if (!cancelled) {
+                    setSessions(rows)
+                    setError('')
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setSessions([])
+                    setError(err?.message || 'Mark submissions could not be loaded.')
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [api, location.key])
 
-    const pendingCount = useMemo(() => getPendingApprovalCount(), [sessions])
+    const pendingCount = useMemo(
+        () => sessions.filter((session) => session.approvalStatus === 'Pending').length,
+        [sessions],
+    )
 
     const filteredSessions = useMemo(
         () => filterMarkSessions(sessions, { search, approvalStatus }),
@@ -40,12 +71,16 @@ const MarkEntryApproval = () => {
         setApprovalStatus('')
     }
 
+    if (loading) return <p className='text-[#667085]'>Loading mark submissions…</p>
+    if (error) return <p className='text-[#B42318]'>{error}</p>
+
     return (
         <section className='space-y-6'>
             <div>
                 <h1 className='text-2xl font-semibold text-black'>Mark Entry Approval</h1>
                 <p className='text-sm text-[#667085] mt-1'>
                     Review marks submitted by Teachers and Coordinators before publishing to the student portal.
+                    {api ? ' Live campus marks batches.' : ''}
                 </p>
             </div>
 
@@ -189,7 +224,13 @@ const MarkEntryApproval = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='mark-entry-approvals'
+                rows={filteredSessions}
+                exportDescription={<>You are exporting {filteredSessions.length} record(s).</>}
+            />
         </section>
     )
 }

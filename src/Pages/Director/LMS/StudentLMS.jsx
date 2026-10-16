@@ -55,9 +55,9 @@ const StudentLMS = () => {
                     <button className='bg-[#515DEF] text-white uppercase text-sm px-6 py-2 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>
                         Clear Filters
                     </button>
-                    <select className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full md:max-w-xs sm:max-w-full'>
-                        <option value="">From Beginning</option>
-                    </select>
+                    <p className='text-sm text-[#B8860B] md:max-w-md'>
+                        DEMO ONLY — Director Student Home Fun is a static mock list. Teacher Home Fun uses browser localStorage; no deliverables REST API. Not live.
+                    </p>
                 </div>
                 <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>
                     <div className='flex flex-col gap-y-2'>

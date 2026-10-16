@@ -1,44 +1,89 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import {
+    canUseExamsApi,
     decodeContextKey,
     formatClassLabel,
     getEntryWithComputed,
+    getMarkApprovalSessionFromApi,
     getMarkEntryStats,
     getMarkSessionByKey,
     getSessionDisplayLabel,
+    resolveMarkSessionApproval,
     resultBadgeColor,
-    updateMarkSessionApproval,
 } from '../../../Common/MarkEntryApproval/markEntryApprovalData'
 
 const MarkEntryReview = () => {
     const { contextKey: encodedKey } = useParams()
     const navigate = useNavigate()
     const contextKey = decodeContextKey(encodedKey)
-    const session = getMarkSessionByKey(contextKey)
+    const api = canUseExamsApi()
+    const [session, setSession] = useState(() => (api ? null : getMarkSessionByKey(contextKey)))
+    const [loading, setLoading] = useState(api)
+    const [busy, setBusy] = useState(false)
     const [rejectionReason, setRejectionReason] = useState('')
     const [showRejectForm, setShowRejectForm] = useState(false)
+    const [missing, setMissing] = useState(false)
+
+    useEffect(() => {
+        let cancelled = false
+        if (!api) {
+            const local = getMarkSessionByKey(contextKey)
+            setSession(local)
+            setMissing(!local || local.status !== 'submitted')
+            setLoading(false)
+            return undefined
+        }
+        setLoading(true)
+        getMarkApprovalSessionFromApi(contextKey)
+            .then((row) => {
+                if (cancelled) return
+                setSession(row)
+                setMissing(!row || row.status !== 'submitted')
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setSession(null)
+                    setMissing(true)
+                }
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [api, contextKey])
 
     const stats = useMemo(() => {
         if (!session) return null
         return getMarkEntryStats(session.students, session.entries, session.maxMarks)
     }, [session])
 
-    if (!session || session.status !== 'submitted') {
+    if (loading) return <p className='text-[#667085]'>Loading mark entry…</p>
+    if (missing || !session) {
         return <Navigate to='/director/mark-entry-approval' replace />
     }
 
     const canApproveReject = session.approvalStatus === 'Pending'
 
-    const handleApprove = () => {
-        updateMarkSessionApproval(contextKey, 'Approved')
-        navigate('/director/mark-entry-approval')
-    }
-
-    const handleReject = () => {
-        if (!rejectionReason.trim()) return
-        updateMarkSessionApproval(contextKey, 'Rejected', rejectionReason.trim())
-        navigate('/director/mark-entry-approval')
+    const handleDecide = async (approvalStatus) => {
+        if (approvalStatus === 'Rejected' && !rejectionReason.trim()) return
+        setBusy(true)
+        try {
+            const result = await resolveMarkSessionApproval(session, approvalStatus, rejectionReason.trim())
+            if (!result.success) {
+                toast.error(result.message || 'Decision failed.')
+                return
+            }
+            toast.success(approvalStatus === 'Approved' ? 'Marks approved and published.' : 'Marks rejected.')
+            navigate('/director/mark-entry-approval')
+        } catch (error) {
+            toast.error(error?.message || 'Decision failed.')
+        } finally {
+            setBusy(false)
+        }
     }
 
     return (
@@ -103,12 +148,14 @@ const MarkEntryReview = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {session.students.map((student, index) => {
+                            {(session.students || []).map((student, index) => {
                                 const entry = getEntryWithComputed(
                                     session.entries[student.id] ?? { obtainedMarks: null, absent: false, remarks: '' },
                                     session.maxMarks,
                                 )
-                                const rollDisplay = String(student.rollNumber).replace(/^.*-(\d+)$/, '$1').slice(-2)
+                                const rollDisplay = String(student.rollNo || student.rollNumber || student.admissionNumber || '')
+                                    .replace(/^.*-(\d+)$/, '$1')
+                                    .slice(-2)
                                     || String(index + 1).padStart(2, '0')
 
                                 return (
@@ -151,14 +198,15 @@ const MarkEntryReview = () => {
                                 <button
                                     type='button'
                                     onClick={() => setShowRejectForm(false)}
+                                    disabled={busy}
                                     className='bg-white text-[#515DEF] text-sm px-6 py-2.5 rounded-md border border-[#515DEF] hover:bg-[#515DEF0D] cursor-pointer'
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type='button'
-                                    onClick={handleReject}
-                                    disabled={!rejectionReason.trim()}
+                                    onClick={() => handleDecide('Rejected')}
+                                    disabled={busy || !rejectionReason.trim()}
                                     className='bg-[#FF0000] text-white text-sm px-6 py-2.5 rounded-md border border-[#FF0000] hover:opacity-90 cursor-pointer disabled:opacity-50'
                                 >
                                     Confirm Reject
@@ -177,14 +225,16 @@ const MarkEntryReview = () => {
                             <button
                                 type='button'
                                 onClick={() => setShowRejectForm(true)}
+                                disabled={busy}
                                 className='bg-white text-[#FF0000] text-sm px-6 py-2.5 rounded-md border border-[#FF0000] hover:bg-[#FF00000D] cursor-pointer'
                             >
                                 Reject
                             </button>
                             <button
                                 type='button'
-                                onClick={handleApprove}
-                                className='bg-[#4CAF50] text-white text-sm px-6 py-2.5 rounded-md border border-[#4CAF50] hover:opacity-90 cursor-pointer'
+                                onClick={() => handleDecide('Approved')}
+                                disabled={busy}
+                                className='bg-[#4CAF50] text-white text-sm px-6 py-2.5 rounded-md border border-[#4CAF50] hover:opacity-90 cursor-pointer disabled:opacity-50'
                             >
                                 Approve & Publish
                             </button>

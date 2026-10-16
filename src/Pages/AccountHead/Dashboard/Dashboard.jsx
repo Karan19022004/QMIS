@@ -19,7 +19,7 @@ import {
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import { useFinance } from '../financeDomain/FinanceContext'
-import { formatCurrency, formatDisplayDate, parseRupeeAmount } from '../financeDomain/financeHelpers'
+import { formatCurrency, formatDisplayDate } from '../financeDomain/financeHelpers'
 import {
     APPROVAL_STATUS,
     CHART_COLORS,
@@ -115,36 +115,97 @@ const Dashboard = () => {
     const [customDate, setCustomDate] = useState(new Date())
     const [approvalPeriod, setApprovalPeriod] = useState('Daily')
     const [exportModal, setExportModal] = useState(false)
-    const { dashboardMetrics, receipts, students, annualBudget } = useFinance()
+    const [refreshing, setRefreshing] = useState(false)
+    const {
+        dashboardMetrics,
+        receipts,
+        students,
+        annualBudget,
+        financeStatus,
+        financeError,
+        financePersistence,
+        reloadFinanceFromApi,
+    } = useFinance()
 
+    const apiLive = Boolean(financePersistence?.apiEnabled)
+
+    /** KPI values come only from finance snapshot metrics — never add static seed amounts. */
     const liveKpis = KPI_CARDS.map((card) => {
         if (card.label === "Today's Collection") {
-            const seed = parseRupeeAmount(card.value)
-            return { ...card, value: formatCurrency(seed + (dashboardMetrics.todaysCollection || 0)) }
+            return {
+                ...card,
+                value: formatCurrency(dashboardMetrics.todaysCollection || 0),
+                trend: undefined,
+                badge: apiLive ? 'LIVE' : card.badge,
+                badgeTone: 'info',
+            }
+        }
+        if (card.label === "Today's Expenses") {
+            return {
+                ...card,
+                value: formatCurrency(dashboardMetrics.todaysExpenses || 0),
+                trend: undefined,
+                badge: apiLive ? 'LIVE' : card.badge,
+                badgeTone: 'info',
+            }
+        }
+        if (card.label === 'Pending Requests') {
+            const count = dashboardMetrics.pendingApprovals || 0
+            return {
+                ...card,
+                value: String(count),
+                badge: `${count} REQS`,
+                badgeTone: 'info',
+            }
+        }
+        if (card.label === 'Refund Requests') {
+            const count = dashboardMetrics.refundRequests || 0
+            return {
+                ...card,
+                value: String(count),
+                badge: count > 0 ? 'OPEN' : 'NONE',
+                badgeTone: count > 0 ? 'success' : 'info',
+            }
         }
         if (card.label === 'Pending Fees') {
-            return { ...card, label: 'Current Fee Due', value: formatCurrency(dashboardMetrics.currentDue), badge: 'DUE' }
+            return {
+                ...card,
+                label: 'Current Fee Due',
+                value: formatCurrency(dashboardMetrics.currentDue || 0),
+                badge: 'DUE',
+            }
         }
         return card
     })
 
-    const recentCollectionRows = [
-        ...receipts.slice(0, 6).map((item) => {
-            const student = students.find((row) => row.id === item.studentId)
-            return {
-                id: item.receiptNo,
-                student: student?.name ?? 'Student',
-                studentId: student?.admissionNo ?? item.studentId,
-                category: (item.feeHeads || []).join(', ') || 'Student Fees',
-                amount: formatCurrency(item.amountPaid),
-                status: 'SUCCESS',
-                paymentMode: item.paymentMode,
-                collectedBy: item.collectedBy || 'Finance',
-                collectionDate: formatDisplayDate(item.paymentDate),
-            }
-        }),
-        ...RECENT_COLLECTIONS,
-    ]
+    const liveReceiptRows = receipts.slice(0, 8).map((item) => {
+        const student = students.find((row) => row.id === item.studentId)
+        return {
+            id: item.receiptNo || item.id,
+            student: student?.name ?? 'Student',
+            studentId: student?.admissionNo ?? item.studentId,
+            category: (item.feeHeads || []).join(', ') || 'Student Fees',
+            amount: formatCurrency(item.amountPaid),
+            status: 'SUCCESS',
+            paymentMode: item.paymentMode,
+            collectedBy: item.collectedBy || 'Finance',
+            collectionDate: formatDisplayDate(item.paymentDate),
+        }
+    })
+    // API mode: show live receipts only (empty table when none). Offline demo may use seed rows.
+    const recentCollectionRows = apiLive ? liveReceiptRows : [...liveReceiptRows, ...RECENT_COLLECTIONS]
+
+    const handleRefresh = async () => {
+        if (!apiLive || refreshing) return
+        setRefreshing(true)
+        try {
+            await reloadFinanceFromApi()
+        } catch {
+            /* financeError surfaces via context */
+        } finally {
+            setRefreshing(false)
+        }
+    }
 
     const collectionSplitOption = useMemo(() => ({
         tooltip: { trigger: 'item', formatter: '{b}: ₹{c}' },
@@ -266,7 +327,9 @@ const Dashboard = () => {
                     <div>
                         <h2 className='text-xl font-semibold text-black'>Finance Dashboard</h2>
                         <p className='text-sm text-[#667085] mt-0.5'>
-                            Real-time overview of collections, expenses, approvals, and pending fees.
+                            {apiLive
+                                ? `KPIs from campus finance snapshot (${financeStatus}${financeError ? ` — ${financeError}` : ''}). Charts below still use illustrative demo series.`
+                                : 'Offline demo overview — enable Finance API for live campus figures.'}
                         </p>
                     </div>
 
@@ -300,10 +363,12 @@ const Dashboard = () => {
 
                         <button
                             type='button'
-                            className='size-10 flex items-center justify-center border border-[#D9D9D9] rounded-md text-[#667085] hover:text-[#515DEF] hover:border-[#515DEF] transition-colors cursor-pointer'
+                            onClick={handleRefresh}
+                            disabled={!apiLive || refreshing || financeStatus === 'loading'}
+                            className='size-10 flex items-center justify-center border border-[#D9D9D9] rounded-md text-[#667085] hover:text-[#515DEF] hover:border-[#515DEF] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-wait'
                             aria-label='Refresh dashboard'
                         >
-                            <RefreshCw size={16} />
+                            <RefreshCw size={16} className={refreshing || financeStatus === 'loading' ? 'animate-spin' : ''} />
                         </button>
 
                         <Dropdown

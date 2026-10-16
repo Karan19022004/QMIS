@@ -60,11 +60,15 @@ Gate passes / transfer / re-enrollment on `front_office_records` (Alembic **0011
 
 ---
 
-## Director (24 modules) — gap (next panel)
+## Director (24 modules) — 16 Oct panel audit
 
-Word baseline: **Completed 3 · Partial 3 · Gap/Not Completed 18**.  
-Shared already: Tasks, Escalation (API). Partial: Student DB, Leave.  
-**Recommended first task:** wire Director **Exam Timetable Approvals** to `/exams` + `/approvals` (backend decide path exists; UI still demo).
+Approvals (Mark Entry / Exam Timetable / Request), Notifications, Lesson Plans, and **My Attendance** (`GET /hr/attendance/mine`) are live. Self-only attendance identity = `HrEmployee.user_id` **or** matching `HrEmployee.email` to the signed-in `User`. Demo seed creates auth Users only — **no** matching `HrEmployee` for `director@qmis.edu`, so mine correctly returns `[]` (do not fabricate punches).
+
+| Status | Modules |
+|---|---|
+| **PASS (API + browser)** | Mark Entry / Exam / Request Approvals, Notifications, Lesson Plans, My Attendance (empty until HR links employee) |
+| **DEMO ONLY (no REST)** | Star Ratings SOM/SOY — recommend **new** `staff_ratings` domain (do not reuse `/hr/performance`) |
+| **DEMO ONLY (no REST)** | Home Fun Student/Teacher LMS — recommend reuse Teacher `HomeFun` localStorage SoT (as Principal) until a **deliverables** API is designed; Director screens are still independent mocks |
 
 ---
 

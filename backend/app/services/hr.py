@@ -253,6 +253,25 @@ def list_items(db: Session, actor: User, collection: str) -> list[dict]:
     return _visible_records(db, actor, collection, [dict(row.body) for row in rows])
 
 
+def list_my_attendance(db: Session, actor: User) -> list[dict]:
+    """Attendance rows for the signed-in staff member only (never department peers)."""
+    own = _own_employee(db, actor)
+    if own is None:
+        return []
+    code = own.employee_code
+    rows = db.scalars(
+        select(HrRecord)
+        .where(HrRecord.campus_id == actor.campus_id, HrRecord.collection == "attendance")
+        .order_by(HrRecord.public_id)
+    ).all()
+    mine: list[dict] = []
+    for row in rows:
+        body = dict(row.body)
+        if str(body.get("employeeId") or "") == code:
+            mine.append(body)
+    return mine
+
+
 def create_item(db: Session, actor: User, collection: str, body: dict) -> dict:
     _check_collection(collection)
     public_id = str(body.get("id") or _next_public_id(db, actor, collection))

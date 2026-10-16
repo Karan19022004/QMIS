@@ -86,6 +86,17 @@ def test_demo_data_modules_stay_intact_for_the_other_roles():
         assert status in students and status in employees
 
 
-def test_super_admin_pages_were_not_switched_to_the_api():
-    for path in (SRC / "Pages").glob("SuperAdmin/**/Attendance/**/*.jsx"):
-        assert "adminAttendanceApi" not in path.read_text(encoding="utf-8"), path
+def test_super_admin_attendance_uses_same_read_only_admin_api():
+    """Super Admin attendance is intentionally on the shared Admin SoT (read-only API)."""
+    students = _read("Pages/SuperAdmin/Attendance/Students/StudentsList.jsx")
+    employees = _read("Pages/SuperAdmin/Attendance/Employees/EmployeesList.jsx")
+    for page in (students, employees):
+        assert "canUseAdminAttendanceApi()" in page
+        assert "adminAttendanceApi" in page
+        assert "query.status === 'loading'" in page and "query.status === 'error'" in page
+    assert "loadStudentAttendance" in students
+    assert "loadEmployeeAttendance" in employees
+    # Screens stay read-only: no HR write / upsert from Super Admin attendance pages.
+    for page in (students, employees):
+        assert "upsertAttendanceApi" not in page
+        assert "method: 'POST'" not in page and "method: 'PUT'" not in page

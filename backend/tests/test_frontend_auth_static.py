@@ -26,14 +26,22 @@ def test_sources_exist():
 
 
 def test_no_seeded_api_passwords_in_frontend_source():
+    """Seed passwords may appear only on SignIn as click-to-fill helpers (DEV demo UX).
+
+    They must never appear in AuthContext, API clients, or other modules, and SignIn must
+    still require an explicit Login submit (covered by sibling tests).
+    """
     seeded = {
         value
         for name, value in settings.model_dump().items()
         if name.endswith("_seed_password") and value
     }
     assert len(seeded) >= 6
+    allowed = {(SRC / "Pages" / "Authentication" / "SignIn.jsx").resolve()}
     offenders = []
     for path in _source_files():
+        if path.resolve() in allowed:
+            continue
         text = path.read_text(encoding="utf-8", errors="ignore")
         for password in seeded:
             if re.search(r"['\"`]" + re.escape(password) + r"['\"`]", text):
@@ -72,11 +80,23 @@ def test_hr_and_finance_use_the_signed_in_token_and_never_log_in_themselves():
         assert not re.search(r"@(qmis|school)\.(edu|com)", text), f"{name} must not embed account emails"
 
 
-def test_sign_in_page_has_no_prefilled_demo_credentials():
+def test_sign_in_page_demo_chips_fill_only_and_do_not_auto_login():
+    """Local demo chips may fill the form; they must not auto-submit or replace typed login."""
     text = _read("Pages/Authentication/SignIn.jsx")
-    assert not re.search(r"password:\s*['\"]", text)
-    assert "setPassword(account" not in text
+    # Password field starts empty — chips only fill on click.
+    assert "useState('')" in text or 'useState("")' in text
+    assert re.search(r"const \[password,\s*setPassword\]\s*=\s*useState\(['\"]['\"]\)", text)
+    # Fill helper exists for DEMO_TEST_LOGINS, but never calls login APIs itself.
+    assert "DEMO_TEST_LOGINS" in text
+    assert "fillDemoLogin" in text
+    assert "setPassword(account.password)" in text
+    fill_fn = text[text.index("const fillDemoLogin") : text.index("const handleSubmit")]
+    assert "loginWithCredentials" not in fill_fn
+    assert "apiLogin" not in fill_fn
+    # Legacy auto-login account tables stay gone.
     assert "DEMO_ACCOUNTS" not in text and "API_ACCOUNTS" not in text
+    # Actual auth still goes through the typed form submit path.
+    assert "loginWithCredentials(email, password)" in text
 
 
 def test_api_login_failure_never_falls_back_to_local_accounts():

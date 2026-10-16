@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download } from 'lucide-react'
@@ -15,11 +15,13 @@ import {
     getLessonPlans,
     getSummaryCounts,
     groupLessonPlansByTeacherSubject,
+    hydrateLessonPlansFromApi,
     SECTION_OPTIONS,
     SUBJECT_OPTIONS,
     SUBMITTER_ROLES,
     TRACK_STATUSES,
 } from '../../../Common/LessonPlanApproval/lessonPlanApprovalData'
+import { canUseLessonPlansApi } from '../../../services/lessonPlansApi'
 
 const SUMMARY_CARDS = [
     { key: 'pendingApprovals', label: 'Pending approvals' },
@@ -32,9 +34,32 @@ const filterInputClass =
     'text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full bg-white'
 
 const LessonPlanApproval = () => {
+    const api = canUseLessonPlansApi()
     const [plans, setPlans] = useState(() => getLessonPlans())
+    const [loading, setLoading] = useState(api)
     const [filters, setFilters] = useState(emptyLessonPlanFilters)
     const [exportModal, setExportModal] = useState(false)
+
+    useEffect(() => {
+        if (!api) {
+            setPlans(getLessonPlans())
+            setLoading(false)
+            return undefined
+        }
+        let cancelled = false
+        setLoading(true)
+        // Director reviews campus plans — not only "mine".
+        hydrateLessonPlansFromApi({ mine: false })
+            .then((rows) => {
+                if (!cancelled) setPlans(rows)
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [api])
 
     const summary = useMemo(() => getSummaryCounts(plans), [plans])
     const filteredPlans = useMemo(() => filterLessonPlans(plans, filters), [plans, filters])
@@ -60,6 +85,10 @@ const LessonPlanApproval = () => {
             ) : null}
         </>
     )
+
+    if (loading) {
+        return <p className='text-[#667085]'>Loading lesson plans…</p>
+    }
 
     return (
         <section className='space-y-8'>
