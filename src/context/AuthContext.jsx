@@ -34,7 +34,7 @@ import { clearStudentDocumentsMemory } from '../Pages/Admin/Documents/StudentDoc
 
 export { ROLES }
 
-const SUPER_ADMIN_EMAILS = ['superadmin@school.com', 'superadmin2@school.com']
+const SUPER_ADMIN_EMAILS = ['superadmin@qmis.edu', 'superadmin@school.com', 'superadmin2@school.com']
 
 /**
  * Offline demo password. Supplied only through the (git-ignored) VITE_DEMO_PASSWORD of a
@@ -44,7 +44,7 @@ const demoPassword = () => String(import.meta.env.VITE_DEMO_PASSWORD || '')
 
 /** Profile emails used to pre-fill the sign-in form and label menus. These are not credentials. */
 export const FAKE_CREDENTIALS = {
-    [ROLES.SUPER_ADMIN]: { email: 'superadmin@school.com' },
+    [ROLES.SUPER_ADMIN]: { email: 'superadmin@qmis.edu' },
     [ROLES.ADMIN]: { email: 'admin@school.com' },
     [ROLES.STUDENT]: { email: 'student@school.com' },
     [ROLES.PARENT]: { email: 'parent@school.com' },

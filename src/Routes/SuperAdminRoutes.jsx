@@ -37,11 +37,20 @@ import AdminUsersList from '../Pages/SuperAdmin/UserCreation/AdminUsersList'
 import CreateAdminUser from '../Pages/SuperAdmin/UserCreation/CreateAdminUser'
 import ViewAdminUser from '../Pages/SuperAdmin/UserCreation/ViewAdminUser'
 import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
+import ActivityListView from '../Common/Activities/ActivityListView'
+import ViewActivityPage from '../Common/Activities/ViewActivityPage'
 
 const SuperAdminRoutes = () => {
     return (
         <ReactRoutes>
             <Route path="/super-admin/dashboard" element={<Dashboard />} />
+
+            <Route path="/super-admin/activities/cultural-list" element={<ActivityListView roleKey="superadmin" activityType="cultural" />} />
+            <Route path="/super-admin/activities/view-cultural/:id" element={<ViewActivityPage roleKey="superadmin" activityType="cultural" />} />
+            <Route path="/super-admin/activities/sports-list" element={<ActivityListView roleKey="superadmin" activityType="sports" />} />
+            <Route path="/super-admin/activities/view-sports/:id" element={<ViewActivityPage roleKey="superadmin" activityType="sports" />} />
+            <Route path="/super-admin/activities/competitions-list" element={<ActivityListView roleKey="superadmin" activityType="competition" />} />
+            <Route path="/super-admin/activities/view-competition/:id" element={<ViewActivityPage roleKey="superadmin" activityType="competition" />} />
 
             <Route path="/super-admin/attendance" element={<Navigate to="/super-admin/attendance/students/list" replace />} />
             <Route path="/super-admin/attendance/students/list" element={<StudentsAttendanceList />} />

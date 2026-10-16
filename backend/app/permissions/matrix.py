@@ -272,11 +272,14 @@ for _code, _perms in ROLE_PERMISSIONS.items():
 
 # Activities: every staff role can read; the office roles that run events can write; Super Admin decides.
 _ACTIVITY_EDITORS = {"admin", "principal", "director", "coordinator"}
+_ACTIVITY_APPROVERS = {"superadmin", "managing_director"}
 for _code, _perms in ROLE_PERMISSIONS.items():
     if _code != "parent" and "activities.read" not in _perms:
         _perms.append("activities.read")
     if _code in _ACTIVITY_EDITORS and "activities.write" not in _perms:
         _perms.append("activities.write")
+    if _code in _ACTIVITY_APPROVERS and "activities.approve" not in _perms:
+        _perms.append("activities.approve")
 
 # Communication: every signed-in role may use the inbox.
 for _code, _perms in ROLE_PERMISSIONS.items():

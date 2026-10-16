@@ -166,6 +166,17 @@ export const superAdminSidebarLinks = [
         icon: ClipboardCheck,
     },
     {
+        id: 19,
+        title: "Activities",
+        to: "#0",
+        icon: Trophy,
+        subLinks: [
+            { icon: Palette, title: "Cultural", to: "/super-admin/activities/cultural-list" },
+            { icon: Dumbbell, title: "Sports", to: "/super-admin/activities/sports-list" },
+            { icon: Award, title: "Competitions", to: "/super-admin/activities/competitions-list" },
+        ],
+    },
+    {
         id: 13,
         title: "Announcement",
         to: "/super-admin/announcement",

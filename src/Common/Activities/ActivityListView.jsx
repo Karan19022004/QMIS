@@ -8,11 +8,13 @@ import Dropdown from '../CommonComponents/Dropdown'
 import ExportModal from '../CommonComponents/ExportModal'
 import {
     MD_APPROVAL_STATUS,
+    approveActivityViaApi,
     deleteActivity,
     getActivitiesByType,
     hydrateActivitiesFromApi,
     getPersonInCharge,
     mdApprovalBadgeColor,
+    updateActivityMdApproval,
 } from './activitiesData'
 import { getActivityConfig, getActivityRoutes, getActivityEditPath, getActivityViewPath } from './activityConfigs'
 import { canUseActivitiesApi } from '../../services/activitiesApi'
@@ -73,8 +75,24 @@ export default function ActivityListView({ roleKey, activityType }) {
         toast.success('Activity deleted.')
     }
 
+    const handleApproval = async (activity, status) => {
+        try {
+            if (canUseActivitiesApi()) {
+                await approveActivityViaApi(activity.id, status)
+            } else {
+                updateActivityMdApproval(activity.id, status)
+            }
+            setRefreshKey((value) => value + 1)
+            toast.success(status === MD_APPROVAL_STATUS.APPROVED ? 'Activity approved.' : 'Activity rejected.')
+        } catch (caught) {
+            toast.error(caught?.message || 'Approval could not be saved.')
+        }
+    }
+
+    const isApprover = roleKey === 'superadmin'
     const personLabel = config.personLabel
-    const approvalStatusHeader = roleKey === 'admin' ? 'Super Admin Approval Status' : 'MD Approval Status'
+    const approvalStatusHeader =
+        roleKey === 'admin' || roleKey === 'superadmin' ? 'Super Admin Approval Status' : 'MD Approval Status'
     const showPlayersColumn = activityType === 'sports'
 
     return (
@@ -173,13 +191,15 @@ export default function ActivityListView({ roleKey, activityType }) {
                 <div className='flex justify-between items-center sm:flex-row flex-col gap-y-2 mb-4'>
                     <h2 className='text-xl font-medium text-black'>{config.listTitle}</h2>
                     <div className='flex gap-x-2'>
-                        <NavLink
-                            to={routes.add}
-                            className='bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center gap-x-2'
-                        >
-                            <Plus size={16} />
-                            {config.addButtonLabel}
-                        </NavLink>
+                        {!isApprover && (
+                            <NavLink
+                                to={routes.add}
+                                className='bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center gap-x-2'
+                            >
+                                <Plus size={16} />
+                                {config.addButtonLabel}
+                            </NavLink>
+                        )}
                         <button
                             type='button'
                             onClick={() => setExportModal(true)}
@@ -253,19 +273,42 @@ export default function ActivityListView({ roleKey, activityType }) {
                                                 >
                                                     View
                                                 </NavLink>
-                                                <NavLink
-                                                    to={getActivityEditPath(activityType, roleKey, activity.id)}
-                                                    className='block w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                >
-                                                    Edit
-                                                </NavLink>
-                                                <button
-                                                    type='button'
-                                                    onClick={() => handleDelete(activity)}
-                                                    className='w-full text-left p-2 text-[#F44336] hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                >
-                                                    Delete
-                                                </button>
+                                                {isApprover ? (
+                                                    activity.mdApprovalStatus === MD_APPROVAL_STATUS.PENDING ? (
+                                                        <>
+                                                            <button
+                                                                type='button'
+                                                                onClick={() => handleApproval(activity, MD_APPROVAL_STATUS.APPROVED)}
+                                                                className='w-full text-left p-2 text-[#2E7D32] hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                            >
+                                                                Approve
+                                                            </button>
+                                                            <button
+                                                                type='button'
+                                                                onClick={() => handleApproval(activity, MD_APPROVAL_STATUS.REJECTED)}
+                                                                className='w-full text-left p-2 text-[#F44336] hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                            >
+                                                                Reject
+                                                            </button>
+                                                        </>
+                                                    ) : null
+                                                ) : (
+                                                    <>
+                                                        <NavLink
+                                                            to={getActivityEditPath(activityType, roleKey, activity.id)}
+                                                            className='block w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                        >
+                                                            Edit
+                                                        </NavLink>
+                                                        <button
+                                                            type='button'
+                                                            onClick={() => handleDelete(activity)}
+                                                            className='w-full text-left p-2 text-[#F44336] hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    </>
+                                                )}
                                             </Dropdown>
                                         </td>
                                     </tr>

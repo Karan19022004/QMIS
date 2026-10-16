@@ -71,6 +71,14 @@ def seed_reference_data(db: Session) -> None:
 
 
 def _seed_demo_users(db: Session, campus: Campus, roles_by_code: dict[str, Role]) -> None:
+    if "superadmin" in roles_by_code:
+        _seed_user(
+            db,
+            campus=campus,
+            role=roles_by_code["superadmin"],
+            email=settings.superadmin_seed_email,
+            password=settings.superadmin_seed_password,
+        )
     _seed_user(
         db,
         campus=campus,

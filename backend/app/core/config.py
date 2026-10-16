@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
     admin_seed_email: str = "admin@qmis.edu"
     admin_seed_password: str = "admin123"
+    superadmin_seed_email: str = "superadmin@qmis.edu"
+    superadmin_seed_password: str = "superadmin123"
     hr_seed_email: str = "hr@qmis.edu"
     hr_seed_password: str = "hr12345"
     accounthead_seed_email: str = "accounthead@qmis.edu"

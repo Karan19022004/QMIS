@@ -17,6 +17,16 @@ const takeSessionNotice = () => {
     }
 }
 
+/** Local demo seed accounts only — not for production. Click fills the form. */
+const DEMO_TEST_LOGINS = [
+    { role: 'Super Admin', email: 'superadmin@qmis.edu', password: 'superadmin123' },
+    { role: 'Admin', email: 'admin@qmis.edu', password: 'admin123' },
+    { role: 'HR', email: 'hr@qmis.edu', password: 'hr12345' },
+    { role: 'Teacher', email: 'teacher@qmis.edu', password: 'teacher123' },
+    { role: 'PRM', email: 'prm@qmis.edu', password: 'prm12345' },
+    { role: 'Principal', email: 'principal@qmis.edu', password: 'principal123' },
+]
+
 const SignIn = () => {
     const navigate = useNavigate()
     const location = useLocation()
@@ -31,6 +41,13 @@ const SignIn = () => {
     const [error, setError] = useState(takeSessionNotice)
     const [submitting, setSubmitting] = useState(false)
     const [showResetNote, setShowResetNote] = useState(false)
+    const [showDemoLogins, setShowDemoLogins] = useState(true)
+
+    const fillDemoLogin = (account) => {
+        setEmail(account.email)
+        setPassword(account.password)
+        setError('')
+    }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -165,6 +182,49 @@ const SignIn = () => {
                         {submitting && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
                         {submitting ? 'Signing in…' : 'Login'}
                     </button>
+
+                    <div className="mt-8 border-t border-[#E8EEF4] pt-5">
+                        <button
+                            type="button"
+                            onClick={() => setShowDemoLogins((open) => !open)}
+                            className="flex w-full cursor-pointer items-center justify-between text-left text-sm font-medium text-[#1B2B4B]"
+                        >
+                            <span>Demo test logins</span>
+                            <span className="text-xs font-normal text-[#5C6B82]">
+                                {showDemoLogins ? 'Hide' : 'Show'}
+                            </span>
+                        </button>
+                        {showDemoLogins && (
+                            <div className="mt-3 space-y-2">
+                                <p className="text-xs leading-relaxed text-[#5C6B82]">
+                                    Local demo only. Click a role to fill email and password, then press Login.
+                                </p>
+                                <ul className="space-y-1.5">
+                                    {DEMO_TEST_LOGINS.map((account) => (
+                                        <li key={account.email}>
+                                            <button
+                                                type="button"
+                                                onClick={() => fillDemoLogin(account)}
+                                                className="flex w-full cursor-pointer items-start justify-between gap-3 rounded-lg border border-[#E8EEF4] bg-[#F8FAFC] px-3 py-2.5 text-left transition hover:border-[#515DEF]/40 hover:bg-[#EEF1FF]"
+                                            >
+                                                <span className="min-w-0">
+                                                    <span className="block text-sm font-semibold text-[#1B2B4B]">
+                                                        {account.role}
+                                                    </span>
+                                                    <span className="mt-0.5 block truncate text-xs text-[#5C6B82]">
+                                                        {account.email}
+                                                    </span>
+                                                </span>
+                                                <span className="shrink-0 rounded bg-white px-2 py-1 font-mono text-[11px] text-[#24324A] ring-1 ring-[#E8EEF4]">
+                                                    {account.password}
+                                                </span>
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
 
                 </form>
             </main>

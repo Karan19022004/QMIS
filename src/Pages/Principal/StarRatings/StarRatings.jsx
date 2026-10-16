@@ -376,8 +376,8 @@ const StarRatings = ({ view = 'som' }) => {
                 exportModal={exportModal}
                 setExportModal={setExportModal}
                 filename='star-ratings'
-                rows={(isSom ? somRatings : filteredSoyRatings)}
-                exportDescription={<>You are exporting {(isSom ? somRatings : filteredSoyRatings).length} record(s).</>}
+                rows={Array.isArray(isSom ? somRatings : filteredSoyRatings) ? (isSom ? somRatings : filteredSoyRatings) : []}
+                exportDescription={<>You are exporting {Array.isArray(isSom ? somRatings : filteredSoyRatings) ? (isSom ? somRatings : filteredSoyRatings).length : 0} record(s).</>}
             />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
