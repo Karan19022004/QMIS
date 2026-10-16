@@ -60,7 +60,7 @@ const AdminssionList = () => {
             return
         }
         await refresh()
-        toast.success('Admission deleted.')
+        toast.success('Admission removed.')
     }
 
     const handleEnroll = async (record) => {
@@ -260,7 +260,8 @@ const AdminssionList = () => {
                                                             <button
                                                                 type='button'
                                                                 onClick={() => handleDelete(record.id)}
-                                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                                disabled={record.status === 'Enrolled'}
+                                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
                                                             >
                                                                 Delete
                                                             </button>

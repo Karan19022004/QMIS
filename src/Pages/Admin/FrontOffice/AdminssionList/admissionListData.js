@@ -28,7 +28,7 @@ export const FEES_GROUP_OPTIONS = [
     'Activity Fees',
 ]
 
-export const ADMISSION_STATUS_OPTIONS = ['Active', 'Enrolled']
+export const ADMISSION_STATUS_OPTIONS = ['Active', 'Enrolled', 'In Active']
 
 export const DEFAULT_ADMISSION_FORM = {
     fromEnquiryId: '',
@@ -311,7 +311,20 @@ export const updateAdmission = async (id, payload) => {
 
 export const deleteAdmission = async (id) => {
     if (apiAdmissionsEnabled()) {
-        return { success: false, message: 'Delete is disabled for API admissions. Leave as Active or Enrolled.' }
+        // Backend has no hard-delete — soft-close as In Active (same pattern as enquiries).
+        try {
+            const current = await getAdmissionApi(id)
+            if (current?.status === 'Enrolled') {
+                return { success: false, message: 'Enrolled admissions cannot be deleted. Unenroll is not supported here.' }
+            }
+            if (current?.status === 'In Active') {
+                return { success: true }
+            }
+            await updateAdmissionApi(id, { ...current, status: 'In Active' })
+            return { success: true }
+        } catch (error) {
+            return { success: false, message: error.message || 'Failed to delete admission.' }
+        }
     }
     saveAdmissions(loadAdmissions().filter((item) => String(item.id) !== String(id)))
     return { success: true }
@@ -392,12 +405,12 @@ export const toAdmissionFormState = (record) => ({
     batchEndYear: parseStoredYear(record?.batchEndYear) || new Date(),
 })
 
-export const filterAdmissions = (records, { search = '' } = {}) => {
+export const filterAdmissions = (records, { search = '', includeInactive = false } = {}) => {
     const query = search.trim().toLowerCase()
-    if (!query) return records
-
-    return records.filter((item) =>
-        [
+    return records.filter((item) => {
+        if (!includeInactive && item.status === 'In Active') return false
+        if (!query) return true
+        return [
             getStudentDisplayName(item),
             item.rollNumber,
             item.admissionNumber,
@@ -407,8 +420,9 @@ export const filterAdmissions = (records, { search = '' } = {}) => {
             item.country,
             item.city,
             item.id,
-        ].some((value) => String(value || '').toLowerCase().includes(query)),
-    )
+            item.status,
+        ].some((value) => String(value || '').toLowerCase().includes(query))
+    })
 }
 
 export const buildInitialAdmissionForm = (enquiryPrefill = null, fromEnquiryId = '') => {
