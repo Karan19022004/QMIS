@@ -40,23 +40,15 @@ export const GhostButton = ({ children, onClick, type = 'button' }) => (
     <button type={type} onClick={onClick} className='bg-white text-[#515DEF] text-sm px-4 py-2 rounded-md border border-[#515DEF] hover:bg-[#515DEF] hover:text-white cursor-pointer'>{children}</button>
 )
 
-export const downloadCsv = (filename, rows) => {
-    if (!rows.length) return
-    const headers = Object.keys(rows[0])
-    const body = [headers.join(','), ...rows.map((row) => headers.map((key) => `"${String(row[key] ?? '').replace(/"/g, '""')}"`).join(','))].join('\n')
-    const blob = new Blob([body], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename.endsWith('.csv') ? filename : `${filename}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
-}
+export { downloadTableCsv as downloadCsv } from '../../../Common/exportDownload'
 
+/** Open a print-friendly HTML document (offer letters, etc.). */
 export const printHtml = (title, html) => {
     const frame = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700')
     if (!frame) return
-    frame.document.write(`<!doctype html><html><head><title>${title}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e1e1e}table{width:100%;border-collapse:collapse}td,th{border:1px solid #e5e7eb;padding:8px;text-align:left;font-size:13px}</style></head><body>${html}</body></html>`)
+    frame.document.write(
+        `<!doctype html><html><head><meta charset="utf-8"><title>${String(title || 'Preview').replace(/</g, '&lt;')}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e1e1e}table{width:100%;border-collapse:collapse}td,th{border:1px solid #e5e7eb;padding:8px;text-align:left;font-size:13px}</style></head><body>${html}</body></html>`,
+    )
     frame.document.close()
     frame.focus()
     frame.print()
@@ -66,12 +58,9 @@ export const HrExport = ({ open, setOpen, rows, filename }) => (
     <ExportModal
         exportModal={open}
         setExportModal={setOpen}
+        filename={filename}
+        rows={rows}
         exportDescription={`You are exporting ${rows.length} record(s).`}
-        onExport={(format) => {
-            if (format === 'pdf') printHtml(filename, `<h1>${filename}</h1><pre>${JSON.stringify(rows, null, 2)}</pre>`)
-            else downloadCsv(format === 'excel' ? filename.replace(/\.csv$/, '') : filename, rows)
-            setOpen(false)
-        }}
     />
 )
 

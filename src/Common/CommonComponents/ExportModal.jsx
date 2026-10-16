@@ -1,10 +1,16 @@
 import React, { useState } from 'react'
 import { X } from 'lucide-react'
+import { toast } from 'react-toastify'
+import { runTableExport } from '../exportDownload'
 
 const ExportModal = ({
     exportModal,
     setExportModal,
     onExport,
+    rows,
+    columns,
+    filename = 'export',
+    title,
     exportDescription = (
         <>
             You are exporting 05 records{' '}
@@ -13,6 +19,38 @@ const ExportModal = ({
     ),
 }) => {
     const [format, setFormat] = useState('csv')
+    const [exporting, setExporting] = useState(false)
+
+    const handleExport = () => {
+        if (exporting) return
+        setExporting(true)
+        try {
+            if (typeof onExport === 'function') {
+                onExport(format)
+                setExportModal(false)
+                return
+            }
+            const result = runTableExport(format, {
+                filename,
+                rows: Array.isArray(rows) ? rows : [],
+                columns,
+                title: title || filename,
+            })
+            if (!result.ok) {
+                toast.error(result.reason === 'empty' ? 'No records to export.' : 'Export failed.')
+                return
+            }
+            toast.success(
+                format === 'pdf'
+                    ? 'PDF preview opened. Use Print to save the file.'
+                    : `Exported ${Array.isArray(rows) ? rows.length : 0} record(s) as ${format === 'excel' ? 'Excel' : 'CSV'}.`,
+            )
+            setExportModal(false)
+        } finally {
+            setExporting(false)
+        }
+    }
+
     return (
         <div>
             {exportModal && (
@@ -25,7 +63,7 @@ const ExportModal = ({
                     <div className="relative z-10 w-full max-w-lg rounded-xl bg-white shadow-lg p-5 py-4">
                         <div className='flex justify-between items-center'>
                             <h2 className='text-xl font-semibold text-black'>Export List</h2>
-                            <button onClick={() => setExportModal(false)} className='hover:text-red-500 cursor-pointer'>
+                            <button type='button' onClick={() => setExportModal(false)} className='hover:text-red-500 cursor-pointer'>
                                 <X />
                             </button>
                         </div>
@@ -51,15 +89,16 @@ const ExportModal = ({
                             </div>
 
                             <div className='flex gap-x-4 mt-10'>
-                                <button onClick={() => setExportModal(false)} className='bg-white text-[#77767A] text-sm text-center px-4 py-2.5 rounded-md border border-[#77767A] hover:bg-[#515DEF] hover:text-white hover:border-[#515DEF] transition-all duration-200 cursor-pointer w-full'>
+                                <button type='button' onClick={() => setExportModal(false)} className='bg-white text-[#77767A] text-sm text-center px-4 py-2.5 rounded-md border border-[#77767A] hover:bg-[#515DEF] hover:text-white hover:border-[#515DEF] transition-all duration-200 cursor-pointer w-full'>
                                     Cancel
                                 </button>
                                 <button
                                     type='button'
-                                    onClick={() => onExport?.(format)}
-                                    className='bg-[#515DEF] text-white text-sm text-center px-4 py-2.5 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer w-full'
+                                    disabled={exporting}
+                                    onClick={handleExport}
+                                    className='bg-[#515DEF] text-white text-sm text-center px-4 py-2.5 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer w-full disabled:opacity-60'
                                 >
-                                    Export
+                                    {exporting ? 'Exporting…' : 'Export'}
                                 </button>
                             </div>
 

@@ -221,7 +221,19 @@ const MyTasksPage = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='my-tasks'
+                rows={filteredTasks.map((t) => ({
+                    taskId: t.taskId,
+                    title: t.title,
+                    assignedBy: t.assignedBy,
+                    status: t.status,
+                    dueDate: t.dueDate,
+                }))}
+                exportDescription={<>You are exporting {filteredTasks.length} record{filteredTasks.length === 1 ? '' : 's'}.</>}
+            />
             <UpdateTaskStatusModal
                 key={statusModalTask?.id ?? 'none'}
                 open={Boolean(statusModalTask)}

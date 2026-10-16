@@ -1,20 +1,21 @@
 # Testing report
 
 Project: Queen Mira International School ERP  
-Last run: 16 October 2026 (PRM Front Office regression)
+Last run: 16 October 2026 (UI sync + export + demo seed)
 
 | Check | Result |
 |---|---|
-| Live FO API CRUD × 6 collections (marker create → DB → delete) | **PASS** |
-| RBAC unauth 401 / teacher 403 / principal read 200 write 403 / PRM write 201 | **PASS** |
-| Admissions + enquiries still 200 | **PASS** |
-| `pytest tests/test_front_office_api.py` | **PASS** — **11 passed** |
-| Browser PRM login + Admission Enquiry | **PASS** |
-| Browser Material Gate Pass list (after hydrate fix) | **PASS** — showed API `BrowserDriver` / `TN-BR-9999` |
-| Browser Student Transfer list | **PASS** — showed `Browser Transfer Kid` after Clear Filters |
-| Full pytest suite / lint / production build | **NOT RUN** this pass |
-| Main Word unlock / overwrite | **NOT RUN** (preserved) |
+| Backend `python -m pytest tests/ -q` | **421 passed**, 1 warning (204s) |
+| Frontend `npm run build` | **PASS** (~49s) |
+| Demo seed `python scripts/demo_seed_evening.py` (run twice) | **PASS** (idempotent) |
+| Live API: Admin students list | **PASS** (17 incl. DEMO-ADM-*) |
+| Live API: PRM student gate passes | **PASS** (DEMO-FO-SGP-001 present) |
+| Live API: Teacher my tasks | **PASS** (6, incl. [DEMO] titles) |
+| Live API: TC requests | **PASS** (5, incl. TC-DEMO-*) |
+| Export helpers unit / browser download open | **PARTIAL** — ExportModal + CSV/Excel/PDF wired on demo lists; browser file-open not automated this pass |
+| Attendance mark → UI without refresh | **CODE FIXED** (ClassAttendance already save+reload); browser re-click **NOT RUN** this pass |
+| Leave / TC approve busy + toast + state | **CODE FIXED**; live browser decide **NOT RUN** this pass |
+| SMTP / WhatsApp live send | **NOT RUN** (out of scope) |
+| Frontend ESLint full suite | **NOT RUN** |
 
-Hardening applied (uncommitted until approved): PRM seed, principal/director `frontoffice.read`, Material/Goods/Re-enrollment list API hydrate.
-
-Decision: **PRM READY** (21/21 retained with evidence). **Director next** — first task Exam Timetable Approvals.
+Decision: **READY WITH LIMITATIONS** for tonight’s five-role demo (sync/export/seed land; some browser spot-checks still manual).

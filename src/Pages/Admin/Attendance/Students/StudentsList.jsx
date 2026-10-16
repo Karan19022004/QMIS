@@ -232,7 +232,19 @@ const StudentsList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='student-attendance'
+                rows={filteredRecords.map((r) => ({
+                    admissionNumber: r.admissionNumber || r.studentId,
+                    studentName: r.studentName || r.name,
+                    className: r.className,
+                    section: r.section,
+                    status: r.status || r.attendanceStatus,
+                }))}
+                exportDescription={<>You are exporting {filteredRecords.length} record{filteredRecords.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

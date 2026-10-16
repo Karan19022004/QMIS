@@ -38,6 +38,10 @@ def test_principal_shared_reads_and_exams_write(client):
     assert "announcements.write" in perms
     assert "calendar.write" in perms
     assert "leave.decide" in perms
+    assert "hr.employees.read" in perms
+    assert "hr.write" not in perms
+    assert "users.write" not in perms
+    assert "users.read" not in perms
 
     assert client.get("/api/v1/students", headers=headers).status_code == 200
     assert client.get("/api/v1/announcements", headers=headers).status_code == 200
@@ -46,6 +50,7 @@ def test_principal_shared_reads_and_exams_write(client):
     assert client.get("/api/v1/communication/conversations", headers=headers).status_code == 200
     assert client.get("/api/v1/exams", headers=headers).status_code == 200
     assert client.get("/api/v1/attendance?date=2026-10-15", headers=headers).status_code == 200
+    assert client.get("/api/v1/admin/users", headers=headers).status_code == 403
 
     created = client.post(
         "/api/v1/exams",

@@ -398,7 +398,21 @@ const ClassAttendance = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='class-attendance'
+                rows={displayRows.map((r) => ({
+                    studentId: r.admissionNumber || r.studentId,
+                    studentName: r.studentName,
+                    className: r.className,
+                    section: r.section || '',
+                    time: r.time || '',
+                    attendanceStatus: r.attendanceStatus || '',
+                    inOutStatus: r.inOutStatus || '',
+                }))}
+                exportDescription={<>You are exporting {displayRows.length} record{displayRows.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

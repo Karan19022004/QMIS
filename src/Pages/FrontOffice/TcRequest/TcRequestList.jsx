@@ -153,7 +153,19 @@ const TcRequestList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='tc-requests'
+                rows={filteredRequests.map((r) => ({
+                    requestId: r.requestId,
+                    studentName: r.studentName,
+                    admissionNumber: r.admissionNumber,
+                    status: r.status,
+                    requestedOn: r.requestedOn || r.appliedOn,
+                }))}
+                exportDescription={<>You are exporting {filteredRequests.length} record{filteredRequests.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

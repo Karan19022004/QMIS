@@ -33,7 +33,8 @@ import ViewSampleQuestion from '../Pages/Teacher/StudentDeliverables/SampleQuest
 import UnitTests from '../Pages/Teacher/UnitTests/UnitTests'
 import AddUnitTest from '../Pages/Teacher/UnitTests/AddUnitTest'
 import ViewUnitTest from '../Pages/Teacher/UnitTests/ViewUnitTest'
-import { BiometricAttendancePage, ExamTypesPage, MyProfilePage, StudentAnalyticsPage } from '../Common/demoDomain/DemoScreens'
+import { BiometricAttendancePage, MyProfilePage, StudentAnalyticsPage } from '../Common/demoDomain/DemoScreens'
+import ExamSchedule from '../Pages/Teacher/StudentEvaluation/ExamSchedule/ExamSchedule'
 import EscalationList from '../Pages/Teacher/EscalationManagement/EscalationList'
 import AddEscalation from '../Pages/Teacher/EscalationManagement/AddEscalation'
 import ViewEscalation from '../Pages/Teacher/EscalationManagement/ViewEscalation'
@@ -112,7 +113,7 @@ const TeacherRoutes = () => {
             <Route path="/teacher/escalation-management" element={<EscalationList />} />
             <Route path="/teacher/escalation-management/add-escalation" element={<AddEscalation />} />
             <Route path="/teacher/escalation-management/view/:id" element={<ViewEscalation />} />
-            <Route path="/teacher/student-evaluation/exam" element={<ExamTypesPage />} />
+            <Route path="/teacher/student-evaluation/exam" element={<ExamSchedule />} />
             <Route path="/teacher/student-evaluation/analytics" element={<StudentAnalyticsPage />} />
             <Route path="/teacher/attendance/biometric" element={<BiometricAttendancePage canOverride />} />
             <Route path="/teacher/my-profile" element={<MyProfilePage roleLabel="Teacher" />} />

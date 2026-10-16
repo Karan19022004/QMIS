@@ -1847,7 +1847,8 @@ export const hrSidebarLinks = [
     {
         id: 4, title: "Onboarding", to: "#0", icon: UserPlus,
         subLinks: [
-            { icon: FileText, title: "Offer / Appointment", to: "/hr/onboarding/offers" },
+            { icon: FileText, title: "Offer Letters", to: "/hr/onboarding/offers" },
+            { icon: ClipboardPen, title: "Appointment Letters", to: "/hr/onboarding/appointment" },
             { icon: UserRound, title: "New Joiner Details", to: "/hr/onboarding/joiners" },
             { icon: ClipboardCheck, title: "New Joinee Observation", to: "/hr/onboarding/observations" },
             { icon: Users, title: "Shadow Mentor", to: "/hr/onboarding/shadow-mentor" },

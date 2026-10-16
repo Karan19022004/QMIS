@@ -43,6 +43,7 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
     const [approverRemarks, setApproverRemarks] = useState(
         request?.status === 'Pending' && request?.fromApi ? '' : request?.approverRemarks ?? '',
     )
+    const [busy, setBusy] = useState(false)
     const decisionTitle = APPROVER_DECISION_TITLES[roleKey] || 'Approver Decision'
 
     // With the API on, the server may hold newer data than the local cache.
@@ -59,13 +60,21 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
     }, [id, roleKey])
 
     const decide = async (status, successMessage, failMessage) => {
+        if (busy) return
         if (canUseLeaveApi()) {
+            setBusy(true)
             try {
                 const updated = await decideLeaveRequestViaApi(id, status, approverRemarks)
-                if (updated) setRequest(updated)
+                if (!updated) {
+                    toast.error(failMessage)
+                    return
+                }
+                setRequest(updated)
                 toast.success(successMessage)
             } catch (error) {
                 toast.error(error?.message || failMessage)
+            } finally {
+                setBusy(false)
             }
             return
         }
@@ -143,8 +152,8 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
                                     />
                                 </div>
                                 <div className='flex sm:justify-end justify-center gap-x-4'>
-                                    <button type='button' onClick={handleReject} className='bg-white text-[#FF0000] text-sm px-8 py-2 rounded-md border border-[#FF0000] hover:bg-[#FF0000] hover:text-white transition-all duration-200 cursor-pointer md:w-auto w-full'>Reject</button>
-                                    <button type='button' onClick={handleApprove} className='bg-[#4CAF50] text-white text-sm px-8 py-2 rounded-md border border-[#4CAF50] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'>Approve</button>
+                                    <button type='button' disabled={busy} onClick={handleReject} className='bg-white text-[#FF0000] text-sm px-8 py-2 rounded-md border border-[#FF0000] hover:bg-[#FF0000] hover:text-white transition-all duration-200 cursor-pointer md:w-auto w-full disabled:opacity-60'>Reject</button>
+                                    <button type='button' disabled={busy} onClick={handleApprove} className='bg-[#4CAF50] text-white text-sm px-8 py-2 rounded-md border border-[#4CAF50] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full disabled:opacity-60'>{busy ? 'Saving…' : 'Approve'}</button>
                                 </div>
                             </div>
                         </Section>

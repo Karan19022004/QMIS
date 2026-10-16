@@ -8,9 +8,107 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — UI sync, export/download, demo sample data
+
+**Status:** Mutation UI sync hardened for leave/TC; Export/Download wired for demo-critical lists; idempotent DEV-only demo seed added. **Not committed / not pushed** (awaiting approval). SMTP / WhatsApp still local-queue only.
+
+### Done
+
+1. **UI sync:** Leave approve/reject returns mapped API row + busy lock + no false success toast; Admin/PRM TC decide uses toast + `finally` busy clear; task status modal already blocked double-submit + hydrates list.
+2. **Export:** Shared `src/Common/exportDownload.js` (CSV UTF-8 BOM, Excel-compatible `.xls`, print PDF). `ExportModal` runs real export from `rows`/`filename` (or `onExport`). Wired on leave, attendance, FO gate/material/goods/transfer/re-enroll/TC, students/employees, tasks, announcements, escalations, exam timetable, HR `HrExport`.
+3. **Demo seed:** `backend/scripts/demo_seed_evening.py` — development + local DB only; idempotent `DEMO-*` / `[DEMO]` markers (students, enquiries, attendance, FO, TC, announcement, calendar, tasks, escalation, HR leave/job). Re-run verified.
+4. **Regression:** pytest **421 passed**; `npm run build` **PASS**; live API smoke for students/FO/tasks/TC **PASS**.
+
+### Still open / limitations
+
+- Many secondary Export buttons still toast “No records” until `rows` are passed (not all 100+ screens wired).
+- Browser click-through for attendance mark + leave/TC after this patch: manual for the manager demo.
+- Principal/Teacher my-attendance & some academic screens remain portal/localStorage PARTIAL.
+- Integrations: SMTP, WhatsApp, RFID = later.
+
+### Startup / demo prep
+
+```text
+# Backend
+cd backend
+# ensure ENVIRONMENT=development in .env
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+python scripts/demo_seed_evening.py
+
+# Frontend
+cd ..
+npm run dev
+```
+
+Demo logins use existing development seed emails (passwords only in local `.env` / seed config — not repeated here).
+
+---
+
+## 16 October 2026 — Evening demo pack (Admin, PRM, Principal, Teacher, HR)
+
+**Status:** Five demo roles API-ready for tonight. SMTP / WhatsApp **not** connected (local queue only). Diffs still uncommitted.
+
+### Done
+
+1. Confirmed live data for Admin, PRM, Principal, Teacher, HR (employees 17, FO, students 12, HR recruitment/leave/payroll populated).
+2. HR polish: Offer + Appointment sidebar links; claims employee select + sample claims; payslip “Queue local notice” (no SMTP claim); empty-campus seed upload restored from `hrSeed`.
+3. Teacher My Attendance date filters default open so demo rows stay visible.
+4. Five-role API smoke **PASS**; `npm run build` **PASS**.
+
+### Demo notes / still PARTIAL (honest)
+
+- Principal: star ratings, class timetable, teacher allocation, my attendance = UI/portal only.
+- Teacher: biometric, analytics, my profile, parents, deliverables/stars = demo/localStorage.
+- Integrations: SMTP, WhatsApp, RFID punch import = later.
+
+---
+
+## 16 October 2026 — Principal + Teacher panel completion
+
+**Status:** Principal and Teacher panels audited and hardened. Confirmed gaps fixed; portal/localStorage modules left as PARTIAL (no invented APIs). **Not pushed** pending approval.
+
+### Done
+
+1. Audit: every Principal/Teacher sidebar item classified API vs localStorage vs DemoScreens.
+2. Backend: Principal/Director `hr.employees.read`; campus employee directory via `/hr/portal/employees` (Principal now sees 17; still no `hr.write` / `users.write`).
+3. FE: Principal + Teacher live dashboards (composed from existing APIs); Teacher Exam → `ExamSchedule` (`/exams`); Employee view hydrates from directory API; Teacher sidebar permission map aligned to real link ids.
+4. Tests: `test_principal_portal_apis` + `test_teacher_portal_apis` + FO suite **14 passed**; `npm run build` **PASS**.
+5. Browser: Principal login → dashboard (12/17) → employee DB (17) → student DB (12) → exam timetable; Teacher login → dashboard → Exam Schedule API page → class attendance screen.
+
+### Open / limitations
+
+- Star ratings, class timetable, teacher/student allocation, extra/online class, home fun, deliverables, biometric, analytics, my profile/attendance, parents list remain portal/static (no new REST invented).
+- Teacher `GET /students` is campus-wide until a server-side assignment domain exists.
+- Diff uncommitted; push only after review.
+
+---
+
+## 16 October 2026 — Full demo readiness (Admin + PRM E2E)
+
+**Status:** **READY WITH LIMITATIONS** — critical Admin and PRM flows verified live against PostgreSQL; no demo-blocking code fixes required; no push.
+
+### Done
+
+1. Stack health: Postgres `:5432`, Alembic **0012** head, ORM/DB **48/48**, FastAPI `/health` ok (183 OpenAPI paths), Vite on `http://localhost:5173` (IPv6/`localhost` only — not `127.0.0.1:5173`).
+2. Auth/RBAC: Admin/PRM/Principal/Teacher login **200**; bad password **401**; unauth **401**; Teacher FO + `/admin/users` **403**; Principal FO list **200** / create **403**.
+3. Admin API (correct contracts): dashboard, admissions/enquiries, students, HR employees, masters/classes, attendance(`?date=`), documents kinds, TC, activities, leave, escalations, tasks, notifications, announcements, calendar, communication directory/conversations — **PASS**.
+4. Admin browser walkthrough: login → dashboard live counts → admissions (12) → student/employee DB → class details → student/employee attendance → announcements (4) → calendar → notifications → tasks → leave → escalations → documents → TC approval → RBAC → communication inbox.
+5. PRM: six FO collections CRUD+cleanup **PASS**; browser Material list showed `DemoDriverReady`/`TN-DEMO-16`; Transfer list showed `Demo Transfer Ready` (ephemeral records deleted after).
+6. `pytest` FO + security **63 passed**; `npm run build` **PASS**. Lint debt **not** re-run / not claimed fixed.
+
+### Open / limitations for demo
+
+- Open UI as **`http://localhost:5173`** (not `127.0.0.1:5173`).
+- Transfer/list date filters can hide older rows until Clear Filters.
+- Documents/tasks/leave/escalations lists may be empty (API OK, little seed data).
+- Account deactivation + session expiry **NOT RUN**.
+- Full pytest suite / full lint **NOT RUN** this pass.
+
+---
+
 ## 16 October 2026 — PRM Front Office regression + hardening
 
-**Status:** PRM FO API regression **PASS** (6/6 collections). FE hydrate gaps fixed for Material / Goods / Re-enrollment lists. Director gap analysis ready; **no push** pending confirmation.
+**Status:** PRM FO API regression **PASS** (6/6 collections). FE hydrate gaps fixed for Material / Goods / Re-enrollment lists. Director gap analysis ready; push completed later as `524099b`.
 
 ### Done
 

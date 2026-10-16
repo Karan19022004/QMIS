@@ -89,6 +89,13 @@ const CommunicationPage = ({ roleKey }) => {
         loadConversations(true)
     }, [loadConversations])
 
+    // Keep the inbox fresh so the other person sees new messages without a full page reload.
+    useEffect(() => {
+        if (!canUseCommunicationApi()) return undefined
+        const timer = setInterval(() => loadConversations(false), 20000)
+        return () => clearInterval(timer)
+    }, [loadConversations])
+
     useEffect(() => {
         if (!selectedId) return
         if (canUseCommunicationApi()) {

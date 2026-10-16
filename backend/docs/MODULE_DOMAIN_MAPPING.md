@@ -118,19 +118,25 @@ Student portal reuses `StudentPortalRoutes` with `roleKey=student` and `ActiveSt
 
 ---
 
-## Teacher (30 modules) — Completed (1 Gap)
+## Teacher (30 modules) — 16 Oct panel verification
 
-Teacher reuses shared staff domains (`_STAFF_ACADEMIC` + matrix loops). Biometric remains Gap.
+Teacher reuses shared staff domains (`_STAFF_ACADEMIC` + matrix loops). No `hr.employees.read` / `exams.write` / admin users.
 
 | Sidebar module | Domain | FE | API | Tables | Migration? | Verified |
 |---|---|---|---|---|---|---|
+| Dashboard | Composed reads | `Teacher/Dashboard` | `/students`, `/attendance`, `/lesson-plans`, `/tasks`, `/leave-requests`, `/notifications`, `/announcements`, `/exams` | shared | No | PASS (16 Oct browser) |
 | Class Attendance | Attendance | `ClassAttendance.jsx` | `/attendance` | `student_attendance` | No | PASS |
 | Lesson Plan | Lesson plans | MyLessonPlan + submit | `/lesson-plans` | lesson plan + approvals | No | PASS |
-| Students List | Students | Teacher StudentsList | `/students` | `students` | No | PASS |
-| Exam | Exams | ExamSchedule | `/exams` | exams | No | PASS |
+| Students List | Students | Teacher StudentsList | `/students` | `students` | No | PASS (campus-wide until assignment SoT exists) |
+| Exam | Exams | `ExamSchedule.jsx` (replaced DemoScreens) | `/exams` read | exams | No | PASS (16 Oct) |
 | Announcement / Calendar / Communication / Notifications / Escalation / Tasks / Leave | Shared | roleKey=teacher | matching `/api/v1/*` | shared | No | PASS |
-| Deliverables / stars / timetable / online / books / profile | Portal UI | Teacher pages | — | — | No | PASS (portal) |
-| Biometric Attendance | — | placeholder | — | — | No | Gap |
+| Mark Entry | Marks | Common MarkEntry | `/exams` + `/students` | marks | No | PASS (API wired) |
+| Deliverables / stars / timetable / online / books | Portal UI | Teacher pages | — | — | No | PARTIAL (localStorage / static) |
+| Biometric / Analytics / My Profile | Demo | DemoScreens | — | — | No | PARTIAL (demo-only) |
+| My Attendance | — | static | — | — | No | PARTIAL |
+| Parents List | — | static | `/parents` 404 | — | No | PARTIAL (no parents API) |
+
+Sidebar filter map fixed to real link ids (`2→attendance`, `3→lessonPlans`, `5→taskManagement`).
 
 ---
 
@@ -140,15 +146,33 @@ Same academic APIs as Teacher plus **`exams.write`**. Biometric remains Gap. FE:
 
 ---
 
-## Principal (21 modules) — 16 Completed / 5 Partial (15 Oct build)
+## Principal (21 modules) — 16 Oct panel verification
 
-Shared staff APIs with **`exams.write`**, **`calendar.write`**, **`announcements.write`**, **`leave.decide`**. FE: `roleKey=principal`.
+Shared staff APIs with **`exams.write`**, **`calendar.write`**, **`announcements.write`**, **`leave.decide`**, **`hr.employees.read`** (directory only — not `hr.write` / `users.write`). FE: `roleKey=principal`.
 
 | Status | Modules |
 |---|---|
-| **Completed (API)** | Tasks Assign/My, Escalation, Examination Timetable (`/exams`), Student + Employee Database, Leave My/Received, Announcement, Communication, Calendar (read + Add Event write), Notifications |
-| **Completed (portal / shared FE SoT)** | Student Allocation, Extended Class (Teacher ExtraClass paths), Home Fun Student/Teacher (Teacher HomeFun SoT) |
-| **Partial (UI; no dedicated REST yet)** | Star Ratings SOM/SOY, Class Timetable, Teacher Allocation, My Attendance |
+| **PASS (API + browser 16 Oct)** | Dashboard (composed), Tasks, Examination Timetable, Student Database (12), Employee Database (17 via `/hr/portal/employees`), Leave, Announcement, Communication, Calendar, Notifications, Escalation |
+| **PASS (API; portal SoT)** | Student Allocation, Extended Class, Home Fun Student/Teacher |
+| **PARTIAL (UI; no dedicated REST)** | Star Ratings SOM/SOY, Class Timetable, Teacher Allocation, My Attendance |
+
+---
+
+## HR panel — 16 Oct evening demo readiness
+
+FE hydrates via `hrStore` → `/api/v1/hr/*` (portal employees, leave/payroll bundles, list collections). SMTP / WhatsApp **out of scope** (local queue only).
+
+| Area | API | Verified 16 Oct |
+|---|---|---|
+| Employees / documents | `/hr/portal/employees`, `/hr/documents` | PASS — 17 employees |
+| Recruitment | `/hr/jobs`, `/candidates`, `/interviews` | PASS — 5 / 8 / 6 |
+| Onboarding | `/hr/offers`, `/onboarding`, `/observations`, `/shadow` | PASS — Appointment sidebar link added |
+| Attendance & leave | `/hr/attendance`, `/hr/leave`, `/leave-requests` | PASS — policies 3 / requests 4 |
+| Training / performance | `/hr/training`, `/hr/performance` | PASS |
+| Payroll | `/hr/payroll` months + advances/claims | PASS — months 4, claims 2 |
+| Reports / notifications | hrStore aggregates | PASS when data present |
+
+Empty-campus hydrate now uploads `hrSeed` once (no gateway sends). Claims soft-filled when empty.
 
 ---
 
@@ -157,7 +181,7 @@ Shared staff APIs with **`exams.write`**, **`calendar.write`**, **`announcements
 | Role panel | Default approach |
 |---|---|
 | Director | Shared approvals + announcements + calendar (next slice) |
-| HR / Account Head / others | Reuse first; migrate only for true new domains |
+| Account Head / others | Reuse first; migrate only for true new domains |
 
 ---
 

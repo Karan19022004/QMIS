@@ -234,7 +234,19 @@ const AssignTasksPage = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='assigned-tasks'
+                rows={filteredTasks.map((t) => ({
+                    taskId: t.taskId,
+                    title: t.title,
+                    assignee: t.assigneeName || t.assignee,
+                    status: t.status,
+                    dueDate: t.dueDate,
+                }))}
+                exportDescription={<>You are exporting {filteredTasks.length} record{filteredTasks.length === 1 ? '' : 's'}.</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>

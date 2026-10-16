@@ -106,13 +106,15 @@ export const getAllRolesForManagement = () =>
         label: ROLE_LABELS[role] || role,
     }))
 
-/** Teacher sidebar id → permission module key. Unmapped ids stay visible when filtering. */
+/**
+ * Teacher/Coordinator sidebar id → permission module key.
+ * Must match sidebarLinks.js ids. Unmapped ids stay visible when filtering.
+ * Student group (id 7) stays unmapped so Students List remains available when mark-entry is off.
+ */
 export const TEACHER_SIDEBAR_PERMISSION_MAP = {
-    4: 'lessonPlans',
+    2: 'attendance',
+    3: 'lessonPlans',
     5: 'taskManagement',
-    6: 'unitTests',
-    7: 'markEntry',
-    8: 'deliverables',
 }
 
 export const getFilteredTeacherSidebarLinks = (teacherSidebarLinks) => {

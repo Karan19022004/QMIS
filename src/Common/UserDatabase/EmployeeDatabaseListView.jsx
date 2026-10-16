@@ -190,7 +190,20 @@ const EmployeeDatabaseListView = ({
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='employee-database'
+                rows={filteredEmployees.map((e) => ({
+                    employeeId: e.employeeId || e.id,
+                    name: e.name,
+                    department: e.department,
+                    designation: e.designation,
+                    status: e.status,
+                    email: e.email,
+                }))}
+                exportDescription={<>You are exporting {filteredEmployees.length} record{filteredEmployees.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

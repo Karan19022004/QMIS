@@ -32,6 +32,15 @@ def _login(client, email, password):
 def test_teacher_shared_reads_succeed(client):
     teacher = _login(client, TEACHER[0], TEACHER[1])
 
+    me = client.get("/api/v1/auth/me", headers=teacher)
+    assert me.status_code == 200
+    perms = set(me.json().get("permissions") or [])
+    assert "students.read" in perms
+    assert "exams.read" in perms
+    assert "exams.write" not in perms
+    assert "hr.employees.read" not in perms
+    assert "hr.write" not in perms
+
     assert client.get("/api/v1/students", headers=teacher).status_code == 200
     assert client.get("/api/v1/announcements", headers=teacher).status_code == 200
     assert client.get("/api/v1/calendar", headers=teacher).status_code == 200
@@ -40,6 +49,12 @@ def test_teacher_shared_reads_succeed(client):
     assert client.get("/api/v1/lesson-plans?mine=true", headers=teacher).status_code == 200
     assert client.get("/api/v1/exams", headers=teacher).status_code == 200
     assert client.get("/api/v1/marks-batches?mine=true", headers=teacher).status_code == 200
+    assert client.get("/api/v1/admin/users", headers=teacher).status_code == 403
+    assert client.post(
+        "/api/v1/exams",
+        headers=teacher,
+        json={"name": "Blocked", "examType": "MIDTERM", "className": "G1", "startDate": "2026-11-01", "endDate": "2026-11-02"},
+    ).status_code == 403
 
     attendance = client.get("/api/v1/attendance?date=2026-10-15", headers=teacher)
     assert attendance.status_code == 200, attendance.text

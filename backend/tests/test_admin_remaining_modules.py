@@ -219,6 +219,15 @@ def test_directory_and_a_two_person_thread_with_an_attachment(client):
     assert sent.status_code == 201, sent.text
     assert sent.json()["messages"][-1]["content"] == "Please see the circular."
     assert sent.json()["messages"][-1]["attachment"]["name"] == "note.pdf"
+    # Recipient must get an in-app notification before opening the thread.
+    before_open = client.get("/api/v1/communication/conversations", headers=teacher).json()
+    hit = next(c for c in before_open if c["id"] == conv_id)
+    assert hit["unreadCount"] >= 1
+    notifs = client.get("/api/v1/notifications", headers=teacher).json()
+    assert any(
+        n.get("entityType") == "conversation" and n.get("entityId") == conv_id and not n.get("read")
+        for n in notifs
+    ), notifs[:5]
     seen = client.get(f"/api/v1/communication/conversations/{conv_id}", headers=teacher)
     assert seen.status_code == 200 and seen.json()["unreadCount"] == 0
     download = client.get(seen.json()["messages"][-1]["attachment"]["url"], headers=teacher)

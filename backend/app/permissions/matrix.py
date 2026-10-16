@@ -168,8 +168,9 @@ ROLE_PERMISSIONS.update(
         # Staff UIS + class attendance (P1-5 / Y-1)
         "teacher": list(_STAFF_ACADEMIC),
         "coordinator": [*_STAFF_ACADEMIC, "exams.write"],
-        "principal": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.write"],
-        "director": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.configure"],
+        # Campus employee directory is read-only (hr.employees.read). Not hr.write / admin users.
+        "principal": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.write", "hr.employees.read"],
+        "director": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.configure", "hr.employees.read"],
         "parent": list(
             dict.fromkeys(
                 [

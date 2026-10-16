@@ -55,15 +55,23 @@ const ViewTcRequestApproval = () => {
             if (busy) return
             setBusy(true)
             try {
-                setRequest(await decideTcRequestViaApi(id, 'approve', superAdminRemarks))
+                const updated = await decideTcRequestViaApi(id, 'approve', superAdminRemarks)
+                setRequest(updated)
+                toast.success('Transfer certificate approved and issued.')
             } catch (error) {
                 toast.error(error?.message || 'The request could not be approved.')
+            } finally {
+                setBusy(false)
             }
-            setBusy(false)
             return
         }
         const updated = approveTcRequest(id, superAdminRemarks)
-        if (updated) setRequest(updated)
+        if (updated) {
+            setRequest(updated)
+            toast.success('Transfer certificate approved and issued.')
+        } else {
+            toast.error('The request could not be approved.')
+        }
     }
 
     const handleReject = async () => {
@@ -71,15 +79,23 @@ const ViewTcRequestApproval = () => {
             if (busy) return
             setBusy(true)
             try {
-                setRequest(await decideTcRequestViaApi(id, 'reject', superAdminRemarks))
+                const updated = await decideTcRequestViaApi(id, 'reject', superAdminRemarks)
+                setRequest(updated)
+                toast.success('Transfer certificate request rejected.')
             } catch (error) {
                 toast.error(error?.message || 'The request could not be rejected.')
+            } finally {
+                setBusy(false)
             }
-            setBusy(false)
             return
         }
         const updated = rejectTcRequest(id, superAdminRemarks, 'admin')
-        if (updated) setRequest(updated)
+        if (updated) {
+            setRequest(updated)
+            toast.success('Transfer certificate request rejected.')
+        } else {
+            toast.error('The request could not be rejected.')
+        }
     }
 
     return (
@@ -136,11 +152,11 @@ const ViewTcRequestApproval = () => {
                                     On approval, the Transfer Certificate will be issued and sent to the student/parent portal.
                                 </p>
                                 <div className='flex sm:justify-end justify-center gap-x-4'>
-                                    <button type='button' onClick={handleReject} className='bg-white text-[#FF0000] text-sm px-8 py-2 rounded-md border border-[#FF0000] hover:bg-[#FF0000] hover:text-white transition-all duration-200 cursor-pointer md:w-auto w-full'>
+                                    <button type='button' disabled={busy} onClick={handleReject} className='bg-white text-[#FF0000] text-sm px-8 py-2 rounded-md border border-[#FF0000] hover:bg-[#FF0000] hover:text-white transition-all duration-200 cursor-pointer md:w-auto w-full disabled:opacity-60'>
                                         Reject
                                     </button>
-                                    <button type='button' onClick={handleApprove} className='bg-[#4CAF50] text-white text-sm px-8 py-2 rounded-md border border-[#4CAF50] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'>
-                                        Approve & Issue TC
+                                    <button type='button' disabled={busy} onClick={handleApprove} className='bg-[#4CAF50] text-white text-sm px-8 py-2 rounded-md border border-[#4CAF50] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full disabled:opacity-60'>
+                                        {busy ? 'Saving…' : 'Approve & Issue TC'}
                                     </button>
                                 </div>
                             </div>

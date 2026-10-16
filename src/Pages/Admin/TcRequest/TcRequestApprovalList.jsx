@@ -146,7 +146,19 @@ const TcRequestApprovalList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='tc-approvals'
+                rows={filteredRequests.map((r) => ({
+                    requestId: r.requestId,
+                    studentName: r.studentName,
+                    admissionNumber: r.admissionNumber,
+                    status: r.status,
+                    forwardedOn: r.forwardedOn,
+                }))}
+                exportDescription={<>You are exporting {filteredRequests.length} record{filteredRequests.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

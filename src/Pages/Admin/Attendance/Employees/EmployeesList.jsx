@@ -216,7 +216,18 @@ const EmployeesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='employee-attendance'
+                rows={filteredRecords.map((r) => ({
+                    employeeId: r.employeeId || r.id,
+                    employeeName: r.employeeName || r.name,
+                    department: r.department,
+                    status: r.status || r.attendanceStatus,
+                }))}
+                exportDescription={<>You are exporting {filteredRecords.length} record{filteredRecords.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

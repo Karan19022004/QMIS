@@ -222,7 +222,20 @@ const StudentDatabaseListView = ({
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='student-database'
+                rows={filteredRows.map((s) => ({
+                    admissionNumber: s.admissionNumber,
+                    name: s.name,
+                    classSection: s.classSection || s.className,
+                    status: s.status,
+                    mobileNumber: s.mobileNumber,
+                    email: s.email,
+                }))}
+                exportDescription={<>You are exporting {filteredRows.length} record{filteredRows.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

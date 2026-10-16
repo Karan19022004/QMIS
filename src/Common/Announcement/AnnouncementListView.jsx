@@ -229,7 +229,18 @@ export default function AnnouncementListView({ roleKey }) {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='announcements'
+                rows={filteredAnnouncements.map((a) => ({
+                    title: a.title,
+                    audience: a.audience || a.targetAudience,
+                    status: a.status,
+                    publishedOn: a.publishedOn || a.date,
+                }))}
+                exportDescription={<>You are exporting {filteredAnnouncements.length} record{filteredAnnouncements.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

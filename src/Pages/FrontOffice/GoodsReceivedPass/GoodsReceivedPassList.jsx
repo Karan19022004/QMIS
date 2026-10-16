@@ -221,7 +221,20 @@ const GoodsReceivedPassList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} exportDescription={<>You are exporting {filteredRecords.length} record{filteredRecords.length === 1 ? '' : 's'} {statusFilter && <span className='text-[#515DEF]'>( Filtered: {statusFilter} )</span>}</>} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='goods-received-passes'
+                rows={filteredRecords.map((r) => ({
+                    id: r.id || r.publicId,
+                    supplierName: r.supplierName,
+                    billNo: r.billNo,
+                    date: r.date,
+                    paymentType: r.paymentType,
+                    status: r.status,
+                }))}
+                exportDescription={<>You are exporting {filteredRecords.length} record{filteredRecords.length === 1 ? '' : 's'} {statusFilter && <span className='text-[#515DEF]'>( Filtered: {statusFilter} )</span>}</>}
+            />
 
             {deleteModal && (
                 <div className='fixed inset-0 z-500 flex items-center justify-center'>

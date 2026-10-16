@@ -10,8 +10,9 @@ import {
 } from './myAttendanceData'
 
 const MyAttendance = () => {
-    const [fromDate, setFromDate] = useState(new Date())
-    const [toDate, setToDate] = useState(new Date())
+    // Default open (no date lock) so seeded demo rows remain visible for walkthroughs.
+    const [fromDate, setFromDate] = useState(null)
+    const [toDate, setToDate] = useState(null)
     const [exportModal, setExportModal] = useState(false)
 
     return (
@@ -141,7 +142,20 @@ const MyAttendance = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='teacher-my-attendance'
+                rows={MY_ATTENDANCE_LIST.map((r) => ({
+                    employeeId: r.employeeId,
+                    name: r.name,
+                    date: r.date,
+                    inTime: r.inTime,
+                    outTime: r.outTime,
+                    attendanceStatus: r.attendanceStatus,
+                }))}
+                exportDescription={<>You are exporting {MY_ATTENDANCE_LIST.length} record{MY_ATTENDANCE_LIST.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

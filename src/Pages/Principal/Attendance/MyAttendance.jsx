@@ -202,7 +202,20 @@ const MyAttendance = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='principal-my-attendance'
+                rows={filtered.map((r) => ({
+                    employeeId: r.employeeId,
+                    name: r.name,
+                    date: r.date,
+                    inTime: r.inTime,
+                    outTime: r.outTime,
+                    attendanceStatus: r.attendanceStatus,
+                }))}
+                exportDescription={<>You are exporting {filtered.length} record{filtered.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

@@ -148,3 +148,11 @@ export const loadEmployeeDirectory = async () => {
     ]
     return { records, warnings }
 }
+
+/** Resolve one employee detail from the directory (HR + optional RBAC merge). */
+export const getEmployeeDetailFromDirectory = async (id) => {
+    const { records } = await loadEmployeeDirectory()
+    const key = String(id)
+    const match = records.find((item) => String(item.row?.id) === key || String(item.row?.employeeId) === key)
+    return match?.detail || null
+}

@@ -110,14 +110,19 @@ export async function hydrateHrStore() {
             return false
         })
         if (!snapshot.seeded && !hasRemoteRows) {
-            // Brand-new campus: mark empty API collections as seeded (no demo seed upload).
+            // Brand-new campus: upload the local demo seed once (no SMTP/WhatsApp; data only).
             await Promise.all(
                 Object.values(HR_KEYS).map((key) => {
-                    const empty = emptyFor(key)
-                    cache[key] = empty
-                    return pushHrKey(key, empty)
+                    const seed = fallbackFor(key)
+                    const value = seed === undefined ? emptyFor(key) : seed
+                    cache[key] = Array.isArray(value) ? asList(value, []) : value
+                    return pushHrKey(key, cache[key])
                 }),
             )
+        } else if (Array.isArray(cache[HR_KEYS.claims]) && cache[HR_KEYS.claims].length === 0 && SEED.claims?.length) {
+            // Soft-fill claims only when the campus already has other HR data but claims is empty.
+            cache[HR_KEYS.claims] = asList(SEED.claims, [])
+            await pushHrKey(HR_KEYS.claims, cache[HR_KEYS.claims])
         }
         if (!snapshot.seeded) {
             await markHrSeeded()

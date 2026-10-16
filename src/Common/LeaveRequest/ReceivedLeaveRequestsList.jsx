@@ -156,7 +156,22 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='received-leave-requests'
+                rows={filteredRequests.map((r) => ({
+                    leaveRequestId: r.leaveRequestId,
+                    requestedBy: r.requestedBy,
+                    role: r.role,
+                    leaveType: r.leaveType,
+                    fromDate: r.fromDate,
+                    toDate: r.toDate,
+                    status: r.status,
+                    appliedDate: r.appliedDate,
+                }))}
+                exportDescription={<>You are exporting {filteredRequests.length} record{filteredRequests.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

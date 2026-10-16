@@ -249,9 +249,15 @@ export const createLeaveRequestViaApi = async ({ leaveType, fromDate, toDate, ho
 }
 
 export const decideLeaveRequestViaApi = async (id, status, remarks) => {
-    await decideLeaveApi(id, status === 'Approved' ? 'approve' : 'deny', remarks)
+    const decided = await decideLeaveApi(id, status === 'Approved' ? 'approve' : 'deny', remarks)
     await hydrateLeaveRequestsFromApi()
-    return loadFromStorage().find((request) => request.id === id) ?? null
+    const fromCache = loadFromStorage().find(
+        (request) =>
+            request.id === id ||
+            request.leaveRequestId === id ||
+            (decided?.id && request.id === decided.id),
+    )
+    return fromCache ?? (decided ? mapApiLeave(decided) : null)
 }
 
 /** Approver can act now: pending and the request is waiting on this role. */
@@ -412,7 +418,9 @@ const generateLeaveRequestId = (requests) => {
 export const getAllLeaveRequests = () => loadFromStorage()
 
 export const getLeaveRequestById = (id) =>
-    loadFromStorage().find((request) => request.id === id) ?? null
+    loadFromStorage().find(
+        (request) => request.id === id || request.leaveRequestId === id,
+    ) ?? null
 
 export const getMyLeaveRequestsForRole = (submitterRole) => {
     const resolvedRole = resolveRoleKey(submitterRole)

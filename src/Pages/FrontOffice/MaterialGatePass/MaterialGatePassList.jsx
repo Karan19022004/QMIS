@@ -324,6 +324,15 @@ const MaterialGatePassList = () => {
             <ExportModal
                 exportModal={exportModal}
                 setExportModal={setExportModal}
+                filename='material-gate-passes'
+                rows={filteredRecords.map((r) => ({
+                    id: r.id || r.publicId,
+                    passType: r.passType,
+                    date: r.date,
+                    driverName: r.driverName,
+                    vehicleNo: r.vehicleNo,
+                    status: r.status,
+                }))}
                 exportDescription={
                     <>
                         You are exporting {filteredRecords.length} record{filteredRecords.length === 1 ? '' : 's'}{' '}

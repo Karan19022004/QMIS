@@ -168,7 +168,20 @@ const StudentTransfer = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='student-transfers'
+                rows={rows.map((r) => ({
+                    id: r.id || r.publicId,
+                    studentName: r.studentName,
+                    fromClass: r.fromClass || r.classSection,
+                    toSchool: r.toSchool || r.transferTo,
+                    status: r.status,
+                    date: r.date || r.requestedOn,
+                }))}
+                exportDescription={<>You are exporting {rows.length} record{rows.length === 1 ? '' : 's'}.</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>

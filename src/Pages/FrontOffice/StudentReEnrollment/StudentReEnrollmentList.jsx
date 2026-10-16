@@ -192,7 +192,20 @@ const StudentReEnrollmentList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='student-re-enrollments'
+                rows={filteredRecords.map((r) => ({
+                    id: r.id || r.publicId,
+                    studentName: r.studentName,
+                    admissionNumber: r.admissionNumber || r.studentId,
+                    classSection: r.classSection,
+                    status: r.status,
+                    date: r.date || r.requestedOn,
+                }))}
+                exportDescription={<>You are exporting {filteredRecords.length} record{filteredRecords.length === 1 ? '' : 's'}.</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>

@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.core.passwords import generate_temporary_password
 from app.core.security import hash_password
 from app.models import HrEmployee, HrRecord, Role, User
-from app.deps import role_code_for
+from app.deps import permission_codes_for, role_code_for
 from app.permissions.matrix import ALL_ROLES
 from app.services.audit import write_audit
 from app.services.errors import fail
@@ -126,6 +126,9 @@ def list_employees(db: Session, actor: User) -> list[HrEmployee]:
         ).all()
     )
     if _sees_all(db, actor):
+        return rows
+    # Campus directory readers (PRM / Principal / Director): full campus list, still no hr.write.
+    if "hr.employees.read" in permission_codes_for(db, actor):
         return rows
     own = _own_employee(db, actor)
     if own is None:

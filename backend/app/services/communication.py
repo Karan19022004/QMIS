@@ -13,6 +13,7 @@ from app.models import Conversation, ConversationParticipant, FileAsset, HrEmplo
 from app.models.base import utcnow
 from app.permissions.matrix import ALL_ROLES
 from app.services import files as file_service
+from app.services.approvals import _notify
 from app.services.audit import write_audit
 from app.services.errors import fail
 
@@ -250,6 +251,19 @@ def send(db: Session, actor: User, conversation_id: UUID | None, *, other_id: UU
         db.flush()
         mine = _mine(db, row, actor)
         mine.last_read_at = message.created_at
+        other = _other(db, row, actor)
+        if other is not None:
+            sender_name = _person(db, actor)["name"]
+            preview = body[:120] if body else ((stored.original_name if stored else None) or "Attachment")
+            _notify(
+                db,
+                campus_id=actor.campus_id,
+                title=f"New message from {sender_name}",
+                body=preview,
+                entity_type="conversation",
+                entity_id=str(row.id),
+                user_id=other.id,
+            )
         write_audit(
             db, action="MESSAGE_SENT", entity_type="conversation", entity_id=str(row.id),
             actor_id=actor.id, campus_id=actor.campus_id, details=str(message.id),

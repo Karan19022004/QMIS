@@ -285,7 +285,20 @@ const HostelGatePassList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='hostel-gate-passes'
+                rows={filteredRecords.map((r) => ({
+                    id: r.id || r.publicId,
+                    studentName: r.studentName,
+                    classSection: r.classSection,
+                    hostel: r.hostel,
+                    outDate: r.outDate,
+                    status: r.status,
+                }))}
+                exportDescription={<>You are exporting {filteredRecords.length} record{filteredRecords.length === 1 ? '' : 's'}.</>}
+            />
         </section>
     )
 }

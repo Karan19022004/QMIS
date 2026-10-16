@@ -118,7 +118,7 @@ const Payslip = () => {
                 <div className='flex flex-wrap gap-2 mt-4'>
                     <PrimaryButton onClick={() => { upsertPayslip(slip, month, year); openPrintDocument({ title: `Payslip ${model.monthLabel}`, body: html }) }}>Print Payslip</PrimaryButton>
                     <PrimaryButton onClick={() => { upsertPayslip(slip, month, year); downloadHtml(`payslip-${slip.employeeId}-${month}-${year}.html`, `<!doctype html><html><head><meta charset="utf-8"><title>Payslip</title></head><body>${html}</body></html>`) }}>Export Payslip</PrimaryButton>
-                    <PrimaryButton onClick={() => { queueCommunication({ channel: 'Email', subject: `Payslip ${slip.month}`, audience: slip.employeeName }); toast.success('Payslip queued as DEMO_SENT.') }}>Send demo email</PrimaryButton>
+                    <PrimaryButton onClick={() => { queueCommunication({ channel: 'Email', subject: `Payslip ${slip.month}`, audience: slip.employeeName }); toast.success('Payslip queued locally (SMTP not connected for this demo).') }}>Queue local notice</PrimaryButton>
                 </div>
             </div>}
         </section>
@@ -228,24 +228,61 @@ const ReferralBonus = () => {
 const ClaimCompensation = () => {
     const tick = useHrTick()
     const rows = useMemo(() => getClaims(), [tick])
-    const [form, setForm] = useState({ employee: 'Priya Sharma', claimType: 'Extra work time', amount: '', approver: 'HR', remarks: '' })
+    const employees = useMemo(() => getEmployees().filter((item) => item?.status !== 'Inactive'), [tick])
+    const [form, setForm] = useState({
+        employeeId: '',
+        claimType: 'Extra work time',
+        amount: '',
+        approver: 'HR',
+        remarks: '',
+    })
     const save = (event) => {
         event.preventDefault()
-        const next = [{ id: nextId('CLM', rows), ...form, status: 'Submitted', amount: Number(form.amount) || 0 }, ...rows]
+        const employee = employees.find((item) => item.id === form.employeeId) || employees[0]
+        if (!employee) {
+            toast.error('Add an employee before filing a claim.')
+            return
+        }
+        const next = [{
+            id: nextId('CLM', rows),
+            employeeId: employee.id,
+            employee: employee.name,
+            claimType: form.claimType,
+            amount: Number(form.amount) || 0,
+            approver: form.approver,
+            remarks: form.remarks,
+            status: 'Submitted',
+        }, ...rows]
         saveClaims(next)
         toast.success('Claim saved for HR review.')
+        setForm({ employeeId: employee.id, claimType: 'Extra work time', amount: '', approver: 'HR', remarks: '' })
     }
     const review = (id) => {
         saveClaims(rows.map((row) => row.id === id ? { ...row, status: row.status === 'Submitted' ? 'HR Reviewed' : 'Closed' } : row))
     }
     return (
         <section className='space-y-4'>
-            <PageIntro text='Demo claim form. The official compensation format has not been supplied, so these fields are a working placeholder.' />
+            <PageIntro text='Staff claim / compensation requests. SMTP delivery is not required for this campus demo — records stay in HR.' />
             <form onSubmit={save} className='bg-white rounded-2xl shadow-md p-4 grid md:grid-cols-4 gap-3'>
-                <input className='border rounded-md px-2 py-2' value={form.employee} onChange={(e) => setForm({ ...form, employee: e.target.value })} placeholder='Employee' />
-                <select className='border rounded-md px-2 py-2' value={form.claimType} onChange={(e) => setForm({ ...form, claimType: e.target.value })}><option>Extra work time</option><option>Admission referral</option><option>Staff joining referral</option><option>Medical</option><option>Travel</option></select>
+                <select
+                    className='border rounded-md px-2 py-2'
+                    value={form.employeeId || employees[0]?.id || ''}
+                    onChange={(e) => setForm({ ...form, employeeId: e.target.value })}
+                    required
+                >
+                    {employees.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name} · {item.id}</option>
+                    ))}
+                </select>
+                <select className='border rounded-md px-2 py-2' value={form.claimType} onChange={(e) => setForm({ ...form, claimType: e.target.value })}>
+                    <option>Extra work time</option>
+                    <option>Admission referral</option>
+                    <option>Staff joining referral</option>
+                    <option>Medical</option>
+                    <option>Travel</option>
+                </select>
                 <input className='border rounded-md px-2 py-2' value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder='Amount' />
-                <button className='bg-[#515DEF] text-white rounded-md text-sm cursor-pointer'>Submit claim</button>
+                <button type='submit' className='bg-[#515DEF] text-white rounded-md text-sm cursor-pointer'>Submit claim</button>
             </form>
             <div className='bg-white rounded-2xl shadow-md p-4 overflow-x-auto'>
                 <table className='w-full text-sm text-left'><thead className='bg-[#EDEEF5]'><tr>{['Claim', 'Employee', 'Type', 'Amount', 'Status', ''].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>

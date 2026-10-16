@@ -262,7 +262,19 @@ const ExaminationTimetableList = () => {
 
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='examination-timetable'
+                rows={filteredRecords.map((r) => ({
+                    examName: r.examName || r.title,
+                    className: r.className,
+                    subject: r.subject,
+                    examDate: r.examDate || r.date,
+                    status: r.status,
+                }))}
+                exportDescription={<>You are exporting {filteredRecords.length} record{filteredRecords.length === 1 ? '' : 's'}.</>}
+            />
             <TimeTableModal
                 open={Boolean(selectedRecord)}
                 onClose={() => setSelectedRecord(null)}

@@ -262,7 +262,20 @@ const EscalationListPage = ({ roleKey }) => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='escalations'
+                rows={filtered.map((e) => ({
+                    id: e.id || e.escalationId,
+                    subject: e.subject || e.title,
+                    priority: e.priority,
+                    status: e.status,
+                    raisedBy: e.raisedBy || e.createdBy,
+                    date: e.date || e.createdOn,
+                }))}
+                exportDescription={<>You are exporting {filtered.length} record{filtered.length === 1 ? '' : 's'}.</>}
+            />
 
             <div className='flex justify-between items-center px-4 mt-4'>
                 <p className='text-sm font-medium text-[#515DEF]'>

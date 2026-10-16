@@ -60,12 +60,18 @@ const ViewTcRequest = () => {
                 toast.success('Forwarded to Super Admin.')
             } catch (error) {
                 toast.error(error?.message || 'Could not forward the request.')
+            } finally {
+                setBusy(false)
             }
-            setBusy(false)
             return
         }
         const updated = forwardTcRequestToSuperAdmin(id, prmRemarks)
-        if (updated) setRequest(updated)
+        if (updated) {
+            setRequest(updated)
+            toast.success('Forwarded to Super Admin.')
+        } else {
+            toast.error('Could not forward the request.')
+        }
     }
 
     const handleReject = async () => {
@@ -77,12 +83,18 @@ const ViewTcRequest = () => {
                 toast.success('TC request rejected.')
             } catch (error) {
                 toast.error(error?.message || 'Could not reject the request.')
+            } finally {
+                setBusy(false)
             }
-            setBusy(false)
             return
         }
         const updated = rejectTcRequest(id, prmRemarks, 'prm')
-        if (updated) setRequest(updated)
+        if (updated) {
+            setRequest(updated)
+            toast.success('TC request rejected.')
+        } else {
+            toast.error('Could not reject the request.')
+        }
     }
 
     return (
