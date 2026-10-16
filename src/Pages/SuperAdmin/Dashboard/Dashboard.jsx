@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
 import {
     GraduationCap,
@@ -39,6 +39,11 @@ import {
     RECENT_APPROVALS,
     findingSeverityBadgeColor,
 } from './dashboardData'
+import { hydrateEnrolledStudentsFromApi } from '../../../Common/StudentDatabase/enrolledStudentsData'
+import { getStudentsList } from '../../../Common/StudentDatabase/studentDatabaseData'
+import { canUseEmployeeDirectoryApi, loadEmployeeDirectory } from '../../../services/employeeDirectoryApi'
+import { isApiStudentsEnabled } from '../../../services/apiClient'
+import { getPendingApprovalCount, hydrateApprovalsFromApi } from '../Approvals/approvalsData'
 
 const KPI_ICONS = {
     students: GraduationCap,
@@ -175,6 +180,63 @@ const thClass = 'px-3 py-3 text-[#0C1E5B] font-medium uppercase text-xs'
 const tdClass = 'px-3 py-3 text-[#667085] text-sm'
 
 const Dashboard = () => {
+    const [liveCounts, setLiveCounts] = useState({
+        students: null,
+        employees: null,
+        approvals: null,
+    })
+
+    useEffect(() => {
+        let active = true
+        const load = async () => {
+            let students = null
+            let employees = null
+            let approvals = null
+            try {
+                if (isApiStudentsEnabled()) await hydrateEnrolledStudentsFromApi()
+                students = getStudentsList().length
+            } catch {
+                students = getStudentsList().length
+            }
+            try {
+                if (canUseEmployeeDirectoryApi()) {
+                    const directory = await loadEmployeeDirectory()
+                    employees = directory.records?.length ?? 0
+                }
+            } catch {
+                employees = null
+            }
+            try {
+                await hydrateApprovalsFromApi()
+                approvals = getPendingApprovalCount()
+            } catch {
+                approvals = getPendingApprovalCount()
+            }
+            if (active) setLiveCounts({ students, employees, approvals })
+        }
+        load()
+        return () => {
+            active = false
+        }
+    }, [])
+
+    const kpiCards = useMemo(
+        () =>
+            EXECUTIVE_KPI_CARDS.map((card) => {
+                if (card.key === 'students' && liveCounts.students != null) {
+                    return { ...card, value: String(liveCounts.students), comparison: 'from student database' }
+                }
+                if (card.key === 'employees' && liveCounts.employees != null) {
+                    return { ...card, value: String(liveCounts.employees), comparison: 'from HR directory' }
+                }
+                if (card.key === 'approvals' && liveCounts.approvals != null) {
+                    return { ...card, value: String(liveCounts.approvals), comparison: 'pending in Approvals' }
+                }
+                return card
+            }),
+        [liveCounts],
+    )
+
     const financialTrendOption = useMemo(() => ({
         tooltip: { trigger: 'axis' },
         legend: {
@@ -342,7 +404,7 @@ const Dashboard = () => {
             </div>
 
             <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4'>
-                {EXECUTIVE_KPI_CARDS.map((card) => (
+                {kpiCards.map((card) => (
                     <KpiCard key={card.key} card={card} />
                 ))}
             </div>

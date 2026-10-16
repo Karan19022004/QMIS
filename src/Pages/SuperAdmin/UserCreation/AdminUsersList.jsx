@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus, UserPlus } from 'lucide-react'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
@@ -9,12 +9,14 @@ import {
     getAdminUserSummary,
     getAllAdminUsers,
     getPermissionCount,
+    hydrateAdminUsersFromApi,
     ROUTE_BASE,
     statusBadgeColor,
 } from './adminUsersData'
 
 const AdminUsersList = () => {
     const [records, setRecords] = useState(() => getAllAdminUsers())
+    const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [status, setStatus] = useState('')
     const [exportModal, setExportModal] = useState(false)
@@ -25,7 +27,21 @@ const AdminUsersList = () => {
         [records, search, status],
     )
 
-    const refreshUsers = () => setRecords(getAllAdminUsers())
+    const refreshUsers = async () => {
+        setLoading(true)
+        try {
+            const rows = await hydrateAdminUsersFromApi()
+            setRecords(rows)
+        } catch {
+            setRecords(getAllAdminUsers())
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        refreshUsers()
+    }, [])
 
     const clearFilters = () => {
         setSearch('')
@@ -42,7 +58,7 @@ const AdminUsersList = () => {
                     <div>
                         <h1 className='text-xl font-semibold text-black'>User Creation</h1>
                         <p className='text-sm text-[#667085] mt-1'>
-                            Create and manage Administrator portal accounts with module-level permissions.
+                            Administrator portal accounts from the shared user API — same identities Employee Database and Admin RBAC use.
                         </p>
                     </div>
                 </div>
@@ -141,7 +157,13 @@ const AdminUsersList = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredRecords.length === 0 ? (
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={7} className='px-2 py-8 text-center text-[#667085]'>
+                                        Loading admin users…
+                                    </td>
+                                </tr>
+                            ) : filteredRecords.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className='px-2 py-8 text-center text-[#667085]'>
                                         No admin users found.

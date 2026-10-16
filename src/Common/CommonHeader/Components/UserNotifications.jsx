@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { BellIcon } from "../../CommonIcons/CommonIcons"
 import {
     canUseNotificationsApi,
@@ -6,12 +7,23 @@ import {
     markNotificationReadApi,
 } from "../../../services/notificationsApi"
 
+const notificationsPathFor = (pathname) => {
+    const segment = String(pathname || '').split('/').filter(Boolean)[0]
+    if (!segment) return '/admin/notifications'
+    if (segment === 'front-office') return '/front-office/notifications'
+    if (segment === 'gate-keeper') return '/gate-keeper/notifications'
+    if (segment === 'gatekeeper-manager') return '/gatekeeper-manager/notifications'
+    return `/${segment}/notifications`
+}
+
 const POLL_MS = 30000
 
 const UserNotifications = () => {
+    const location = useLocation();
     const [open, setOpen] = useState(false);
     const [items, setItems] = useState([]);
     const dropdownRef = useRef(null);
+    const allPath = notificationsPathFor(location.pathname);
 
     const unreadCount = items.filter((item) => !item.read).length
 
@@ -81,12 +93,21 @@ const UserNotifications = () => {
             {/* Dropdown */}
             {open && (
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-100 divide-y divide-gray-100 z-50 max-h-96 overflow-y-auto">
-                    <div className="py-2 px-4 font-semibold text-gray-700 bg-gray-50">
-                        Notifications
+                    <div className="py-2 px-4 font-semibold text-gray-700 bg-gray-50 flex items-center justify-between gap-2">
+                        <span>Notifications</span>
+                        <Link
+                            to={allPath}
+                            onClick={() => setOpen(false)}
+                            className="text-xs font-medium text-[#515DEF] hover:underline"
+                        >
+                            View all
+                        </Link>
                     </div>
                     {items.length === 0 ? (
                         <div className="py-3 px-4 text-sm text-gray-600">
-                            No new notifications!
+                            {canUseNotificationsApi()
+                                ? 'No new notifications from the school inbox.'
+                                : 'No new notifications!'}
                         </div>
                     ) : (
                         items.map((item) => (

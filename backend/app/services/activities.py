@@ -13,6 +13,7 @@ from app.deps import permission_codes_for, role_code_for
 from app.models import Activity, ActivityPlayer, User
 from app.models.base import utcnow
 from app.permissions.matrix import ALL_ROLES
+from app.services.approvals import _notify
 from app.services.audit import write_audit
 from app.services.errors import fail
 
@@ -220,6 +221,16 @@ def create(db: Session, actor: User, *, activity_type: str, payload: dict) -> di
         db, action="ACTIVITY_CREATED", entity_type="activity", entity_id=str(row.id),
         actor_id=actor.id, campus_id=actor.campus_id, details=row.code,
     )
+    # Super Admin is the activity approver — put the request in their in-app inbox.
+    _notify(
+        db,
+        campus_id=actor.campus_id,
+        role_code="superadmin",
+        title=f"Activity approval needed: {row.event_name[:80]}",
+        body=f"{row.code} ({activity_type}) submitted by {row.submitted_by}.",
+        entity_type="activity",
+        entity_id=str(row.id),
+    )
     db.commit()
     db.refresh(row)
     return _out(row)
@@ -268,5 +279,15 @@ def decide(db: Session, actor: User, ref: str, status: str) -> dict:
         db, action=f"ACTIVITY_{status.upper()}", entity_type="activity", entity_id=str(row.id),
         actor_id=actor.id, campus_id=actor.campus_id, details=row.code,
     )
+    if row.created_by and status in {"Approved", "Rejected"}:
+        _notify(
+            db,
+            campus_id=row.campus_id,
+            user_id=row.created_by,
+            title=f"Activity {status.lower()}: {row.event_name[:80]}",
+            body=f"{row.code} was {status.lower()} by Super Admin.",
+            entity_type="activity",
+            entity_id=str(row.id),
+        )
     db.commit()
     return _out(row)

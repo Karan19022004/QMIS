@@ -10,6 +10,7 @@ const NotificationsListView = ({
     typeBadgeColor,
     title = 'Notifications',
     onOpen,
+    emptyMessage = 'No notifications found.',
 }) => {
     const [filters, setFilters] = useState(emptyFilters)
     const [expandedId, setExpandedId] = useState(null)
@@ -68,7 +69,7 @@ const NotificationsListView = ({
 
             {filtered.length === 0 ? (
                 <div className='bg-white rounded-2xl shadow-md p-12 text-center text-[#667085]'>
-                    No notifications found.
+                    {emptyMessage}
                 </div>
             ) : (
                 <div className='flex flex-col gap-3'>

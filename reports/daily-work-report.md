@@ -8,6 +8,35 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — Super Admin notification connection
+
+**Status:** Super Admin inbox is live on `GET /notifications`; activity create notifies `role_code=superadmin`.
+
+### Verified
+- Backend was restarted (port 8000); SA page shows **Connected to the school notification API**
+- Header bell badge **2**; dropdown lists the same rows + **View all**
+- Admin created cultural activity `ACT-CUL-005` → SA inbox got **Activity approval needed: Notify SA Connection Test**
+- Activity decide still notifies the submitter on Approve/Reject
+
+---
+
+## 16 October 2026 — Super Admin interlinked school SoT
+
+**Status:** Super Admin modules share the same backend / Front Office / HR data as the rest of the ERP (not isolated mocks).
+
+### Live / shared sources
+- **Students / Employees / Attendance** → enrolled students API + HR directory + attendance API
+- **Gate Pass** → Front Office student/hostel/material collections (hydrate on open; **5** FO rows in browser)
+- **Notifications** → `GET /notifications` (same map as Admin)
+- **User Creation** → `/admin/users` list + create (same admin accounts as RBAC / Employee Directory)
+- **Dashboard KPIs** → live Total Students / Total Employees / Pending Approvals from those sources
+- **Leave / Activities / Approvals / Calendar / Announcements / Escalations / Tasks** → already on Common + API hydrate paths
+
+### Still demo / not full SoT
+- Finance overview section cards, Audit report section lists, Transport overview, Star Ratings teacher mock rows, Activity Logs seed tables
+
+---
+
 ## 16 October 2026 — Super Admin backend data flow (students / employees / attendance)
 
 **Status:** Super Admin User Database + Attendance now use the **same API SoT as Admin** (no separate mock lists).
@@ -17,10 +46,8 @@ New days go at the top. Older days stay below so the history is in one file.
 - **Employee List / View** → `useEmployeeDirectory` / HR portal + User Creation merge (verified **21** in browser)
 - **Student & Employee Attendance** → `adminAttendanceApi` + `useAttendanceQuery` (verified student attendance rows for today)
 
-### Still separate / demo shells (unchanged this pass)
-- Finance / Audit / Dashboard KPI cards (static demo datasets)
-- Gate Pass aggregates Front Office local modules
-- Approvals seed rows + live activity approvals (activities already API)
+### Still separate / demo shells (updated later same day — see interlinked SoT section)
+- Finance / Audit / some overview cards remain demo datasets
 
 ---
 
