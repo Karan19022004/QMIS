@@ -8,6 +8,26 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — Seven-role demo verification audit
+
+**Status:** All seven SignIn demo roles verified; 199 sidebar leaf pages render; Teacher Mark Entry blank screen fixed.
+
+### Done
+- Chip credentials matched backend seed config (7/7)
+- API + UI login / invalid password / session refresh / logout checked per role
+- Playwright crawl of every sidebar leaf (199) → all PASS after fix
+- RBAC matrix for admin users / finance / HR endpoints recorded
+- Live vs mock classification for Finance / Audit / Transport / Star Ratings / Activity Logs
+- Deliverables: `reports/seven-role-demo-audit.md`, `reports/seven-role-module-matrix.csv`
+- **Fix:** Mark Entry ExportModal referenced undefined `students` (blank Teacher page)
+
+### Open
+- Soft RBAC: Teacher/PRM/Principal can GET some `/hr/*` reads (writes correctly 403)
+- Three intentional static pytest failures (demo chips + SA attendance API wiring)
+- Mock shells remain for SA Audit / Transport / Activity Logs / most Finance tabs
+
+---
+
 ## 16 October 2026 — Super Admin notification connection
 
 **Status:** Super Admin inbox is live on `GET /notifications`; activity create notifies `role_code=superadmin`.
