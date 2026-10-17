@@ -1,4 +1,12 @@
-const STORAGE_KEY = 'principal-teacher-allocation'
+import {
+    canUseAcademicsApi,
+    listAcademicsCollectionApi,
+    replaceAcademicsCollectionApi,
+    stripAcademicsMeta,
+} from '../../../services/academicsApi'
+
+export const STORAGE_KEY = 'principal-teacher-allocation'
+export const TEACHER_ALLOCATIONS_UPDATED_EVENT = 'schoolerp-teacher-allocations-updated'
 
 export const ROUTE_BASE = '/principal/academic/teacher-allocation'
 
@@ -155,7 +163,53 @@ const DEFAULT_ALLOCATIONS = [
     },
 ]
 
+let apiMemoryAllocations = null
+
+const usesApiMemory = () => canUseAcademicsApi()
+
+const emitUpdated = () => {
+    try {
+        window.dispatchEvent(new CustomEvent(TEACHER_ALLOCATIONS_UPDATED_EVENT))
+    } catch {
+        /* ignore */
+    }
+}
+
+const purgeBrowserCopies = () => {
+    try {
+        localStorage.removeItem(STORAGE_KEY)
+        sessionStorage.removeItem(STORAGE_KEY)
+    } catch {
+        /* ignore */
+    }
+}
+
+const cleanList = (rows) => (Array.isArray(rows) ? rows.map(stripAcademicsMeta) : [])
+
+export const clearTeacherAllocationMemory = () => {
+    apiMemoryAllocations = null
+    emitUpdated()
+}
+
+export const hydrateTeacherAllocationsFromApi = async () => {
+    if (!canUseAcademicsApi()) return false
+    try {
+        const rows = await listAcademicsCollectionApi('teacher-allocations')
+        apiMemoryAllocations = cleanList(rows)
+        purgeBrowserCopies()
+        emitUpdated()
+        return true
+    } catch {
+        apiMemoryAllocations = []
+        emitUpdated()
+        return false
+    }
+}
+
 export const getAllocations = () => {
+    if (usesApiMemory()) {
+        return Array.isArray(apiMemoryAllocations) ? [...apiMemoryAllocations] : []
+    }
     try {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) return JSON.parse(stored)
@@ -166,7 +220,14 @@ export const getAllocations = () => {
 }
 
 export const saveAllocations = (records) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    const list = Array.isArray(records) ? records : []
+    if (usesApiMemory()) {
+        apiMemoryAllocations = list
+        replaceAcademicsCollectionApi('teacher-allocations', cleanList(list)).catch(() => {})
+        emitUpdated()
+        return
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
 }
 
 export const getTeacherById = (employeeId) =>

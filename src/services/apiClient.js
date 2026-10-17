@@ -146,6 +146,8 @@ export const isApiTcEnabled = () => flagOrAuth('VITE_USE_API_TC')
 export const isApiActivitiesEnabled = () => flagOrAuth('VITE_USE_API_ACTIVITIES')
 export const isApiCommunicationEnabled = () => flagOrAuth('VITE_USE_API_COMMUNICATION')
 export const isApiDashboardEnabled = () => flagOrAuth('VITE_USE_API_DASHBOARD')
+/** Principal class timetables + teacher allocations SoT. Defaults on with API auth. */
+export const isApiAcademicsEnabled = () => flagOrAuth('VITE_USE_API_ACADEMICS')
 
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {

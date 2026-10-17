@@ -15,7 +15,9 @@ import {
     emptyTeacherAllocationFilters,
     filterTeacherAllocationRows,
     getTeacherAllocationRows,
+    hydrateTeacherAllocationsFromApi,
     removeTeacherAllocation,
+    TEACHER_ALLOCATIONS_UPDATED_EVENT,
 } from './teacherAllocationData'
 
 const filterInputClass =
@@ -31,11 +33,13 @@ const TeacherAllocationList = () => {
 
     const filteredRows = useMemo(() => filterTeacherAllocationRows(rows, filters), [rows, filters])
 
-    useEffect(() => {
-        setRows(getTeacherAllocationRows())
-    }, [location.key])
-
     const refreshRows = () => setRows(getTeacherAllocationRows())
+
+    useEffect(() => {
+        hydrateTeacherAllocationsFromApi().finally(refreshRows)
+        window.addEventListener(TEACHER_ALLOCATIONS_UPDATED_EVENT, refreshRows)
+        return () => window.removeEventListener(TEACHER_ALLOCATIONS_UPDATED_EVENT, refreshRows)
+    }, [location.key])
 
     const updateFilter = (key, value) => {
         setFilters((current) => ({ ...current, [key]: value }))

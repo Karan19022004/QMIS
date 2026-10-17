@@ -3,6 +3,8 @@ import CommonHeader from '../Common/CommonHeader/CommonHeader'
 import CommonSidebar from '../Common/CommonSidebar/CommonSidebar'
 import CommonBreadcrumb from '../Common/CommonBreadcrumb/CommonBreadcrumb'
 import PrincipalRoutes from '../Routes/PrincipalRoutes'
+import { hydrateClassTimetablesFromApi } from '../Pages/Principal/ClassTimetable/classTimetableData'
+import { hydrateTeacherAllocationsFromApi } from '../Pages/Principal/TeacherAllocation/teacherAllocationData'
 
 const PrincipalLayout = () => {
     const [sidebarHidden, setSidebarHidden] = useState(() => {
@@ -24,6 +26,11 @@ const PrincipalLayout = () => {
 
         window.addEventListener('resize', handleResize)
         return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
+    useEffect(() => {
+        hydrateClassTimetablesFromApi()
+        hydrateTeacherAllocationsFromApi()
     }, [])
 
     return (

@@ -29,6 +29,7 @@ _ADMIN_TABLES_BY_REVISION: tuple[tuple[str, tuple[str, ...]], ...] = (
         ("conversations", "conversation_participants", "messages"),
     ),
     ("0011_front_office_records", ("front_office_records",)),
+    ("0013_academics_records", ("academics_records",)),
 )
 
 _REVISION_ORDER = (

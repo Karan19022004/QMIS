@@ -69,7 +69,10 @@ const Dashboard = () => {
                 <div>
                     <h2 className='text-xl font-semibold text-[#101828]'>HR Dashboard</h2>
                     <p className='text-sm text-[#667085]'>Workforce Overview & People Operations</p>
-                    <p className='text-xs text-[#98A2B3] mt-1'>Academic Year: {academicYear} · {month} 2026</p>
+                    <p className='text-xs text-[#98A2B3] mt-1'>
+                        Academic Year: {academicYear} · {month} 2026 · KPIs from live HR API campus snapshot
+                        (email/WhatsApp delivery remains stubbed until production keys).
+                    </p>
                 </div>
                 <div className='flex flex-wrap gap-2'>
                     <select className='border border-[#EAECF0] rounded-md px-2 py-2 text-sm' value={academicYear} onChange={(event) => setAcademicYear(event.target.value)}>{ACADEMIC_YEARS.map((item) => <option key={item}>{item}</option>)}</select>

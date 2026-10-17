@@ -91,6 +91,8 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("tc.decide", "Approve or reject a transfer-certificate request"),
     ("frontoffice.read", "View Front Office gate passes, transfers and re-enrollment"),
     ("frontoffice.write", "Create and change Front Office campus records"),
+    ("academics.read", "View class timetables, teacher allocations and timetable change requests"),
+    ("academics.write", "Change academics campus collections (principals; teachers may file TT change requests)"),
     ("activities.read", "View cultural, sports and competition activities"),
     ("activities.write", "Add, change and remove activities"),
     ("activities.approve", "Approve or reject an activity"),
@@ -142,6 +144,8 @@ _STAFF_ACADEMIC = list(
             "marks.read",
             "marks.write",
             "results.read",
+            "academics.read",
+            "academics.write",
         ]
     )
 )
@@ -179,6 +183,7 @@ ROLE_PERMISSIONS.update(
                     "notifications.read",
                     "attendance.read",
                     "exams.read",
+                    "academics.read",
                 ]
             )
         ),
@@ -190,6 +195,7 @@ ROLE_PERMISSIONS.update(
                     "notifications.read",
                     "attendance.read",
                     "exams.read",
+                    "academics.read",
                 ]
             )
         ),

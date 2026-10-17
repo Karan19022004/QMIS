@@ -22,7 +22,8 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
 
     useEffect(() => {
         setRefreshKey((value) => value + 1)
-        hydrateLeaveRequestsFromApi() // no-op without an API session; emits the update event when done
+        // API mode: hydrate into memory only (no schoolerp-leave-requests localStorage mirror).
+        hydrateLeaveRequestsFromApi()
     }, [location.pathname])
 
     useEffect(() => {

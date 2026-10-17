@@ -24,6 +24,8 @@ import {
 } from '../services/apiClient'
 import { apiChangePassword, apiLogin, apiLogout, apiMe } from '../services/authApi'
 import { clearLeaveRequestMemory } from '../Common/LeaveRequest/leaveRequestData'
+import { clearClassTimetableMemory } from '../Pages/Principal/ClassTimetable/classTimetableData'
+import { clearTeacherAllocationMemory } from '../Pages/Principal/TeacherAllocation/teacherAllocationData'
 import { clearEscalationMemory } from '../Common/EscalationManagement/escalationData'
 import { clearAnnouncementsMemory } from '../Common/Announcement/announcementData'
 import { clearCalendarMemory } from '../Common/AcademicCalendar/academicCalendarData'
@@ -361,6 +363,8 @@ export const AuthProvider = ({ children }) => {
         }
         sessionStorage.removeItem(STORAGE_KEY)
         clearLeaveRequestMemory() // server-sourced leave requests and escalations are held in memory; drop them with the session
+        clearClassTimetableMemory()
+        clearTeacherAllocationMemory()
         clearEscalationMemory()
         clearStudentDocumentsMemory() // uploaded-document lists are server data too
         clearEmployeeDocumentsMemory()

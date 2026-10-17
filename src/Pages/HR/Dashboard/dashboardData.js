@@ -161,12 +161,18 @@ export const buildHrDashboard = ({ academicYear = '2026–2027', department = 'A
         ...interviews.map((item) => ({ date: item.date, time: item.time, title: `${item.level} Interview`, detail: item.position, to: '/hr/recruitment/interviews' })),
         ...monthTraining.filter((item) => item.status === 'Scheduled').map((item) => ({ date: item.startDate, time: item.time, title: item.title, detail: item.department, to: '/hr/training' })),
         ...list(getOffers()).filter((item) => dated(item.joiningDate) && item.status !== 'Draft' && (department === 'All Departments' || matchesDepartment({ department: item.department }, department))).map((item) => ({ date: item.joiningDate, time: '', title: 'New joiner', detail: item.position, to: '/hr/onboarding/joiners' })),
-        ...pendingReviews.map((item) => ({ date: '30-09-2026', time: '', title: 'Performance review', detail: employeeName(item.employeeId), to: '/hr/performance-review' })),
-        ...pendingExits.map((item) => ({ date: item.lastWorkingDate, time: '', title: 'Exit date', detail: employeeName(item.employeeId), to: '/hr/exit' })),
-        { date: `30-${String(monthNumber).padStart(2, '0')}-2026`, time: '', title: 'Payroll processing', detail: month, to: '/hr/payroll/salary-statement' },
+        ...pendingExits
+            .filter((item) => item.lastWorkingDate)
+            .map((item) => ({
+                date: item.lastWorkingDate,
+                time: '',
+                title: 'Exit date',
+                detail: employeeName(item.employeeId),
+                to: '/hr/exit',
+            })),
     ].filter((item) => {
         const date = parseDate(item.date)
-        return inAcademicYear(date, academicYear) && monthOf(date) === monthNumber
+        return date && inAcademicYear(date, academicYear) && monthOf(date) === monthNumber
     }).sort((a, b) => (parseDate(a.date) || 0) - (parseDate(b.date) || 0)).filter((item, index, rows) => rows.findIndex((other) => other.date === item.date && other.title === item.title && other.detail === item.detail) === index).slice(0, 6)
 
     const selectedPayroll = payrollFor(employees, month, 2026)

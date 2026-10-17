@@ -1,4 +1,5 @@
 from app.models.academics import AcademicYear, FinancialYear, SchoolClass, Section, Subject
+from app.models.academics_record import AcademicsRecord
 from app.models.admission import Admission, AdmissionEnquiry, Guardian, Student
 from app.models.activities import Activity, ActivityPlayer
 from app.models.announcements import Announcement, AnnouncementReply, AnnouncementResponse
@@ -27,6 +28,7 @@ from app.models.user_profile import UserProfile
 
 __all__ = [
     "AcademicYear",
+    "AcademicsRecord",
     "Activity",
     "ActivityPlayer",
     "FinancialYear",

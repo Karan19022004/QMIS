@@ -8,6 +8,28 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 17 October 2026 — Core Partials closed (Principal academics + HR honesty)
+
+**Status:** Closed remaining core **Partial** rows. TOTAL **313 Completed / 0 Partial / 165 Not Completed / 2 Gap** of 480.
+
+### Code
+- Backend `academics_records` + `GET/PUT /api/v1/academics/{collection}` for `class-timetables`, `teacher-allocations`, `class-timetable-change-requests` (migration **0013**)
+- Permissions `academics.read` / `academics.write`; Principal write; Teacher/Coordinator change-requests only
+- FE `academicsApi.js` + Principal Class Timetable / Teacher Allocation hydrate (API memory, purge localStorage)
+- HR Dashboard: KPIs from live HR snapshot; removed illustrative calendar filler; Announcements/Notifications honesty banners
+- Leave Received (HR): confirmed API-mode memory-only (no `schoolerp-leave-requests` mirror)
+- pytest `tests/test_academics_collections.py` — **4 passed**
+- Local Mac: PostgreSQL **18.6 @ 5433** (`postgres`/`root`); Homebrew PG14 on 5432 unused for this project
+
+### Status sheet
+- `QMIS-ERP-Role-Module-Status.updated.17oct-core-partials.docx` (+ review/main/reports sync)
+- Principal **21 / 0 / 0** · HR **35 / 0 / 0** · Biometric **Gap** kept (2)
+
+### Test guide
+- Regenerated `reports/QMIS-ERP-Full-Panel-Test-Guide.md` + PDF hierarchy walkthrough for PG18
+
+---
+
 ## 16 October 2026 — Fifty more modules (Coordinator / Principal / Director)
 
 **Status:** Closed **61** open module rows (net **+58 Completed** on the sheet). TOTAL **307 / 6 / 165 / 2** of 480.

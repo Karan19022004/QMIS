@@ -1,5 +1,13 @@
-const STORAGE_KEY = 'principal-class-timetables'
-const CHANGE_KEY = 'principal-class-timetable-change-requests'
+import {
+    canUseAcademicsApi,
+    listAcademicsCollectionApi,
+    replaceAcademicsCollectionApi,
+    stripAcademicsMeta,
+} from '../../../services/academicsApi'
+
+export const STORAGE_KEY = 'principal-class-timetables'
+export const CHANGE_KEY = 'principal-class-timetable-change-requests'
+export const CLASS_TIMETABLES_UPDATED_EVENT = 'schoolerp-class-timetables-updated'
 
 export const ROUTE_BASE = '/principal/class-timetable'
 export const CREATE_ROUTE = '/principal/create-class-timetable'
@@ -69,7 +77,72 @@ const DEFAULT_CLASS_TIMETABLES = [
     },
 ]
 
+let apiMemoryTimetables = null
+let apiMemoryChanges = null
+
+const usesApiMemory = () => canUseAcademicsApi()
+
+const emitUpdated = () => {
+    try {
+        window.dispatchEvent(new CustomEvent(CLASS_TIMETABLES_UPDATED_EVENT))
+    } catch {
+        /* ignore */
+    }
+}
+
+const purgeBrowserCopies = () => {
+    try {
+        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(CHANGE_KEY)
+        sessionStorage.removeItem(STORAGE_KEY)
+        sessionStorage.removeItem(CHANGE_KEY)
+    } catch {
+        /* ignore */
+    }
+}
+
+export const clearClassTimetableMemory = () => {
+    apiMemoryTimetables = null
+    apiMemoryChanges = null
+    emitUpdated()
+}
+
+const cleanList = (rows) => (Array.isArray(rows) ? rows.map(stripAcademicsMeta) : [])
+
+const pushTimetables = (rows) => {
+    if (!usesApiMemory()) return
+    replaceAcademicsCollectionApi('class-timetables', cleanList(rows)).catch(() => {})
+}
+
+const pushChanges = (rows) => {
+    if (!usesApiMemory()) return
+    replaceAcademicsCollectionApi('class-timetable-change-requests', cleanList(rows)).catch(() => {})
+}
+
+export const hydrateClassTimetablesFromApi = async () => {
+    if (!canUseAcademicsApi()) return false
+    try {
+        const [tts, changes] = await Promise.all([
+            listAcademicsCollectionApi('class-timetables'),
+            listAcademicsCollectionApi('class-timetable-change-requests'),
+        ])
+        apiMemoryTimetables = cleanList(tts)
+        apiMemoryChanges = cleanList(changes)
+        purgeBrowserCopies()
+        emitUpdated()
+        return true
+    } catch {
+        apiMemoryTimetables = []
+        apiMemoryChanges = []
+        emitUpdated()
+        return false
+    }
+}
+
 export const getClassTimetables = () => {
+    if (usesApiMemory()) {
+        return Array.isArray(apiMemoryTimetables) ? [...apiMemoryTimetables] : []
+    }
     try {
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) return JSON.parse(stored)
@@ -80,7 +153,14 @@ export const getClassTimetables = () => {
 }
 
 export const saveClassTimetables = (records) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    const list = Array.isArray(records) ? records : []
+    if (usesApiMemory()) {
+        apiMemoryTimetables = list
+        pushTimetables(list)
+        emitUpdated()
+        return
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
 }
 
 export const getClassTimetableById = (id) =>
@@ -89,7 +169,7 @@ export const getClassTimetableById = (id) =>
 export const generateTimetableId = () => {
     const list = getClassTimetables()
     const max = list.reduce((acc, item) => {
-        const num = Number(item.id.replace('CTT', ''))
+        const num = Number(String(item.id).replace('CTT', ''))
         return Number.isFinite(num) ? Math.max(acc, num) : acc
     }, 0)
     return `CTT${String(max + 1).padStart(3, '0')}`
@@ -151,7 +231,7 @@ export const buildClassGridFromTimelines = (timelines = []) => {
 export const getClassSectionLabel = (record) =>
     `${record.className} - ${record.section}`
 
-const readChanges = () => {
+const readChangesLocal = () => {
     try {
         const stored = localStorage.getItem(CHANGE_KEY)
         if (stored) return JSON.parse(stored)
@@ -161,10 +241,26 @@ const readChanges = () => {
     return []
 }
 
-export const getTimetableChangeRequests = () => readChanges()
+export const getTimetableChangeRequests = () => {
+    if (usesApiMemory()) {
+        return Array.isArray(apiMemoryChanges) ? [...apiMemoryChanges] : []
+    }
+    return readChangesLocal()
+}
+
+const saveChanges = (items) => {
+    const list = Array.isArray(items) ? items : []
+    if (usesApiMemory()) {
+        apiMemoryChanges = list
+        pushChanges(list)
+        emitUpdated()
+        return
+    }
+    localStorage.setItem(CHANGE_KEY, JSON.stringify(list))
+}
 
 export const addTimetableChangeRequest = (payload) => {
-    const items = readChanges()
+    const items = getTimetableChangeRequests()
     const record = {
         id: `TCR-${Date.now()}`,
         timetableId: payload.timetableId || '',
@@ -183,7 +279,7 @@ export const addTimetableChangeRequest = (payload) => {
         reviewedAt: '',
         rejectionReason: '',
     }
-    localStorage.setItem(CHANGE_KEY, JSON.stringify([record, ...items]))
+    saveChanges([record, ...items])
     return record
 }
 
@@ -232,7 +328,7 @@ const applyChangeToTimetable = (request) => {
 }
 
 export const decideTimetableChangeRequest = (id, approved, reviewer, rejectionReason = '') => {
-    const items = readChanges()
+    const items = getTimetableChangeRequests()
     const target = items.find((item) => item.id === id)
     if (!target || target.status !== 'Pending') return items
     if (approved) applyChangeToTimetable(target)
@@ -247,6 +343,6 @@ export const decideTimetableChangeRequest = (id, approved, reviewer, rejectionRe
             }
             : item
     ))
-    localStorage.setItem(CHANGE_KEY, JSON.stringify(next))
+    saveChanges(next)
     return next
 }

@@ -8,11 +8,13 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ClassTimeTableModal from './Components/ClassTimeTableModal'
 import {
     CREATE_ROUTE,
+    CLASS_TIMETABLES_UPDATED_EVENT,
     approvalStatusColor,
     getClassSectionLabel,
     decideTimetableChangeRequest,
     getClassTimetables,
     getTimetableChangeRequests,
+    hydrateClassTimetablesFromApi,
 } from './classTimetableData'
 
 const ClassTimetableList = () => {
@@ -28,9 +30,15 @@ const ClassTimetableList = () => {
     const [classFilter, setClassFilter] = useState('')
     const [sectionFilter, setSectionFilter] = useState('')
 
-    useEffect(() => {
+    const refresh = () => {
         setRecords(getClassTimetables())
         setChanges(getTimetableChangeRequests())
+    }
+
+    useEffect(() => {
+        hydrateClassTimetablesFromApi().finally(refresh)
+        window.addEventListener(CLASS_TIMETABLES_UPDATED_EVENT, refresh)
+        return () => window.removeEventListener(CLASS_TIMETABLES_UPDATED_EVENT, refresh)
     }, [location.key])
 
     const reviewChange = (id, approved) => {
