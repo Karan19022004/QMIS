@@ -16,7 +16,8 @@ import { useFinance } from '../../financeDomain/FinanceContext'
 import { formatCurrency } from '../../financeDomain/financeHelpers'
 
 const MoneyOutTab = () => {
-    const { transactions } = useFinance()
+    const { transactions, financePersistence } = useFinance()
+    const apiLive = Boolean(financePersistence?.apiEnabled)
     const rows = useMemo(() => {
         const live = (transactions || [])
             .filter((row) => row.direction === 'OUT')
@@ -25,16 +26,48 @@ const MoneyOutTab = () => {
                 category: row.category || row.sourceModule || 'Expense',
                 vendor: row.narration || row.employeeId || '—',
                 amount: formatCurrency(row.amount || 0),
+                amountNum: Number(row.amount) || 0,
                 date: row.transactionDate || '—',
                 status: row.status === 'POSTED' ? 'Paid' : (row.status || 'Pending'),
                 mode: row.paymentMode || '—',
             }))
+        if (apiLive) return live
         return live.length ? live : EXPENSE_REGISTER
-    }, [transactions])
+    }, [apiLive, transactions])
+
+    const summaryCards = useMemo(() => {
+        const total = rows.reduce((sum, row) => sum + (row.amountNum || 0), 0)
+        return [
+            {
+                label: 'Outflows (list)',
+                value: formatCurrency(total),
+                sub: `${rows.length} row(s)`,
+                iconTone: 'danger',
+            },
+            {
+                label: 'Paid / posted',
+                value: String(rows.filter((row) => row.status === 'Paid').length),
+                sub: 'Status Paid',
+                iconTone: 'success',
+            },
+            {
+                label: 'Other status',
+                value: String(rows.filter((row) => row.status !== 'Paid').length),
+                sub: 'Pending / held',
+                iconTone: 'warning',
+            },
+            {
+                label: 'Source',
+                value: apiLive ? 'API' : 'Demo',
+                sub: apiLive ? 'Snapshot OUT only — no seed fallback' : 'May use offline expense register',
+                iconTone: 'success',
+            },
+        ]
+    }, [apiLive, rows])
 
     return (
     <div className='space-y-6'>
-        <SummaryCards cards={MONEY_OUT_SUMMARY} />
+        <SummaryCards cards={summaryCards.length ? summaryCards : MONEY_OUT_SUMMARY} />
 
         <TableCard
             title='Expense register'
@@ -71,7 +104,13 @@ const MoneyOutTab = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {rows.map((row) => (
+                    {rows.length === 0 ? (
+                        <tr>
+                            <td colSpan={6} className={`${tdClass} text-[#667085]`}>
+                                No OUT transactions on the campus finance snapshot yet.
+                            </td>
+                        </tr>
+                    ) : rows.map((row) => (
                         <tr key={row.id} className='border-b border-[#f2f4f7] hover:bg-[#f2f4f7]'>
                             <td className={`${tdClass} rounded-s-lg`}>{row.category}</td>
                             <td className={tdClass}>{row.vendor}</td>

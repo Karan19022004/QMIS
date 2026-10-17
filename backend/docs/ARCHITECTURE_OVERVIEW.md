@@ -1,6 +1,6 @@
 # QMIS ERP — Architecture overview (Archify)
 
-**Date:** 15 October 2026  
+**Date:** 16 October 2026  
 **Archify version:** **3.1.0** (doctor ready)  
 **Single current diagram:** [`.archify/architecture-project-overview/qmis-erp-overview.html`](../../.archify/architecture-project-overview/qmis-erp-overview.html)  
 **Candidate source:** `.archify/architecture-project-overview/candidate.json`  
@@ -41,6 +41,8 @@ Do not maintain a second “current” Archify HTML. Specialized types (below) a
 
 Views: **Live API**, **Planned**, **User path** (request flow).
 
+**Finance (Account Head):** campus snapshot via `GET/PUT /api/v1/finance/state` (+ collect-payment). Snapshot collections include books, COA, journal vouchers, reconciliation, annual budget, book fee breakup; MFP is derived from installments on the client.
+
 ---
 
 ## Request path (in overview User-path view)
@@ -65,9 +67,12 @@ node <archify>/bin/archify.mjs finalize architecture `
   --repo-root . --quality showcase --json
 ```
 
-Manager daily PDF (from markdown SoT):  
-`python "erp complete documentation/make_daily_work_report_pdf.py"`  
-→ `erp complete documentation/QMIS-ERP-Daily-Work-Report.pdf`
+Manager reports (markdown SoT only under `reports/`):  
+`reports/daily-work-report.md` · `reports/testing-report.md`
+
+Role-module status Word sheet:  
+`erp complete documentation/QMIS-ERP-Role-Module-Status.updated.16oct-accounthead-complete.docx`  
+(also synced to `QMIS-ERP-Role-Module-Status.docx`)
 
 ---
 
@@ -95,9 +100,10 @@ ERP-dev/                         # React + Vite at repo root
 
 ---
 
-## Delivery gate (15 Oct)
+## Delivery gate (16 Oct)
 
-**Completed panels:** Administrator **26/26**, PRM **21/21**, Parent **23/23**, Student **23/23**, Teacher **29/1 Gap**, Coordinator **29/1 Gap**, Principal **16 Completed / 5 Partial**.  
-**Stability:** READY WITH LIMITATIONS · Alembic **0012** · **48** tables · pytest **416 passed**.  
-**Next:** Close Principal Partials or start Director panel.  
+**Completed panels:** Administrator **26/26**, PRM **21/21**, Parent **23/23**, Student **23/23**, Teacher **29/1 Gap**, **Account Head 22/22**.  
+**In progress:** Director **9 / 7 / 8** (Home Fun + Star Ratings FE SoT; attendance linked). Coordinator / Principal still largely incomplete on the sheet.  
+**Stability:** Alembic **0012** · **48** tables · pytest **426 passed**.  
+**Next:** Director remaining Partials or Coordinator panel.  
 **Structure policy:** Prefer delete-only conclusive junk (Word `.tmp`, editor malware tasks, untracked unlock copies); defer large folder renames.

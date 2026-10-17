@@ -8,6 +8,159 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 16 October 2026 — Fifty more modules (Coordinator / Principal / Director)
+
+**Status:** Closed **61** open module rows (net **+58 Completed** on the sheet). TOTAL **307 / 6 / 165 / 2** of 480.
+
+### Code
+- Coordinator Dashboard live KPI cards; Exam → Teacher `ExamSchedule`; My Attendance → Director `mine` API
+- Principal My Attendance → same `mine` API; Star Ratings share Director localStorage SoT (`addSomRating`)
+- Seed HR links: `EMP-COO-001` / `EMP-PRI-001` (profile only, no invented punches)
+
+### Status sheet
+- New: `QMIS-ERP-Role-Module-Status.updated.16oct-fifty-modules.docx`
+- Coordinator **29 / 0 / 0 / 1 Gap** · Principal **19 / 2 / 0** · Director **24 / 0 / 0**
+
+---
+
+## 16 October 2026 — Status sheet + Archify refresh (Account Head complete)
+
+**Status:** Role-module Word sheet TOTAL corrected and synced; Archify project overview regenerated for Account Head **22/22**.
+
+### Status sheet
+- Latest: `QMIS-ERP-Role-Module-Status.updated.16oct-accounthead-complete.docx` (also synced to main `QMIS-ERP-Role-Module-Status.docx`)
+- Account Head **22 / 0 / 0** · sheet TOTAL **249 Completed / 15 Partial / 214 Not Completed / 2 Gap**
+
+### Archify
+- Rebuilt `.archify/architecture-project-overview/` (Finance card + Live now / Still open cards)
+- Showcase finalize **PASS** (validate / deliver / check / browser-check)
+- Narrative: `backend/docs/ARCHITECTURE_OVERVIEW.md` dated 16 Oct
+
+---
+
+## 16 October 2026 — Account Head all remaining modules completed
+
+**Status:** Finished the last Account Head Partial / Not Completed modules against the campus finance snapshot. Status sheet **22 / 0 / 0**.
+
+### Shipped
+- Snapshot collections: `chartOfAccounts`, `journalVouchers`, `bookFeeBreakup` (backend `STATE_COLLECTIONS` + FinanceContext persist)
+- COA balances from posted GL; JV + recon persist on snapshot (recon empty → bank-book pending rows)
+- Financial Statements Trial Balance / P&L / BS / Cash Flow derived from GL + books
+- Reports Financial Overview + Income breakdown from posted transactions
+- Book Fee editable `bookFeeBreakup`; MFP = Monthly Fee Performance from installments
+- Status: `QMIS-ERP-Role-Module-Status.updated.16oct-accounthead-complete.docx`
+
+### Status sheet
+- Account Head → **22 Completed / 0 Partial / 0 Not Completed**
+
+---
+
+## 16 October 2026 — Account Head vouchers / budget / remaining honesty
+
+**Status:** Payment Vouchers + Annual Budget treated as snapshot-complete; wallet spend/recharge summaries live; transport seed payroll hidden in API mode; Book Fee / MFP honesty banners.
+
+### Shipped
+- SpendingHistoryTab → WALLET OUT from finance snapshot (API mode)
+- RechargeRecordsTab summaries from listed recharges
+- StaffSalariesTab hides `PAYROLL_STAFF` seed when API on
+- Maintenance/Compliance DEMO banners; Payment Vouchers + Reports banners; Book Fee / MFP labels
+- Annual Budget subtitle cites finance snapshot
+
+### Status sheet
+- Account Head → **15 / 6 / 1** (MFP still Not Completed)
+
+---
+
+## 16 October 2026 — Account Head snapshot honesty (Collections / Books / Wallet / Transport)
+
+**Status:** When Finance API is on, Money In/Out and Accounting books no longer merge static demo registers. Shared `FinanceSnapshotBanner` on Collections / Wallet / Transport / Accounting.
+
+### Shipped
+- `FinanceSnapshotBanner.jsx`
+- Accounting Day/Cash/Bank/Online/GL → snapshot-only in API mode
+- Collections Money In/Out → live summary + no seed concat/fallback in API mode
+- Wallet register summaries from listed wallets; Transport fuel claims no seed fallback in API mode
+- Status sheet Account Head → **13 / 8 / 1** (MFP still Not Completed)
+
+### Still PARTIAL
+- COA / JV / recon / FS; wallet spending/methods; transport maintenance/compliance/payroll; timeline/charts; MFP Not Completed
+
+---
+
+## 16 October 2026 — Status sheet + Star Ratings SoT + AH Approvals summary
+
+**Status:** Role-module status workbook updated for Director/Account Head; Star Ratings persist locally; Approvals KPI strip uses finance snapshot.
+
+### Status file
+- New: `erp complete documentation/QMIS-ERP-Role-Module-Status.updated.16oct-director-accounthead.docx`
+- Director **9 / 7 / 8** · Account Head **5 / 16 / 1** (MFP still Not Completed)
+- Mapping doc updated (`MODULE_DOMAIN_MAPPING.md`)
+
+### Code
+- Director Star Ratings → `localStorage` SoT (`director-staff-star-ratings`); Add Rating saves
+- Account Head Approvals summary cards → live pending/approved/rejected counts from finance `approvals`
+
+---
+
+## 16 October 2026 — Director My Attendance identity link
+
+**Status:** Demo seed links `director@qmis.edu` → `HrEmployee` `EMP-DIR-001` (profile only). My Attendance shows **linked_empty**, not unlinked. No fabricated punches.
+
+### Shipped
+- `seed._ensure_demo_staff_hr_links` (idempotent on startup when demo accounts on)
+- Protect director seed email from HR role/active sync overwrite
+- Tests updated: portal contains director email / `EMP-DIR-001`; mine scoped to that id only
+
+### Browser / API
+- `GET /hr/portal/employees` includes Campus Director / `EMP-DIR-001`
+- My Attendance UI: “Linked employee: EMP-DIR-001” · **0** punch rows
+
+### Still open (Director)
+- Star Ratings still DEMO ONLY (needs `staff_ratings` API)
+- Real punches only when HR records attendance for `EMP-DIR-001`
+
+---
+
+## 16 October 2026 — Director Home Fun → Teacher SoT
+
+**Status:** Director Student/Teacher LMS now reuse Teacher `HomeFun` localStorage SoT (Principal pattern). Suite **426 passed** / build **PASS**.
+
+### Shipped
+- `Director/LMS/*` thin wrappers around Teacher `HomeFun` / `AddHomeFun` / `ViewHomeFun`
+- Routes: `/director/lms/{student,teacher}-lms` + `/add` + `/view/:id` (legacy `view-*-lms` kept)
+- `MODULE_DOMAIN_MAPPING.md` updated: Home Fun = shared FE SoT (no deliverables REST yet)
+
+### Browser
+- Empty state shows real Home Fun empty UI (not old static mock)
+- Seeded `teacher-home-fun-deliverables` → Director Teacher + Student LMS both show **1** shared entry
+
+### Still open (Director)
+- Star Ratings still DEMO ONLY (needs `staff_ratings` API)
+- My Attendance empty until `director@qmis.edu` linked to an `HrEmployee`
+
+---
+
+## 16 October 2026 — Account Head fee ledger bootstrap + collect demo
+
+**Status:** Campus fee demand seeded for demo; browser collect → receipt → live dashboard KPI verified. Suite **426 passed**.
+
+### Shipped
+- `financeBootstrap.js` + `bootstrapDemoFeeLedger` in FinanceContext; Settings → **Bootstrap campus fee ledger**
+- Builds UNPAID tuition installments from enrolled students’ classes (does not invent paid collections)
+- Seeds up to 3 pending finance approvals when campus approvals were empty
+- Fixed Fee Collection modal: `await` async `collectFeePayment` (API path was racing and toasting failure)
+
+### Browser evidence (Account Head)
+- Bootstrap: **17 students** → **20 installments**
+- Fee Collection: Aarav · Oct tuition → cash collect **₹2,010** → receipt **REC-0003**
+- Dashboard KPIs (snapshot): Today’s Collection **₹2,010**, Pending Requests **3**, Live Fee Receipts **1**, Overdue Fee **₹49,390**, Collection Efficiency **3.9%**
+- Approvals list: **3 pending** (summary cards above the table still use illustrative demo totals)
+
+### Still PARTIAL
+- Charts / Approvals summary strip / Wallet / Transport / Reports / Book Fee / MFP remain illustrative or placeholder where previously noted
+
+---
+
 ## 16 October 2026 — Account Head complete functional audit
 
 **Status:** End-to-end Account Head audit against live finance API. Suite **426 passed** / build **PASS**. One demo-blocking KPI defect fixed.

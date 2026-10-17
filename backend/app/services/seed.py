@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import hash_password
-from app.models import AcademicYear, Campus, FinancialYear, Permission, Role, RolePermission, User
+from app.models import AcademicYear, Campus, FinancialYear, HrEmployee, Permission, Role, RolePermission, User
 from app.permissions.matrix import ALL_ROLES, PERMISSIONS, ROLE_PERMISSIONS
 from app.services.audit import write_audit
 
@@ -58,6 +58,7 @@ def seed_reference_data(db: Session) -> None:
     # Demo logins have well-known passwords, so they exist only in explicit development mode.
     if settings.seed_demo_accounts:
         _seed_demo_users(db, campus, roles_by_code)
+        _ensure_demo_staff_hr_links(db, campus)
     if created_campus:
         write_audit(
             db,
@@ -184,3 +185,76 @@ def _seed_user(db: Session, *, campus: Campus, role: Role, email: str, password:
             must_change_password=False,
         )
     )
+
+
+def _ensure_demo_staff_hr_links(db: Session, campus: Campus) -> None:
+    """Link demo login Users to HrEmployee so /hr/attendance/mine can resolve identity.
+
+    Creates or updates the staff profile only — does not invent attendance punches.
+    Idempotent: safe on every startup when seed_demo_accounts is on.
+    """
+    profiles = (
+        {
+            "email": settings.director_seed_email.lower(),
+            "employee_code": "EMP-DIR-001",
+            "first_name": "Campus",
+            "last_name": "Director",
+            "department": "Academics",
+            "designation": "Director",
+            "role_title": "Director",
+        },
+        {
+            "email": settings.coordinator_seed_email.lower(),
+            "employee_code": "EMP-COO-001",
+            "first_name": "Campus",
+            "last_name": "Coordinator",
+            "department": "Academics",
+            "designation": "Coordinator",
+            "role_title": "Coordinator",
+        },
+        {
+            "email": settings.principal_seed_email.lower(),
+            "employee_code": "EMP-PRI-001",
+            "first_name": "Campus",
+            "last_name": "Principal",
+            "department": "Academics",
+            "designation": "Principal",
+            "role_title": "Principal",
+        },
+    )
+    for profile in profiles:
+        user = db.scalar(select(User).where(User.email == profile["email"]))
+        if user is None:
+            continue
+        row = db.scalar(select(HrEmployee).where(HrEmployee.email == profile["email"]))
+        if row is None:
+            by_code = db.scalar(
+                select(HrEmployee).where(HrEmployee.employee_code == profile["employee_code"])
+            )
+            if by_code is not None and by_code.email.lower() != profile["email"]:
+                # Stable demo code already used by another person — allocate a unique code.
+                prefix = profile["employee_code"].rsplit("-", 1)[0]
+                profile = {**profile, "employee_code": f"{prefix}-{str(user.id).replace('-', '')[:8].upper()}"}
+            row = HrEmployee(
+                campus_id=campus.id,
+                employee_code=profile["employee_code"],
+                first_name=profile["first_name"],
+                last_name=profile["last_name"],
+                email=profile["email"],
+                department=profile["department"],
+                designation=profile["designation"],
+                role_title=profile["role_title"],
+                status="Active",
+                employment_type="Full-time",
+                user_id=user.id,
+            )
+            db.add(row)
+        else:
+            row.user_id = user.id
+            if not row.role_title:
+                row.role_title = profile["role_title"]
+            if not row.department:
+                row.department = profile["department"]
+            if not row.designation:
+                row.designation = profile["designation"]
+    db.flush()

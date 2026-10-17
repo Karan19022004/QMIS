@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useActiveStudent } from '../../context/ActiveStudentContext'
 import { useFinance } from '../../Pages/AccountHead/financeDomain/FinanceContext'
+import { buildMfpFromInstallments } from '../../Pages/AccountHead/financeDomain/financeSnapshotAccounting'
 import ReactECharts from 'echarts-for-react'
 import { toast } from 'react-toastify'
 import { getBiometricRows, overrideAttendance, syncBiometricDemo } from './biometric'
@@ -168,23 +169,81 @@ export function StudentAnalyticsPage() {
 }
 
 export function BookFeePage() {
-    const rows = bookFeeRows()
+    const { bookFeeBreakup, updateBookFeeBreakup, financePersistence, financeStatus, students, setBookFeeBreakup, bootstrapDemoFeeLedger } = useFinance()
+    const apiLive = Boolean(financePersistence?.apiEnabled)
+    const rows = (bookFeeBreakup?.length
+        ? bookFeeBreakup
+        : (!apiLive ? bookFeeRows() : [])
+    ).map((row) => ({
+        ...row,
+        total: Number(row.quantity || 0) * Number(row.unitCost || 0),
+    }))
     const total = rows.reduce((sum, row) => sum + row.total, 0)
     return (
         <div className='bg-white rounded-2xl shadow-md p-4 overflow-x-auto'>
             <h2 className='text-xl font-semibold mb-1'>Book fee breakup</h2>
-            <p className='text-sm text-[#667085] mb-4'>Multiple vendor rows contribute to one assigned book fee. Line total ₹{total}. Assigned fee on the student record is ₹{rows[0]?.assignedFee}.</p>
+            <p className='text-sm text-[#667085] mb-2'>
+                {apiLive
+                    ? `Rows from campus finance snapshot bookFeeBreakup (${financeStatus}). Edits push with finance state.`
+                    : 'Offline demo book fee rows — enable Finance API for campus snapshot.'}
+            </p>
+            <p className='text-sm text-[#667085] mb-4'>
+                Multiple vendor rows contribute to one assigned book fee. Line total ₹{total}
+                {rows[0]?.assignedFee != null ? `. Assigned fee on the student record is ₹${rows[0].assignedFee}.` : '.'}
+            </p>
+            {apiLive && rows.length === 0 && (
+                <div className='mb-4 flex flex-wrap gap-3 items-center'>
+                    <p className='text-sm text-[#667085]'>No book fee rows on the snapshot yet.</p>
+                    <button
+                        type='button'
+                        className='bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md cursor-pointer'
+                        onClick={() => {
+                            const result = bootstrapDemoFeeLedger({ force: false })
+                            if (!result?.success && students?.length) {
+                                setBookFeeBreakup(students.slice(0, 5).map((student, index) => ({
+                                    id: `BF-${String(student.id).slice(0, 8)}-${index}`,
+                                    student: student.name || student.admissionNo,
+                                    studentId: student.id,
+                                    academicYear: '2026-27',
+                                    vendor: 'Campus Bookstore',
+                                    book: `${student.className || 'Class'} package`,
+                                    quantity: 1,
+                                    unitCost: 4200,
+                                    assignedFee: 4200,
+                                })))
+                                toast.success('Book fee rows added to finance snapshot.')
+                            } else if (result?.success) {
+                                toast.success('Fee ledger bootstrap also seeded book fee rows.')
+                            } else {
+                                toast.error(result?.message || 'Could not seed book fee rows.')
+                            }
+                        }}
+                    >
+                        Seed book fee from enrolled students
+                    </button>
+                </div>
+            )}
             <table className='w-full text-sm'>
                 <thead className='text-xs bg-[#EDEEF5]'><tr>{['Student', 'Year', 'Vendor', 'Book', 'Qty', 'Unit', 'Line total'].map((label) => <th key={label} className='px-2 py-3 text-left'>{label}</th>)}</tr></thead>
                 <tbody>
-                    {rows.map((row) => (
+                    {rows.length === 0 ? (
+                        <tr><td colSpan={7} className='px-2 py-8 text-center text-[#667085]'>No book fee breakup rows.</td></tr>
+                    ) : rows.map((row) => (
                         <tr key={row.id} className='border-b border-[#f2f4f7]'>
                             <td className='px-2 py-3'>{row.student}</td>
                             <td className='px-2 py-3'>{row.academicYear}</td>
                             <td className='px-2 py-3'>{row.vendor}</td>
                             <td className='px-2 py-3'>{row.book}</td>
-                            <td className='px-2 py-3'>{row.quantity}</td>
-                            <td className='px-2 py-3'>{row.unitCost}</td>
+                            <td className='px-2 py-3'>
+                                {apiLive ? (
+                                    <input type='number' value={row.quantity} onChange={(event) => updateBookFeeBreakup(row.id, 'quantity', event.target.value)} className='w-20 border border-[#D9D9D9] rounded-md px-2 py-1' />
+                                ) : row.quantity}
+                            </td>
+                            <td className='px-2 py-3'>
+                                {apiLive ? (
+                                    <input type='number' value={row.unitCost} onChange={(event) => updateBookFeeBreakup(row.id, 'unitCost', event.target.value)} className='w-24 border border-[#D9D9D9] rounded-md px-2 py-1' />
+                                ) : row.unitCost}
+                            </td>
                             <td className='px-2 py-3'>{row.total}</td>
                         </tr>
                     ))}
@@ -195,7 +254,8 @@ export function BookFeePage() {
 }
 
 export function BudgetPage() {
-    const { annualBudget, updateAnnualBudget } = useFinance()
+    const { annualBudget, updateAnnualBudget, financePersistence, financeStatus } = useFinance()
+    const apiLive = Boolean(financePersistence?.apiEnabled)
     const rows = (annualBudget || []).map((row) => {
         const variance = row.budget - row.actual
         const utilization = row.budget ? (row.actual / row.budget) * 100 : 0
@@ -216,6 +276,11 @@ export function BudgetPage() {
         <section className='space-y-4'>
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h2 className='text-xl font-semibold'>Annual budget vs actual</h2>
+                <p className='text-sm text-[#667085] mt-1'>
+                    {apiLive
+                        ? `Rows from campus finance snapshot annualBudget (${financeStatus}). Edits push with finance state.`
+                        : 'Offline demo budget rows — enable Finance API for campus snapshot.'}
+                </p>
                 <ReactECharts option={option} style={{ height: 280 }} />
             </div>
             <div className='bg-white rounded-2xl shadow-md p-4 overflow-x-auto'>
@@ -262,11 +327,74 @@ export function FeeProjectionPanel() {
 }
 
 export function MfpPlaceholder() {
+    const { installments, financePersistence, financeStatus, dashboardMetrics } = useFinance()
+    const apiLive = Boolean(financePersistence?.apiEnabled)
+    const rows = useMemo(() => buildMfpFromInstallments(installments || []), [installments])
+    const totals = useMemo(() => rows.reduce((acc, row) => ({
+        demand: acc.demand + row.demand,
+        collected: acc.collected + row.collected,
+        outstanding: acc.outstanding + row.outstanding,
+        overdue: acc.overdue + row.overdue,
+    }), { demand: 0, collected: 0, outstanding: 0, overdue: 0 }), [rows])
     return (
-        <div className='bg-white rounded-2xl shadow-md p-8'>
-            <h2 className='text-xl font-semibold'>MFP Report</h2>
-            <p className='text-sm text-[#667085] mt-2'>Template configuration pending stakeholder specification.</p>
-        </div>
+        <section className='space-y-4'>
+            <div className='bg-white rounded-2xl shadow-md p-4'>
+                <h2 className='text-xl font-semibold'>MFP Report — Monthly Fee Performance</h2>
+                <p className='text-sm text-[#667085] mt-1'>
+                    {apiLive
+                        ? `Derived from campus fee installments on the finance snapshot (${financeStatus}). Demand / collected / outstanding are installment totals — not invented KPIs.`
+                        : 'Offline: derived from local installment rows when present.'}
+                </p>
+                <div className='grid grid-cols-2 lg:grid-cols-4 gap-3 mt-4'>
+                    {[
+                        { label: 'Demand', value: totals.demand },
+                        { label: 'Collected', value: totals.collected },
+                        { label: 'Outstanding', value: totals.outstanding },
+                        { label: 'Overdue', value: totals.overdue },
+                    ].map((card) => (
+                        <div key={card.label} className='rounded-xl border border-[#F2F4F7] p-3'>
+                            <p className='text-xs text-[#667085]'>{card.label}</p>
+                            <p className='text-lg font-semibold text-[#1E1E1E]'>₹{Math.round(card.value).toLocaleString('en-IN')}</p>
+                        </div>
+                    ))}
+                </div>
+                {dashboardMetrics?.collectionEfficiency != null && (
+                    <p className='text-sm text-[#667085] mt-3'>
+                        Snapshot collection efficiency: {Number(dashboardMetrics.collectionEfficiency).toFixed(1)}%
+                    </p>
+                )}
+            </div>
+            <div className='bg-white rounded-2xl shadow-md p-4 overflow-x-auto'>
+                <table className='w-full text-sm'>
+                    <thead className='text-xs bg-[#EDEEF5]'>
+                        <tr>
+                            {['Month', 'Students', 'Demand', 'Collected', 'Outstanding', 'Overdue', 'Collection %'].map((label) => (
+                                <th key={label} className='px-2 py-3 text-left'>{label}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {rows.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className='px-2 py-8 text-center text-[#667085]'>
+                                    No installment demand on the finance snapshot yet. Use Settings → Bootstrap campus fee ledger.
+                                </td>
+                            </tr>
+                        ) : rows.map((row) => (
+                            <tr key={row.id} className='border-b border-[#f2f4f7]'>
+                                <td className='px-2 py-3'>{row.label}</td>
+                                <td className='px-2 py-3'>{row.studentCount}</td>
+                                <td className='px-2 py-3'>₹{Math.round(row.demand).toLocaleString('en-IN')}</td>
+                                <td className='px-2 py-3'>₹{Math.round(row.collected).toLocaleString('en-IN')}</td>
+                                <td className='px-2 py-3'>₹{Math.round(row.outstanding).toLocaleString('en-IN')}</td>
+                                <td className='px-2 py-3'>₹{Math.round(row.overdue).toLocaleString('en-IN')}</td>
+                                <td className='px-2 py-3'>{row.collectionPct.toFixed(1)}%</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </section>
     )
 }
 

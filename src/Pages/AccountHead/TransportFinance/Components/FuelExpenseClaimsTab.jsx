@@ -17,7 +17,8 @@ import {
 import { useFinance } from '../../financeDomain/FinanceContext'
 
 const FuelExpenseClaimsTab = () => {
-    const { approvals } = useFinance()
+    const { approvals, financePersistence } = useFinance()
+    const apiLive = Boolean(financePersistence?.apiEnabled)
     const rows = useMemo(() => {
         const fromApprovals = (approvals || [])
             .filter((row) => String(row.department || '').toLowerCase() === 'transport')
@@ -31,8 +32,9 @@ const FuelExpenseClaimsTab = () => {
                 amount: row.amount,
                 status: row.status || 'Pending',
             }))
+        if (apiLive) return fromApprovals
         return fromApprovals.length ? fromApprovals : EXPENSE_CLAIMS
-    }, [approvals])
+    }, [apiLive, approvals])
 
     return (
     <div className='space-y-6'>

@@ -210,7 +210,7 @@ ROUTER_META = {
     "finance_router": {
         "id": "mod_finance",
         "label": "Finance",
-        "sublabel": "snapshot + actions",
+        "sublabel": "state · collect · books",
         "path": "backend/app/api/v1/endpoints/finance.py",
         "line": 10,
         "end_line": 116,
@@ -421,7 +421,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
         "diagram_type": "architecture",
         "meta": {
             "title": "QMIS School ERP — project overview",
-            "subtitle": "Single current overview · Archify 3.1.0 · Principal 21/21 · Alembic 0012",
+            "subtitle": "Single current overview · Archify 3.1.0 · Account Head 22/22 · Alembic 0012",
             "locale": "en",
             "quality_profile": "showcase",
             "repository": {
@@ -462,13 +462,15 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "items": [f"{m['label']} — {m['sublabel']}" for m in live]
                 + [
                     "VITE_USE_API_* flags default with auth (fail-closed hydrate; no stale localStorage when API on)",
-                    "Completed panels: Admin 26/26 · PRM 21/21 · Parent 23/23 · Student 23/23 · Teacher 29/1 Gap · Coordinator 29/1 Gap · Principal 21/21",
+                    "Completed panels: Admin 26/26 · PRM 21/21 · Parent 23/23 · Student 23/23 · Teacher 29/1 Gap · Account Head 22/22",
+                    "Director 9/7/8 (Home Fun + Star Ratings shared FE SoT; My Attendance linked EMP-DIR-001)",
+                    "Finance snapshot SoT: GET/PUT /finance/state + collect-payment; COA/JV/recon/FS/Book Fee/MFP on snapshot",
                     "Class Attendance Save → POST /attendance; Mark Entry → /marks-batches",
-                    "App.jsx lazy-loads role layouts (entry JS ~354 kB after code-split)",
+                    "App.jsx lazy-loads role layouts (entry JS code-split)",
                     "must_change_password gated in get_current_user; orphan file downloads ACL-hardened",
                     "Alembic head 0012_students_student_user_id; 48 application tables",
                     "HR + Finance API SoT; Gateway/SMTP/WA env-gated (demo/stub)",
-                    "15 Oct 2026 stability audit READY WITH LIMITATIONS; pytest 416 passed",
+                    "16 Oct 2026 Account Head complete; pytest 426 passed",
                     "Request path: User → lazy React → apiClient JWT → FastAPI deps/RBAC → service → PostgreSQL (+ uploads)",
                 ],
             },
@@ -497,12 +499,12 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "dot": "rose",
                 "title": "Still open",
                 "items": [
-                    "Next panel: Director (shared approvals + campus APIs)",
+                    "Next focus: remaining Director Partials / Coordinator panel (many Not Completed)",
                     "Teacher/Coordinator biometric remains Gap",
+                    "staff_ratings REST (Director Star Ratings still FE SoT)",
                     "Further page-level lazy imports inside largest role route trees",
                     "Live SMTP/WhatsApp/payments when school configures providers",
                     "RFID / eSSL import still off unless enabled",
-                    "Integrations accept ≠ delivery verified",
                 ],
             },
         ],

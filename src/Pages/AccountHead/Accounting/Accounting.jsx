@@ -1,8 +1,18 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, Check, Download, FileSpreadsheet, Plus, Printer, RefreshCw, ArrowRightLeft, Upload, FileText } from 'lucide-react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import { useFinance } from '../financeDomain/FinanceContext'
+import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
+import {
+    SNAPSHOT_COA_SEED,
+    buildBalanceSheetFromGl,
+    buildCashFlowFromBooks,
+    buildProfitLossFromGl,
+    buildReconFromBankBook,
+    buildTrialBalanceFromGl,
+    withLiveCoaBalances,
+} from '../financeDomain/financeSnapshotAccounting'
 import DayBookTab, { appendDayBookEntry, buildDayBookSummary } from './Components/DayBookTab'
 import AddOfflineEntryModal from './Components/AddOfflineEntryModal'
 import OnlineBookTab, { buildOnlineBookSummary, syncOnlineTransaction } from './Components/OnlineBookTab'
@@ -36,9 +46,12 @@ import {
     CASH_BOOK_REGISTER,
     BANK_BOOK_OPENING_BALANCE,
     BANK_BOOK_REGISTER,
-    COA_ACCOUNTS,
     JOURNAL_VOUCHERS_REGISTER,
     BANK_RECONCILIATION_REGISTER,
+    TRIAL_BALANCE_REGISTER,
+    PROFIT_LOSS_STATEMENT,
+    BALANCE_SHEET_STATEMENT,
+    CASH_FLOW_STATEMENT,
 } from './accountingData'
 
 const SECTION_SUBTITLES = {
@@ -61,18 +74,19 @@ const Accounting = () => {
     const [addAccountModal, setAddAccountModal] = useState(false)
     const [newVoucherModal, setNewVoucherModal] = useState(false)
     const [addOfflineModal, setAddOfflineModal] = useState(false)
-    const [dayBookEntries, setDayBookEntries] = useState(DAY_BOOK_REGISTER)
     const finance = useFinance()
-    const [onlineBookEntries, setOnlineBookEntries] = useState(ONLINE_BOOK_REGISTER)
+    const apiLive = Boolean(finance.financePersistence?.apiEnabled)
+    const [dayBookEntries, setDayBookEntries] = useState(() => (apiLive ? [] : DAY_BOOK_REGISTER))
+    const [onlineBookEntries, setOnlineBookEntries] = useState(() => (apiLive ? [] : ONLINE_BOOK_REGISTER))
     const [selectedOnlineTransaction, setSelectedOnlineTransaction] = useState(null)
     const [isSyncing, setIsSyncing] = useState(false)
-    const [generalLedgerEntries] = useState(GENERAL_LEDGER_REGISTER)
-    const [cashBookEntries] = useState(CASH_BOOK_REGISTER)
-    const [bankBookEntries] = useState(BANK_BOOK_REGISTER)
-    const [coaAccounts, setCoaAccounts] = useState(COA_ACCOUNTS)
-    const [journalVouchers, setJournalVouchers] = useState(JOURNAL_VOUCHERS_REGISTER)
+    const [generalLedgerEntries] = useState(() => (apiLive ? [] : GENERAL_LEDGER_REGISTER))
+    const [cashBookEntries] = useState(() => (apiLive ? [] : CASH_BOOK_REGISTER))
+    const [bankBookEntries] = useState(() => (apiLive ? [] : BANK_BOOK_REGISTER))
+    const [offlineCoaAccounts, setOfflineCoaAccounts] = useState(SNAPSHOT_COA_SEED)
+    const [offlineJournalVouchers, setOfflineJournalVouchers] = useState(JOURNAL_VOUCHERS_REGISTER)
     const [selectedVoucherId, setSelectedVoucherId] = useState(null)
-    const [reconciliationEntries, setReconciliationEntries] = useState(BANK_RECONCILIATION_REGISTER)
+    const [offlineReconciliationEntries, setOfflineReconciliationEntries] = useState(BANK_RECONCILIATION_REGISTER)
     const [selectedReconciliationId, setSelectedReconciliationId] = useState(null)
     const [reconciliationDrawerOpen, setReconciliationDrawerOpen] = useState(false)
     const [selectedSuggestionId, setSelectedSuggestionId] = useState(null)
@@ -97,6 +111,13 @@ const Accounting = () => {
     const [isGeneratingReport, setIsGeneratingReport] = useState(false)
     const ledgerRegisterRef = useRef(null)
 
+    // Persist COA master once when snapshot has none (zero balances; live nets come from GL).
+    useEffect(() => {
+        if (!apiLive || finance.financeStatus !== 'ready') return
+        if (finance.chartOfAccounts?.length) return
+        finance.setChartOfAccounts(SNAPSHOT_COA_SEED.map((row) => ({ ...row })))
+    }, [apiLive, finance.financeStatus, finance.chartOfAccounts, finance.setChartOfAccounts])
+
     const activeSection = useMemo(() => {
         const match = ACCOUNTING_SECTIONS.find((item) => item.id === section)
         return match?.id ?? null
@@ -105,30 +126,59 @@ const Accounting = () => {
     const activeLabel = ACCOUNTING_SECTIONS.find((item) => item.id === activeSection)?.label ?? 'Accounting'
     const sectionSubtitle = SECTION_SUBTITLES[activeSection] ?? `Academic Year ${academicYear} · Books as of 26 Jun 2026`
 
+    // API mode: campus snapshot books only (no static register merge). Offline: keep demo registers.
     const mergedDayBook = useMemo(
-        () => [...finance.dayBookEntries, ...dayBookEntries],
-        [finance.dayBookEntries, dayBookEntries],
+        () => (apiLive ? [...finance.dayBookEntries] : [...finance.dayBookEntries, ...dayBookEntries]),
+        [apiLive, finance.dayBookEntries, dayBookEntries],
     )
     const mergedOnlineBook = useMemo(
-        () => [...finance.onlineBookEntries, ...onlineBookEntries],
-        [finance.onlineBookEntries, onlineBookEntries],
+        () => (apiLive ? [...finance.onlineBookEntries] : [...finance.onlineBookEntries, ...onlineBookEntries]),
+        [apiLive, finance.onlineBookEntries, onlineBookEntries],
     )
     const mergedGeneralLedger = useMemo(
-        () => [...finance.glEntries, ...generalLedgerEntries],
-        [finance.glEntries, generalLedgerEntries],
+        () => (apiLive ? [...finance.glEntries] : [...finance.glEntries, ...generalLedgerEntries]),
+        [apiLive, finance.glEntries, generalLedgerEntries],
     )
     const mergedCashBook = useMemo(
-        () => [...finance.cashBookEntries, ...cashBookEntries],
-        [finance.cashBookEntries, cashBookEntries],
+        () => (apiLive ? [...finance.cashBookEntries] : [...finance.cashBookEntries, ...cashBookEntries]),
+        [apiLive, finance.cashBookEntries, cashBookEntries],
     )
     const mergedBankBook = useMemo(
-        () => [...finance.bankBookEntries, ...bankBookEntries],
-        [finance.bankBookEntries, bankBookEntries],
+        () => (apiLive ? [...finance.bankBookEntries] : [...finance.bankBookEntries, ...bankBookEntries]),
+        [apiLive, finance.bankBookEntries, bankBookEntries],
     )
 
+    const coaAccounts = useMemo(() => {
+        const base = apiLive
+            ? (finance.chartOfAccounts?.length ? finance.chartOfAccounts : SNAPSHOT_COA_SEED)
+            : (finance.chartOfAccounts?.length ? finance.chartOfAccounts : offlineCoaAccounts)
+        return withLiveCoaBalances(base, mergedGeneralLedger)
+    }, [apiLive, finance.chartOfAccounts, offlineCoaAccounts, mergedGeneralLedger])
+
+    const journalVouchers = useMemo(
+        () => (apiLive
+            ? [...(finance.journalVouchers || [])]
+            : (finance.journalVouchers?.length ? finance.journalVouchers : offlineJournalVouchers)),
+        [apiLive, finance.journalVouchers, offlineJournalVouchers],
+    )
+
+    const reconciliationEntries = useMemo(() => {
+        if (apiLive) {
+            if (finance.reconciliationItems?.length) return finance.reconciliationItems
+            return buildReconFromBankBook(finance.bankBookEntries || [])
+        }
+        return finance.reconciliationItems?.length
+            ? finance.reconciliationItems
+            : offlineReconciliationEntries
+    }, [apiLive, finance.reconciliationItems, finance.bankBookEntries, offlineReconciliationEntries])
+
+    const openingBalance = apiLive ? 0 : DAY_BOOK_OPENING_BALANCE
+    const cashOpening = apiLive ? 0 : CASH_BOOK_OPENING_BALANCE
+    const bankOpening = apiLive ? 0 : BANK_BOOK_OPENING_BALANCE
+
     const dayBookSummary = useMemo(
-        () => buildDayBookSummary(mergedDayBook, DAY_BOOK_OPENING_BALANCE),
-        [mergedDayBook],
+        () => buildDayBookSummary(mergedDayBook, openingBalance),
+        [mergedDayBook, openingBalance],
     )
 
     const onlineBookSummary = useMemo(
@@ -142,13 +192,13 @@ const Accounting = () => {
     )
 
     const cashBookSummary = useMemo(
-        () => buildCashBookSummary(mergedCashBook, CASH_BOOK_OPENING_BALANCE),
-        [mergedCashBook],
+        () => buildCashBookSummary(mergedCashBook, cashOpening),
+        [mergedCashBook, cashOpening],
     )
 
     const bankBookSummary = useMemo(
-        () => buildBankBookSummary(mergedBankBook, BANK_BOOK_OPENING_BALANCE),
-        [mergedBankBook],
+        () => buildBankBookSummary(mergedBankBook, bankOpening),
+        [mergedBankBook, bankOpening],
     )
 
     const coaSummary = useMemo(
@@ -164,6 +214,33 @@ const Accounting = () => {
     const bankReconciliationSummary = useMemo(
         () => buildBankReconciliationSummary(reconciliationEntries),
         [reconciliationEntries],
+    )
+
+    const derivedTrialBalance = useMemo(
+        () => (apiLive ? buildTrialBalanceFromGl(mergedGeneralLedger) : TRIAL_BALANCE_REGISTER),
+        [apiLive, mergedGeneralLedger],
+    )
+    const derivedProfitLoss = useMemo(
+        () => (apiLive
+            ? buildProfitLossFromGl(mergedGeneralLedger, coaAccounts)
+            : PROFIT_LOSS_STATEMENT),
+        [apiLive, mergedGeneralLedger, coaAccounts],
+    )
+    const derivedBalanceSheet = useMemo(
+        () => (apiLive
+            ? buildBalanceSheetFromGl(mergedGeneralLedger, coaAccounts)
+            : BALANCE_SHEET_STATEMENT),
+        [apiLive, mergedGeneralLedger, coaAccounts],
+    )
+    const derivedCashFlow = useMemo(
+        () => (apiLive
+            ? buildCashFlowFromBooks({
+                cashBookEntries: mergedCashBook,
+                bankBookEntries: mergedBankBook,
+                transactions: finance.transactions || [],
+            })
+            : CASH_FLOW_STATEMENT),
+        [apiLive, mergedCashBook, mergedBankBook, finance.transactions],
     )
 
     const handleAddOfflineEntry = (entry) => {
@@ -208,17 +285,31 @@ const Accounting = () => {
     }
 
     const handleAddCoaAccount = (account) => {
-        setCoaAccounts((prev) => appendCoaAccount(prev, account))
+        const next = appendCoaAccount(
+            finance.chartOfAccounts?.length ? finance.chartOfAccounts : (apiLive ? SNAPSHOT_COA_SEED : offlineCoaAccounts),
+            account,
+        )
+        finance.setChartOfAccounts(next)
+        if (!apiLive) setOfflineCoaAccounts(next)
     }
 
     const handleAddJournalVoucher = (voucher) => {
-        setJournalVouchers((prev) => appendJournalVoucher(prev, voucher))
+        const next = appendJournalVoucher(journalVouchers, voucher)
+        finance.setJournalVouchers(next)
+        if (!apiLive) setOfflineJournalVouchers(next)
         setSelectedVoucherId(null)
     }
 
     const handlePostVoucher = () => {
-        setJournalVouchers((prev) => postJournalVouchers(prev, selectedVoucherId))
+        const next = postJournalVouchers(journalVouchers, selectedVoucherId)
+        finance.setJournalVouchers(next)
+        if (!apiLive) setOfflineJournalVouchers(next)
         setSelectedVoucherId(null)
+    }
+
+    const persistReconciliation = (next) => {
+        finance.setReconciliationItems(next)
+        if (!apiLive) setOfflineReconciliationEntries(next)
     }
 
     const handleSyncTransactions = () => {
@@ -232,7 +323,7 @@ const Accounting = () => {
     const handleImportBankStatement = () => {
         setIsImportingStatement(true)
         window.setTimeout(() => {
-            setReconciliationEntries((prev) => importBankStatementEntry(prev))
+            persistReconciliation(importBankStatementEntry(reconciliationEntries))
             setIsImportingStatement(false)
         }, 1200)
     }
@@ -240,7 +331,7 @@ const Accounting = () => {
     const handleAutoMatch = () => {
         setIsAutoMatching(true)
         window.setTimeout(() => {
-            setReconciliationEntries((prev) => autoMatchReconciliation(prev))
+            persistReconciliation(autoMatchReconciliation(reconciliationEntries))
             setIsAutoMatching(false)
         }, 900)
     }
@@ -265,7 +356,7 @@ const Accounting = () => {
     }
 
     const handleReconcileEntry = (entryId, suggestionId) => {
-        setReconciliationEntries((prev) => reconcileReconciliationEntry(prev, entryId, suggestionId))
+        persistReconciliation(reconcileReconciliationEntry(reconciliationEntries, entryId, suggestionId))
         setReconciliationDrawerOpen(false)
         setSelectedReconciliationId(null)
         setSelectedSuggestionId(null)
@@ -306,6 +397,7 @@ const Accounting = () => {
                     <div>
                         <h2 className='text-xl font-semibold text-black'>{activeLabel}</h2>
                         <p className='text-sm text-[#667085] mt-1'>{sectionSubtitle}</p>
+                        <FinanceSnapshotBanner mockNote='Books, COA (balances from GL), journal vouchers, reconciliation, and financial statements use the campus finance snapshot when Finance API is on.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select
@@ -666,6 +758,11 @@ const Accounting = () => {
                     appliedFilters={appliedFsFilters}
                     lastGeneratedAt={fsLastGeneratedAt}
                     isGenerating={isGeneratingReport}
+                    trialBalanceRows={derivedTrialBalance}
+                    profitLossRows={derivedProfitLoss}
+                    balanceSheetRows={derivedBalanceSheet}
+                    cashFlowRows={derivedCashFlow}
+                    snapshotMode={apiLive}
                 />
             )}
 

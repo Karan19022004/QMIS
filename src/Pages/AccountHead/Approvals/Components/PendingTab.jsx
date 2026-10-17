@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { Check, Search, X, XCircle } from 'lucide-react'
 import {
-    PENDING_SUMMARY,
     departmentBadgeColor,
 } from '../approvalsData'
 import {
@@ -91,6 +90,23 @@ export const ReviewRequestModal = ({ request, isOpen, onClose, onDecide }) => {
     )
 }
 
+const parseAmount = (value) => {
+    const digits = String(value ?? '').replace(/[^\d.]/g, '')
+    return Number(digits) || 0
+}
+
+const formatInr = (amount) => {
+    try {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            maximumFractionDigits: 0,
+        }).format(amount)
+    } catch {
+        return `₹${amount}`
+    }
+}
+
 const PendingTab = () => {
     const { approvals, decideApproval } = useFinance()
     const [reviewRequest, setReviewRequest] = useState(null)
@@ -98,10 +114,47 @@ const PendingTab = () => {
         () => (approvals || []).filter((row) => !row.status || row.status === 'Pending'),
         [approvals],
     )
+    const summaryCards = useMemo(() => {
+        const rows = approvals || []
+        const pendingRows = rows.filter((row) => !row.status || row.status === 'Pending')
+        const approvedRows = rows.filter((row) => String(row.status || '').toLowerCase() === 'approved')
+        const rejectedRows = rows.filter((row) => String(row.status || '').toLowerCase() === 'rejected')
+        const pendingValue = pendingRows.reduce((sum, row) => sum + parseAmount(row.amount), 0)
+        const approvedValue = approvedRows.reduce((sum, row) => sum + parseAmount(row.amount), 0)
+        const rejectedValue = rejectedRows.reduce((sum, row) => sum + parseAmount(row.amount), 0)
+        return [
+            {
+                label: 'Pending Approvals',
+                value: String(pendingRows.length),
+                sub: `${formatInr(pendingValue)} total value`,
+                subTone: 'danger',
+                iconTone: 'danger',
+            },
+            {
+                label: 'Approved (campus snapshot)',
+                value: String(approvedRows.length),
+                sub: `${formatInr(approvedValue)} disbursed`,
+                subTone: 'success',
+                iconTone: 'success',
+            },
+            {
+                label: 'Rejected (campus snapshot)',
+                value: String(rejectedRows.length),
+                sub: `${formatInr(rejectedValue)} value`,
+                iconTone: 'warning',
+            },
+            {
+                label: 'Live finance SoT',
+                value: 'API',
+                sub: 'Summary cards use finance snapshot approvals — not demo constants',
+                iconTone: 'success',
+            },
+        ]
+    }, [approvals])
 
     return (
         <div className='space-y-6'>
-            <SummaryCards cards={PENDING_SUMMARY} />
+            <SummaryCards cards={summaryCards} />
 
             <TableCard
                 title='Pending approval requests'

@@ -16,6 +16,8 @@ import StudentLMS from '../Pages/Director/LMS/StudentLMS'
 import TeacherLMS from '../Pages/Director/LMS/TeacherLMS'
 import ViewStudentLMS from '../Pages/Director/LMS/ViewStudentLMS'
 import ViewTeacherLMS from '../Pages/Director/LMS/ViewTeacherLMS'
+import AddStudentHomeFun from '../Pages/Director/LMS/AddStudentHomeFun'
+import AddTeacherHomeFun from '../Pages/Director/LMS/AddTeacherHomeFun'
 import RequestApprovals from '../Pages/Director/Request-Approvals/RequestApprovals'
 import ViewRequestApproval from '../Pages/Director/Request-Approvals/ViewRequestApproval'
 import EscalationList from '../Pages/Director/EscalationManagement/EscalationList'
@@ -76,8 +78,12 @@ const DirectorRoutes = () => {
             <Route path="/director/activities/view-competition/:id" element={<ViewActivityPage roleKey="director" activityType="competition" />} />
             <Route path="/director/activities/edit-competition/:id" element={<AddActivityForm roleKey="director" activityType="competition" mode="edit" />} />
             <Route path="/director/lms/student-lms" element={<StudentLMS />} />
+            <Route path="/director/lms/student-lms/add" element={<AddStudentHomeFun />} />
+            <Route path="/director/lms/student-lms/view/:id" element={<ViewStudentLMS />} />
             <Route path="/director/lms/view-student-lms" element={<ViewStudentLMS />} />
             <Route path="/director/lms/teacher-lms" element={<TeacherLMS />} />
+            <Route path="/director/lms/teacher-lms/add" element={<AddTeacherHomeFun />} />
+            <Route path="/director/lms/teacher-lms/view/:id" element={<ViewTeacherLMS />} />
             <Route path="/director/lms/view-teacher-lms" element={<ViewTeacherLMS />} />
             <Route path="/director/request-approvals" element={<RequestApprovals />} />
             <Route path="/director/request-approvals/view-request" element={<ViewRequestApproval />} />

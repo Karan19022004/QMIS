@@ -8,6 +8,7 @@ import MaintenanceDamageTab from './Components/MaintenanceDamageTab'
 import ComplianceTab from './Components/ComplianceTab'
 import FuelExpenseClaimsTab from './Components/FuelExpenseClaimsTab'
 import StaffSalariesTab from './Components/StaffSalariesTab'
+import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
 import { TRANSPORT_ACADEMIC_YEARS, TRANSPORT_TABS } from './transportFinanceData'
 
 const TransportFinance = () => {
@@ -28,6 +29,7 @@ const TransportFinance = () => {
                             {' · '}
                             All Routes
                         </p>
+                        <FinanceSnapshotBanner mockNote='Fleet & transport claims use finance snapshot when available. Maintenance, compliance, and payroll tabs remain illustrative.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select

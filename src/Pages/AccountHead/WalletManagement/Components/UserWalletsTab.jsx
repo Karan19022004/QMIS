@@ -1,8 +1,7 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Search } from 'lucide-react'
 import {
     USER_WALLETS,
-    USER_WALLETS_SUMMARY,
     walletStatusBadgeColor,
 } from '../walletManagementData'
 import {
@@ -15,9 +14,40 @@ import {
     thClass,
 } from './WalletShared'
 
-const UserWalletsTab = ({ userWallets = USER_WALLETS }) => (
+const parseBalance = (value) => {
+    if (typeof value === 'number') return value
+    const digits = String(value ?? '').replace(/[^\d.-]/g, '')
+    return Number(digits) || 0
+}
+
+const formatInr = (amount) => {
+    try {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            maximumFractionDigits: 0,
+        }).format(amount)
+    } catch {
+        return `₹${amount}`
+    }
+}
+
+const UserWalletsTab = ({ userWallets = USER_WALLETS }) => {
+    const rows = Array.isArray(userWallets) ? userWallets : []
+    const summaryCards = useMemo(() => {
+        const totalBalance = rows.reduce((sum, row) => sum + parseBalance(row.balance), 0)
+        const active = rows.filter((row) => String(row.status || 'Active').toLowerCase() === 'active').length
+        return [
+            { label: 'Wallets on snapshot', value: String(rows.length), sub: 'Finance state', iconTone: 'success' },
+            { label: 'Active', value: String(active), sub: 'Status Active', iconTone: 'success' },
+            { label: 'Total balance', value: formatInr(totalBalance), sub: 'Sum of listed wallets', iconTone: 'success' },
+            { label: 'Zero / other', value: String(Math.max(0, rows.length - active)), sub: 'Not Active', iconTone: 'warning' },
+        ]
+    }, [rows])
+
+    return (
     <div className='space-y-6'>
-        <SummaryCards cards={USER_WALLETS_SUMMARY} />
+        <SummaryCards cards={summaryCards} />
 
         <TableCard
             title='User wallet register'
@@ -45,7 +75,7 @@ const UserWalletsTab = ({ userWallets = USER_WALLETS }) => (
                     </select>
                 </div>
             )}
-            footer={<TablePagination summary='2,140 wallets total' />}
+            footer={<TablePagination summary={`${rows.length} wallet${rows.length === 1 ? '' : 's'} total`} />}
         >
             <table className='w-full text-sm text-left mt-4'>
                 <thead className='text-xs bg-[#EDEEF5] whitespace-nowrap rounded-lg'>
@@ -60,18 +90,27 @@ const UserWalletsTab = ({ userWallets = USER_WALLETS }) => (
                     </tr>
                 </thead>
                 <tbody>
-                    {userWallets.map((row) => (
-                        <tr key={row.id} className='border-b border-[#f2f4f7] hover:bg-[#f2f4f7]'>
-                            <td className={`${tdClass} rounded-s-lg`}>
-                                <UserAvatar initials={row.initials} name={row.name} />
+                    {rows.length === 0 ? (
+                        <tr>
+                            <td colSpan={7} className={`${tdClass} text-[#667085]`}>
+                                No wallets on the campus finance snapshot yet.
                             </td>
-                            <td className={tdClass}><RoleChip role={row.role} /></td>
-                            <td className={`${tdClass} font-mono text-xs`}>{row.walletId}</td>
-                            <td className={`${tdClass} font-semibold text-[#1E1E1E]`}>{row.balance}</td>
-                            <td className={tdClass}>{row.lastRecharge}</td>
+                        </tr>
+                    ) : rows.map((row) => (
+                        <tr key={row.id || row.walletId || row.email} className='border-b border-[#f2f4f7] hover:bg-[#f2f4f7]'>
+                            <td className={`${tdClass} rounded-s-lg`}>
+                                <UserAvatar
+                                    initials={row.initials || String(row.name || '?').slice(0, 2).toUpperCase()}
+                                    name={row.name || '—'}
+                                />
+                            </td>
+                            <td className={tdClass}><RoleChip role={row.role || '—'} /></td>
+                            <td className={`${tdClass} font-mono text-xs`}>{row.walletId || row.id || '—'}</td>
+                            <td className={`${tdClass} font-semibold text-[#1E1E1E]`}>{row.balance ?? '—'}</td>
+                            <td className={tdClass}>{row.lastRecharge || '—'}</td>
                             <td className={tdClass}>
-                                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${walletStatusBadgeColor[row.status]}`}>
-                                    {row.status}
+                                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${walletStatusBadgeColor[row.status] || 'bg-[#EDEEF5] text-[#667085]'}`}>
+                                    {row.status || 'Active'}
                                 </span>
                             </td>
                             <td className={`${tdClass} rounded-e-lg`}>
@@ -85,6 +124,7 @@ const UserWalletsTab = ({ userWallets = USER_WALLETS }) => (
             </table>
         </TableCard>
     </div>
-)
+    )
+}
 
 export default UserWalletsTab

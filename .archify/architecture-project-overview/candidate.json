@@ -3,14 +3,14 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "QMIS School ERP \u2014 project overview",
-    "subtitle": "Single current overview \u00b7 Archify 3.1.0 \u00b7 Principal 21/21 \u00b7 Alembic 0012",
+    "subtitle": "Single current overview \u00b7 Archify 3.1.0 \u00b7 Account Head 22/22 \u00b7 Alembic 0012",
     "locale": "en",
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "f2cba367400734d961eb7d9f6574efe0d6049110"
+      "revision": "35d8816764bea6a858b0a9d53b2b2941306fcc14"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
@@ -128,7 +128,7 @@
       "id": "client",
       "type": "frontend",
       "label": "API clients",
-      "sublabel": "28 *Api.js clients",
+      "sublabel": "30 *Api.js clients",
       "pos": [
         400,
         200
@@ -424,7 +424,7 @@
       "id": "mod_finance",
       "type": "backend",
       "label": "Finance",
-      "sublabel": "snapshot + actions",
+      "sublabel": "state \u00b7 collect \u00b7 books",
       "pos": [
         960,
         408
@@ -726,19 +726,21 @@
         "Students \u2014 list \u00b7 detail \u00b7 me",
         "Attendance \u2014 class marks",
         "Workflows \u2014 leave \u00b7 tasks \u00b7 exams",
-        "Finance \u2014 snapshot + actions",
+        "Finance \u2014 state \u00b7 collect \u00b7 books",
         "HR \u2014 partner vertical",
         "Files \u2014 upload \u00b7 download",
         "Admin campus \u2014 docs \u00b7 TC \u00b7 activities",
         "Front Office \u2014 auto from main.py",
         "VITE_USE_API_* flags default with auth (fail-closed hydrate; no stale localStorage when API on)",
-        "Completed panels: Admin 26/26 \u00b7 PRM 21/21 \u00b7 Parent 23/23 \u00b7 Student 23/23 \u00b7 Teacher 29/1 Gap \u00b7 Coordinator 29/1 Gap \u00b7 Principal 21/21",
+        "Completed panels: Admin 26/26 \u00b7 PRM 21/21 \u00b7 Parent 23/23 \u00b7 Student 23/23 \u00b7 Teacher 29/1 Gap \u00b7 Account Head 22/22",
+        "Director 9/7/8 (Home Fun + Star Ratings shared FE SoT; My Attendance linked EMP-DIR-001)",
+        "Finance snapshot SoT: GET/PUT /finance/state + collect-payment; COA/JV/recon/FS/Book Fee/MFP on snapshot",
         "Class Attendance Save \u2192 POST /attendance; Mark Entry \u2192 /marks-batches",
-        "App.jsx lazy-loads role layouts (entry JS ~354 kB after code-split)",
+        "App.jsx lazy-loads role layouts (entry JS code-split)",
         "must_change_password gated in get_current_user; orphan file downloads ACL-hardened",
         "Alembic head 0012_students_student_user_id; 48 application tables",
         "HR + Finance API SoT; Gateway/SMTP/WA env-gated (demo/stub)",
-        "15 Oct 2026 stability audit READY WITH LIMITATIONS; pytest 416 passed",
+        "16 Oct 2026 Account Head complete; pytest 426 passed",
         "Request path: User \u2192 lazy React \u2192 apiClient JWT \u2192 FastAPI deps/RBAC \u2192 service \u2192 PostgreSQL (+ uploads)"
       ]
     },
@@ -760,19 +762,19 @@
         "Core types: architecture \u00b7 workflow \u00b7 sequence \u00b7 dataflow \u00b7 lifecycle",
         "New in 3.1: erd \u00b7 tree \u00b7 class \u00b7 timeline \u00b7 waterfall",
         "This project ships one current architecture overview file only",
-        "Clients: activitiesApi.js, adminAttendanceApi.js, adminUsersApi.js, admissionsApi.js, announcementsApi.js, attendanceApi.js, authApi.js, calendarApi.js\u2026"
+        "Clients: activitiesApi.js, adminAttendanceApi.js, adminUsersApi.js, admissionsApi.js, announcementsApi.js, approvalsApi.js, attendanceApi.js, authApi.js\u2026"
       ]
     },
     {
       "dot": "rose",
       "title": "Still open",
       "items": [
-        "Next panel: Director (shared approvals + campus APIs)",
+        "Next focus: remaining Director Partials / Coordinator panel (many Not Completed)",
         "Teacher/Coordinator biometric remains Gap",
+        "staff_ratings REST (Director Star Ratings still FE SoT)",
         "Further page-level lazy imports inside largest role route trees",
         "Live SMTP/WhatsApp/payments when school configures providers",
-        "RFID / eSSL import still off unless enabled",
-        "Integrations accept \u2260 delivery verified"
+        "RFID / eSSL import still off unless enabled"
       ]
     }
   ]

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useFinance } from '../financeDomain/FinanceContext'
 import { formatCurrency } from '../financeDomain/financeHelpers'
+import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
 
 export default function PaymentVouchers() {
     const { transactions, students, recordVoucherAction } = useFinance()
@@ -36,6 +37,7 @@ export default function PaymentVouchers() {
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h2 className='text-xl font-semibold'>Payment vouchers</h2>
                 <p className='text-sm text-[#667085] mt-1'>Each voucher uses an existing finance transaction. No second transaction is created.</p>
+                <FinanceSnapshotBanner mockNote='List is the campus finance transactions collection.' />
             </div>
             {transactions.length === 0 && (
                 <div className='bg-white rounded-2xl shadow-md p-6 text-sm text-[#667085]'>No finance transactions yet. Collect a fee to generate a voucher from that transaction.</div>

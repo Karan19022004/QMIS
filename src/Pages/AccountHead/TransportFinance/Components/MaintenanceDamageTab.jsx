@@ -19,6 +19,9 @@ import {
 
 const MaintenanceDamageTab = ({ onLogDamage }) => (
     <div className='space-y-6'>
+        <p className='text-sm text-[#B8860B] bg-[#FFF8E7] border border-[#F5E6B8] rounded-xl px-4 py-3'>
+            DEMO / ILLUSTRATIVE — maintenance & damage registers are local demo data, not the campus finance snapshot.
+        </p>
         <SummaryCards cards={MAINTENANCE_SUMMARY} />
 
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>

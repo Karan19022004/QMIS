@@ -35,6 +35,10 @@ import {
 } from './financeHelpers'
 import { BUDGET_SEED } from '../../../Common/demoDomain/financeExtras'
 import {
+    SNAPSHOT_COA_SEED,
+    buildBookFeeFromStudents,
+} from './financeSnapshotAccounting'
+import {
     BANK_ACCOUNTS,
     FEE_CATEGORIES,
     FEE_CONCESSIONS,
@@ -73,6 +77,7 @@ import { ROLES } from '../../../constants/roles'
 import { FLEET_VEHICLES } from '../TransportFinance/transportFinanceData'
 import { RECHARGE_RECORDS, USER_WALLETS } from '../WalletManagement/walletManagementData'
 import { PENDING_REQUESTS } from '../Approvals/approvalsData'
+import { buildCampusFeeLedger } from './financeBootstrap'
 
 const FinanceContext = createContext(null)
 
@@ -89,6 +94,9 @@ const createEmptyFinanceState = () => ({
     concessions: [],
     installments: [],
     annualBudget: [],
+    chartOfAccounts: [],
+    journalVouchers: [],
+    bookFeeBreakup: [],
     transactions: [],
     receipts: [],
     cheques: [],
@@ -148,6 +156,9 @@ export const FinanceProvider = ({ children }) => {
     const [concessions, setConcessions] = useState(() => initialPersistedList(boot, 'concessions', offlineAllowed ? FEE_CONCESSIONS : emptyBoot))
     const [installments, setInstallments] = useState(() => initialPersistedList(boot, 'installments', offlineAllowed ? FEE_INSTALLMENTS : emptyBoot))
     const [annualBudget, setAnnualBudget] = useState(() => initialPersistedList(boot, 'annualBudget', offlineAllowed ? BUDGET_SEED : emptyBoot))
+    const [chartOfAccounts, setChartOfAccounts] = useState(() => initialPersistedList(boot, 'chartOfAccounts', offlineAllowed ? SNAPSHOT_COA_SEED : emptyBoot))
+    const [journalVouchers, setJournalVouchers] = useState(() => initialPersistedList(boot, 'journalVouchers', emptyBoot))
+    const [bookFeeBreakup, setBookFeeBreakup] = useState(() => initialPersistedList(boot, 'bookFeeBreakup', emptyBoot))
     const [transactions, setTransactions] = useState(() => initialPersistedList(boot, 'transactions', emptyBoot))
     const [receipts, setReceipts] = useState(() => initialPersistedList(boot, 'receipts', offlineAllowed ? SEED_RECEIPTS : emptyBoot))
     const [cheques, setCheques] = useState(() => initialPersistedList(boot, 'cheques', offlineAllowed ? SEED_CHEQUES : emptyBoot))
@@ -192,6 +203,9 @@ export const FinanceProvider = ({ children }) => {
         setConcessions(initialPersistedList(data, 'concessions', fb))
         setInstallments(initialPersistedList(data, 'installments', fb))
         setAnnualBudget(initialPersistedList(data, 'annualBudget', fb))
+        setChartOfAccounts(initialPersistedList(data, 'chartOfAccounts', fb))
+        setJournalVouchers(initialPersistedList(data, 'journalVouchers', fb))
+        setBookFeeBreakup(initialPersistedList(data, 'bookFeeBreakup', fb))
         setTransactions(initialPersistedList(data, 'transactions', fb))
         setReceipts(initialPersistedList(data, 'receipts', fb))
         setCheques(initialPersistedList(data, 'cheques', fb))
@@ -691,6 +705,54 @@ export const FinanceProvider = ({ children }) => {
         return id
     }, [])
 
+    /**
+     * Fill empty fee masters + unpaid installments for enrolled students.
+     * Safe for demo: does not invent paid collections; preserves existing receipts/transactions.
+     */
+    const bootstrapDemoFeeLedger = useCallback(({ force = false } = {}) => {
+        if (!students.length) {
+            return { success: false, message: 'No enrolled finance students to assign fees to.' }
+        }
+        if (!force && installments.length > 0) {
+            return {
+                success: false,
+                message: `Campus already has ${installments.length} installment(s). Use force only if you intend to merge more demand rows.`,
+            }
+        }
+        const ledger = buildCampusFeeLedger({
+            students,
+            existingInstallments: force ? installments : [],
+        })
+        setFeeCategories(ledger.feeCategories)
+        setFeeStructures(ledger.feeStructures)
+        setFineRules(ledger.fineRules)
+        setBankAccounts((prev) => (prev.length ? prev : ledger.bankAccounts))
+        setPosTerminals((prev) => (prev.length ? prev : ledger.posTerminals))
+        setInstallments(ledger.installments)
+        setApprovals((prev) => {
+            if (prev.length) return prev
+            return ledger.approvals
+        })
+        setChartOfAccounts((prev) => (prev.length ? prev : SNAPSHOT_COA_SEED.map((row) => ({ ...row }))))
+        setAnnualBudget((prev) => (prev.length ? prev : BUDGET_SEED.map((row) => ({ ...row }))))
+        setBookFeeBreakup((prev) => (
+            prev.length ? prev : buildBookFeeFromStudents(students)
+        ))
+        appendAudit({
+            action: 'DEMO_FEE_LEDGER_BOOTSTRAPPED',
+            entity: 'FeeLedger',
+            entityId: 'campus',
+            newValue: `${ledger.installments.length} installments · ${ledger.feeStructures.length} structures`,
+            reason: 'Account Head demo fee ledger',
+        })
+        return {
+            success: true,
+            installments: ledger.installments.length,
+            structures: ledger.feeStructures.length,
+            approvals: ledger.approvals.length,
+        }
+    }, [appendAudit, installments, students])
+
     const addManualEntry = useCallback((entry) => {
         seq.current.txn += 1
         seq.current.voucher += 1
@@ -1028,6 +1090,9 @@ export const FinanceProvider = ({ children }) => {
             concessions,
             installments,
             annualBudget,
+            chartOfAccounts,
+            journalVouchers,
+            bookFeeBreakup,
             transactions,
             receipts,
             cheques,
@@ -1075,6 +1140,9 @@ export const FinanceProvider = ({ children }) => {
         transportFleet,
         approvals,
         annualBudget,
+        chartOfAccounts,
+        journalVouchers,
+        bookFeeBreakup,
         auditLog,
         bankAccounts,
         bankBookEntries,
@@ -1154,6 +1222,24 @@ export const FinanceProvider = ({ children }) => {
                 row.id === id ? { ...row, [field]: Number(value) || 0 } : row
             )))
         },
+        chartOfAccounts,
+        setChartOfAccounts,
+        journalVouchers,
+        setJournalVouchers,
+        bookFeeBreakup,
+        setBookFeeBreakup,
+        updateBookFeeBreakup: (id, field, value) => {
+            setBookFeeBreakup((prev) => prev.map((row) => (
+                row.id === id
+                    ? {
+                        ...row,
+                        [field]: ['quantity', 'unitCost', 'assignedFee'].includes(field)
+                            ? Number(value) || 0
+                            : value,
+                    }
+                    : row
+            )))
+        },
         recordVoucherAction: (transactionId, action) => {
             setTransactions((prev) => prev.map((item) => (
                 item.id === transactionId
@@ -1207,6 +1293,7 @@ export const FinanceProvider = ({ children }) => {
         setApprovals,
         addFeeStructure,
         addFeeCategory,
+        bootstrapDemoFeeLedger,
         setFeeStructures,
         setFineRules,
         setBankAccounts,
@@ -1235,11 +1322,14 @@ export const FinanceProvider = ({ children }) => {
         annualBudget,
         addFeeCategory,
         addFeeStructure,
+        bootstrapDemoFeeLedger,
         addManualEntry,
         auditLog,
         bankAccounts,
         bankBookEntries,
+        bookFeeBreakup,
         cashBookEntries,
+        chartOfAccounts,
         cheques,
         collectFeePayment,
         issueActivityFeeReceipt,
@@ -1258,6 +1348,7 @@ export const FinanceProvider = ({ children }) => {
         glEntries,
         hydratedInstallments,
         installments,
+        journalVouchers,
         moneyInTransactions,
         onlineBookEntries,
         paymentLinks,

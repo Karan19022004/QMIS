@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { toast } from 'react-toastify'
-import { Percent, RefreshCw } from 'lucide-react'
+import { Percent, RefreshCw, WalletCards } from 'lucide-react'
 import {
     ACADEMIC_YEARS,
     BOOKS_CLOSURE_TOGGLES,
@@ -24,9 +24,19 @@ import { formatDisplayDateTime } from '../../financeDomain/financeHelpers'
 const GeneralTab = () => {
     const [general, setGeneral] = useState(GENERAL_SETTINGS)
     const [booksClosure, setBooksClosure] = useState(BOOKS_CLOSURE_TOGGLES)
-    const { financePersistence, applyHrConcessions, reloadFinanceFromApi, financeStatus, financeError } = useFinance()
+    const {
+        financePersistence,
+        applyHrConcessions,
+        reloadFinanceFromApi,
+        financeStatus,
+        financeError,
+        bootstrapDemoFeeLedger,
+        installments,
+        students,
+    } = useFinance()
     const [applyingConcessions, setApplyingConcessions] = useState(false)
     const [reloading, setReloading] = useState(false)
+    const [bootstrapping, setBootstrapping] = useState(false)
 
     const updateGeneral = (key, value) => {
         setGeneral((prev) => ({ ...prev, [key]: value }))
@@ -61,6 +71,24 @@ const GeneralTab = () => {
             toast.error(error?.message || 'Finance API reload failed.')
         } finally {
             setReloading(false)
+        }
+    }
+
+    const handleBootstrapFeeLedger = () => {
+        setBootstrapping(true)
+        try {
+            const result = bootstrapDemoFeeLedger({ force: false })
+            if (!result?.success) {
+                toast.error(result?.message || 'Could not bootstrap fee ledger.')
+                return
+            }
+            toast.success(
+                `Fee ledger ready: ${result.structures} structure(s), ${result.installments} unpaid installment(s)`
+                + (result.approvals ? `, ${result.approvals} pending approval(s)` : '')
+                + '. Snapshot will sync to the API.',
+            )
+        } finally {
+            setBootstrapping(false)
         }
     }
 
@@ -168,6 +196,21 @@ const GeneralTab = () => {
                 >
                     <Percent size={16} />
                     {applyingConcessions ? 'Applying…' : 'Apply HR concessions to fees'}
+                </button>
+            </SettingsPanel>
+
+            <SettingsPanel
+                title='Demo fee ledger'
+                sub={`Enrolled finance students: ${students?.length ?? 0}. Installments on campus: ${installments?.length ?? 0}. Creates tuition demand rows (UNPAID) from student classes — does not invent paid collections.`}
+            >
+                <button
+                    type='button'
+                    disabled={bootstrapping || !students?.length}
+                    onClick={handleBootstrapFeeLedger}
+                    className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] border border-[#515DEF] px-4 py-2 rounded-md hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer disabled:opacity-60'
+                >
+                    <WalletCards size={16} />
+                    {bootstrapping ? 'Building…' : 'Bootstrap campus fee ledger'}
                 </button>
             </SettingsPanel>
 

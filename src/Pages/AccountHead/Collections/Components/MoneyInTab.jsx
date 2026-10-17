@@ -1,6 +1,6 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Download } from 'lucide-react'
-import { INCOME_REGISTER, MONEY_IN_SUMMARY, incomeStatusBadgeColor } from '../collectionsData'
+import { INCOME_REGISTER, incomeStatusBadgeColor } from '../collectionsData'
 import { useFinance } from '../../financeDomain/FinanceContext'
 import { formatCurrency, formatDisplayDate } from '../../financeDomain/financeHelpers'
 import { paymentModeLabel, TRANSACTION_STATUSES } from '../../financeDomain/financeConstants'
@@ -13,21 +13,53 @@ import {
 } from './CollectionsShared'
 
 const MoneyInTab = () => {
-    const { postedInflow, students } = useFinance()
-    const liveRows = postedInflow.map((item) => ({
+    const { postedInflow, students, financePersistence } = useFinance()
+    const apiLive = Boolean(financePersistence?.apiEnabled)
+
+    const liveRows = useMemo(() => postedInflow.map((item) => ({
         id: item.id,
         date: formatDisplayDate(item.transactionDate),
         source: item.category || 'Student Fees',
         reference: item.receiptNo || item.transactionNo,
         mode: paymentModeLabel(item.paymentMode),
         amount: `+${formatCurrency(item.amount)}`,
+        amountNum: Number(item.amount) || 0,
         status: item.status === TRANSACTION_STATUSES.POSTED ? 'Cleared' : item.status,
         student: students.find((row) => row.id === item.studentId)?.name,
-    }))
+    })), [postedInflow, students])
+
+    const rows = apiLive ? liveRows : [...liveRows, ...INCOME_REGISTER]
+    const totalIn = liveRows.reduce((sum, row) => sum + row.amountNum, 0)
+    const summaryCards = [
+        {
+            label: 'Posted inflows (snapshot)',
+            value: formatCurrency(totalIn),
+            sub: `${liveRows.length} transaction(s)`,
+            iconTone: 'success',
+        },
+        {
+            label: 'Cleared',
+            value: String(liveRows.filter((row) => row.status === 'Cleared').length),
+            sub: 'Posted status',
+            iconTone: 'success',
+        },
+        {
+            label: 'Pending clearance',
+            value: String(liveRows.filter((row) => row.status !== 'Cleared').length),
+            sub: 'Cheques / holds',
+            iconTone: 'warning',
+        },
+        {
+            label: 'Source',
+            value: apiLive ? 'API' : 'Demo',
+            sub: apiLive ? 'No seed income register merged' : 'Includes offline demo register',
+            iconTone: 'success',
+        },
+    ]
 
     return (
     <div className='space-y-6'>
-        <SummaryCards cards={MONEY_IN_SUMMARY} />
+        <SummaryCards cards={summaryCards} />
 
         <TableCard
             title='Income source register'
@@ -51,7 +83,7 @@ const MoneyInTab = () => {
                     </button>
                 </div>
             )}
-            footer={<TablePagination summary='1,486 income entries this month' />}
+            footer={<TablePagination summary={`${rows.length} income entr${rows.length === 1 ? 'y' : 'ies'}`} />}
         >
             <table className='w-full text-sm text-left mt-4'>
                 <thead className='text-xs bg-[#EDEEF5] whitespace-nowrap rounded-lg'>
@@ -65,7 +97,13 @@ const MoneyInTab = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    { [...liveRows, ...INCOME_REGISTER].map((row) => (
+                    {rows.length === 0 ? (
+                        <tr>
+                            <td colSpan={6} className={`${tdClass} text-[#667085]`}>
+                                No posted inflows on the campus finance snapshot yet.
+                            </td>
+                        </tr>
+                    ) : rows.map((row) => (
                         <tr key={row.id} className='border-b border-[#f2f4f7] hover:bg-[#f2f4f7]'>
                             <td className={`${tdClass} rounded-s-lg`}>{row.date}</td>
                             <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.source}</td>
@@ -73,7 +111,7 @@ const MoneyInTab = () => {
                             <td className={tdClass}>{row.mode}</td>
                             <td className={`${tdClass} font-semibold text-[#4CAF50]`}>{row.amount}</td>
                             <td className={`${tdClass} rounded-e-lg`}>
-                                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${incomeStatusBadgeColor[row.status]}`}>
+                                <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${incomeStatusBadgeColor[row.status] || 'bg-[#EDEEF5] text-[#667085]'}`}>
                                     {row.status}
                                 </span>
                             </td>

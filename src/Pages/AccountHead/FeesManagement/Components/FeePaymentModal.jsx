@@ -34,26 +34,29 @@ const FeePaymentModal = ({
     const handleSubmit = async () => {
         if (submitting) return
         setSubmitting(true)
-        const result = onConfirm({
-            paymentMode: mode,
-            details: {
-                ...details,
-                transactionDate: details.transactionDate || details.paymentDate,
-            },
-            paymentDate: details.paymentDate || details.transactionDate,
-            narration: details.narration,
-        })
-        if (!result?.success) {
-            toast.error(result?.errors?.[0] || result?.message || 'Unable to collect payment.')
+        try {
+            const result = await onConfirm({
+                paymentMode: mode,
+                details: {
+                    ...details,
+                    transactionDate: details.transactionDate || details.paymentDate,
+                },
+                paymentDate: details.paymentDate || details.transactionDate,
+                narration: details.narration,
+            })
+            if (!result?.success) {
+                toast.error(result?.errors?.[0] || result?.message || 'Unable to collect payment.')
+                return
+            }
+            if (result.held) {
+                toast.info(`Cheque recorded as ${result.transaction?.chequeDetails?.status}. Fee will update after clearance.`)
+            } else {
+                toast.success(`Collected ${payableLabel}. Receipt ${result.receipt?.receiptNo}`)
+            }
+            onClose()
+        } finally {
             setSubmitting(false)
-            return
         }
-        if (result.held) {
-            toast.info(`Cheque recorded as ${result.transaction?.chequeDetails?.status}. Fee will update after clearance.`)
-        } else {
-            toast.success(`Collected ${payableLabel}. Receipt ${result.receipt?.receiptNo}`)
-        }
-        onClose()
     }
 
     return (

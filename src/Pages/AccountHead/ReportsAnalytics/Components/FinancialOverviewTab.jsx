@@ -1,16 +1,18 @@
 import React, { useMemo } from 'react'
 import ReactECharts from 'echarts-for-react'
-import {
-    INCOME_EXPENDITURE_TREND,
-    INCOME_MIX,
-    OVERVIEW_SUMMARY,
-} from '../reportsAnalyticsData'
+import { OVERVIEW_SUMMARY } from '../reportsAnalyticsData'
 import { Panel, SummaryCards } from './ReportsShared'
 import { useFinance } from '../../financeDomain/FinanceContext'
 import { formatCurrency } from '../../financeDomain/financeHelpers'
+import {
+    buildIncomeMixFromTransactions,
+    buildMonthlyTxnSeries,
+} from '../../financeDomain/financeSnapshotAccounting'
 
 const FinancialOverviewTab = () => {
-    const { dashboardMetrics, transactions, receipts } = useFinance()
+    const { dashboardMetrics, transactions, receipts, financePersistence } = useFinance()
+    const apiLive = Boolean(financePersistence?.apiEnabled)
+
     const summaryCards = useMemo(() => {
         const income = (transactions || [])
             .filter((row) => row.direction === 'IN' && row.status === 'POSTED')
@@ -32,6 +34,9 @@ const FinancialOverviewTab = () => {
         })
     }, [dashboardMetrics, receipts, transactions])
 
+    const monthly = useMemo(() => buildMonthlyTxnSeries(transactions || []), [transactions])
+    const incomeMix = useMemo(() => buildIncomeMixFromTransactions(transactions || []), [transactions])
+
     const incomeExpenditureOption = useMemo(() => ({
         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
         legend: {
@@ -42,33 +47,31 @@ const FinancialOverviewTab = () => {
         grid: { left: 40, right: 16, top: 16, bottom: 48 },
         xAxis: {
             type: 'category',
-            data: INCOME_EXPENDITURE_TREND.labels,
+            data: monthly.labels.length ? monthly.labels : ['—'],
             axisLine: { lineStyle: { color: '#E0E0E0' } },
             axisLabel: { color: '#667085', fontSize: 11 },
         },
         yAxis: {
             type: 'value',
-            axisLabel: { color: '#667085', fontSize: 11, formatter: (v) => `₹${v}L` },
+            axisLabel: { color: '#667085', fontSize: 11, formatter: (v) => `₹${v}` },
             splitLine: { lineStyle: { color: '#F2F4F7' } },
         },
         series: [
             {
                 name: 'Income',
                 type: 'bar',
-                stack: 'total',
                 barWidth: 28,
-                data: INCOME_EXPENDITURE_TREND.income,
+                data: monthly.labels.length ? monthly.income : [0],
                 itemStyle: { color: '#4CAF50', borderRadius: [4, 4, 0, 0] },
             },
             {
                 name: 'Expenditure',
                 type: 'bar',
-                stack: 'total',
-                data: INCOME_EXPENDITURE_TREND.expenditure,
-                itemStyle: { color: '#FF5722', borderRadius: [0, 0, 4, 4] },
+                data: monthly.labels.length ? monthly.expenditure : [0],
+                itemStyle: { color: '#FF5722', borderRadius: [4, 4, 0, 0] },
             },
         ],
-    }), [])
+    }), [monthly])
 
     const incomeMixOption = useMemo(() => ({
         tooltip: { trigger: 'item', formatter: '{b}: {d}%' },
@@ -79,27 +82,25 @@ const FinancialOverviewTab = () => {
             avoidLabelOverlap: true,
             label: { show: false },
             labelLine: { show: false },
-            data: INCOME_MIX.map((item) => ({
-                value: item.percent,
+            data: (incomeMix.length ? incomeMix : [{ name: 'No posted IN', value: 1, color: '#E0E0E0' }]).map((item) => ({
+                value: item.value || item.percent || 1,
                 name: item.name,
                 itemStyle: { color: item.color },
             })),
         }],
-    }), [])
+    }), [incomeMix])
 
     return (
         <div className='space-y-6'>
+            {apiLive && (
+                <p className='text-sm text-[#667085]'>
+                    Overview cards and charts use posted finance snapshot transactions / fee KPIs.
+                </p>
+            )}
             <SummaryCards cards={summaryCards} />
 
             <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
-                <Panel
-                    title='Income vs expenditure — by month'
-                    action={(
-                        <button type='button' className='text-sm font-medium text-[#515DEF] hover:opacity-80 cursor-pointer'>
-                            Full report
-                        </button>
-                    )}
-                >
+                <Panel title='Income vs expenditure — by month'>
                     <ReactECharts option={incomeExpenditureOption} style={{ height: 260 }} opts={{ renderer: 'svg' }} />
                 </Panel>
 
@@ -109,7 +110,7 @@ const FinancialOverviewTab = () => {
                             <ReactECharts option={incomeMixOption} style={{ height: 220 }} opts={{ renderer: 'svg' }} />
                         </div>
                         <div className='space-y-3 shrink-0'>
-                            {INCOME_MIX.map((item) => (
+                            {(incomeMix.length ? incomeMix : [{ name: 'No posted IN', percent: 0, color: '#E0E0E0' }]).map((item) => (
                                 <div key={item.name} className='flex items-center gap-2 text-sm'>
                                     <span className='size-2.5 rounded-sm shrink-0' style={{ backgroundColor: item.color }} />
                                     <span className='text-[#667085]'>{item.name}</span>

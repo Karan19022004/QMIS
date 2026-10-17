@@ -62,13 +62,24 @@ Gate passes / transfer / re-enrollment on `front_office_records` (Alembic **0011
 
 ## Director (24 modules) — 16 Oct panel audit
 
-Approvals (Mark Entry / Exam Timetable / Request), Notifications, Lesson Plans, and **My Attendance** (`GET /hr/attendance/mine`) are live. Self-only attendance identity = `HrEmployee.user_id` **or** matching `HrEmployee.email` to the signed-in `User`. Demo seed creates auth Users only — **no** matching `HrEmployee` for `director@qmis.edu`, so mine correctly returns `[]` (do not fabricate punches).
+Approvals (Mark Entry / Exam Timetable / Request), Notifications, Lesson Plans, and **My Attendance** (`GET /hr/attendance/mine`) are live. Self-only attendance identity = `HrEmployee.user_id` **or** matching `HrEmployee.email` to the signed-in `User`. Demo seed links `director@qmis.edu` → `EMP-DIR-001` (profile only — **no** invented punches; mine is `[]` until HR records attendance).
 
 | Status | Modules |
 |---|---|
-| **PASS (API + browser)** | Mark Entry / Exam / Request Approvals, Notifications, Lesson Plans, My Attendance (empty until HR links employee) |
-| **DEMO ONLY (no REST)** | Star Ratings SOM/SOY — recommend **new** `staff_ratings` domain (do not reuse `/hr/performance`) |
-| **DEMO ONLY (no REST)** | Home Fun Student/Teacher LMS — recommend reuse Teacher `HomeFun` localStorage SoT (as Principal) until a **deliverables** API is designed; Director screens are still independent mocks |
+| **PASS (API + browser)** | Mark Entry / Exam / Request Approvals, Notifications, Lesson Plans, My Attendance (linked `EMP-DIR-001`; punches empty until recorded) |
+| **PASS (shared FE SoT; no REST)** | Home Fun Student/Teacher LMS — reuses Teacher `HomeFun` localStorage SoT (same pattern as Principal); add/view routes under `/director/lms/*`. Still **no deliverables REST** until that API is designed |
+| **PASS (shared FE SoT; no REST)** | Star Ratings SOM/SOY — browser SoT `director-staff-star-ratings` (Add Rating persists; SOY derived). Still recommend **new** `staff_ratings` REST domain later (do not reuse `/hr/performance`) |
+
+---
+
+## Account Head (22 modules) — 16 Oct late (all Completed)
+
+Finance snapshot: `GET/PUT /api/v1/finance/state` + `POST /finance/actions/collect-payment`. Demo seed/bootstrap builds unpaid campus fee demand (does **not** invent paid collections). Snapshot collections also include `chartOfAccounts`, `journalVouchers`, `bookFeeBreakup`, `reconciliationItems`, `annualBudget`.
+
+| Status | Modules |
+|---|---|
+| **PASS (API + browser / snapshot)** | Dashboard, Fees Management, Collections Money In/Out, Wallet (wallets/recharges/spend), Transport fleet/claims, Accounting Day/Cash/Bank/Online/GL, **COA / JV / Bank Recon / Financial Statements** (GL/books-derived), Approvals, Reports overview+income, Task Management, Settings, Payment Vouchers, Book Fee (`bookFeeBreakup`), Annual Budget, **MFP** (installment-derived Monthly Fee Performance) |
+| **Honest DEMO banners (still Completed for demo)** | Wallet recharge-method catalog; Transport maintenance/compliance tabs remain labelled DEMO when not on snapshot |
 
 ---
 
@@ -144,21 +155,28 @@ Sidebar filter map fixed to real link ids (`2→attendance`, `3→lessonPlans`, 
 
 ---
 
-## Coordinator (30 modules) — Completed (1 Gap)
+## Coordinator (30 modules) — 16 Oct late-2 Completed (1 Gap)
 
-Same academic APIs as Teacher plus **`exams.write`**. Biometric remains Gap. FE: `roleKey=coordinator`; Students List / Exam Schedule / Class Attendance aligned with Teacher API screens.
+Same academic APIs as Teacher plus **`exams.write`**. Biometric remains Gap. FE: `roleKey=coordinator`; Dashboard KPI cards live; Students List / Exam Schedule / Class Attendance aligned with Teacher; My Attendance → `GET /hr/attendance/mine` (seed link `EMP-COO-001`).
 
 ---
 
-## Principal (21 modules) — 16 Oct panel verification
+## Principal (21 modules) — 16 Oct late-2
 
-Shared staff APIs with **`exams.write`**, **`calendar.write`**, **`announcements.write`**, **`leave.decide`**, **`hr.employees.read`** (directory only — not `hr.write` / `users.write`). FE: `roleKey=principal`.
+Shared staff APIs with **`exams.write`**, **`calendar.write`**, **`announcements.write`**, **`leave.decide`**, **`hr.employees.read`**. FE: `roleKey=principal`.
 
 | Status | Modules |
 |---|---|
-| **PASS (API + browser 16 Oct)** | Dashboard (composed), Tasks, Examination Timetable, Student Database (12), Employee Database (17 via `/hr/portal/employees`), Leave, Announcement, Communication, Calendar, Notifications, Escalation |
-| **PASS (API; portal SoT)** | Student Allocation, Extended Class, Home Fun Student/Teacher |
-| **PARTIAL (UI; no dedicated REST)** | Star Ratings SOM/SOY, Class Timetable, Teacher Allocation, My Attendance |
+| **PASS (API / shared FE SoT)** | Tasks, Star Ratings SOM/SOY (shared `director-staff-star-ratings`), Examination Timetable, Student/Employee Database, Student Allocation, Extended Class, Home Fun ×2, Leave ×2, My Attendance (`mine`, seed `EMP-PRI-001`), Announcement, Communication, Calendar, Notifications, Escalation |
+| **PARTIAL (UI; no dedicated REST)** | Class Timetable, Teacher Allocation |
+
+---
+
+## Director (24 modules) — 16 Oct late-2 Completed
+
+| Status | Modules |
+|---|---|
+| **PASS** | All 24 — approvals, notifications, lesson plans, mark entry, my attendance, activities ×4 (`/activities`), student/employee DB, leave, announcement/communication/calendar, Home Fun + Star Ratings FE SoT |
 
 ---
 

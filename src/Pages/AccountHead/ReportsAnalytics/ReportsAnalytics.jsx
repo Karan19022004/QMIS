@@ -6,6 +6,7 @@ import IncomeReportsTab from './Components/IncomeReportsTab'
 import ExpenditureReportsTab from './Components/ExpenditureReportsTab'
 import FeeComparisonTab from './Components/FeeComparisonTab'
 import TrendsPatternsTab from './Components/TrendsPatternsTab'
+import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
 import { REPORTS_PERIODS, REPORTS_TABS } from './reportsAnalyticsData'
 
 const ReportsAnalytics = () => {
@@ -24,6 +25,7 @@ const ReportsAnalytics = () => {
                             {' · '}
                             All Modules
                         </p>
+                        <FinanceSnapshotBanner mockNote='Financial Overview cards/charts use posted snapshot transactions and fee KPIs. Other report tabs may still use template layouts.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select

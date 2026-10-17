@@ -8,6 +8,7 @@ import SpendingHistoryTab from './Components/SpendingHistoryTab'
 import RechargeOptionsTab, { AddRechargeMethodModal } from './Components/RechargeOptionsTab'
 import RechargeWalletModal from './Components/RechargeWalletModal'
 import { useFinance } from '../financeDomain/FinanceContext'
+import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
 import { WALLET_ROLE_FILTERS, WALLET_TABS } from './walletManagementData'
 
 const WalletManagement = () => {
@@ -40,6 +41,7 @@ const WalletManagement = () => {
                             {' · '}
                             All Roles
                         </p>
+                        <FinanceSnapshotBanner mockNote='Wallets & recharges come from the finance snapshot. Spending history and recharge method catalogs remain illustrative.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select

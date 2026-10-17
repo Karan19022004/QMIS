@@ -15,6 +15,9 @@ import {
 
 const ComplianceTab = () => (
     <div className='space-y-6'>
+        <p className='text-sm text-[#B8860B] bg-[#FFF8E7] border border-[#F5E6B8] rounded-xl px-4 py-3'>
+            DEMO / ILLUSTRATIVE — compliance documents are local demo data, not the campus finance snapshot.
+        </p>
         <SummaryCards cards={COMPLIANCE_SUMMARY} />
 
         <TableCard

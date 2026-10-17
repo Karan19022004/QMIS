@@ -648,7 +648,12 @@ def _sync_user_role(db: Session, row: HrEmployee) -> None:
     code = _role_code(row.role_title or "")
     role = db.scalar(select(Role).where(Role.code == code)) if code else None
     user = db.get(User, row.user_id)
-    if role is None or user is None or user.email in {settings.admin_seed_email, settings.hr_seed_email}:
+    locked = {
+        settings.admin_seed_email.lower(),
+        settings.hr_seed_email.lower(),
+        settings.director_seed_email.lower(),
+    }
+    if role is None or user is None or (user.email or "").lower() in locked:
         return
     user.role_id = role.id
 
@@ -657,7 +662,12 @@ def _sync_login_active(db: Session, row: HrEmployee) -> None:
     if row.user_id is None:
         return
     user = db.get(User, row.user_id)
-    if user is None or user.email in {settings.admin_seed_email, settings.hr_seed_email}:
+    locked = {
+        settings.admin_seed_email.lower(),
+        settings.hr_seed_email.lower(),
+        settings.director_seed_email.lower(),
+    }
+    if user is None or (user.email or "").lower() in locked:
         return
     user.is_active = (row.status or "Active") not in _INACTIVE
 

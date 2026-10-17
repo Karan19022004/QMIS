@@ -18,15 +18,25 @@ import { useFinance } from '../../financeDomain/FinanceContext'
 import { formatCurrency } from '../../financeDomain/financeHelpers'
 
 const StaffSalariesTab = () => {
-    const { transactions } = useFinance()
+    const { transactions, financePersistence } = useFinance()
+    const apiLive = Boolean(financePersistence?.apiEnabled)
     const payrollPosted = useMemo(
         () => (transactions || []).filter((row) => row.sourceModule === 'PAYROLL'),
         [transactions],
     )
+    const liveSummary = useMemo(() => {
+        const total = payrollPosted.reduce((sum, row) => sum + (Number(row.amount) || 0), 0)
+        return [
+            { label: 'Posted payroll vouchers', value: String(payrollPosted.length), sub: 'sourceModule=PAYROLL', iconTone: 'success' },
+            { label: 'Posted amount', value: formatCurrency(total), sub: 'Snapshot only', iconTone: 'success' },
+            { label: 'Staff register', value: apiLive ? 'Hidden' : 'Demo', sub: apiLive ? 'Seed payroll table not shown in API mode' : 'Offline demo staff list', iconTone: 'warning' },
+            { label: 'Payslip send', value: 'Stub', sub: 'Email/WhatsApp remain mocked', iconTone: 'warning' },
+        ]
+    }, [apiLive, payrollPosted])
 
     return (
     <div className='space-y-6'>
-        <SummaryCards cards={SALARY_SUMMARY} />
+        <SummaryCards cards={apiLive ? liveSummary : SALARY_SUMMARY} />
         {payrollPosted.length > 0 && (
             <TableCard title='Posted payroll vouchers (Finance books)' footer={<TablePagination summary={`${payrollPosted.length} vouchers`} />}>
                 <table className='w-full text-sm text-left mt-4'>
@@ -52,8 +62,9 @@ const StaffSalariesTab = () => {
             </TableCard>
         )}
 
+{!apiLive && (
         <TableCard
-            title='Transport staff payroll — June 2026'
+            title='Transport staff payroll — June 2026 (offline demo)'
             filters={(
                 <div className='flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3'>
                     <div className='relative min-w-[160px]'>
@@ -127,6 +138,12 @@ const StaffSalariesTab = () => {
                 </tbody>
             </table>
         </TableCard>
+        )}
+        {apiLive && payrollPosted.length === 0 && (
+            <p className='text-sm text-[#667085] bg-white rounded-2xl shadow-md p-4'>
+                No PAYROLL vouchers on the campus finance snapshot. Demo staff payroll register is hidden while Finance API is on.
+            </p>
+        )}
     </div>
     )
 }

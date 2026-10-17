@@ -34,10 +34,9 @@ def test_director_mine_does_not_leak_campus_attendance():
     assert mine.status_code == 200
     rows = mine.json()
     assert isinstance(rows, list)
-    # Director seed user is not linked to an HrEmployee in the demo DB, so the list is empty.
-    # Even if linked later, every returned row must belong to a single employeeId.
+    # Linked Director may still have zero punches; every returned row must be one employeeId.
     assert len({row.get("employeeId") for row in rows}) <= 1
-    # Must never surface arbitrary campus peers when the actor has no (or a different) link.
+    # Must never surface arbitrary campus peers outside the linked employee.
     if not rows:
         assert campus_employee_ids  # campus still has data; mine correctly hid it
     else:
@@ -64,18 +63,25 @@ def test_director_cannot_overwrite_campus_attendance():
     assert denied.status_code == 403
 
 
-def test_seed_director_login_has_no_hreemployee_email_match():
-    """Demo seed users are auth-only; identity for attendance is HrEmployee.user_id or email.
-
-    Seed creates User(director@qmis.edu) but does not create a matching HrEmployee.
-    /attendance/mine must therefore stay empty without fabricating punches.
-    """
+def test_seed_director_login_is_linked_to_hreemployee():
+    """Demo seed links director@qmis.edu to EMP-DIR-001 (profile only — no invented punches)."""
     director = _login(settings.director_seed_email, settings.director_seed_password)
     portal = client.get("/api/v1/hr/portal/employees", headers=director)
     assert portal.status_code == 200
-    emails = {str(row.get("email") or "").lower() for row in portal.json()}
-    assert settings.director_seed_email.lower() not in emails
+    match = next(
+        (
+            row
+            for row in portal.json()
+            if str(row.get("email") or "").lower() == settings.director_seed_email.lower()
+        ),
+        None,
+    )
+    assert match is not None
+    assert match.get("id") == "EMP-DIR-001"
 
     mine = client.get("/api/v1/hr/attendance/mine", headers=director)
     assert mine.status_code == 200
-    assert mine.json() == []
+    rows = mine.json()
+    assert isinstance(rows, list)
+    # Linked but no fabricated punches unless HR recorded attendance for EMP-DIR-001.
+    assert all(row.get("employeeId") == "EMP-DIR-001" for row in rows)

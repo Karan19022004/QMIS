@@ -6,6 +6,7 @@ import MoneyInTab from './Components/MoneyInTab'
 import MoneyOutTab from './Components/MoneyOutTab'
 import TransactionTimelineTab from './Components/TransactionTimelineTab'
 import CashFlowTrendsTab from './Components/CashFlowTrendsTab'
+import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
 import { COLLECTIONS_PERIODS, COLLECTIONS_TABS } from './collectionsData'
 
 const Collections = () => {
@@ -24,6 +25,7 @@ const Collections = () => {
                             {' · '}
                             All Sources
                         </p>
+                        <FinanceSnapshotBanner mockNote='Money In/Out use campus snapshot transactions when Finance API is on. Timeline and cash-flow charts remain illustrative.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select
