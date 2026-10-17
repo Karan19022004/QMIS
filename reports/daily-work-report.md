@@ -8,6 +8,44 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 17 October 2026 — ProTrack365 bus tracking + ops SoT hardening
+
+**Status:** Sheet already **480 / 0 / 0 / 0**. Continued wiring so Ops/Audit screens hydrate for real browser testing; added **ProTrack365** GPS integration.
+
+### ProTrack365
+- Backend proxy: `GET /api/v1/protrack/status|devices|track` → `https://api.protrack365.com` (MD5 auth)
+- Env: `PROTRACK_ADMIN_ACCOUNT` / `PROTRACK_ADMIN_PASSWORD` / `PROTRACK_PARENT_ACCOUNT` / `PROTRACK_PARENT_PASSWORD`
+- FE: Transport Manager Route Data → Track Bus + Parent/Student Track Bus poll live GPS every 15s
+- Demo map geometry remains until credentials are set (API returns 503 `protrack_not_configured`)
+- pytest `test_protrack_proxy.py` — **2 passed**
+
+### Ops SoT
+- Additional `*Data.js` bound to `ops_records` / `campusJsonStore` (routes, drivers, canteen orders/requests, IT tickets, stationery/HK inventory, JD meetings, …)
+
+---
+
+## 17 October 2026 — Phase 3 Ops + Audit closeout (Biometric last)
+
+**Status:** Closed all remaining Ops/Audit **Not Completed** rows and Teacher/Coordinator **Biometric Gap**. TOTAL **480 Completed / 0 Partial / 0 Not Completed / 0 Gap** of 480.
+
+### Code
+- Backend `ops_records` + `audit_records` (Alembic **0014**); `GET/PUT /api/v1/ops/{collection}` and `/api/v1/campus-audit/{collection}` with role ACL by collection prefix
+- Permissions `ops.read` / `ops.write` / `campus_audit.read` / `campus_audit.write`; Gate roles also get Front Office gate-pass write
+- FE `opsApi.js`, `campusAuditApi.js`, `campusJsonStore.js` + registry mapping demo `localStorage` keys → campus collections (purge LS in API mode)
+- Wave 1 chrome: shared Notifications + My Attendance for Librarian/Gate/GKM; Process/Quality Communication wired; broadcast audience expanded for ops roles
+- Library books/issues/members SoT; Gate SimpleRegister + biometric → ops; Transport vehicles / Canteen menu / JD approvals / JD Audit templates·plans·findings bound; Process/Quality `*Data.js` stores on campus-audit
+- pytest `tests/test_ops_and_audit_collections.py` — **5 passed**
+- Local Mac: PostgreSQL **18 @ 5433**; migration applied through **0014**
+
+### Status sheet
+- `QMIS-ERP-Role-Module-Status.updated.17oct-ops-audit.docx` (+ review/main/reports sync)
+- Script: `erp complete documentation/update_ops_audit_status_17oct.py`
+
+### Test guide
+- Full Panel Test Guide updated for Ops/Audit hierarchy + biometric smoke
+
+---
+
 ## 17 October 2026 — Core Partials closed (Principal academics + HR honesty)
 
 **Status:** Closed remaining core **Partial** rows. TOTAL **313 Completed / 0 Partial / 165 Not Completed / 2 Gap** of 480.

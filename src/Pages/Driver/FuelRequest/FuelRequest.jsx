@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -8,7 +8,7 @@ import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestMo
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
     APPROVAL_STATUSES,
-    FUEL_REQUESTS,
+    getDriverFuelRequests, hydrateDriverFuelRequestsFromApi,
     approvalStatusBadgeColor,
     filterFuelRequests,
 } from './fuelRequestData'
@@ -17,6 +17,11 @@ const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
 const FuelRequest = () => {
+    const [fuelRequests, setFuelRequests] = useState(() => getDriverFuelRequests())
+    useEffect(() => {
+        hydrateDriverFuelRequestsFromApi().finally(() => setFuelRequests(getDriverFuelRequests()))
+    }, [])
+
     const [search, setSearch] = useState('')
     const [approvalStatus, setApprovalStatus] = useState('')
     const [period, setPeriod] = useState('')

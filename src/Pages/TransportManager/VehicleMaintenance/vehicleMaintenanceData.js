@@ -1,5 +1,6 @@
 import { VEHICLES, VEHICLE_TYPES } from '../VehicleManagement/vehicleManagementData'
 
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export const MAINTENANCE_STATUSES = ['Scheduled', 'Pending']
 
 export const SERVICE_TYPES = [
@@ -31,7 +32,7 @@ export const VEHICLE_OPTIONS = VEHICLES.map((vehicle) => ({
     vehicleType: vehicle.vehicleType,
 }))
 
-export const MAINTENANCE_RECORDS = [
+const DEFAULT_MAINTENANCE_RECORDS = [
     {
         id: 'SRV-1001',
         serviceId: 'SRV-1001',
@@ -95,6 +96,20 @@ export const MAINTENANCE_RECORDS = [
 ]
 
 export const getMaintenanceById = (id) =>
-    MAINTENANCE_RECORDS.find((record) => record.id === id) ?? null
+    getMaintenanceRecords().find((record) => record.id === id) ?? null
 
 export { VEHICLE_TYPES }
+
+export const MAINTENANCE_RECORDS_STORAGE_KEY = 'schoolerp-transport-maintenance-v1'
+export function getMaintenanceRecords() {
+    return ensureCampusSeed('schoolerp-transport-maintenance-v1', DEFAULT_MAINTENANCE_RECORDS)
+}
+export function saveMaintenanceRecords(rows) {
+    return saveCampusJson('schoolerp-transport-maintenance-v1', rows)
+}
+export function hydrateMaintenanceRecordsFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-maintenance-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-maintenance-v1', DEFAULT_MAINTENANCE_RECORDS)
+}
+export const MAINTENANCE_RECORDS = DEFAULT_MAINTENANCE_RECORDS
+

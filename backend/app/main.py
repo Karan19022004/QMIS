@@ -15,6 +15,9 @@ from app.api.v1.endpoints.dashboard import router as dashboard_router
 from app.api.v1.endpoints.documents import router as documents_router
 from app.api.v1.endpoints.front_office import router as front_office_router
 from app.api.v1.endpoints.academics_collections import router as academics_collections_router
+from app.api.v1.endpoints.ops_collections import router as ops_collections_router
+from app.api.v1.endpoints.campus_audit_collections import router as campus_audit_collections_router
+from app.api.v1.endpoints.protrack import router as protrack_router
 from app.api.v1.endpoints.tc_requests import router as tc_requests_router
 from app.api.v1.endpoints.files import router as files_router
 from app.api.v1.endpoints.finance import router as finance_router
@@ -90,6 +93,9 @@ app.include_router(communication_router)
 app.include_router(dashboard_router)
 app.include_router(front_office_router)
 app.include_router(academics_collections_router)
+app.include_router(ops_collections_router)
+app.include_router(campus_audit_collections_router)
+app.include_router(protrack_router)
 
 
 @app.get("/health")

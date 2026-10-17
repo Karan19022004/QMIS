@@ -1,4 +1,5 @@
 import { ensureSeed, saveJson } from './storage'
+import { hydrateCampusKey, usesCampusApiForKey } from '../../services/campusJsonStore'
 import { logActivity } from './activityLog'
 
 export const BIOMETRIC_KEY = 'schoolerp-biometric-attendance-v1'
@@ -11,6 +12,11 @@ const seed = [
 
 export function getBiometricRows() {
     return ensureSeed(BIOMETRIC_KEY, seed)
+}
+
+export async function hydrateBiometricFromApi() {
+    if (!usesCampusApiForKey(BIOMETRIC_KEY)) return false
+    return hydrateCampusKey(BIOMETRIC_KEY, seed)
 }
 
 export function syncBiometricDemo() {

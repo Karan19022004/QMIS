@@ -1,5 +1,6 @@
 import { DEPARTMENTS } from '../AuditManagement/MyAudits/myAuditsData'
 
+import { loadCampusJson, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export { DEPARTMENTS }
 
 export const PRIORITIES = ['Low', 'Medium', 'High', 'Critical']
@@ -286,13 +287,13 @@ const DEFAULT_OBSERVATIONS = [
 ]
 
 export const saveObservations = (records) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    saveCampusJson(STORAGE_KEY, records)
 }
 
 export const getObservations = () => {
     try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) return JSON.parse(stored)
+        const stored = loadCampusJson(STORAGE_KEY, null)
+        if (stored) return stored
     } catch {
         /* ignore */
     }
@@ -367,3 +368,6 @@ export const AUDIT_REFERENCES = [
     'AUD-PA-2026-045',
     'AUD-PA-2026-046',
 ]
+
+export const hydrateFromApi = (seed = DEFAULT_OBSERVATIONS) => hydrateCampusKey(STORAGE_KEY, seed)
+export const usesApiStore = () => usesCampusApiForKey(STORAGE_KEY)

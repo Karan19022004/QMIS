@@ -1,5 +1,6 @@
 import { DEPARTMENTS } from '../MyAudits/myAuditsData'
 
+import { loadCampusJson, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../../services/campusJsonStore'
 export { DEPARTMENTS }
 
 export const CAMPUSES = ['Main Campus', 'North Campus', 'South Campus', 'East Campus']
@@ -171,13 +172,13 @@ const DEFAULT_AUDIT_HISTORY = [
 ]
 
 export const saveAuditHistory = (records) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    saveCampusJson(STORAGE_KEY, records)
 }
 
 export const getAuditHistory = () => {
     try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) return JSON.parse(stored)
+        const stored = loadCampusJson(STORAGE_KEY, null)
+    if (stored) return stored
     } catch {
         /* ignore */
     }
@@ -187,3 +188,6 @@ export const getAuditHistory = () => {
 
 export const getHistoryById = (id) =>
     getAuditHistory().find((item) => item.id === id || item.auditNumber === id) ?? null
+
+export const hydrateFromApi = (seed = DEFAULT_AUDIT_HISTORY) => hydrateCampusKey(STORAGE_KEY, seed)
+export const usesApiStore = () => usesCampusApiForKey(STORAGE_KEY)

@@ -1,5 +1,6 @@
 import { DEPARTMENTS } from '../../Observations/observationsData'
 
+import { loadCampusJson, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../../services/campusJsonStore'
 export { DEPARTMENTS }
 
 export const ATR_STATUSES = [
@@ -297,13 +298,13 @@ const DEFAULT_ATR_RECORDS = [
 ]
 
 export const saveAtrRecords = (records) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+    saveCampusJson(STORAGE_KEY, records)
 }
 
 export const getAtrRecords = () => {
     try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) return JSON.parse(stored)
+        const stored = loadCampusJson(STORAGE_KEY, null)
+    if (stored) return stored
     } catch {
         /* ignore */
     }
@@ -316,3 +317,6 @@ export const getAtrById = (id) =>
 
 export const getAtrByObservationId = (observationId) =>
     getAtrRecords().find((item) => item.observationId === observationId) ?? null
+
+export const hydrateFromApi = (seed = DEFAULT_ATR_RECORDS) => hydrateCampusKey(STORAGE_KEY, seed)
+export const usesApiStore = () => usesCampusApiForKey(STORAGE_KEY)

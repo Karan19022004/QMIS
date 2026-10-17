@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -6,14 +6,18 @@ import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus } fro
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
-import { ASSET_CATEGORIES, getAssets, statusBadgeColor } from './assetData'
+import { ASSET_CATEGORIES, getAssets, hydrateAssetsFromApi, statusBadgeColor } from './assetData'
 
 const AssetManagement = () => {
+    const [assets, setAssets] = useState(() => getAssets())
+    useEffect(() => {
+        hydrateAssetsFromApi().finally(() => setAssets(getAssets()))
+    }, [])
+
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
-    const assets = getAssets()
     const categoryCounts = ASSET_CATEGORIES.map((category) => ({
         category,
         count: assets.filter((asset) => asset.category === category).length,

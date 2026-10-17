@@ -93,6 +93,10 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("frontoffice.write", "Create and change Front Office campus records"),
     ("academics.read", "View class timetables, teacher allocations and timetable change requests"),
     ("academics.write", "Change academics campus collections (principals; teachers may file TT change requests)"),
+    ("ops.read", "View campus ops collections (library, gate, transport, stores, JD, biometric)"),
+    ("ops.write", "Change campus ops collections for your vertical"),
+    ("campus_audit.read", "View campus audit collections (JD Audit + Process/Quality)"),
+    ("campus_audit.write", "Change campus audit collections for your auditor role"),
     ("activities.read", "View cultural, sports and competition activities"),
     ("activities.write", "Add, change and remove activities"),
     ("activities.approve", "Approve or reject an activity"),
@@ -301,10 +305,59 @@ for _code, _perms in ROLE_PERMISSIONS.items():
 # Front Office campus records:
 # - Admin + PRM write (shared campus office); Super Admin / Managing Director already hold all perms.
 # - Principal + Director read-only — matches front_office service _READERS.
+# - Gate Keeper / Manager may read+write gate-pass collections (service also gates by role).
 for _code, _perms in ROLE_PERMISSIONS.items():
     if _code in {"admin", "prm"}:
         for _p in ("frontoffice.read", "frontoffice.write"):
             if _p not in _perms:
                 _perms.append(_p)
+    if _code in {"gatekeeper", "gatekeepermanager"}:
+        for _p in ("frontoffice.read", "frontoffice.write"):
+            if _p not in _perms:
+                _perms.append(_p)
     if _code in {"principal", "director"} and "frontoffice.read" not in _perms:
         _perms.append("frontoffice.read")
+
+# Ops campus collections (library / gate / transport / stores / JD / biometric).
+_OPS_ROLES = {
+    "librarian",
+    "gatekeeper",
+    "gatekeepermanager",
+    "transportmanager",
+    "driver",
+    "canteenmanager",
+    "itsupportmanager",
+    "stationerystoremanager",
+    "housekeepingmanager",
+    "jointdirector",
+    "jointdirectorassistant",
+    "teacher",
+    "coordinator",
+    "principal",
+    "director",
+    "hr",
+    "admin",
+}
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code in _OPS_ROLES:
+        for _p in ("ops.read", "ops.write"):
+            if _p not in _perms:
+                _perms.append(_p)
+
+# Campus audit collections (JD Audit + Process/Quality auditors).
+_CAMPUS_AUDIT_WRITERS = {
+    "jointdirectoraudit",
+    "processauditor",
+    "qualityauditor",
+    "admin",
+}
+_CAMPUS_AUDIT_READERS = _CAMPUS_AUDIT_WRITERS | {
+    "jointdirector",
+    "principal",
+    "director",
+}
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code in _CAMPUS_AUDIT_READERS and "campus_audit.read" not in _perms:
+        _perms.append("campus_audit.read")
+    if _code in _CAMPUS_AUDIT_WRITERS and "campus_audit.write" not in _perms:
+        _perms.append("campus_audit.write")

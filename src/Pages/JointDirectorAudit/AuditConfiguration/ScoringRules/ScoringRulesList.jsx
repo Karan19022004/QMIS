@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
     ChevronLeft,
     ChevronRight,
@@ -12,7 +12,7 @@ import Dropdown from '../../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../../Common/CommonComponents/ExportModal'
 import ScoringRuleFormModal from './ScoringRuleFormModal'
 import {
-    SCORING_RULES,
+    getAuditScoringRules, hydrateAuditScoringRulesFromApi,
     SCORING_RULE_STATUS_OPTIONS,
     buildScoringRulePayload,
     createScoringRuleId,
@@ -29,7 +29,11 @@ const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
 const ScoringRulesList = () => {
-    const [rules, setRules] = useState(SCORING_RULES)
+    const [scoringRules, setScoringRules] = useState(() => getAuditScoringRules())
+    useEffect(() => {
+        hydrateAuditScoringRulesFromApi().finally(() => setScoringRules(getAuditScoringRules()))
+    }, [])
+
     const [search, setSearch] = useState('')
     const [responseTypeFilter, setResponseTypeFilter] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
@@ -38,7 +42,7 @@ const ScoringRulesList = () => {
 
     const responseTypeOptions = useMemo(() => getResponseTypeOptions(), [])
 
-    const filteredRules = useMemo(() => rules.filter((rule) => {
+    const filteredRules = useMemo(() => scoringRules.filter((rule) => {
         const searchValue = search.trim().toLowerCase()
         const matchesSearch = !searchValue || rule.rule.toLowerCase().includes(searchValue)
         const matchesResponseType = !responseTypeFilter || rule.responseTypeId === responseTypeFilter
@@ -46,7 +50,7 @@ const ScoringRulesList = () => {
         const matchesStatus = !statusFilter || ruleStatus === statusFilter
 
         return matchesSearch && matchesResponseType && matchesStatus
-    }), [rules, search, responseTypeFilter, statusFilter])
+    }), [scoringRules, search, responseTypeFilter, statusFilter])
 
     const clearFilters = () => {
         setSearch('')
@@ -84,13 +88,13 @@ const ScoringRulesList = () => {
         const payload = buildScoringRulePayload(formData)
 
         if (formModal.mode === 'edit' && formModal.ruleId) {
-            setRules((prev) => prev.map((rule) => (
+            setScoringRules((prev) => prev.map((rule) => (
                 rule.id === formModal.ruleId
                     ? { ...rule, ...payload }
                     : rule
             )))
         } else {
-            setRules((prev) => [
+            setScoringRules((prev) => [
                 {
                     id: createScoringRuleId(prev),
                     ...payload,
@@ -103,7 +107,7 @@ const ScoringRulesList = () => {
     }
 
     const toggleActive = (ruleId) => {
-        setRules((prev) => prev.map((rule) => (
+        setScoringRules((prev) => prev.map((rule) => (
             rule.id === ruleId
                 ? { ...rule, active: !rule.active }
                 : rule

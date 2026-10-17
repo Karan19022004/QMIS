@@ -1,4 +1,5 @@
-﻿import {
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
+import {
     DRIVERS as BASE_DRIVERS,
     getDriverDisplayName,
     statusBadgeColor,
@@ -40,11 +41,23 @@ const DRIVER_EXTRAS = {
     },
 }
 
-export const DRIVERS = BASE_DRIVERS.map((driver) => ({
+const DEFAULT_DRIVERS = BASE_DRIVERS.map((driver) => ({
     ...driver,
     ...(DRIVER_EXTRAS[driver.id] ?? {}),
 }))
 
-export const getDriverById = (id) => DRIVERS.find((driver) => driver.id === id) ?? null
+export const getDriverById = (id) => getDrivers().find((driver) => driver.id === id) ?? null
 
 export { getDriverDisplayName, statusBadgeColor, DRIVER_STATUSES }
+
+export function getDrivers() {
+    return ensureCampusSeed('schoolerp-transport-drivers-v1', DEFAULT_DRIVERS)
+}
+export function saveDrivers(rows) {
+    return saveCampusJson('schoolerp-transport-drivers-v1', rows)
+}
+export function hydrateDriversFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-drivers-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-drivers-v1', DEFAULT_DRIVERS)
+}
+export const DRIVERS = DEFAULT_DRIVERS

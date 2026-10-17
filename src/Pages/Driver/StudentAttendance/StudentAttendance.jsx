@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import {
@@ -17,7 +17,7 @@ import {
     ATTENDANCE_PERIODS,
     ATTENDANCE_PHASES,
     SCHOOL_NAME,
-    STUDENT_ATTENDANCE,
+    getTransportStudentAttendance, hydrateTransportStudentAttendanceFromApi,
     filterStudents,
     getAttendanceLocation,
     getLocationColumnLabel,
@@ -28,6 +28,11 @@ import {
 const periodKey = (period) => period.toLowerCase()
 
 const StudentAttendance = () => {
+    const [studentAttendance, setStudentAttendance] = useState(() => getTransportStudentAttendance())
+    useEffect(() => {
+        hydrateTransportStudentAttendanceFromApi().finally(() => setStudentAttendance(getTransportStudentAttendance()))
+    }, [])
+
     const [attendanceDate, setAttendanceDate] = useState(new Date())
     const [period, setPeriod] = useState('Morning')
     const [phase, setPhase] = useState('pickup')

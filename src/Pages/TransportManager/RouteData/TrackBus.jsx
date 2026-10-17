@@ -1,8 +1,9 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, RefreshCw } from 'lucide-react'
 import BusTrackingMap from './Components/BusTrackingMap'
-import { getRouteById } from '../RouteManagement/routeManagementData'
+import { getRouteById, hydrateRoutesFromApi } from '../RouteManagement/routeManagementData'
+import useProtrackLive from '../../../Common/Transport/useProtrackLive'
 
 const Field = ({ label, value }) => (
     <div className='flex flex-col gap-y-1'>
@@ -14,15 +15,25 @@ const Field = ({ label, value }) => (
 const TRACKING_PRESETS = [
     { busIndex: 54, stats: { progress: '~55%', distanceLeft: '3.2 km', eta: '~8 min', speed: '32 km/h' } },
     { busIndex: 38, stats: { progress: '~40%', distanceLeft: '4.1 km', eta: '~11 min', speed: '28 km/h' } },
-    { busIndex: 62, stats: { progress: '~65%', distanceLeft: '2.4 km', eta: '~6 min', speed: '35 km/h' } },
-    { busIndex: 28, stats: { progress: '~30%', distanceLeft: '5.0 km', eta: '~14 min', speed: '26 km/h' } },
 ]
 
 const TrackBus = () => {
     const { id } = useParams()
     const navigate = useNavigate()
-    const route = getRouteById(id)
+    const [route, setRoute] = useState(() => getRouteById(id))
+
+    useEffect(() => {
+        hydrateRoutesFromApi().finally(() => setRoute(getRouteById(id)))
+    }, [id])
+
+    const live = useProtrackLive({
+        panel: 'admin',
+        preferredImei: route?.imei || route?.gpsImei || '',
+        preferredPlate: route?.vehicleNumber || '',
+    })
+
     const trackingPreset = TRACKING_PRESETS[(parseInt(route?.id?.split('-')[1] ?? '1', 10) - 1) % TRACKING_PRESETS.length]
+    const stats = live.livePosition ? live.stats : trackingPreset.stats
 
     return (
         <section className='space-y-6'>
@@ -34,6 +45,13 @@ const TrackBus = () => {
                 >
                     <ArrowLeft size={18} />
                     Back to Route Data
+                </button>
+                <button
+                    type='button'
+                    onClick={() => live.refresh()}
+                    className='inline-flex items-center gap-2 text-sm text-[#515DEF] border border-[#D9D9D9] rounded-md px-4 py-2 cursor-pointer'
+                >
+                    <RefreshCw size={16} /> Refresh GPS
                 </button>
             </div>
 
@@ -50,6 +68,28 @@ const TrackBus = () => {
                             {' · '}
                             <span>{route.distance} · {route.estimatedTime}</span>
                         </p>
+                        {live.error && (
+                            <p className='text-sm text-[#B45309] mt-3 bg-[#FFF7ED] border border-[#FDBA74] rounded-md px-3 py-2'>
+                                {live.error} Demo route geometry still shows until ProTrack credentials are set.
+                            </p>
+                        )}
+                        {live.devices.length > 0 && (
+                            <label className='block mt-3 text-sm text-[#667085] max-w-md'>
+                                ProTrack device
+                                <select
+                                    className='mt-1 w-full border border-[#D9D9D9] rounded-md px-2 py-2 text-[#1E1E1E]'
+                                    value={live.imei}
+                                    onChange={(event) => live.setImei(event.target.value)}
+                                >
+                                    {live.devices.map((device) => (
+                                        <option key={device.imei} value={device.imei}>
+                                            {(device.platenumber || device.devicename || device.imei)}
+                                            {device.platenumber ? ` · ${device.imei}` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        )}
                     </div>
 
                     <div className='bg-white rounded-2xl shadow-md p-4'>
@@ -61,10 +101,8 @@ const TrackBus = () => {
                             <Field label='Driver Contact' value={route.driverContact} />
                             <Field label='Start Location' value={route.startLocation} />
                             <Field label='End Location' value={route.endLocation} />
-                            <Field label='Pick Up Time' value={route.pickUpTime} />
-                            <Field label='Drop Time' value={route.dropTime} />
-                            <Field label='Total Stops' value={route.totalStops} />
-                            <Field label='Support Staff' value={route.supportStaff} />
+                            <Field label='IMEI' value={live.imei || route.imei || '—'} />
+                            <Field label='GPS Status' value={live.liveStatusLabel || (live.loading ? 'Loading…' : 'Demo')} />
                         </div>
                     </div>
 
@@ -79,8 +117,10 @@ const TrackBus = () => {
                             endLocation={route.endLocation}
                             endSubtitle='School Campus'
                             busLabel={route.vehicleId}
-                            stats={trackingPreset.stats}
+                            stats={stats}
                             busIndex={trackingPreset.busIndex}
+                            livePosition={live.livePosition}
+                            liveStatusLabel={live.liveStatusLabel}
                         />
                     </div>
                 </>

@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useActiveStudent } from '../../context/ActiveStudentContext'
 import { useFinance } from '../../Pages/AccountHead/financeDomain/FinanceContext'
 import { buildMfpFromInstallments } from '../../Pages/AccountHead/financeDomain/financeSnapshotAccounting'
 import ReactECharts from 'echarts-for-react'
 import { toast } from 'react-toastify'
-import { getBiometricRows, overrideAttendance, syncBiometricDemo } from './biometric'
+import { getBiometricRows, hydrateBiometricFromApi, overrideAttendance, syncBiometricDemo } from './biometric'
 import { StatusBadge } from './statusBadge'
 import { bookFeeRows, getFeeProjection, projectFee, saveFeeProjection } from './financeExtras'
 import EntryClosureGate from './EntryClosureGate'
@@ -49,6 +49,19 @@ export function BiometricAttendancePage({ canOverride = false }) {
     const [rows, setRows] = useState(() => getBiometricRows())
     const [lastSync, setLastSync] = useState(rows[0]?.lastSync || 'Not synced in this session')
     const [reason, setReason] = useState('Official duty')
+
+    useEffect(() => {
+        let active = true
+        hydrateBiometricFromApi().then(() => {
+            if (!active) return
+            const next = getBiometricRows()
+            setRows(next)
+            setLastSync(next[0]?.lastSync || 'Not synced in this session')
+        })
+        return () => {
+            active = false
+        }
+    }, [])
 
     const sync = () => {
         if (entryBlocked('Attendance', actor)) return

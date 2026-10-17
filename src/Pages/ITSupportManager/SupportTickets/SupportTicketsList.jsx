@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Download, EllipsisIcon } from 'lucide-react'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import { logActivity } from '../../../Common/demoDomain/activityLog'
-import { getTickets, TICKETS_UPDATED_EVENT } from '../../../Common/demoDomain/itTickets'
+import { getTickets, hydrateTicketsFromApi, TICKETS_UPDATED_EVENT } from '../../../Common/demoDomain/itTickets'
 import { ISSUE_TYPES, priorityBadgeColor, statusBadgeColor } from './supportTicketsData'
 
 const STATUSES = ['Open', 'Pending', 'In Progress', 'Resolved', 'Closed']
@@ -20,6 +20,7 @@ const SupportTicketsList = () => {
     const [exportModal, setExportModal] = useState(false)
 
     useEffect(() => {
+        hydrateTicketsFromApi().finally(() => setTickets(getTickets()))
         const refresh = () => setTickets(getTickets())
         window.addEventListener(TICKETS_UPDATED_EVENT, refresh)
         window.addEventListener('focus', refresh)

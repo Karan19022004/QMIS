@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -7,7 +7,7 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
-    MAINTENANCE_REQUESTS,
+    getDriverMaintenanceRequests, hydrateDriverMaintenanceRequestsFromApi,
     REQUEST_STATUSES,
     filterMaintenanceRequests,
     priorityBadgeColor,
@@ -18,6 +18,11 @@ const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
 const MaintenanceRequest = () => {
+    const [maintenanceRequests, setMaintenanceRequests] = useState(() => getDriverMaintenanceRequests())
+    useEffect(() => {
+        hydrateDriverMaintenanceRequestsFromApi().finally(() => setMaintenanceRequests(getDriverMaintenanceRequests()))
+    }, [])
+
     const [search, setSearch] = useState('')
     const [requestStatus, setRequestStatus] = useState('')
     const [period, setPeriod] = useState('')

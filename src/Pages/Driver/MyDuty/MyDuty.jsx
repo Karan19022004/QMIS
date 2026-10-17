@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
     DUTY_STATUSES,
-    MY_DUTIES,
+    getMyDuties, hydrateMyDutiesFromApi,
     SHIFTS,
     dutyStatusBadgeColor,
     filterMyDuties,
@@ -15,6 +15,11 @@ const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
 const MyDuty = () => {
+    const [myDuties, setMyDuties] = useState(() => getMyDuties())
+    useEffect(() => {
+        hydrateMyDutiesFromApi().finally(() => setMyDuties(getMyDuties()))
+    }, [])
+
     const [fromDate, setFromDate] = useState(null)
     const [toDate, setToDate] = useState(null)
     const [search, setSearch] = useState('')

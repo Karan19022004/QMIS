@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus } from 'lucide-react'
 import DatePicker from 'react-datepicker'
@@ -6,7 +6,8 @@ import 'react-datepicker/dist/react-datepicker.css'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
-    MENU_ITEMS,
+    getMenuItems,
+    hydrateMenuItemsFromApi,
     availabilityBadgeColor,
     statusBadgeColor,
     comboBadgeColor,
@@ -16,6 +17,11 @@ const MenuManagement = () => {
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
+    const [MENU_ITEMS, setMenuItems] = useState(() => getMenuItems())
+
+    useEffect(() => {
+        hydrateMenuItemsFromApi().finally(() => setMenuItems(getMenuItems()))
+    }, [])
 
     return (
         <section>

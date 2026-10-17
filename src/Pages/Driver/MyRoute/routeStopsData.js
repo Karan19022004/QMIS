@@ -1,8 +1,9 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export const CLASS_OPTIONS = ['12th', '11th', '10th', '9th']
 export const SECTION_OPTIONS = ['A', 'B', 'C', 'D']
 export const DAY_OPTIONS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-export const ROUTE_STOPS = [
+const DEFAULT_ROUTE_STOPS = [
     {
         id: 'RS-001',
         stopNo: 1,
@@ -97,3 +98,15 @@ export const filterRouteStops = ({
 
     return matchesSearch && matchesClass && matchesSection && matchesDay
 })
+export const ROUTE_STOPS_STORAGE_KEY = 'schoolerp-transport-route-stops-v1'
+export function getRouteStops() {
+    return ensureCampusSeed('schoolerp-transport-route-stops-v1', DEFAULT_ROUTE_STOPS)
+}
+export function saveRouteStops(rows) {
+    return saveCampusJson('schoolerp-transport-route-stops-v1', rows)
+}
+export function hydrateRouteStopsFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-route-stops-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-route-stops-v1', DEFAULT_ROUTE_STOPS)
+}
+export const ROUTE_STOPS = DEFAULT_ROUTE_STOPS

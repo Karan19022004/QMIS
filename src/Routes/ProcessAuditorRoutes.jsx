@@ -25,13 +25,7 @@ import ComplianceReports from '../Pages/ProcessAuditor/Reports/ComplianceReports
 import PendingActionsReport from '../Pages/ProcessAuditor/Reports/ActionsReports/PendingActionsReport'
 import ClosedActionsReport from '../Pages/ProcessAuditor/Reports/ActionsReports/ClosedActionsReport'
 import { AuditComponentsPage, SharedDeviationsPage } from '../Common/demoDomain/WorkflowScreens'
-
-const Placeholder = ({ title }) => (
-    <div className='bg-white rounded-2xl shadow-md p-8 text-center'>
-        <h2 className='text-xl font-semibold text-black'>{title}</h2>
-        <p className='text-sm text-[#667085] mt-2'>This page will be implemented next.</p>
-    </div>
-)
+import CommunicationPage from '../Common/Communication/CommunicationPage'
 
 const ProcessAuditorRoutes = () => {
     return (
@@ -65,7 +59,7 @@ const ProcessAuditorRoutes = () => {
             <Route path="/process-auditor/reports/pending-actions" element={<PendingActionsReport />} />
             <Route path="/process-auditor/reports/closed-actions" element={<ClosedActionsReport />} />
             <Route path="/process-auditor/reports" element={<Navigate to="/process-auditor/reports/audit-reports" replace />} />
-            <Route path="/process-auditor/communication" element={<Placeholder title="Communication" />} />
+            <Route path="/process-auditor/communication" element={<CommunicationPage roleKey="processAuditor" />} />
             <Route path="/process-auditor/components" element={<AuditComponentsPage />} />
             <Route path="/process-auditor/shared-deviations" element={<SharedDeviationsPage />} />
 

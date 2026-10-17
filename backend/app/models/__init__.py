@@ -1,5 +1,7 @@
 from app.models.academics import AcademicYear, FinancialYear, SchoolClass, Section, Subject
 from app.models.academics_record import AcademicsRecord
+from app.models.campus_audit_record import CampusAuditRecord
+from app.models.ops_record import OpsRecord
 from app.models.admission import Admission, AdmissionEnquiry, Guardian, Student
 from app.models.activities import Activity, ActivityPlayer
 from app.models.announcements import Announcement, AnnouncementReply, AnnouncementResponse
@@ -31,6 +33,8 @@ __all__ = [
     "AcademicsRecord",
     "Activity",
     "ActivityPlayer",
+    "CampusAuditRecord",
+    "OpsRecord",
     "FinancialYear",
     "Admission",
     "AdmissionEnquiry",

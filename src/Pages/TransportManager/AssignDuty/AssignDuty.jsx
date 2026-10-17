@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -7,9 +7,14 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
-import { DUTIES, SHIFTS } from './assignDutyData'
+import { getDuties, hydrateDutiesFromApi, SHIFTS } from './assignDutyData'
 
 const AssignDuty = () => {
+    const [duties, setDuties] = useState(() => getDuties())
+    useEffect(() => {
+        hydrateDutiesFromApi().finally(() => setDuties(getDuties()))
+    }, [])
+
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
@@ -120,7 +125,7 @@ const AssignDuty = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {DUTIES.map((duty) => (
+                            {duties.map((duty) => (
                                 <tr key={duty.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
                                     <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{duty.dutyId}</td>
                                     <td className='px-2 py-4 font-medium text-[#1E1E1E]'>{duty.driverName}</td>
@@ -164,7 +169,7 @@ const AssignDuty = () => {
 
             <div className='flex justify-between items-center px-4 mt-4'>
                 <p className='text-sm font-medium text-[#515DEF]'>
-                    Showing 1 to {DUTIES.length} of {DUTIES.length} entries
+                    Showing 1 to {duties.length} of {duties.length} entries
                 </p>
                 <div className='flex justify-center gap-x-2 flex-wrap'>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'>

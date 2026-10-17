@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -7,7 +7,7 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
-import { VEHICLES, VEHICLE_TYPES } from './vehicleManagementData'
+import { getVehicles, hydrateVehiclesFromApi, VEHICLE_TYPES } from './vehicleManagementData'
 
 const VehicleManagement = () => {
     const [fromDate, setFromDate] = useState(new Date())
@@ -15,6 +15,11 @@ const VehicleManagement = () => {
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
+    const [VEHICLES, setVehicles] = useState(() => getVehicles())
+
+    useEffect(() => {
+        hydrateVehiclesFromApi().finally(() => setVehicles(getVehicles()))
+    }, [])
 
     return (
         <section>

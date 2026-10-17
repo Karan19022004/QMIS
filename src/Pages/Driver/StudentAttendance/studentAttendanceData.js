@@ -1,3 +1,4 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export const SCHOOL_NAME = 'Queen Mira International School'
 
 export const ATTENDANCE_PERIODS = ['Morning', 'Evening']
@@ -35,7 +36,7 @@ export const ATTENDANCE_PHASES = {
 
 export const ATTENDANCE_STATUSES = ['Pending', 'Present', 'Absent']
 
-export const STUDENT_ATTENDANCE = [
+const DEFAULT_STUDENT_ATTENDANCE = [
     {
         id: 'STU-001',
         studentId: 'STU001',
@@ -135,3 +136,15 @@ export const getLocationColumnLabel = (period, phase) => {
     const phaseConfig = ATTENDANCE_PHASES[period]?.find((item) => item.key === phase)
     return phaseConfig?.locationType === 'school' ? 'School' : 'Bus Stop'
 }
+export const STUDENT_ATTENDANCE_STORAGE_KEY = 'schoolerp-transport-student-attendance-v1'
+export function getTransportStudentAttendance() {
+    return ensureCampusSeed('schoolerp-transport-student-attendance-v1', DEFAULT_STUDENT_ATTENDANCE)
+}
+export function saveTransportStudentAttendance(rows) {
+    return saveCampusJson('schoolerp-transport-student-attendance-v1', rows)
+}
+export function hydrateTransportStudentAttendanceFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-student-attendance-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-student-attendance-v1', DEFAULT_STUDENT_ATTENDANCE)
+}
+export const STUDENT_ATTENDANCE = DEFAULT_STUDENT_ATTENDANCE

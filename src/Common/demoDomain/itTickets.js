@@ -1,4 +1,5 @@
 import { SUPPORT_TICKETS } from '../../Pages/ITSupportManager/SupportTickets/supportTicketsData'
+import { hydrateCampusKey, usesCampusApiForKey } from '../../services/campusJsonStore'
 import { ensureSeed, loadJson, nextSerial, saveJson } from './storage'
 import { logActivity } from './activityLog'
 
@@ -25,6 +26,11 @@ function seedTickets() {
 
 export function getTickets() {
     return ensureSeed(IT_TICKETS_KEY, seedTickets())
+}
+
+export function hydrateTicketsFromApi() {
+    if (!usesCampusApiForKey(IT_TICKETS_KEY)) return Promise.resolve(false)
+    return hydrateCampusKey(IT_TICKETS_KEY, seedTickets())
 }
 
 export function getTicketById(id) {

@@ -1,0 +1,120 @@
+import { useCallback, useEffect, useState } from 'react'
+import {
+    canUseProtrackApi,
+    datastatusLabel,
+    getProtrackStatusApi,
+    listProtrackDevicesApi,
+    trackProtrackImeisApi,
+} from '../../services/protrackApi'
+
+const POLL_MS = 15000
+
+/**
+ * Poll ProTrack365 devices + live coordinates for Transport / Parent / Student maps.
+ * @param {{ panel?: 'admin'|'parent', preferredImei?: string, preferredPlate?: string }} opts
+ */
+export default function useProtrackLive(opts = {}) {
+    const { panel, preferredImei = '', preferredPlate = '' } = opts
+    const [status, setStatus] = useState(null)
+    const [devices, setDevices] = useState([])
+    const [imei, setImei] = useState(preferredImei || '')
+    const [track, setTrack] = useState(null)
+    const [error, setError] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const refreshTrack = useCallback(async (targetImei) => {
+        if (!canUseProtrackApi() || !targetImei) return
+        try {
+            const rows = await trackProtrackImeisApi([targetImei], panel)
+            const row = Array.isArray(rows) ? rows[0] : null
+            setTrack(row || null)
+            setError('')
+        } catch (err) {
+            setError(err?.message || 'Live track failed.')
+        }
+    }, [panel])
+
+    useEffect(() => {
+        if (!canUseProtrackApi()) {
+            setError('Sign in with API auth to load ProTrack365.')
+            return undefined
+        }
+        let active = true
+        setLoading(true)
+        ;(async () => {
+            try {
+                const [st, list] = await Promise.all([
+                    getProtrackStatusApi(),
+                    listProtrackDevicesApi(panel),
+                ])
+                if (!active) return
+                setStatus(st)
+                const devicesList = Array.isArray(list) ? list : []
+                setDevices(devicesList)
+                if (!st?.configured) {
+                    setError('ProTrack365 credentials are not configured on the API (.env).')
+                    return
+                }
+                const plateNorm = String(preferredPlate || '').replace(/\s+/g, '').toUpperCase()
+                const byImei = preferredImei
+                    ? devicesList.find((d) => String(d.imei) === String(preferredImei))
+                    : null
+                const byPlate = plateNorm
+                    ? devicesList.find(
+                        (d) => String(d.platenumber || '').replace(/\s+/g, '').toUpperCase() === plateNorm,
+                    )
+                    : null
+                const chosen = byImei || byPlate || devicesList[0]
+                const nextImei = chosen?.imei || preferredImei || ''
+                setImei(nextImei)
+                if (nextImei) await refreshTrack(nextImei)
+            } catch (err) {
+                if (active) setError(err?.message || 'Could not load ProTrack devices.')
+            } finally {
+                if (active) setLoading(false)
+            }
+        })()
+        return () => {
+            active = false
+        }
+    }, [panel, preferredImei, preferredPlate, refreshTrack])
+
+    useEffect(() => {
+        if (!imei || !canUseProtrackApi()) return undefined
+        const id = setInterval(() => {
+            refreshTrack(imei)
+        }, POLL_MS)
+        return () => clearInterval(id)
+    }, [imei, refreshTrack])
+
+    const livePosition =
+        track && Number.isFinite(Number(track.latitude)) && Number.isFinite(Number(track.longitude))
+            ? [Number(track.latitude), Number(track.longitude)]
+            : null
+
+    const stats = {
+        progress: livePosition ? 'Live GPS' : '—',
+        distanceLeft: livePosition ? 'ProTrack365' : '—',
+        eta: track?.gpstime
+            ? new Date(Number(track.gpstime) * 1000).toLocaleTimeString()
+            : '—',
+        speed: track?.speed != null ? `${track.speed} km/h` : '—',
+    }
+
+    return {
+        status,
+        devices,
+        imei,
+        setImei: (next) => {
+            setImei(next)
+            refreshTrack(next)
+        },
+        track,
+        livePosition,
+        stats,
+        liveStatusLabel: track ? datastatusLabel(track.datastatus) : '',
+        error,
+        loading,
+        refresh: () => refreshTrack(imei),
+    }
+}

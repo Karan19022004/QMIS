@@ -1,5 +1,5 @@
 import { budgetRows } from '../../../Common/demoDomain/financeExtras'
-import { FUEL_EXPENSES, OTHER_EXPENSES, SERVICE_EXPENSES } from './transportExpensesData'
+import { getFuelExpenses, getOtherExpenses, getServiceExpenses } from './transportExpensesData'
 
 const PREVIOUS_KEY = 'schoolerp-transport-budget-requests-v1'
 
@@ -25,7 +25,7 @@ export const transportBudgetOverview = () => {
     const previous = previousRequests.reduce((sum, row) => sum + Number(row.amount || 0), 0)
     const currentRows = budgetRows().filter((row) => row.department === 'Transport')
     const current = currentRows.reduce((sum, row) => sum + Number(row.budget || 0), 0)
-    const actual = [...FUEL_EXPENSES, ...SERVICE_EXPENSES, ...OTHER_EXPENSES]
+    const actual = [...getFuelExpenses(), ...getServiceExpenses(), ...getOtherExpenses()]
         .reduce((sum, row) => sum + money(row.amount), 0)
     return {
         previousRequests,

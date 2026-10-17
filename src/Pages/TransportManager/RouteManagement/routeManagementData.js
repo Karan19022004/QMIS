@@ -1,6 +1,7 @@
 import { DRIVERS, getDriverDisplayName } from '../DriverManagement/driverManagementData'
 import { VEHICLES } from '../VehicleManagement/vehicleManagementData'
 
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export const DRIVER_OPTIONS = DRIVERS.map((driver) => ({
     id: driver.id,
     label: getDriverDisplayName(driver),
@@ -14,7 +15,7 @@ export const VEHICLE_OPTIONS = VEHICLES.map((vehicle) => ({
     driverContact: vehicle.driverContact,
 }))
 
-export const ROUTES = [
+const DEFAULT_ROUTES = [
     {
         id: 'RT-1001',
         routeName: 'Route 5 — North Campus',
@@ -165,4 +166,18 @@ export const ROUTES = [
     },
 ]
 
-export const getRouteById = (id) => ROUTES.find((route) => route.id === id) ?? null
+export const getRouteById = (id) => getRoutes().find((route) => route.id === id) ?? null
+
+export const ROUTES_STORAGE_KEY = 'schoolerp-transport-routes-v1'
+export function getRoutes() {
+    return ensureCampusSeed('schoolerp-transport-routes-v1', DEFAULT_ROUTES)
+}
+export function saveRoutes(rows) {
+    return saveCampusJson('schoolerp-transport-routes-v1', rows)
+}
+export function hydrateRoutesFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-routes-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-routes-v1', DEFAULT_ROUTES)
+}
+export const ROUTES = DEFAULT_ROUTES
+

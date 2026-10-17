@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import {
     Archive,
     ChevronLeft,
@@ -15,7 +15,9 @@ import Dropdown from '../../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../../Common/CommonComponents/ExportModal'
 import AuditTemplateFormModal from './AuditTemplateFormModal'
 import {
-    AUDIT_TEMPLATES,
+    getAuditTemplates,
+    hydrateAuditTemplatesFromApi,
+    saveAuditTemplates,
     TEMPLATE_AUDIT_CATEGORIES,
     TEMPLATE_DEPARTMENTS,
     TEMPLATE_STATUS_OPTIONS,
@@ -29,7 +31,19 @@ const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
 const AuditTemplatesList = () => {
-    const [templates, setTemplates] = useState(AUDIT_TEMPLATES)
+    const [templates, setTemplates] = useState(() => getAuditTemplates())
+
+    useEffect(() => {
+        hydrateAuditTemplatesFromApi().finally(() => setTemplates(getAuditTemplates()))
+    }, [])
+
+    const commitTemplates = (updater) => {
+        setTemplates((prev) => {
+            const next = typeof updater === 'function' ? updater(prev) : updater
+            saveAuditTemplates(next)
+            return next
+        })
+    }
     const [search, setSearch] = useState('')
     const [department, setDepartment] = useState('')
     const [auditType, setAuditType] = useState('')
@@ -103,7 +117,7 @@ const AuditTemplatesList = () => {
         const today = formatToday()
 
         if (existingId) {
-            setTemplates((prev) => prev.map((template) => (
+            commitTemplates((prev) => prev.map((template) => (
                 template.id === existingId
                     ? {
                         ...template,
@@ -119,7 +133,7 @@ const AuditTemplatesList = () => {
             return
         }
 
-        setTemplates((prev) => [
+        commitTemplates((prev) => [
             {
                 id: createTemplateId(prev),
                 templateName: formData.templateName,
@@ -151,7 +165,7 @@ const AuditTemplatesList = () => {
     }
 
     const handleDuplicate = (template) => {
-        setTemplates((prev) => [
+        commitTemplates((prev) => [
             {
                 ...template,
                 id: createTemplateId(prev),
@@ -168,7 +182,7 @@ const AuditTemplatesList = () => {
     }
 
     const handlePublishRow = (templateId) => {
-        setTemplates((prev) => prev.map((template) => (
+        commitTemplates((prev) => prev.map((template) => (
             template.id === templateId
                 ? { ...template, status: 'Published', updatedOn: formatToday() }
                 : template
@@ -176,7 +190,7 @@ const AuditTemplatesList = () => {
     }
 
     const handleArchive = (templateId) => {
-        setTemplates((prev) => prev.map((template) => (
+        commitTemplates((prev) => prev.map((template) => (
             template.id === templateId
                 ? { ...template, status: 'Archived', updatedOn: formatToday() }
                 : template

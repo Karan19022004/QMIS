@@ -1,3 +1,4 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export const DEPARTMENTS = [
     'Canteen',
     'Stationery Store',
@@ -9,7 +10,7 @@ export const DEPARTMENTS = [
 
 export const ESCALATION_STATUSES = ['Open', 'In Review', 'Escalated to Admin', 'Resolved', 'Closed']
 
-export const ESCALATIONS = [
+const DEFAULT_ESCALATIONS = [
     {
         id: 'ESC-2026-018',
         escalatedBy: 'Karthik Rajan',
@@ -157,3 +158,15 @@ export const sourceTypeLabel = {
     'department-manager': 'From Department Manager',
     'jd-assistant': 'From JD Assistant',
 }
+export const ESCALATIONS_STORAGE_KEY = 'schoolerp-jd-escalations-v1'
+export function getJdEscalations() {
+    return ensureCampusSeed('schoolerp-jd-escalations-v1', DEFAULT_ESCALATIONS)
+}
+export function saveJdEscalations(rows) {
+    return saveCampusJson('schoolerp-jd-escalations-v1', rows)
+}
+export function hydrateJdEscalationsFromApi() {
+    if (!usesCampusApiForKey('schoolerp-jd-escalations-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-jd-escalations-v1', DEFAULT_ESCALATIONS)
+}
+export const ESCALATIONS = DEFAULT_ESCALATIONS

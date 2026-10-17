@@ -1,3 +1,5 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
+
 export const REQUEST_STATUSES = ['In-Process', 'Pending', 'Completed']
 
 export const ISSUE_TYPES = [
@@ -18,7 +20,7 @@ export const statusBadgeColor = {
     Completed: 'bg-[#4CAF5033] text-[#4CAF50]',
 }
 
-export const MAINTENANCE_REQUESTS = [
+const DEFAULT_MAINTENANCE_REQUESTS = [
     {
         id: 'MR-1001',
         requestId: 'MR-1001',
@@ -76,7 +78,7 @@ export const MAINTENANCE_REQUESTS = [
     },
 ]
 
-export const FUEL_REQUESTS = [
+const DEFAULT_FUEL_REQUESTS = [
     {
         id: 'FR-1001',
         requestId: 'FR-1001',
@@ -138,3 +140,31 @@ export const FUEL_REQUESTS = [
         status: 'Completed',
     },
 ]
+
+const DEFAULT_TRANSPORT_APPROVAL_REQUESTS = [
+    ...DEFAULT_MAINTENANCE_REQUESTS,
+    ...DEFAULT_FUEL_REQUESTS,
+]
+
+const maintenanceRows = (rows) => rows.filter((item) => String(item.id ?? item.requestId ?? '').startsWith('MR-'))
+const fuelRows = (rows) => rows.filter((item) => String(item.id ?? item.requestId ?? '').startsWith('FR-'))
+
+export const TRANSPORT_APPROVAL_REQUESTS_STORAGE_KEY = 'schoolerp-transport-approvals-v1'
+export function getTransportApprovalRequests() {
+    return ensureCampusSeed('schoolerp-transport-approvals-v1', DEFAULT_TRANSPORT_APPROVAL_REQUESTS)
+}
+export function getMaintenanceRequests() {
+    return maintenanceRows(getTransportApprovalRequests())
+}
+export function getFuelRequests() {
+    return fuelRows(getTransportApprovalRequests())
+}
+export function saveTransportApprovalRequests(rows) {
+    return saveCampusJson('schoolerp-transport-approvals-v1', rows)
+}
+export function hydrateTransportApprovalRequestsFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-approvals-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-approvals-v1', DEFAULT_TRANSPORT_APPROVAL_REQUESTS)
+}
+export const MAINTENANCE_REQUESTS = DEFAULT_MAINTENANCE_REQUESTS
+export const FUEL_REQUESTS = DEFAULT_FUEL_REQUESTS

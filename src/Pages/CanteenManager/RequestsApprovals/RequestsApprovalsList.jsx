@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -7,9 +7,14 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
-import { REQUESTS, priorityBadgeColor, statusBadgeColor } from './requestsData'
+import { getRequests, hydrateRequestsFromApi, priorityBadgeColor, statusBadgeColor } from './requestsData'
 
 const RequestsApprovalsList = () => {
+    const [requests, setRequests] = useState(() => getRequests())
+    useEffect(() => {
+        hydrateRequestsFromApi().finally(() => setRequests(getRequests()))
+    }, [])
+
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
@@ -95,7 +100,7 @@ const RequestsApprovalsList = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {REQUESTS.map((request) => (
+                            {requests.map((request) => (
                                 <tr key={request.requestId} className="border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className="px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg">{request.requestId}</td>
                                     <td className="px-2 py-4">{request.requestType}</td>
@@ -129,7 +134,7 @@ const RequestsApprovalsList = () => {
             </div>
 
             <div className='flex justify-between items-center px-4 mt-4'>
-                <p className='text-sm font-medium text-[#515DEF]'>Showing 1 to {REQUESTS.length} of {REQUESTS.length} entries</p>
+                <p className='text-sm font-medium text-[#515DEF]'>Showing 1 to {requests.length} of {requests.length} entries</p>
                 <div className="flex justify-center gap-x-2">
                     <button className="size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer"><ChevronLeft size={16} /></button>
                     <button className="size-8 flex justify-center items-center p-2 bg-[#EDEDF5] text-[#515DEF] border border-[#E2E8F0] rounded-full cursor-pointer">1</button>

@@ -1,10 +1,11 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export const CATEGORIES = ['Pen', 'Paper', 'Notebook', 'Printer Supplies', 'Files & Folders', 'Art Supplies', 'Adhesive & Tape']
 
 export const UNITS = ['Pieces', 'Box', 'Pack']
 
 export const STATUS_OPTIONS = ['Available', 'Low Stock', 'Out of Stock']
 
-export const INVENTORY_ITEMS = [
+const DEFAULT_INVENTORY_ITEMS = [
     {
         itemId: 'STN-2026-0142',
         itemName: 'Blue Ballpoint Pen',
@@ -116,4 +117,18 @@ export const statusBadgeColor = {
 }
 
 export const getInventoryItemById = (id) =>
-    INVENTORY_ITEMS.find((entry) => entry.itemId === id)
+    getInventoryItems().find((entry) => entry.itemId === id)
+
+export const INVENTORY_ITEMS_STORAGE_KEY = 'schoolerp-stationery-inventory-v1'
+export function getInventoryItems() {
+    return ensureCampusSeed('schoolerp-stationery-inventory-v1', DEFAULT_INVENTORY_ITEMS)
+}
+export function saveInventoryItems(rows) {
+    return saveCampusJson('schoolerp-stationery-inventory-v1', rows)
+}
+export function hydrateInventoryItemsFromApi() {
+    if (!usesCampusApiForKey('schoolerp-stationery-inventory-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-stationery-inventory-v1', DEFAULT_INVENTORY_ITEMS)
+}
+export const INVENTORY_ITEMS = DEFAULT_INVENTORY_ITEMS
+

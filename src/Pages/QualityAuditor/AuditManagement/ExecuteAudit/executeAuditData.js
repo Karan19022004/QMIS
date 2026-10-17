@@ -1,5 +1,6 @@
 import { getAuditById } from '../MyAudits/myAuditsData'
 
+import { loadCampusJson, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../../services/campusJsonStore'
 export const SEVERITIES = ['Low', 'Medium', 'High', 'Critical']
 
 export const OBSERVATION_PRIORITIES = ['Critical', 'High', 'Medium', 'Low']
@@ -660,7 +661,7 @@ export const loadExecuteAuditDraft = (auditId) => {
     const sections = loadChecklistSections(audit)
 
     try {
-        const stored = localStorage.getItem(STORAGE_KEY)
+        const stored = loadCampusJson(STORAGE_KEY, null)
         if (stored) {
             const parsed = JSON.parse(stored)
             const sameAudit = !auditId || parsed.header?.auditId === auditId || parsed.header?.auditNumber === audit?.auditId
@@ -698,7 +699,7 @@ export const loadExecuteAuditDraft = (auditId) => {
 
 export const saveExecuteAuditDraft = (draft) => {
     const payload = { ...draft, lastSavedAt: new Date().toISOString() }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+    saveCampusJson(STORAGE_KEY, payload)
     return payload
 }
 
@@ -806,3 +807,6 @@ export const getSopDetails = (code) =>
         reference: 'Quality Audit SOP Library',
         expectedResult: 'Alignment with institutional quality standards.',
     }
+
+export const hydrateFromApi = (seed = DEFAULT_CHECKLIST_SECTIONS) => hydrateCampusKey(STORAGE_KEY, seed)
+export const usesApiStore = () => usesCampusApiForKey(STORAGE_KEY)

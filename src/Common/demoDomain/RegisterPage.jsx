@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Download, Plus } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { ensureSeed, nextSerial, saveJson } from './storage'
+import { hydrateCampusKey, usesCampusApiForKey } from '../../services/campusJsonStore'
 import { logActivity } from './activityLog'
 import { StatusBadge } from './statusBadge.jsx'
 
@@ -29,6 +30,20 @@ export default function RegisterPage({
     const [pageSize, setPageSize] = useState(10)
     const [open, setOpen] = useState(false)
     const [draft, setDraft] = useState({})
+
+    useEffect(() => {
+        if (!usesCampusApiForKey(storageKey)) return undefined
+        let active = true
+        hydrateCampusKey(storageKey, seed).then(() => {
+            if (!active) return
+            setItems(ensureSeed(storageKey, seed))
+        })
+        return () => {
+            active = false
+        }
+        // seed is stable per route; storageKey drives re-hydrate
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [storageKey])
 
     const statuses = useMemo(() => {
         if (!statusKey) return []

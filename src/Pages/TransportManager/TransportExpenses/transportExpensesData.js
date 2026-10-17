@@ -1,3 +1,4 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 import { VEHICLES } from '../VehicleManagement/vehicleManagementData'
 
 export const PAYMENT_MODES = ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque']
@@ -44,7 +45,7 @@ export const OTHER_EXPENSE_TYPES = [
     'Accessories',
 ]
 
-export const FUEL_EXPENSES = [
+const DEFAULT_FUEL_EXPENSES = [
     {
         id: 'FE-1001',
         expenseId: 'FE-1001',
@@ -102,7 +103,7 @@ export const FUEL_EXPENSES = [
     },
 ]
 
-export const SERVICE_EXPENSES = [
+const DEFAULT_SERVICE_EXPENSES = [
     {
         id: 'SE-1001',
         expenseId: 'SE-1001',
@@ -160,7 +161,7 @@ export const SERVICE_EXPENSES = [
     },
 ]
 
-export const OTHER_EXPENSES = [
+const DEFAULT_OTHER_EXPENSES = [
     {
         id: 'OE-1001',
         expenseId: 'OE-1001',
@@ -218,8 +219,40 @@ export const OTHER_EXPENSES = [
     },
 ]
 
-export const getFuelExpenseById = (id) => FUEL_EXPENSES.find((item) => item.id === id) ?? null
+const DEFAULT_TRANSPORT_EXPENSES = [
+    ...DEFAULT_FUEL_EXPENSES,
+    ...DEFAULT_SERVICE_EXPENSES,
+    ...DEFAULT_OTHER_EXPENSES,
+]
 
-export const getServiceExpenseById = (id) => SERVICE_EXPENSES.find((item) => item.id === id) ?? null
+const fuelRows = (rows) => rows.filter((item) => String(item.id ?? '').startsWith('FE-'))
+const serviceRows = (rows) => rows.filter((item) => String(item.id ?? '').startsWith('SE-'))
+const otherRows = (rows) => rows.filter((item) => String(item.id ?? '').startsWith('OE-'))
 
-export const getOtherExpenseById = (id) => OTHER_EXPENSES.find((item) => item.id === id) ?? null
+export const TRANSPORT_EXPENSES_STORAGE_KEY = 'schoolerp-transport-expenses-v1'
+export function getTransportExpenses() {
+    return ensureCampusSeed('schoolerp-transport-expenses-v1', DEFAULT_TRANSPORT_EXPENSES)
+}
+export function getFuelExpenses() {
+    return fuelRows(getTransportExpenses())
+}
+export function getServiceExpenses() {
+    return serviceRows(getTransportExpenses())
+}
+export function getOtherExpenses() {
+    return otherRows(getTransportExpenses())
+}
+export function saveTransportExpenses(rows) {
+    return saveCampusJson('schoolerp-transport-expenses-v1', rows)
+}
+export function hydrateTransportExpensesFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-expenses-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-expenses-v1', DEFAULT_TRANSPORT_EXPENSES)
+}
+export const getFuelExpenseById = (id) => getFuelExpenses().find((item) => item.id === id) ?? null
+export const getServiceExpenseById = (id) => getServiceExpenses().find((item) => item.id === id) ?? null
+export const getOtherExpenseById = (id) => getOtherExpenses().find((item) => item.id === id) ?? null
+/** Static seed / fallback — list pages should call getters after hydrate */
+export const FUEL_EXPENSES = DEFAULT_FUEL_EXPENSES
+export const SERVICE_EXPENSES = DEFAULT_SERVICE_EXPENSES
+export const OTHER_EXPENSES = DEFAULT_OTHER_EXPENSES

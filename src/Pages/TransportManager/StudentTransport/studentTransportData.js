@@ -1,3 +1,4 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 import { ROUTES } from '../RouteManagement/routeManagementData'
 
 export const CLASS_SECTIONS = [
@@ -26,7 +27,7 @@ export const ROUTE_OPTIONS = ROUTES.map((route) => ({
     feesStructure: 'Yearly',
 }))
 
-export const STUDENT_TRANSPORTS = [
+const DEFAULT_STUDENT_TRANSPORTS = [
     {
         id: 'ST-1001',
         studentId: 'STD-2024-1042',
@@ -135,4 +136,16 @@ export const STUDENT_TRANSPORTS = [
 ]
 
 export const getStudentTransportById = (id) =>
-    STUDENT_TRANSPORTS.find((record) => record.id === id) ?? null
+    getStudentTransports().find((record) => record.id === id) ?? null
+export const STUDENT_TRANSPORTS_STORAGE_KEY = 'schoolerp-transport-students-v1'
+export function getStudentTransports() {
+    return ensureCampusSeed('schoolerp-transport-students-v1', DEFAULT_STUDENT_TRANSPORTS)
+}
+export function saveStudentTransports(rows) {
+    return saveCampusJson('schoolerp-transport-students-v1', rows)
+}
+export function hydrateStudentTransportsFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-students-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-students-v1', DEFAULT_STUDENT_TRANSPORTS)
+}
+export const STUDENT_TRANSPORTS = DEFAULT_STUDENT_TRANSPORTS

@@ -26,12 +26,7 @@ import PendingActionsReport from '../Pages/QualityAuditor/Reports/ActionsReports
 import ClosedActionsReport from '../Pages/QualityAuditor/Reports/ActionsReports/ClosedActionsReport'
 import { AuditComponentsPage, SharedDeviationsPage } from '../Common/demoDomain/WorkflowScreens'
 
-const Placeholder = ({ title }) => (
-    <div className='bg-white rounded-2xl shadow-md p-8 text-center'>
-        <h2 className='text-xl font-semibold text-black'>{title}</h2>
-        <p className='text-sm text-[#667085] mt-2'>This page will be implemented next.</p>
-    </div>
-)
+import CommunicationPage from '../Common/Communication/CommunicationPage'
 
 const QualityAuditorRoutes = () => {
     return (
@@ -65,7 +60,7 @@ const QualityAuditorRoutes = () => {
             <Route path="/quality-auditor/reports/pending-actions" element={<PendingActionsReport />} />
             <Route path="/quality-auditor/reports/closed-actions" element={<ClosedActionsReport />} />
             <Route path="/quality-auditor/reports" element={<Navigate to="/quality-auditor/reports/audit-reports" replace />} />
-            <Route path="/quality-auditor/communication" element={<Placeholder title="Communication" />} />
+            <Route path="/quality-auditor/communication" element={<CommunicationPage roleKey="qualityAuditor" />} />
             <Route path="/quality-auditor/components" element={<AuditComponentsPage />} />
             <Route path="/quality-auditor/shared-deviations" element={<SharedDeviationsPage />} />
 

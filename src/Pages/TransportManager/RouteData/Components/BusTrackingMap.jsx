@@ -195,13 +195,22 @@ export default function BusTrackingMap({
     stats = DEFAULT_STATS,
     routeCoords = DEFAULT_ROUTE_COORDS,
     busIndex = 54,
+    /** Live ProTrack GPS [lat, lng] — when set, bus marker follows the device */
+    livePosition = null,
+    liveStatusLabel = '',
 }) {
     const startPoint = routeCoords[0]
     const endPoint = routeCoords[routeCoords.length - 1]
-    const busPosition = routeCoords[busIndex] ?? endPoint
+    const simulatedBus = routeCoords[busIndex] ?? endPoint
+    const busPosition =
+        Array.isArray(livePosition) && livePosition.length === 2
+            ? livePosition
+            : simulatedBus
     const completedCoords = routeCoords.slice(0, busIndex + 1)
     const remainingCoords = routeCoords.slice(busIndex)
-    const progressWidth = `${Math.min(100, Math.round((busIndex / Math.max(routeCoords.length - 1, 1)) * 100))}%`
+    const progressWidth = livePosition
+        ? '100%'
+        : `${Math.min(100, Math.round((busIndex / Math.max(routeCoords.length - 1, 1)) * 100))}%`
 
     const startIcon = useMemo(() => makeStopIcon('#22c55e', '📍 Pickup Point'), [])
     const endIcon = useMemo(() => makeStopIcon('#f59e0b', '🏫 Destination'), [])
@@ -257,17 +266,32 @@ export default function BusTrackingMap({
                         attribution='&copy; OpenStreetMap &copy; CARTO'
                     />
 
-                    <FitBounds coords={routeCoords} />
-
-                    <Polyline
-                        positions={completedCoords}
-                        pathOptions={{ color: '#515DEF', weight: 5, opacity: 0.95 }}
+                    <FitBounds
+                        coords={
+                            livePosition
+                                ? [startPoint, endPoint, busPosition].filter(Boolean)
+                                : routeCoords
+                        }
                     />
 
-                    <Polyline
-                        positions={remainingCoords}
-                        pathOptions={{ color: '#94a3b8', weight: 4, opacity: 0.7, dashArray: '10 8' }}
-                    />
+                    {!livePosition && (
+                        <>
+                            <Polyline
+                                positions={completedCoords}
+                                pathOptions={{ color: '#515DEF', weight: 5, opacity: 0.95 }}
+                            />
+                            <Polyline
+                                positions={remainingCoords}
+                                pathOptions={{ color: '#94a3b8', weight: 4, opacity: 0.7, dashArray: '10 8' }}
+                            />
+                        </>
+                    )}
+                    {livePosition && (
+                        <Polyline
+                            positions={[startPoint, busPosition, endPoint]}
+                            pathOptions={{ color: '#515DEF', weight: 4, opacity: 0.55, dashArray: '6 8' }}
+                        />
+                    )}
 
                     <Marker position={startPoint} icon={startIcon}>
                         <Popup>
@@ -286,9 +310,13 @@ export default function BusTrackingMap({
                     <Marker position={busPosition} icon={busIcon}>
                         <Popup>
                             <div className='text-sm font-semibold'>🚌 {busLabel} (Current Location)</div>
-                            <div className='text-xs text-gray-500 mt-1'>En route to {endLocation}</div>
+                            <div className='text-xs text-gray-500 mt-1'>
+                                {liveStatusLabel || `En route to ${endLocation}`}
+                            </div>
                             <div className='text-xs text-emerald-600 font-medium mt-1'>
-                                ETA: {stats.eta} · {stats.distanceLeft} away
+                                {livePosition
+                                    ? `${stats.speed} · ${livePosition[0].toFixed(5)}, ${livePosition[1].toFixed(5)}`
+                                    : `ETA: ${stats.eta} · ${stats.distanceLeft} away`}
                             </div>
                         </Popup>
                     </Marker>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -6,9 +6,14 @@ import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon } from 'luc
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
-import { INVENTORY_ITEMS, CATEGORIES, statusBadgeColor } from './inventoryData'
+import { getInventoryItems, hydrateInventoryItemsFromApi, CATEGORIES, statusBadgeColor } from './inventoryData'
 
 const Inventory = () => {
+    const [inventoryItems, setInventoryItems] = useState(() => getInventoryItems())
+    useEffect(() => {
+        hydrateInventoryItemsFromApi().finally(() => setInventoryItems(getInventoryItems()))
+    }, [])
+
     const [fromDate, setFromDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
@@ -93,7 +98,7 @@ const Inventory = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {INVENTORY_ITEMS.map((item) => (
+                            {inventoryItems.map((item) => (
                                 <tr key={item.productId} className="border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className="px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg">{item.productId}</td>
                                     <td className="px-2 py-4 max-w-[140px] truncate" title={item.productName}>{item.productName}</td>
@@ -122,7 +127,7 @@ const Inventory = () => {
             </div>
 
             <div className='flex justify-between items-center px-4 mt-4'>
-                <p className='text-sm font-medium text-[#515DEF]'>Showing 1 to {INVENTORY_ITEMS.length} of {INVENTORY_ITEMS.length} entries</p>
+                <p className='text-sm font-medium text-[#515DEF]'>Showing 1 to {inventoryItems.length} of {inventoryItems.length} entries</p>
                 <div className="flex justify-center gap-x-2">
                     <button className="size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer"><ChevronLeft size={16} /></button>
                     <button className="size-8 flex justify-center items-center p-2 bg-[#EDEDF5] text-[#515DEF] border border-[#E2E8F0] rounded-full cursor-pointer">1</button>

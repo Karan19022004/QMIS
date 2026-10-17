@@ -1,3 +1,4 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export const APPROVAL_STATUSES = ['Pending', 'Approved', 'Rejected']
 
 export const FUEL_LEVEL_OPTIONS = ['100%', '90%', '80%', '70%', '60%', '50%', '40%', '30%', '20%', '10%']
@@ -9,7 +10,7 @@ export const DEFAULT_DRIVER = {
     assignedRoute: 'Erode Central Route',
 }
 
-export const FUEL_REQUESTS = [
+const DEFAULT_FUEL_REQUESTS = [
     {
         id: 'FR-001',
         fuelRequestId: 'FR001',
@@ -52,7 +53,7 @@ export const FUEL_REQUESTS = [
 ]
 
 export const getFuelRequestById = (id) =>
-    FUEL_REQUESTS.find((record) => record.id === id)
+    getDriverFuelRequests().find((record) => record.id === id)
 
 export const approvalStatusBadgeColor = {
     Pending: 'bg-[#FF98001A] text-[#FF9800]',
@@ -90,3 +91,15 @@ export const filterFuelRequests = ({
 
     return matchesSearch && matchesStatus && matchesFrom && matchesTo
 })
+export const FUEL_REQUESTS_STORAGE_KEY = 'schoolerp-transport-driver-fuel-v1'
+export function getDriverFuelRequests() {
+    return ensureCampusSeed('schoolerp-transport-driver-fuel-v1', DEFAULT_FUEL_REQUESTS)
+}
+export function saveDriverFuelRequests(rows) {
+    return saveCampusJson('schoolerp-transport-driver-fuel-v1', rows)
+}
+export function hydrateDriverFuelRequestsFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-driver-fuel-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-driver-fuel-v1', DEFAULT_FUEL_REQUESTS)
+}
+export const FUEL_REQUESTS = DEFAULT_FUEL_REQUESTS

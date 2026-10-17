@@ -1,3 +1,4 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 import { DRIVERS, getDriverDisplayName } from '../DriverManagement/driverManagementData'
 import { ROUTES } from '../RouteManagement/routeManagementData'
 
@@ -19,7 +20,7 @@ export const ROUTE_OPTIONS = ROUTES.map((route) => ({
     vehicleNumber: route.vehicleNumber,
 }))
 
-export const DUTIES = [
+const DEFAULT_DUTIES = [
     {
         id: 'DUTY-1001',
         dutyId: 'DUTY-1001',
@@ -82,4 +83,16 @@ export const DUTIES = [
     },
 ]
 
-export const getDutyById = (id) => DUTIES.find((duty) => duty.id === id) ?? null
+export const getDutyById = (id) => getDuties().find((duty) => duty.id === id) ?? null
+export const DUTIES_STORAGE_KEY = 'schoolerp-transport-duties-v1'
+export function getDuties() {
+    return ensureCampusSeed('schoolerp-transport-duties-v1', DEFAULT_DUTIES)
+}
+export function saveDuties(rows) {
+    return saveCampusJson('schoolerp-transport-duties-v1', rows)
+}
+export function hydrateDutiesFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-duties-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-duties-v1', DEFAULT_DUTIES)
+}
+export const DUTIES = DEFAULT_DUTIES

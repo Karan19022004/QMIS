@@ -90,6 +90,14 @@ class Settings(BaseSettings):
     # RFID / eSSL punch import — off until school confirms.
     rfid_import_enabled: bool = False
 
+    # ProTrack365 Open API (https://api.protrack365.com) — bus GPS.
+    # Admin panel account sees the full fleet; parent panel is the school parent login.
+    protrack_admin_account: str = ""
+    protrack_admin_password: str = ""
+    protrack_parent_account: str = ""
+    protrack_parent_password: str = ""
+
+
     @property
     def is_sqlite(self) -> bool:
         """True when DATABASE_URL targets SQLite (tests / local in-memory)."""

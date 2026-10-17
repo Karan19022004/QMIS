@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
     CLASS_OPTIONS,
     DAY_OPTIONS,
-    ROUTE_STOPS,
+    getRouteStops, hydrateRouteStopsFromApi,
     SECTION_OPTIONS,
     filterRouteStops,
 } from './routeStopsData'
@@ -13,6 +13,11 @@ const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
 const RouteStops = () => {
+    const [routeStops, setRouteStops] = useState(() => getRouteStops())
+    useEffect(() => {
+        hydrateRouteStopsFromApi().finally(() => setRouteStops(getRouteStops()))
+    }, [])
+
     const [search, setSearch] = useState('')
     const [className, setClassName] = useState('12th')
     const [section, setSection] = useState('A')

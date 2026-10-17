@@ -1,3 +1,4 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export const VEHICLE_CATEGORIES = ['Bus', 'Car']
 
 export const BUS_TYPES = [
@@ -11,7 +12,7 @@ export const CAR_TYPES = ['Crysta', 'Innova', 'Scorpio', 'Honda City', 'Kia']
 
 export const VEHICLE_TYPES = [...BUS_TYPES, ...CAR_TYPES]
 
-export const VEHICLES = [
+const DEFAULT_VEHICLES = [
     {
         id: 'VEH-1001',
         vehicleNumber: 'TN-09-AB-4521',
@@ -106,4 +107,19 @@ export const VEHICLES = [
     },
 ]
 
-export const getVehicleById = (id) => VEHICLES.find((vehicle) => vehicle.id === id) ?? null
+export const getVehicleById = (id) => getVehicles().find((vehicle) => vehicle.id === id) ?? null
+
+export const VEHICLES_STORAGE_KEY = 'schoolerp-transport-vehicles-v1'
+export function getVehicles() {
+    return ensureCampusSeed('schoolerp-transport-vehicles-v1', DEFAULT_VEHICLES)
+}
+export function saveVehicles(rows) {
+    return saveCampusJson('schoolerp-transport-vehicles-v1', rows)
+}
+export function hydrateVehiclesFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-vehicles-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-vehicles-v1', DEFAULT_VEHICLES)
+}
+/** Static seed / fallback — list pages should call getVehicles() after hydrate */
+export const VEHICLES = DEFAULT_VEHICLES
+

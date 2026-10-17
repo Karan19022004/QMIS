@@ -1,3 +1,4 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
 export const REQUEST_STATUSES = ['Pending', 'In Progress', 'Completed', 'Rejected']
 
 export const PRIORITIES = ['High', 'Medium', 'Low']
@@ -18,7 +19,7 @@ export const DEFAULT_DRIVER = {
     driverName: 'Suresh Kumar',
 }
 
-export const MAINTENANCE_REQUESTS = [
+const DEFAULT_MAINTENANCE_REQUESTS = [
     {
         id: 'MR-001',
         requestId: 'MR001',
@@ -58,7 +59,7 @@ export const MAINTENANCE_REQUESTS = [
 ]
 
 export const getMaintenanceRequestById = (id) =>
-    MAINTENANCE_REQUESTS.find((record) => record.id === id)
+    getDriverMaintenanceRequests().find((record) => record.id === id)
 
 export const requestStatusBadgeColor = {
     Pending: 'bg-[#FF57221A] text-[#FF5722]',
@@ -103,3 +104,15 @@ export const filterMaintenanceRequests = ({
 
     return matchesSearch && matchesStatus && matchesFrom && matchesTo
 })
+export const MAINTENANCE_REQUESTS_STORAGE_KEY = 'schoolerp-transport-driver-maintenance-v1'
+export function getDriverMaintenanceRequests() {
+    return ensureCampusSeed('schoolerp-transport-driver-maintenance-v1', DEFAULT_MAINTENANCE_REQUESTS)
+}
+export function saveDriverMaintenanceRequests(rows) {
+    return saveCampusJson('schoolerp-transport-driver-maintenance-v1', rows)
+}
+export function hydrateDriverMaintenanceRequestsFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-driver-maintenance-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-driver-maintenance-v1', DEFAULT_MAINTENANCE_REQUESTS)
+}
+export const MAINTENANCE_REQUESTS = DEFAULT_MAINTENANCE_REQUESTS

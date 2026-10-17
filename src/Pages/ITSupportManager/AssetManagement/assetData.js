@@ -1,3 +1,5 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
+
 export const ASSET_CATEGORIES = [
     'Laptop',
     'Desktop',
@@ -161,16 +163,7 @@ export const statusBadgeColor = {
     Retired: 'bg-[#9E9E9E33] text-[#616161]',
 }
 
-const readList = (key, seed) => {
-    try {
-        const raw = localStorage.getItem(key)
-        if (raw) return JSON.parse(raw)
-    } catch {
-        /* seed */
-    }
-    localStorage.setItem(key, JSON.stringify(seed))
-    return seed
-}
+const readList = (key, seed) => ensureCampusSeed(key, seed)
 
 const SERVICE_SEED = [
     { id: 'SRV-2026-001', assetId: 'AST-2026-0142', serviceDate: '12-01-2026', serviceType: 'Battery check', issue: 'Battery warning', provider: 'Dell Authorized Partner', location: 'Outside', cost: '₹1,200', status: 'Completed', completedDate: '13-01-2026', remarks: 'Battery replaced', createdBy: 'IT Support', createdAt: '12-01-2026' },
@@ -182,7 +175,11 @@ const TRANSFER_SEED = [
 ]
 
 export const getAssets = () => readList(ASSET_KEY, ASSETS)
-export const saveAssets = (rows) => localStorage.setItem(ASSET_KEY, JSON.stringify(rows))
+export const saveAssets = (rows) => saveCampusJson(ASSET_KEY, rows)
+export function hydrateAssetsFromApi() {
+    if (!usesCampusApiForKey(ASSET_KEY)) return Promise.resolve(false)
+    return hydrateCampusKey(ASSET_KEY, ASSETS)
+}
 export const getAssetById = (id) => getAssets().find((entry) => entry.assetId === id) ?? null
 
 export const addAsset = (asset) => {
@@ -205,7 +202,7 @@ export const getServiceHistory = (assetId) => readList(SERVICE_KEY, SERVICE_SEED
 export const addServiceRecord = (record) => {
     const rows = readList(SERVICE_KEY, SERVICE_SEED)
     const next = { ...record, id: `SRV-${Date.now()}`, createdAt: new Date().toISOString().slice(0, 10) }
-    localStorage.setItem(SERVICE_KEY, JSON.stringify([next, ...rows]))
+    saveCampusJson(SERVICE_KEY, [next, ...rows])
     return next
 }
 
@@ -227,6 +224,6 @@ export const transferAsset = (asset, payload) => {
         transferredBy: 'IT Support',
         status: 'Completed',
     }
-    localStorage.setItem(TRANSFER_KEY, JSON.stringify([entry, ...history]))
+    saveCampusJson(TRANSFER_KEY, [entry, ...history])
     return updateAsset(asset.assetId, { department: payload.toDepartment, custodian: payload.toCustodian, status: 'Assigned' })
 }

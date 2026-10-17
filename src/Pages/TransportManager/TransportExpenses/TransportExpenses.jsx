@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -9,9 +9,10 @@ import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import ReactECharts from 'echarts-for-react'
 import {
-    FUEL_EXPENSES,
-    SERVICE_EXPENSES,
-    OTHER_EXPENSES,
+    getFuelExpenses,
+    getServiceExpenses,
+    getOtherExpenses,
+    hydrateTransportExpensesFromApi,
     PAYMENT_MODES,
     SERVICE_TYPES,
     OTHER_EXPENSE_TYPES,
@@ -31,6 +32,18 @@ const ADD_BUTTONS = {
 }
 
 const TransportExpenses = () => {
+    const [fuelExpenses, setFuelExpenses] = useState(() => getFuelExpenses())
+    const [serviceExpenses, setServiceExpenses] = useState(() => getServiceExpenses())
+    const [otherExpenses, setOtherExpenses] = useState(() => getOtherExpenses())
+
+    useEffect(() => {
+        hydrateTransportExpensesFromApi().finally(() => {
+            setFuelExpenses(getFuelExpenses())
+            setServiceExpenses(getServiceExpenses())
+            setOtherExpenses(getOtherExpenses())
+        })
+    }, [])
+
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [activeTab, setActiveTab] = useState(1)
@@ -46,10 +59,10 @@ const TransportExpenses = () => {
         series: [{ type: 'bar', data: [budget.previous, budget.current, budget.actual], itemStyle: { color: '#515DEF' } }],
     }
     const activeCount = activeTab === 1
-        ? FUEL_EXPENSES.length
+        ? fuelExpenses.length
         : activeTab === 2
-            ? SERVICE_EXPENSES.length
-            : OTHER_EXPENSES.length
+            ? serviceExpenses.length
+            : otherExpenses.length
 
     return (
         <section>
@@ -209,7 +222,7 @@ const TransportExpenses = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {FUEL_EXPENSES.map((expense) => (
+                                {fuelExpenses.map((expense) => (
                                     <tr key={expense.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
                                         <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{expense.expenseId}</td>
                                         <td className='px-2 py-4 font-medium text-[#1E1E1E]'>{expense.vehicleNumber}</td>
@@ -258,7 +271,7 @@ const TransportExpenses = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {SERVICE_EXPENSES.map((expense) => (
+                                {serviceExpenses.map((expense) => (
                                     <tr key={expense.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
                                         <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{expense.expenseId}</td>
                                         <td className='px-2 py-4 font-medium text-[#1E1E1E]'>{expense.vehicleNumber}</td>
@@ -307,7 +320,7 @@ const TransportExpenses = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {OTHER_EXPENSES.map((expense) => (
+                                {otherExpenses.map((expense) => (
                                     <tr key={expense.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
                                         <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{expense.expenseId}</td>
                                         <td className='px-2 py-4 font-medium text-[#1E1E1E]'>{expense.vehicleNumber}</td>

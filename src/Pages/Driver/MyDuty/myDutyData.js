@@ -1,8 +1,10 @@
+import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
+
 export const SHIFTS = ['Morning', 'Afternoon', 'Evening']
 
 export const DUTY_STATUSES = ['Assigned', 'In Progress', 'Completed', 'Cancelled']
 
-export const MY_DUTIES = [
+const DEFAULT_MY_DUTIES = [
     {
         id: 'DUTY-2001',
         dutyId: 'DUTY-2001',
@@ -88,6 +90,19 @@ export const MY_DUTIES = [
         dutyStatus: 'In Progress',
     },
 ]
+
+export const MY_DUTIES_STORAGE_KEY = 'schoolerp-transport-driver-my-duties-v1'
+export function getMyDuties() {
+    return ensureCampusSeed('schoolerp-transport-driver-my-duties-v1', DEFAULT_MY_DUTIES)
+}
+export function saveMyDuties(rows) {
+    return saveCampusJson('schoolerp-transport-driver-my-duties-v1', rows)
+}
+export function hydrateMyDutiesFromApi() {
+    if (!usesCampusApiForKey('schoolerp-transport-driver-my-duties-v1')) return Promise.resolve(false)
+    return hydrateCampusKey('schoolerp-transport-driver-my-duties-v1', DEFAULT_MY_DUTIES)
+}
+export const MY_DUTIES = DEFAULT_MY_DUTIES
 
 export const dutyStatusBadgeColor = {
     Assigned: 'bg-[#515DEF1A] text-[#515DEF]',
