@@ -9,7 +9,6 @@ import LessonPlanGroupedTable from '../../../Common/LessonPlanApproval/Component
 import {
     APPROVAL_STATUSES,
     buildLessonPlanGroupHref,
-    CLASS_OPTIONS,
     emptyLessonPlanFilters,
     filterLessonPlans,
     getActiveFilterLabels,
@@ -17,10 +16,9 @@ import {
     getLessonPlansBySubmitter,
     groupLessonPlansByTeacherSubject,
     hydrateLessonPlansFromApi,
-    SECTION_OPTIONS,
-    SUBJECT_OPTIONS,
-    TEACHER_NAME,
 } from '../../../Common/LessonPlanApproval/lessonPlanApprovalData'
+import { useTeacherAssignments } from '../../../Common/Teacher/useTeacherAssignments'
+import { useAuth } from '../../../context/AuthContext'
 import { canUseLessonPlansApi } from '../../../services/lessonPlansApi'
 
 const filterInputClass =
@@ -28,12 +26,18 @@ const filterInputClass =
 
 const SubmitLessonPlan = () => {
     const location = useLocation()
+    const { name } = useAuth()
+    const assignments = useTeacherAssignments()
+    const submitterName = assignments.profile?.name || name || ''
     const [plans, setPlans] = useState(() =>
-        canUseLessonPlansApi() ? getLessonPlans() : getLessonPlansBySubmitter(TEACHER_NAME),
+        canUseLessonPlansApi() ? getLessonPlans() : getLessonPlansBySubmitter(submitterName),
     )
     const [filters, setFilters] = useState(emptyLessonPlanFilters)
     const [exportModal, setExportModal] = useState(false)
 
+    const classOptions = assignments.classes
+    const subjectOptions = assignments.subjects
+    const sectionOptions = assignments.sectionsFor(filters.className)
     const filteredPlans = useMemo(() => filterLessonPlans(plans, filters), [plans, filters])
     const groupedPlans = useMemo(() => groupLessonPlansByTeacherSubject(filteredPlans), [filteredPlans])
     const activeFilterLabels = useMemo(() => getActiveFilterLabels(filters), [filters])
@@ -42,8 +46,12 @@ const SubmitLessonPlan = () => {
     useEffect(() => {
         let cancelled = false
         if (!canUseLessonPlansApi()) {
-            setPlans(getLessonPlansBySubmitter(TEACHER_NAME))
-            return undefined
+            queueMicrotask(() => {
+                if (!cancelled) setPlans(getLessonPlansBySubmitter(submitterName))
+            })
+            return () => {
+                cancelled = true
+            }
         }
         hydrateLessonPlansFromApi({ mine: true }).then((rows) => {
             if (!cancelled) setPlans(rows)
@@ -51,7 +59,7 @@ const SubmitLessonPlan = () => {
         return () => {
             cancelled = true
         }
-    }, [location.key])
+    }, [location.key, submitterName])
 
     const updateFilter = (key, value) => {
         setFilters((current) => ({ ...current, [key]: value }))
@@ -109,7 +117,7 @@ const SubmitLessonPlan = () => {
                             className={filterInputClass}
                         >
                             <option value=''>All</option>
-                            {SUBJECT_OPTIONS.map((item) => (
+                            {subjectOptions.map((item) => (
                                 <option key={item} value={item}>{item}</option>
                             ))}
                         </select>
@@ -119,11 +127,14 @@ const SubmitLessonPlan = () => {
                         <select
                             id='class-filter'
                             value={filters.className}
-                            onChange={(e) => updateFilter('className', e.target.value)}
+                            onChange={(e) => {
+                                updateFilter('className', e.target.value)
+                                updateFilter('section', '')
+                            }}
                             className={filterInputClass}
                         >
                             <option value=''>All</option>
-                            {CLASS_OPTIONS.map((item) => (
+                            {classOptions.map((item) => (
                                 <option key={item} value={item}>{item}</option>
                             ))}
                         </select>
@@ -137,7 +148,7 @@ const SubmitLessonPlan = () => {
                             className={filterInputClass}
                         >
                             <option value=''>All</option>
-                            {SECTION_OPTIONS.map((item) => (
+                            {sectionOptions.map((item) => (
                                 <option key={item} value={item}>{item}</option>
                             ))}
                         </select>

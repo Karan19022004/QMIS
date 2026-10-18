@@ -24,6 +24,7 @@ import {
     getStudentSubmissionStatus,
 } from '../../../Student/StudentDeliverables/studentHomeFunSubmissions'
 import { useActiveStudent } from '../../../../context/ActiveStudentContext'
+import { matchesStudentClass } from '../../../Student/Class/studentClassMatch'
 
 const studentStatusBadgeColor = {
     Submitted: 'bg-[#4CAF5033] text-[#4CAF50]',
@@ -73,11 +74,26 @@ const HomeFunEmpty = ({ routeBase, viewMode }) => {
 
 const HomeFunList = ({ items, routeBase, viewMode }) => {
     const isStudent = viewMode === 'student'
-    const { activeStudentId } = useActiveStudent()
+    const { activeStudentId, activeStudent } = useActiveStudent()
     const [filters, setFilters] = useState(emptyFilters)
     const [exportModal, setExportModal] = useState(false)
 
-    const filteredItems = useMemo(() => filterHomeFunItems(items, filters), [items, filters])
+    const scopedItems = useMemo(() => {
+        if (!isStudent || !activeStudent) return items
+        return items.filter((row) => matchesStudentClass(row, activeStudent))
+    }, [items, isStudent, activeStudent])
+
+    const filterOptions = useMemo(() => {
+        const subjects = [...new Set(scopedItems.map((r) => r.subject).filter(Boolean))]
+        const classes = [...new Set(scopedItems.map((r) => r.className).filter(Boolean))]
+        const sections = [...new Set(scopedItems.map((r) => r.section).filter(Boolean))]
+        return { subjects, classes, sections }
+    }, [scopedItems])
+
+    const filteredItems = useMemo(
+        () => filterHomeFunItems(scopedItems, filters),
+        [scopedItems, filters],
+    )
     const showTotalMarks = filters.type !== 'Homework'
     const tableColumnCount = showTotalMarks
         ? (isStudent ? 13 : 13)
@@ -139,7 +155,7 @@ const HomeFunList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SUBJECTS.map((subject) => (
+                            {(isStudent ? filterOptions.subjects : SUBJECTS).map((subject) => (
                                 <option key={subject} value={subject}>{subject}</option>
                             ))}
                         </select>
@@ -153,7 +169,7 @@ const HomeFunList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {CLASSES.map((item) => (
+                            {(isStudent ? filterOptions.classes : CLASSES).map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>
@@ -167,7 +183,7 @@ const HomeFunList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SECTIONS.map((item) => (
+                            {(isStudent ? filterOptions.sections : SECTIONS).map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>
@@ -373,15 +389,21 @@ const HomeFunList = ({ items, routeBase, viewMode }) => {
 
 const HomeFun = ({ routeBase = DEFAULT_ROUTE_BASE, viewMode = 'teacher' }) => {
     const location = useLocation()
+    const { activeStudent } = useActiveStudent()
     const [items, setItems] = useState(() => getHomeFunItems())
 
     useEffect(() => {
         setItems(getHomeFunItems())
     }, [location.pathname])
 
+    const visibleCount = useMemo(() => {
+        if (viewMode !== 'student' || !activeStudent) return items.length
+        return items.filter((row) => matchesStudentClass(row, activeStudent)).length
+    }, [items, viewMode, activeStudent])
+
     return (
         <section>
-            {items.length === 0 ? (
+            {visibleCount === 0 ? (
                 <HomeFunEmpty routeBase={routeBase} viewMode={viewMode} />
             ) : (
                 <HomeFunList items={items} routeBase={routeBase} viewMode={viewMode} />

@@ -79,6 +79,8 @@ export const DEFAULT_ADMISSION_FORM = {
     parentEmail: '',
     parentAccountEmail: '',
     parentAccountPassword: '',
+    studentAccountEmail: '',
+    studentAccountPassword: '',
     feesGroup: '',
     status: 'Active',
     enrolledStudentId: '',
@@ -259,6 +261,10 @@ const buildAdmissionRecord = (payload, existing = null) => {
             parentAccountPassword: String(payload.parentAccountPassword || '').trim()
                 || existing?.parentAccountPassword
                 || '',
+            studentAccountEmail: String(payload.studentAccountEmail || '').trim().toLowerCase(),
+            studentAccountPassword: String(payload.studentAccountPassword || '').trim()
+                || existing?.studentAccountPassword
+                || '',
             feesGroup: payload.feesGroup || '',
             status: existing?.status || 'Active',
             enrolledStudentId: existing?.enrolledStudentId || '',
@@ -336,16 +342,36 @@ export const enrollAdmissionAsStudent = async (id, extra = {}) => {
             const current = await getAdmissionApi(id)
             const parentEmail = extra.parentAccountEmail || current.parentAccountEmail
             const parentPassword = extra.parentAccountPassword
-            if (parentEmail && (!parentPassword || String(parentPassword).trim().length < 10)) {
+            const studentEmail = extra.studentAccountEmail || current.studentAccountEmail
+            const studentPassword = extra.studentAccountPassword
+            // Passwords are optional here — saved Account Information hashes are used on the server.
+            if (
+                parentEmail
+                && !current.hasParentAccountPassword
+                && (!parentPassword || String(parentPassword).trim().length < 10)
+            ) {
                 return {
                     success: false,
-                    message: 'Parent password is required (min 10 characters, with a letter and a number) when creating the parent login.',
+                    message: 'Parent password is required. Save it under Account Information on the admission, then enroll.',
+                }
+            }
+            if (
+                studentEmail
+                && !current.hasStudentAccountPassword
+                && (!studentPassword || String(studentPassword).trim().length < 10)
+            ) {
+                return {
+                    success: false,
+                    message: 'Student password is required. Save it under Account Information on the admission, then enroll.',
                 }
             }
             const result = await enrollAdmissionApi(id, {
                 parentAccountEmail: parentEmail,
-                parentAccountPassword: parentPassword,
+                parentAccountPassword: parentPassword || null,
                 skipParentAccount: !parentEmail,
+                studentAccountEmail: studentEmail,
+                studentAccountPassword: studentPassword || null,
+                skipStudentAccount: !studentEmail,
             })
             return {
                 success: true,
@@ -354,6 +380,9 @@ export const enrollAdmissionAsStudent = async (id, extra = {}) => {
                 parentCreated: Boolean(result.parent_created),
                 parentMapped: Boolean(result.parent_user_id && !result.parent_created),
                 parentSkipped: !result.parent_user_id,
+                studentUserCreated: Boolean(result.student_created),
+                studentUserMapped: Boolean(result.student_user_id && !result.student_created),
+                studentUserSkipped: !result.student_user_id,
             }
         } catch (error) {
             return { success: false, message: error.message || 'Enrollment failed.' }

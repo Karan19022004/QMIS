@@ -102,6 +102,9 @@ def admission_to_out(row: Admission) -> dict:
         "parent_alt_mobile_number": row.parent_alt_mobile_number,
         "parent_email": row.parent_email,
         "parent_account_email": row.parent_account_email,
+        "student_account_email": row.student_account_email,
+        "has_parent_account_password": bool(row.parent_pending_password_hash),
+        "has_student_account_password": bool(row.student_pending_password_hash),
         "fees_group": row.fees_group,
         "status": row.status,
         "enrolled_student_id": row.enrolled_student_id,
@@ -341,9 +344,20 @@ def get_admission(db: Session, actor: User, admission_id: UUID) -> dict:
     return admission_to_out(_get_admission(db, actor, admission_id))
 
 
+def _store_pending_password(row: Admission, *, field: str, password: str | None, email: str | None) -> None:
+    """Hash and keep a temporary portal password until enroll (never returned in plaintext)."""
+    plain = (password or "").strip()
+    if not plain:
+        return
+    policy_message = password_policy_message(plain, email=(email or "").strip().lower() or None)
+    if policy_message:
+        fail(400, "weak_password", policy_message)
+    setattr(row, field, hash_password(plain))
+
+
 def _apply_admission_fields(row: Admission, payload: AdmissionCreate) -> None:
     data = payload.model_dump(exclude_unset=False)
-    skip = {"parent_account_password"}
+    skip = {"parent_account_password", "student_account_password"}
     for key, value in data.items():
         if key in skip:
             continue
@@ -351,6 +365,24 @@ def _apply_admission_fields(row: Admission, payload: AdmissionCreate) -> None:
             setattr(row, key, value)
     if payload.parent_account_email:
         row.parent_account_email = payload.parent_account_email.strip().lower()
+    if payload.student_account_email:
+        row.student_account_email = payload.student_account_email.strip().lower()
+    else:
+        # Empty / omitted clears optional student portal email on save.
+        row.student_account_email = None
+        row.student_pending_password_hash = None
+    _store_pending_password(
+        row,
+        field="parent_pending_password_hash",
+        password=payload.parent_account_password,
+        email=payload.parent_account_email or row.parent_account_email,
+    )
+    _store_pending_password(
+        row,
+        field="student_pending_password_hash",
+        password=payload.student_account_password,
+        email=payload.student_account_email or row.student_account_email,
+    )
 
 
 def create_admission(db: Session, actor: User, payload: AdmissionCreate) -> dict:
@@ -438,6 +470,7 @@ def _ensure_portal_user(
     *,
     email: str | None,
     password: str | None,
+    password_hash: str | None = None,
     skip: bool,
     role_code: str,
     label: str,
@@ -445,14 +478,23 @@ def _ensure_portal_user(
     if skip or not email:
         return None, False
     email = email.strip().lower()
-    if not password or not password.strip():
-        fail(400, "validation_error", f"{label} password is required.")
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
         return existing, False
-    policy_message = password_policy_message(password.strip(), email=email)
-    if policy_message:
-        fail(400, "weak_password", policy_message)
+
+    resolved_hash = (password_hash or "").strip() or None
+    plain = (password or "").strip() or None
+    if plain:
+        policy_message = password_policy_message(plain, email=email)
+        if policy_message:
+            fail(400, "weak_password", policy_message)
+        resolved_hash = hash_password(plain)
+    if not resolved_hash:
+        fail(
+            400,
+            "validation_error",
+            f"{label} password is required. Save it under Account Information on the admission, then enroll.",
+        )
     role = db.scalar(select(Role).where(Role.code == role_code))
     if role is None:
         fail(500, "config_error", f"{label} role is not seeded.")
@@ -460,7 +502,7 @@ def _ensure_portal_user(
         campus_id=actor.campus_id,
         role_id=role.id,
         email=email,
-        password_hash=hash_password(password.strip()),
+        password_hash=resolved_hash,
         is_active=True,
         must_change_password=True,
     )
@@ -475,6 +517,7 @@ def _ensure_parent_user(
     *,
     email: str | None,
     password: str | None,
+    password_hash: str | None = None,
     skip: bool,
 ) -> tuple[User | None, bool]:
     return _ensure_portal_user(
@@ -482,6 +525,7 @@ def _ensure_parent_user(
         actor,
         email=email,
         password=password,
+        password_hash=password_hash,
         skip=skip,
         role_code="parent",
         label="Parent",
@@ -494,6 +538,7 @@ def _ensure_student_user(
     *,
     email: str | None,
     password: str | None,
+    password_hash: str | None = None,
     skip: bool,
 ) -> tuple[User | None, bool]:
     return _ensure_portal_user(
@@ -501,6 +546,7 @@ def _ensure_student_user(
         actor,
         email=email,
         password=password,
+        password_hash=password_hash,
         skip=skip,
         role_code="student",
         label="Student",
@@ -513,19 +559,25 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
         fail(409, "already_enrolled", "This admission is already enrolled.")
 
     parent_email = payload.parent_account_email or row.parent_account_email
+    raw_student_email = payload.student_account_email or row.student_account_email
+    student_email = (raw_student_email or "").strip().lower() or None
+    # Create/link student portal login when an email is present (form or enroll payload).
+    skip_student = not student_email
     parent_user, parent_created = _ensure_parent_user(
         db,
         actor,
         email=parent_email,
         password=payload.parent_account_password,
+        password_hash=row.parent_pending_password_hash,
         skip=payload.skip_parent_account,
     )
     student_user, student_created = _ensure_student_user(
         db,
         actor,
-        email=payload.student_account_email,
+        email=student_email,
         password=payload.student_account_password,
-        skip=payload.skip_student_account,
+        password_hash=row.student_pending_password_hash,
+        skip=skip_student,
     )
 
     admission_number = row.admission_code
@@ -535,6 +587,9 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
         admission_number = _next_code(db, Admission, "ADM", actor.campus_id)
         row.admission_code = admission_number
 
+    from app.services.placement import current_academic_year
+
+    year = current_academic_year(db, actor.campus_id)
     student = Student(
         campus_id=actor.campus_id,
         enquiry_id=row.enquiry_id,
@@ -542,6 +597,8 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
         admission_number=admission_number,
         full_name=_full_name(row),
         class_name=row.class_name,
+        academic_year_id=year.id if year else None,
+        placement_status="pending",
         parent_user_id=parent_user.id if parent_user else None,
         student_user_id=student_user.id if student_user else None,
     )
@@ -566,6 +623,11 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
     row.parent_user_id = parent_user.id if parent_user else None
     if parent_email:
         row.parent_account_email = parent_email.strip().lower()
+    if student_email:
+        row.student_account_email = student_email.strip().lower()
+    # Pending form passwords are consumed at enroll; never keep them after.
+    row.parent_pending_password_hash = None
+    row.student_pending_password_hash = None
     row.updated_at = _utcnow()
 
     write_audit(

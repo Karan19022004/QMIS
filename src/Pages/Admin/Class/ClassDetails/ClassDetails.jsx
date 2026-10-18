@@ -68,13 +68,11 @@ const ClassDetails = () => {
         if (!query) return sourceRecords
         return sourceRecords.filter((item) => {
             const sectionNames = (item.sections || []).map((section) => section.name).join(', ')
-            const teacherNames = (item.sections || []).map((section) => section.classTeacherName || '').join(' ')
             return (
                 item.className.toLowerCase().includes(query)
                 || (item.displayName || '').toLowerCase().includes(query)
                 || sectionNames.toLowerCase().includes(query)
-                || (item.classTeacher || '').toLowerCase().includes(query)
-                || teacherNames.toLowerCase().includes(query)
+                || (item.academicYear || '').toLowerCase().includes(query)
             )
         })
     }, [sourceRecords, search])
@@ -137,7 +135,7 @@ const ClassDetails = () => {
                             type='text'
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            placeholder='Class, section, teacher...'
+                            placeholder='Class, section, year...'
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         />
                     </div>
@@ -209,7 +207,15 @@ const ClassDetails = () => {
             <div className='bg-white rounded-2xl shadow-md p-4 mt-8'>
                 <div className='flex justify-between items-center sm:flex-row flex-col gap-y-2 mb-4'>
                     <h2 className='text-xl font-medium text-black'>Class Details List</h2>
-                    <div className='flex gap-x-2'>
+                    <div className='flex gap-x-2 flex-wrap justify-end'>
+                        {apiMode && (
+                            <NavLink
+                                to='/admin/class/academic-years'
+                                className='bg-white text-[#515DEF] text-sm px-4 py-2 rounded-md border border-[#515DEF] hover:bg-[#515DEF] hover:text-white transition-all duration-200 cursor-pointer flex items-center gap-x-2'
+                            >
+                                Academic Years
+                            </NavLink>
+                        )}
                         <NavLink
                             to='/admin/class/add-class-details'
                             className='bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center gap-x-2'
@@ -230,9 +236,10 @@ const ClassDetails = () => {
 
                 {apiMode && (
                     <p className='text-xs text-[#667085] mb-3'>
-                        Classes, sections, capacity, room and class teacher are saved on the server, per academic year.
-                        A class cannot be renamed. Deactivate a class to hide it while keeping its records; delete
-                        works only for a class nothing uses.
+                        Classes, sections, capacity and room are saved on the server, per academic year.
+                        Names sync to Teacher Allocation, Mark Entry and other dropdowns. Class teachers are
+                        assigned under Principal → Teacher Allocation. Add next years under Academic Years.
+                        A class cannot be renamed. Deactivate to hide it; delete only works if nothing uses it.
                     </p>
                 )}
 
@@ -283,7 +290,6 @@ const ClassDetails = () => {
                                             <>
                                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Academic Year</th>
                                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Capacity</th>
-                                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Teacher</th>
                                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Room</th>
                                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Status</th>
                                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Actions</th>
@@ -292,7 +298,6 @@ const ClassDetails = () => {
                                             <>
                                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Section Capacity</th>
                                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Capacity</th>
-                                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Teacher</th>
                                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class Room Number</th>
                                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Actions</th>
                                             </>
@@ -319,15 +324,6 @@ const ClassDetails = () => {
                                                             {visible.length > 1 && visible.some((section) => section.capacity) && (
                                                                 <div className='text-xs'>{sectionCapacities}</div>
                                                             )}
-                                                        </td>
-                                                        <td className='px-2 py-4'>
-                                                            {visible.some((section) => section.classTeacherName)
-                                                                ? visible.map((section) => (
-                                                                    <div key={section.id}>
-                                                                        {visible.length > 1 ? `${section.name}: ` : ''}{section.classTeacherName || '—'}
-                                                                    </div>
-                                                                ))
-                                                                : '—'}
                                                         </td>
                                                         <td className='px-2 py-4'>
                                                             {visible.some((section) => section.roomNumber)
@@ -374,7 +370,6 @@ const ClassDetails = () => {
                                                     <>
                                                 <td className='px-2 py-4'>{sectionCapacities || '—'}</td>
                                                 <td className='px-2 py-4'>{record.classCapacity || '—'}</td>
-                                                <td className='px-2 py-4'>{record.classTeacher || '—'}</td>
                                                 <td className='px-2 py-4'>{record.classRoomNumber || '—'}</td>
                                                 <td className='px-2 py-4 text-center rounded-e-lg'>
                                                     <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>

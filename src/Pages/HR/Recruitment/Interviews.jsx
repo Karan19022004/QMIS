@@ -2,16 +2,16 @@ import React, { useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { getCandidates, getInterviews, nextId, pushNotification, queueCommunication, saveCandidates, saveInterviews } from '../domain/hrStore'
-import { Badge, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, inputClass, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
+import { Badge, FormField, KeyFields, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, inputClass, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
 
 const LEVELS = ['Screening', 'Level 1', 'Level 2', 'Technical', 'HR', 'Management', 'Final']
 const STATUSES = ['Scheduled', 'Completed', 'Selected', 'Rejected', 'On Hold', 'Next Round', 'No Show']
 const empty = { candidateId: '', level: 'Screening', interviewer: '', date: '2026-09-25', time: '10:00', mode: 'In Person', status: 'Scheduled', score: 0, remarks: '', strengths: '', concerns: '', recommendation: '', nextStep: '', technical: 0, communication: 0, experienceMatch: 0, roleFit: 0, finalDecision: '' }
 
 const Rating = ({ label, value, onChange }) => (
-    <label className='text-sm text-[#808080]'>{label}
-        <select className={`${inputClass} mt-1`} value={value} onChange={(e) => onChange(Number(e.target.value))}>{[1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}</select>
-    </label>
+    <FormField label={label}>
+        <select className={inputClass} value={value} onChange={(e) => onChange(Number(e.target.value))}>{[1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}</select>
+    </FormField>
 )
 
 const Interviews = () => {
@@ -57,10 +57,15 @@ const Interviews = () => {
             </TableWrap>
             {form && <Modal title='Interview' onClose={() => setForm(null)} wide>
                 <form onSubmit={save} className='grid md:grid-cols-2 gap-3'>
-                    <Select label='Candidate' value={form.candidateId} onChange={(e) => setForm({ ...form, candidateId: e.target.value })} options={candidates.map((item) => item.id)} allLabel='Select' />
+                    <Select label='Candidate' value={form.candidateId} onChange={(e) => setForm({ ...form, candidateId: e.target.value })} options={candidates.map((item) => ({ value: item.id, label: `${item.name} · ${item.position}` }))} allLabel='Select candidate' />
                     <Select label='Level' value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} options={LEVELS} allLabel='Select' />
                     <Select label='Status' value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} options={STATUSES} allLabel='Select' />
-                    {['interviewer', 'date', 'time', 'mode', 'strengths', 'concerns', 'remarks', 'recommendation', 'nextStep', 'finalDecision'].map((key) => <input key={key} className={inputClass} placeholder={key} value={form[key] || ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />)}
+                    <KeyFields
+                        keys={['interviewer', 'date', 'time', 'mode', 'strengths', 'concerns', 'remarks', 'recommendation', 'nextStep', 'finalDecision']}
+                        form={form}
+                        setForm={setForm}
+                        bounds={{ date: 'future' }}
+                    />
                     <Rating label='Technical / Functional' value={form.technical || 1} onChange={(value) => setForm({ ...form, technical: value })} />
                     <Rating label='Communication' value={form.communication || 1} onChange={(value) => setForm({ ...form, communication: value })} />
                     <Rating label='Experience Match' value={form.experienceMatch || 1} onChange={(value) => setForm({ ...form, experienceMatch: value })} />

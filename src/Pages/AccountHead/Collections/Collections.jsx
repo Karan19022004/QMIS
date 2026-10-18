@@ -25,7 +25,7 @@ const Collections = () => {
                             {' · '}
                             All Sources
                         </p>
-                        <FinanceSnapshotBanner mockNote='Money In/Out use campus snapshot transactions when Finance API is on. Timeline and cash-flow charts remain illustrative.' />
+                        <FinanceSnapshotBanner mockNote='Overview, Money In/Out, timeline, and cash-flow trends all use campus snapshot transactions when Finance API is on.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select

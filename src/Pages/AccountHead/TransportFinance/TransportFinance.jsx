@@ -29,7 +29,7 @@ const TransportFinance = () => {
                             {' · '}
                             All Routes
                         </p>
-                        <FinanceSnapshotBanner mockNote='Fleet & transport claims use finance snapshot when available. Maintenance, compliance, and payroll tabs remain illustrative.' />
+                        <FinanceSnapshotBanner mockNote='Fleet & transport claims use finance snapshot. Maintenance/compliance show empty campus states in API mode (no seed registers).' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select

@@ -9,10 +9,11 @@ import {
     getApprovedLessonPlansBySubmitter,
     getLessonPlans,
     getLessonPlansBySubmitter,
+    hydrateLessonPlansFromApi,
     markLessonPlanAsDone,
-    TEACHER_NAME,
     updateLessonPlanStatus,
 } from '../lessonPlanApprovalData'
+import { canUseLessonPlansApi } from '../../../services/lessonPlansApi'
 
 const getRoutePrefix = (pathname) => {
     if (pathname.startsWith('/coordinator')) return '/coordinator'
@@ -51,16 +52,7 @@ const LessonPlanGroupDetail = () => {
               ? 'Lesson Plan Review'
               : 'Lesson Plans'
 
-    const loadPlans = () => {
-        let sourcePlans = []
-        if (variant === 'mark-as-done') {
-            sourcePlans = getApprovedLessonPlansBySubmitter(decodedTeacher)
-        } else if (variant === 'director-approval') {
-            sourcePlans = getLessonPlans()
-        } else {
-            sourcePlans = getLessonPlansBySubmitter(TEACHER_NAME)
-        }
-
+    const applyPlans = (sourcePlans) => {
         setPlans(
             sourcePlans.filter(
                 (plan) => plan.submitterName === decodedTeacher && plan.subject === decodedSubject
@@ -68,8 +60,52 @@ const LessonPlanGroupDetail = () => {
         )
     }
 
+    const loadPlans = () => {
+        let sourcePlans = []
+        if (variant === 'mark-as-done') {
+            sourcePlans = getApprovedLessonPlansBySubmitter(decodedTeacher)
+        } else if (variant === 'director-approval') {
+            sourcePlans = getLessonPlans()
+        } else {
+            sourcePlans = canUseLessonPlansApi()
+                ? getLessonPlans()
+                : getLessonPlansBySubmitter(decodedTeacher)
+        }
+        applyPlans(sourcePlans)
+    }
+
     useEffect(() => {
-        loadPlans()
+        let cancelled = false
+        const refresh = () => {
+            if (canUseLessonPlansApi()) {
+                hydrateLessonPlansFromApi({ mine: true })
+                    .then((rows) => {
+                        if (cancelled) return
+                        const source = variant === 'mark-as-done'
+                            ? rows.filter((item) => item.approvalStatus === 'Approved')
+                            : variant === 'director-approval'
+                                ? rows
+                                : rows
+                        if (variant === 'director-approval') {
+                            applyPlans(getLessonPlans().length ? getLessonPlans() : source)
+                        } else {
+                            applyPlans(source)
+                        }
+                    })
+                    .catch(() => {
+                        if (!cancelled) loadPlans()
+                    })
+                return
+            }
+            queueMicrotask(() => {
+                if (!cancelled) loadPlans()
+            })
+        }
+        refresh()
+        return () => {
+            cancelled = true
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [decodedTeacher, decodedSubject, location.key, variant])
 
     const sortedPlans = useMemo(

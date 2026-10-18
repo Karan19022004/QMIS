@@ -1,6 +1,9 @@
-# QMIS ERP — Full Module Flow Test Guide
+# QMIS ERP — Full Module Flow Test Guide (leaf inventory)
 
-**Purpose:** Test **every sidebar module** in campus order: what you do → where data is stored → who sees it next.
+**Primary guide (campus story):** `reports/QMIS-ERP-Full-Panel-Test-Guide.md`  
+Use that for admission → parent → fees → teacher onboard → class assign journeys.
+
+**This file:** optional **sidebar-leaf** checklist (Do / Stored in / Reflects to) if you need every menu item once.
 
 **Updated:** 18 October 2026  
 **Stack:** Postgres 18 `@5433` · API `http://127.0.0.1:8000` · App `http://localhost:5173`  

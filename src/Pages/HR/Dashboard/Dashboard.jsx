@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import { Briefcase, CalendarOff, ClipboardList, GraduationCap, RefreshCw, UserPlus, Users, Wallet } from 'lucide-react'
 import { Badge, useHrTick } from '../components/HrUi'
-import { ACADEMIC_YEARS, DASHBOARD_DEPARTMENTS, DASHBOARD_MONTHS, buildHrDashboard } from './dashboardData'
+import { ACADEMIC_YEARS, DASHBOARD_DEPARTMENTS, DASHBOARD_MONTHS, buildHrDashboard, currentDashboardMonth } from './dashboardData'
 
 const MUTED = ['#515DEF', '#8B93E8', '#B7BDEF', '#98A2B3', '#D0D5DD', '#667085']
 

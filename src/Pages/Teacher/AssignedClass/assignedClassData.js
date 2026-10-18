@@ -7,6 +7,7 @@ import {
 } from '../../../Common/RBAC/academicsCatalogData'
 import { getStudentCountForClassSection } from '../../../Common/RBAC/createdUsersData'
 import { liveArray } from '../../../Common/RBAC/liveArray'
+import { getTeacherAssignmentRows } from '../../../Common/Teacher/teacherAssignedClasses'
 
 export { liveArray }
 
@@ -19,6 +20,18 @@ export const SECTIONS = liveArray(getCatalogSections)
 export const SUBJECTS = liveArray(getCatalogSubjects)
 
 export const getAssignedClasses = (teacherEmail) => {
+    const fromPortal = getTeacherAssignmentRows(teacherEmail)
+    if (fromPortal.length) {
+        return fromPortal.map((item) => ({
+            id: `${item.className}-${item.section}-${item.subject}`,
+            className: item.className,
+            section: item.section || '—',
+            subject: item.subject || '—',
+            classTeacher: item.isClassTeacher ? 'Yes' : 'No',
+            totalStudents: getStudentCountForClassSection(item.className, item.section),
+        }))
+    }
+
     const assignments = teacherEmail
         ? getAssignmentsForTeacher(teacherEmail)
         : getAssignments()

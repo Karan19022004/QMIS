@@ -4,7 +4,12 @@ import CommonSidebar from '../Common/CommonSidebar/CommonSidebar'
 import CommonBreadcrumb from '../Common/CommonBreadcrumb/CommonBreadcrumb'
 import PrincipalRoutes from '../Routes/PrincipalRoutes'
 import { hydrateClassTimetablesFromApi } from '../Pages/Principal/ClassTimetable/classTimetableData'
-import { hydrateTeacherAllocationsFromApi } from '../Pages/Principal/TeacherAllocation/teacherAllocationData'
+import {
+    hydrateTeacherAllocationsFromApi,
+    hydrateTeachersFromDirectory,
+} from '../Pages/Principal/TeacherAllocation/teacherAllocationData'
+import { hydrateExtraClassesFromApi } from '../Pages/Teacher/ExtraClass/extraClassData'
+import { canUseClassDetailsApi, refreshClassCatalog } from '../services/classDetailsApi'
 
 const PrincipalLayout = () => {
     const [sidebarHidden, setSidebarHidden] = useState(() => {
@@ -29,8 +34,13 @@ const PrincipalLayout = () => {
     }, [])
 
     useEffect(() => {
+        if (canUseClassDetailsApi()) refreshClassCatalog()
         hydrateClassTimetablesFromApi()
-        hydrateTeacherAllocationsFromApi()
+        ;(async () => {
+            await hydrateTeacherAllocationsFromApi()
+            await hydrateTeachersFromDirectory({ force: true })
+            await hydrateExtraClassesFromApi()
+        })()
     }, [])
 
     return (

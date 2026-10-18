@@ -119,7 +119,10 @@ const StudentsList = () => {
 
             <div className='bg-white rounded-2xl shadow-md p-4 mt-8'>
                 <div className='flex justify-between items-center sm:flex-row flex-col gap-y-2 mb-4'>
-                    <h2 className='text-xl font-medium text-black'>Students List</h2>
+                    <div>
+                        <h2 className='text-xl font-medium text-black'>Students List</h2>
+                        <p className='text-sm text-[#667085] mt-1'>Students in your grade band only.</p>
+                    </div>
                     <button
                         type='button'
                         onClick={() => setExportModal(true)}

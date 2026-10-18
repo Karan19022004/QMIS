@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { getCandidates, getJobs, nextId, saveCandidates } from '../domain/hrStore'
-import { Badge, HrExport, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, inputClass, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
+import { Badge, FormField, HrExport, KeyFields, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, inputClass, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
 
 const SOURCES = ['Walk-in', 'Employee Referral', 'Consultancy', 'Job Portal', 'Internal', 'Campus', 'Other']
 const STATUSES = ['Applied', 'Screening', 'Interview', 'Selected', 'Rejected', 'On Hold']
@@ -48,12 +48,33 @@ const Candidates = () => {
             </Modal>}
             {form && <Modal title='Candidate' onClose={() => setForm(null)} wide>
                 <form onSubmit={save} className='grid md:grid-cols-2 gap-3'>
-                    <Select label='Position' value={form.jobId} onChange={(e) => setForm({ ...form, jobId: e.target.value })} options={jobs.map((job) => job.id)} allLabel='Select' />
-                    {['name', 'dateOfBirth', 'gender', 'maritalStatus', 'address', 'mobile', 'email', 'qualification', 'experience', 'currentCompany', 'currentSalary', 'expectedSalary', 'noticePeriod', 'reference', 'applicationDate'].map((key) => <input key={key} className={inputClass} placeholder={key} value={form[key] || ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />)}
+                    <Select
+                        label='Position / job'
+                        value={form.jobId}
+                        onChange={(e) => setForm({ ...form, jobId: e.target.value })}
+                        options={jobs.map((job) => ({ value: job.id, label: `${job.position} (${job.id})` }))}
+                        allLabel='Select position'
+                    />
+                    <KeyFields
+                        keys={['name', 'dateOfBirth', 'gender', 'maritalStatus', 'address', 'mobile', 'email', 'qualification', 'experience', 'currentCompany', 'currentSalary', 'expectedSalary', 'noticePeriod', 'reference', 'applicationDate']}
+                        form={form}
+                        setForm={setForm}
+                    />
                     <Select label='Source' value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} options={SOURCES} allLabel='Select' />
                     <Select label='Status' value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} options={STATUSES} allLabel='Select' />
-                    <input type='file' onChange={(e) => { const file = e.target.files?.[0]; if (file) setForm({ ...form, resumeName: file.name, resumeSize: `${Math.ceil(file.size / 1024)} KB` }) }} />
-                    <PrimaryButton type='submit'>Save</PrimaryButton>
+                    <FormField label='Resume file' hint={form.resumeName ? `${form.resumeName} · ${form.resumeSize || ''}` : 'Optional — file name is stored for reference'}>
+                        <input
+                            type='file'
+                            className={inputClass}
+                            onChange={(e) => {
+                                const file = e.target.files?.[0]
+                                if (file) setForm({ ...form, resumeName: file.name, resumeSize: `${Math.ceil(file.size / 1024)} KB` })
+                            }}
+                        />
+                    </FormField>
+                    <div className='md:col-span-2 flex justify-end'>
+                        <PrimaryButton type='submit'>Save</PrimaryButton>
+                    </div>
                 </form>
             </Modal>}
             <HrExport open={exportOpen} setOpen={setExportOpen} filename='candidates' rows={filtered} />

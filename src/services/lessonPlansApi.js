@@ -33,7 +33,7 @@ export function mapLessonPlanFromApi(row) {
     return {
         id: String(row.id),
         subject: row.subject || content.subject || '',
-        submitterName: row.teacherEmail || row.teacherName || content.submitterName || '',
+        submitterName: content.submitterName || row.teacherName || row.teacherEmail || '',
         submitterRole: content.submitterRole || 'Teacher',
         className: row.className || '',
         section: row.section || '',

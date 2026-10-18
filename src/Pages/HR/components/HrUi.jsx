@@ -2,7 +2,29 @@ import React, { useMemo, useState, useSyncExternalStore } from 'react'
 import { getHrStoreVersion, subscribeHrStore } from '../domain/hrStorage'
 import { hrBadge } from '../domain/hrStatus'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
-import { Download, X } from 'lucide-react'
+import {
+    DateField,
+    FormField,
+    KeyFields,
+    SelectField,
+    TextField,
+    formInputClass,
+    formatFormDate,
+    humanizeLabel,
+    parseFormDate,
+} from '../../../Common/CommonComponents/FormField'
+import { X } from 'lucide-react'
+
+export {
+    DateField,
+    FormField,
+    KeyFields,
+    SelectField,
+    TextField,
+    formatFormDate,
+    humanizeLabel,
+    parseFormDate,
+}
 
 export const useHrTick = () => useSyncExternalStore(subscribeHrStore, getHrStoreVersion, getHrStoreVersion)
 
@@ -11,13 +33,12 @@ export const Badge = ({ value }) => (
 )
 
 export const Field = ({ label, children }) => (
-    <label className='flex flex-col gap-y-2 text-base font-medium text-[#808080]'>
-        {label}
+    <FormField label={label}>
         {children}
-    </label>
+    </FormField>
 )
 
-export const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+export const inputClass = formInputClass
 
 export const Modal = ({ title, onClose, children, wide = false }) => (
     <div className='fixed inset-0 z-500 flex items-center justify-center p-4'>
@@ -42,16 +63,57 @@ export const GhostButton = ({ children, onClick, type = 'button' }) => (
 
 export { downloadTableCsv as downloadCsv } from '../../../Common/exportDownload'
 
-/** Open a print-friendly HTML document (offer letters, etc.). */
-export const printHtml = (title, html) => {
-    const frame = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700')
-    if (!frame) return
-    frame.document.write(
-        `<!doctype html><html><head><meta charset="utf-8"><title>${String(title || 'Preview').replace(/</g, '&lt;')}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e1e1e}table{width:100%;border-collapse:collapse}td,th{border:1px solid #e5e7eb;padding:8px;text-align:left;font-size:13px}</style></head><body>${html}</body></html>`,
-    )
+/**
+ * Open a print-friendly HTML document (offer letters, etc.).
+ * Do not use noopener here — modern browsers then return null / a blank tab we cannot write into.
+ */
+export const printHtml = (title, html, { autoPrint = false } = {}) => {
+    const frame = window.open('', '_blank', 'width=960,height=720')
+    if (!frame) {
+        window.alert('Pop-up blocked. Allow pop-ups for this site to preview or print the letter.')
+        return
+    }
+    const safeTitle = String(title || 'Preview')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+    frame.document.open()
+    frame.document.write(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>${safeTitle}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Georgia, 'Times New Roman', Times, serif; color: #1e1e1e; background: #f2f4f7; }
+    .toolbar { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; justify-content: flex-end; padding: 12px 16px; background: #101828; }
+    .toolbar button { border: 0; border-radius: 6px; padding: 8px 14px; font: 600 13px Arial, sans-serif; cursor: pointer; }
+    .toolbar .print { background: #515DEF; color: #fff; }
+    .toolbar .close { background: #fff; color: #101828; }
+    .sheet { max-width: 820px; margin: 20px auto; background: #fff; padding: 36px 44px; box-shadow: 0 8px 24px rgba(16,24,40,.08); }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none !important; }
+      .sheet { margin: 0; box-shadow: none; max-width: none; padding: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button type="button" class="print" onclick="window.print()">Print</button>
+    <button type="button" class="close" onclick="window.close()">Close</button>
+  </div>
+  <div class="sheet">${html}</div>
+</body>
+</html>`)
     frame.document.close()
     frame.focus()
-    frame.print()
+    if (autoPrint) {
+        window.setTimeout(() => {
+            try { frame.print() } catch { /* ignore */ }
+        }, 350)
+    }
 }
 
 export const HrExport = ({ open, setOpen, rows, filename }) => (
@@ -74,12 +136,14 @@ export const useFilters = (initial) => {
 export const matches = (value, query) => String(value || '').toLowerCase().includes(String(query || '').toLowerCase())
 
 export const Select = ({ label, value, onChange, options, allLabel = 'All' }) => (
-    <Field label={label}>
-        <select className={inputClass} value={value} onChange={onChange}>
-            <option value=''>{allLabel}</option>
-            {options.map((option) => <option key={option} value={option}>{option}</option>)}
-        </select>
-    </Field>
+    <SelectField
+        label={label}
+        value={value}
+        onChange={onChange}
+        options={options}
+        placeholder={allLabel}
+        inputClassName={inputClass}
+    />
 )
 
 export const SearchBox = ({ value, onChange, placeholder }) => (

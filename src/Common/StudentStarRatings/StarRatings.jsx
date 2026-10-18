@@ -1,10 +1,14 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { EllipsisIcon, ChevronLeft, ChevronRight, Plus, Download, Trophy, Star } from 'lucide-react'
 import Dropdown from '../CommonComponents/Dropdown'
 import ExportModal from '../CommonComponents/ExportModal'
 import EditRequestModal from '../CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../CommonComponents/DeleteRequestModal'
+import { hydrateEnrolledStudentsFromApi } from '../StudentDatabase/enrolledStudentsData'
+import { getStudentsList } from '../StudentDatabase/studentDatabaseData'
+import { useTeacherAssignments } from '../Teacher/useTeacherAssignments'
+import { isApiStudentsEnabled } from '../../services/apiClient'
 import StarRatingDisplay from './Components/StarRatingDisplay'
 import { useStarRatingsRouteBase } from './useStarRatingsRouteBase'
 import {
@@ -15,15 +19,15 @@ import {
     getClassSectionOptions,
     getConsolidatedSoyRatings,
     getSomRatings,
-    getStarOfMonth,
-    getStarOfYear,
 } from './studentStarRatingsData'
 
 const StarRatings = ({ view = 'som' }) => {
     const routeBase = useStarRatingsRouteBase()
+    const assignments = useTeacherAssignments()
     const isSom = view === 'som'
     const months = useMemo(() => getAvailableSomMonths(), [])
-    const classSectionOptions = useMemo(() => getClassSectionOptions(), [])
+    const [scopedRows, setScopedRows] = useState([])
+    const classSectionOptions = useMemo(() => getClassSectionOptions(scopedRows), [scopedRows])
     const [search, setSearch] = useState('')
     const [classSection, setClassSection] = useState('')
     const [selectedMonth, setSelectedMonth] = useState(months[months.length - 1] ?? '')
@@ -32,8 +36,34 @@ const StarRatings = ({ view = 'som' }) => {
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
 
+    useEffect(() => {
+        let cancelled = false
+        const apply = () => {
+            const all = getStudentsList()
+            if (!assignments.ready) return
+            const scoped = assignments.assignments.length
+                ? all.filter((student) => assignments.studentInScope(student))
+                : []
+            if (!cancelled) setScopedRows(scoped)
+        }
+        if (!isApiStudentsEnabled()) {
+            apply()
+            return undefined
+        }
+        hydrateEnrolledStudentsFromApi().finally(() => {
+            if (!cancelled) apply()
+        })
+        return () => {
+            cancelled = true
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when assignment hydrate settles
+    }, [assignments.ready, assignments.assignments.length])
+
+    const scopedStudentIds = useMemo(() => new Set(scopedRows.map((row) => String(row.id))), [scopedRows])
+
     const somRatings = useMemo(() => {
         return getSomRatings().filter((item) => {
+            if (scopedStudentIds.size && !scopedStudentIds.has(String(item.studentId))) return false
             const matchesMonth = !selectedMonth || item.month === selectedMonth
             const matchesClass = !classSection || item.classSection === classSection
             const query = search.trim().toLowerCase()
@@ -44,11 +74,13 @@ const StarRatings = ({ view = 'som' }) => {
                 || item.ratingId.toLowerCase().includes(query)
             return matchesMonth && matchesClass && matchesSearch
         })
-    }, [selectedMonth, classSection, search])
+    }, [selectedMonth, classSection, search, scopedStudentIds])
 
     const soyRatings = useMemo(
-        () => getConsolidatedSoyRatings(academicYear),
-        [academicYear],
+        () => getConsolidatedSoyRatings(academicYear).filter((item) => (
+            !scopedStudentIds.size || scopedStudentIds.has(String(item.studentId))
+        )),
+        [academicYear, scopedStudentIds],
     )
 
     const filteredSoyRatings = useMemo(() => {
@@ -61,18 +93,19 @@ const StarRatings = ({ view = 'som' }) => {
         )
     }, [soyRatings, search])
 
-    const starOfMonth = useMemo(
-        () => (selectedMonth ? getStarOfMonth(selectedMonth) : null),
-        [selectedMonth],
-    )
+    const starOfMonth = useMemo(() => {
+        if (!selectedMonth) return null
+        if (!somRatings.length) return null
+        return somRatings.reduce((best, current) => (current.rating > best.rating ? current : best))
+    }, [selectedMonth, somRatings])
 
     const starOfYear = useMemo(
-        () => getStarOfYear(academicYear),
-        [academicYear],
+        () => soyRatings[0] ?? null,
+        [soyRatings],
     )
     const soyRows = useMemo(
-        () => getConsolidatedSoyRatings(academicYear).map((entry, index) => ({ ...entry, rank: index + 1 })),
-        [academicYear],
+        () => soyRatings.map((entry, index) => ({ ...entry, rank: index + 1 })),
+        [soyRatings],
     )
 
     const clearFilters = () => {

@@ -15,6 +15,25 @@ export const parseRupeeAmount = (value) => {
     return Number(String(value ?? '').replace(/[₹,\s]/g, '')) || 0
 }
 
+/** Normalize `2026-27` and `2026-2027` to the same long form for comparisons. */
+export const normalizeAcademicYear = (value) => {
+    const text = String(value || '').trim()
+    if (!text) return ''
+    const short = text.match(/^(20\d{2})-(\d{2})$/)
+    if (short) {
+        const start = Number(short[1])
+        const endTwo = Number(short[2])
+        const expected = (start + 1) % 100
+        if (endTwo === expected) return `${start}-${start + 1}`
+    }
+    return text
+}
+
+export const sameAcademicYear = (a, b) => {
+    if (!a || !b) return true
+    return normalizeAcademicYear(a) === normalizeAcademicYear(b)
+}
+
 export const formatCurrency = (amount) => `₹${Math.round(Number(amount) || 0).toLocaleString('en-IN')}`
 
 export const toIsoDate = (value) => {
@@ -132,12 +151,15 @@ export const resolveConcessionAmount = (installment, concessions = []) => {
 }
 
 export const hydrateInstallment = (installment, { fineRule, asOfDate, paymentDate } = {}) => {
-    const alreadySettled = installment.forcedStatus === FEE_INSTALLMENT_STATUSES.PAID
-        || installment.forcedStatus === FEE_INSTALLMENT_STATUSES.WAIVED
-        || installment.forcedStatus === FEE_INSTALLMENT_STATUSES.CANCELLED
+    const statusHint = String(installment.forcedStatus || installment.status || '').toUpperCase()
+    const alreadySettled = statusHint === FEE_INSTALLMENT_STATUSES.PAID
+        || statusHint === FEE_INSTALLMENT_STATUSES.WAIVED
+        || statusHint === FEE_INSTALLMENT_STATUSES.CANCELLED
+        || (Number(installment.balanceAmount) === 0 && Number(installment.paidAmount) > 0)
 
+    // Settled rows keep stored fine — do not re-accrue late fee against "today".
     const fineAmount = alreadySettled || installment.fineWaived
-        ? 0
+        ? Number(installment.fineAmount) || 0
         : calculateLateFee({
             dueDate: installment.dueDate,
             paymentDate: paymentDate || asOfDate || new Date(),
@@ -146,19 +168,30 @@ export const hydrateInstallment = (installment, { fineRule, asOfDate, paymentDat
             waived: installment.fineWaived,
         })
 
-    const netAmount = calculateNetFee({
-        feeAmount: installment.feeAmount,
-        concessionAmount: installment.concessionAmount,
-        fineAmount,
-    })
-    const paidAmount = Number(installment.paidAmount) || 0
+    const netAmount = alreadySettled
+        ? Math.max(
+            Number(installment.netAmount) || 0,
+            calculateNetFee({
+                feeAmount: installment.feeAmount,
+                concessionAmount: installment.concessionAmount,
+                fineAmount,
+            }),
+        )
+        : calculateNetFee({
+            feeAmount: installment.feeAmount,
+            concessionAmount: installment.concessionAmount,
+            fineAmount,
+        })
+    // Cap display paid at net so double-charges don't inflate summary "Paid".
+    const recordedPaid = Number(installment.paidAmount) || 0
+    const paidAmount = Math.min(recordedPaid, netAmount || recordedPaid)
     const balanceAmount = calculateFeeBalance({ netAmount, paidAmount })
     const status = calculateFeeStatus({
         paidAmount,
         netAmount,
         dueDate: installment.dueDate,
         asOfDate,
-        forcedStatus: installment.forcedStatus,
+        forcedStatus: alreadySettled ? (installment.forcedStatus || FEE_INSTALLMENT_STATUSES.PAID) : installment.forcedStatus,
     })
 
     return {
@@ -166,6 +199,8 @@ export const hydrateInstallment = (installment, { fineRule, asOfDate, paymentDat
         fineAmount,
         netAmount,
         paidAmount,
+        recordedPaid,
+        overpaidAmount: Math.max(0, recordedPaid - paidAmount),
         balanceAmount,
         status,
         payable: status !== FEE_INSTALLMENT_STATUSES.PAID
@@ -183,26 +218,46 @@ export const summarizeStudentFees = (installments) => {
     const totalConcession = installments.reduce((sum, row) => sum + (Number(row.concessionAmount) || 0), 0)
     const totalFine = installments.reduce((sum, row) => sum + (Number(row.fineAmount) || 0), 0)
     const netPayable = installments.reduce((sum, row) => sum + (Number(row.netAmount) || 0), 0)
-    const paid = installments.reduce((sum, row) => sum + (Number(row.paidAmount) || 0), 0)
+    // Applied to dues only (capped). Double payments stay visible via overpaid.
+    const paid = installments.reduce((sum, row) => {
+        const net = Number(row.netAmount) || 0
+        const recorded = Number(row.recordedPaid ?? row.paidAmount) || 0
+        return sum + Math.min(recorded, net || recorded)
+    }, 0)
+    const overpaid = installments.reduce((sum, row) => sum + (Number(row.overpaidAmount) || 0), 0)
     const outstanding = Math.max(0, netPayable - paid)
 
-    return { totalFee, totalConcession, totalFine, netPayable, paid, outstanding }
+    return { totalFee, totalConcession, totalFine, netPayable, paid, outstanding, overpaid }
 }
 
 export const groupInstallmentsByMonth = (installments) => {
     const groups = []
     const index = new Map()
 
+    const monthLabel = (monthKey) => {
+        if (!monthKey || monthKey === 'Other') return 'Other'
+        try {
+            const [year, month] = String(monthKey).split('-')
+            if (!year || !month) return monthKey
+            return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-IN', {
+                month: 'long',
+                year: 'numeric',
+            })
+        } catch {
+            return monthKey
+        }
+    }
+
     installments.forEach((item) => {
-        const key = item.installmentLabel || item.month || 'Other'
+        const key = item.month || (item.dueDate ? String(item.dueDate).slice(0, 7) : '') || 'Other'
         if (!index.has(key)) {
             index.set(key, groups.length)
-            groups.push({ label: key, month: item.month, items: [] })
+            groups.push({ label: monthLabel(key), month: key, items: [] })
         }
         groups[index.get(key)].items.push(item)
     })
 
-    return groups
+    return groups.sort((a, b) => String(a.month).localeCompare(String(b.month)))
 }
 
 export const isOnlinePaymentMode = (mode) => (

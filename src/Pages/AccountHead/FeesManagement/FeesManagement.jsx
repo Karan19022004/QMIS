@@ -1,16 +1,14 @@
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
     AlertTriangle,
-    ChevronLeft,
-    ChevronRight,
     CloudUpload,
     Download,
     FileSpreadsheet,
-    History,
     Pencil,
     Plus,
     Search,
     Settings2,
+    Trash2,
     Upload,
     Bell,
     Send,
@@ -29,24 +27,73 @@ import DefaultersTab from './Components/DefaultersTab'
 import ReceiptManagementTab from './Components/ReceiptManagementTab'
 import ActivityFeesTab from './Components/ActivityFeesTab'
 import {
-    ACADEMIC_YEARS,
     FEE_TABS,
-    GRADES,
-    QUICK_STATS,
     TERMS,
     feeStructureStatusBadgeColor,
 } from './feesManagementData'
+import { buildFeeQuickStats } from '../financeDomain/financeLiveViews'
+import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
+import { FEE_STRUCTURE_CSV_TEMPLATE, parseFeeStructureUpload } from './feeStructureImport'
+import { loadAdminAcademicYears } from './feeCampusOptions'
 
 const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
-const FeeStructureTab = ({ exportModal, setExportModal }) => {
-    const { feeStructures, feeCategories } = useFinance()
+const downloadFeeTemplate = () => {
+    const blob = new Blob([FEE_STRUCTURE_CSV_TEMPLATE], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'fee-structure-template.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+}
+
+const FeeStructureTab = ({
+    exportModal,
+    setExportModal,
+    onImportFile,
+    fileInputRef,
+    onEditStructure,
+    onDeleteStructure,
+    deletingId,
+}) => {
+    const { feeStructures, feeCategories, students, installments, financePersistence } = useFinance()
+    const [search, setSearch] = useState('')
+    const [yearFilter, setYearFilter] = useState('')
+    const [gradeFilter, setGradeFilter] = useState('All Grades')
+    const [adminYears, setAdminYears] = useState([])
+
+    useEffect(() => {
+        let cancelled = false
+        loadAdminAcademicYears()
+            .then((years) => { if (!cancelled) setAdminYears(years) })
+            .catch(() => { if (!cancelled) setAdminYears([]) })
+        return () => { cancelled = true }
+    }, [])
+
+    const quickStats = useMemo(
+        () => buildFeeQuickStats({ feeStructures, feeCategories, students, installments, adminYears }),
+        [feeStructures, feeCategories, students, installments, adminYears],
+    )
+    const filteredStructures = useMemo(() => {
+        const query = search.trim().toLowerCase()
+        return feeStructures.filter((row) => {
+            if (yearFilter && row.academicYear !== yearFilter) return false
+            if (gradeFilter !== 'All Grades' && row.className !== gradeFilter) return false
+            if (!query) return true
+            return [row.className, row.feeHead, row.academicYear]
+                .join(' ')
+                .toLowerCase()
+                .includes(query)
+        })
+    }, [feeStructures, search, yearFilter, gradeFilter])
     const categoryName = (id) => feeCategories.find((item) => item.id === id)?.name ?? id
     const frequencyLabel = (id) => FEE_FREQUENCIES.find((item) => item.id === id)?.label ?? id
 
     return (
     <div className='space-y-6'>
+        <FinanceSnapshotBanner mockNote='Quick statistics and the structure table use the campus finance snapshot (not hardcoded 2023-24 demo figures).' />
         <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
             <div className='bg-white rounded-2xl shadow-md p-5'>
                 <div className='border-2 border-dashed border-[#515DEF]/30 rounded-2xl bg-[#515DEF]/5 px-6 py-10 text-center'>
@@ -55,24 +102,35 @@ const FeeStructureTab = ({ exportModal, setExportModal }) => {
                     </div>
                     <h3 className='text-base font-semibold text-[#1E1E1E]'>Import Fee Structure</h3>
                     <p className='text-sm text-[#667085] mt-2'>
-                        Drag and drop your Excel file here or{' '}
-                        <button type='button' className='text-[#515DEF] font-medium hover:underline cursor-pointer'>
-                            browse file
-                        </button>
+                        Upload a CSV (or .xlsx saved as CSV). Columns:{' '}
+                        <span className='font-medium text-[#1E1E1E]'>academicYear, className, feeCategory, feeHead, frequency, amount, dueDay</span>.
                     </p>
+                    <button
+                        type='button'
+                        onClick={() => fileInputRef?.current?.click()}
+                        className='mt-4 text-sm font-medium text-[#515DEF] hover:underline cursor-pointer'
+                    >
+                        browse file
+                    </button>
                     <div className='flex justify-center gap-2 mt-4'>
-                        <span className='text-xs font-medium px-2.5 py-1 rounded bg-[#515DEF]/10 text-[#515DEF]'>.xlsx</span>
                         <span className='text-xs font-medium px-2.5 py-1 rounded bg-[#515DEF]/10 text-[#515DEF]'>.csv</span>
+                        <span className='text-xs font-medium px-2.5 py-1 rounded bg-[#6670851A] text-[#667085]'>.xlsx → save as CSV</span>
                     </div>
                 </div>
                 <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-4 border-t border-[#F2F4F7]'>
-                    <button type='button' className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] hover:opacity-80 cursor-pointer'>
+                    <button
+                        type='button'
+                        onClick={downloadFeeTemplate}
+                        className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] hover:opacity-80 cursor-pointer'
+                    >
                         <Download size={16} />
                         Download sample template
                     </button>
                     <p className='text-sm text-[#667085]'>
-                        Configuration Status:{' '}
-                        <span className='font-semibold text-[#4CAF50]'>Ready</span>
+                        Snapshot:{' '}
+                        <span className='font-semibold text-[#4CAF50]'>
+                            {financePersistence?.apiEnabled ? 'API' : 'Offline'} · {quickStats.structureCount} structures
+                        </span>
                     </p>
                 </div>
             </div>
@@ -81,38 +139,38 @@ const FeeStructureTab = ({ exportModal, setExportModal }) => {
                 <div className='flex items-start justify-between gap-3 mb-4'>
                     <h3 className='text-base font-semibold text-[#1E1E1E]'>Quick Statistics</h3>
                     <span className='text-[10px] font-semibold px-2.5 py-1 rounded bg-[#515DEF]/10 text-[#515DEF] whitespace-nowrap'>
-                        {QUICK_STATS.academicYear}
+                        {quickStats.academicYear}
                     </span>
                 </div>
 
                 <div className='grid grid-cols-2 gap-3'>
                     <div className='border border-[#EDEEF5] rounded-xl p-3'>
                         <p className='text-[10px] font-semibold text-[#808080] uppercase tracking-wide'>Grades Configured</p>
-                        <p className='text-lg font-semibold text-[#1E1E1E] mt-1'>{QUICK_STATS.gradesConfigured}</p>
+                        <p className='text-lg font-semibold text-[#1E1E1E] mt-1'>{quickStats.gradesConfigured}</p>
                     </div>
                     <div className='border border-[#EDEEF5] rounded-xl p-3'>
                         <p className='text-[10px] font-semibold text-[#808080] uppercase tracking-wide'>Fee Categories</p>
-                        <p className='text-lg font-semibold text-[#1E1E1E] mt-1'>{QUICK_STATS.feeCategories}</p>
+                        <p className='text-lg font-semibold text-[#1E1E1E] mt-1'>{quickStats.feeCategories}</p>
                     </div>
                     <div className='border border-[#EDEEF5] rounded-xl p-3'>
-                        <p className='text-[10px] font-semibold text-[#808080] uppercase tracking-wide'>Terms Split</p>
-                        <p className='text-lg font-semibold text-[#515DEF] mt-1'>{QUICK_STATS.termsSplit}</p>
+                        <p className='text-[10px] font-semibold text-[#808080] uppercase tracking-wide'>Billing mode</p>
+                        <p className='text-lg font-semibold text-[#515DEF] mt-1'>{quickStats.termsSplit}</p>
                     </div>
                     <div className='border border-[#EDEEF5] rounded-xl p-3'>
-                        <p className='text-[10px] font-semibold text-[#808080] uppercase tracking-wide'>Annual Billing</p>
-                        <p className='text-lg font-semibold text-[#515DEF] mt-1'>{QUICK_STATS.annualBilling}</p>
+                        <p className='text-[10px] font-semibold text-[#808080] uppercase tracking-wide'>Structure total</p>
+                        <p className='text-lg font-semibold text-[#515DEF] mt-1'>{quickStats.annualBilling}</p>
                     </div>
                 </div>
 
                 <div className='mt-5'>
                     <div className='flex items-center justify-between text-sm mb-2'>
                         <span className='text-[#667085]'>Overall Setup Progress</span>
-                        <span className='font-semibold text-[#515DEF]'>{QUICK_STATS.setupProgress}%</span>
+                        <span className='font-semibold text-[#515DEF]'>{quickStats.setupProgress}%</span>
                     </div>
                     <div className='h-2 rounded-full bg-[#EDEEF5] overflow-hidden'>
                         <div
                             className='h-full rounded-full bg-[#515DEF] transition-all duration-300'
-                            style={{ width: `${QUICK_STATS.setupProgress}%` }}
+                            style={{ width: `${quickStats.setupProgress}%` }}
                         />
                     </div>
                 </div>
@@ -120,11 +178,8 @@ const FeeStructureTab = ({ exportModal, setExportModal }) => {
                 <div className='mt-4 flex items-start gap-3 rounded-xl border border-[#FF572233] bg-[#FF57220D] px-4 py-3'>
                     <AlertTriangle size={18} className='text-[#FF5722] shrink-0 mt-0.5' />
                     <div className='flex-1 min-w-0'>
-                        <p className='text-sm text-[#667085]'>{QUICK_STATS.alertMessage}</p>
+                        <p className='text-sm text-[#667085]'>{quickStats.alertMessage}</p>
                     </div>
-                    <button type='button' className='text-sm font-semibold text-[#FF5722] hover:opacity-80 whitespace-nowrap cursor-pointer'>
-                        Fix Now
-                    </button>
                 </div>
             </div>
         </div>
@@ -137,12 +192,19 @@ const FeeStructureTab = ({ exportModal, setExportModal }) => {
                         <Search size={16} className='absolute left-3 top-1/2 -translate-y-1/2 text-[#808080]' />
                         <input
                             type='text'
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
                             placeholder='Search grades...'
                             className='w-full text-sm border border-[#D9D9D9] rounded-md pl-9 pr-3 py-2'
                         />
                     </div>
-                    <select className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2 min-w-[170px]'>
-                        {ACADEMIC_YEARS.map((year) => (
+                    <select
+                        value={yearFilter}
+                        onChange={(e) => setYearFilter(e.target.value)}
+                        className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2 min-w-[170px]'
+                    >
+                        <option value=''>All academic years</option>
+                        {quickStats.years.map((year) => (
                             <option key={year} value={year}>Academic Year: {year}</option>
                         ))}
                     </select>
@@ -151,8 +213,12 @@ const FeeStructureTab = ({ exportModal, setExportModal }) => {
                             <option key={term} value={term}>{term}</option>
                         ))}
                     </select>
-                    <select className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2 min-w-[130px]'>
-                        {GRADES.map((grade) => (
+                    <select
+                        value={gradeFilter}
+                        onChange={(e) => setGradeFilter(e.target.value)}
+                        className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2 min-w-[130px]'
+                    >
+                        {quickStats.classOptions.map((grade) => (
                             <option key={grade} value={grade}>{grade}</option>
                         ))}
                     </select>
@@ -184,7 +250,13 @@ const FeeStructureTab = ({ exportModal, setExportModal }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {feeStructures.map((row) => (
+                        {filteredStructures.length === 0 ? (
+                            <tr>
+                                <td colSpan={10} className='px-2 py-10 text-center text-sm text-[#667085]'>
+                                    No fee structures in the campus snapshot yet. Define one above, or import enrolled students and bootstrap from Settings.
+                                </td>
+                            </tr>
+                        ) : filteredStructures.map((row) => (
                             <tr key={row.id} className='border-b border-[#f2f4f7] hover:bg-[#f2f4f7]'>
                                 <td className={`${tdClass} font-medium text-[#1E1E1E] rounded-s-lg`}>{row.academicYear}</td>
                                 <td className={tdClass}>{row.className}</td>
@@ -195,17 +267,30 @@ const FeeStructureTab = ({ exportModal, setExportModal }) => {
                                 <td className={tdClass}>{row.dueDayOfMonth ? `${row.dueDayOfMonth}` : '—'}</td>
                                 <td className={tdClass}>{row.mandatory ? 'Yes' : 'Optional'}</td>
                                 <td className={tdClass}>
-                                    <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${feeStructureStatusBadgeColor[row.status]}`}>
+                                    <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${feeStructureStatusBadgeColor[row.status] || 'bg-[#F2F4F7] text-[#667085]'}`}>
                                         {row.status}
                                     </span>
                                 </td>
                                 <td className={`${tdClass} rounded-e-lg`}>
                                     <div className='flex items-center gap-2'>
-                                        <button type='button' className='p-1.5 rounded-md hover:bg-[#EDEEF5] text-[#667085] hover:text-[#515DEF] cursor-pointer' aria-label='Edit fee structure'>
+                                        <button
+                                            type='button'
+                                            onClick={() => onEditStructure?.(row)}
+                                            className='p-1.5 rounded-md hover:bg-[#EDEEF5] text-[#667085] hover:text-[#515DEF] cursor-pointer'
+                                            aria-label='Edit fee structure'
+                                            title='Edit'
+                                        >
                                             <Pencil size={16} />
                                         </button>
-                                        <button type='button' className='p-1.5 rounded-md hover:bg-[#EDEEF5] text-[#667085] hover:text-[#515DEF] cursor-pointer' aria-label='View fee history'>
-                                            <History size={16} />
+                                        <button
+                                            type='button'
+                                            disabled={deletingId === row.id}
+                                            onClick={() => onDeleteStructure?.(row)}
+                                            className='p-1.5 rounded-md hover:bg-[#FF572214] text-[#667085] hover:text-[#FF5722] cursor-pointer disabled:opacity-50'
+                                            aria-label='Delete fee structure'
+                                            title='Delete'
+                                        >
+                                            <Trash2 size={16} />
                                         </button>
                                     </div>
                                 </td>
@@ -216,28 +301,11 @@ const FeeStructureTab = ({ exportModal, setExportModal }) => {
             </div>
 
             <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 pt-2'>
-                <p className='text-sm text-[#667085]'>Showing {feeStructures.length} structures</p>
-                <div className='flex items-center gap-2'>
-                    <button type='button' className='size-8 flex items-center justify-center rounded-md border border-[#E2E8F0] text-[#515DEF] hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer'>
-                        <ChevronLeft size={16} />
-                    </button>
-                    {[1, 2, 3].map((page) => (
-                        <button
-                            key={page}
-                            type='button'
-                            className={`size-8 flex items-center justify-center rounded-md text-sm font-medium cursor-pointer transition-colors ${
-                                page === 1
-                                    ? 'bg-[#515DEF] text-white'
-                                    : 'border border-[#E2E8F0] text-[#515DEF] hover:bg-[#515DEF] hover:text-white'
-                            }`}
-                        >
-                            {page}
-                        </button>
-                    ))}
-                    <button type='button' className='size-8 flex items-center justify-center rounded-md border border-[#E2E8F0] text-[#515DEF] hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer'>
-                        <ChevronRight size={16} />
-                    </button>
-                </div>
+                <p className='text-sm text-[#667085]'>
+                    Showing {filteredStructures.length} of {feeStructures.length} structures
+                    {' · '}
+                    {quickStats.studentCount} finance student(s) · {quickStats.installmentCount} installment(s)
+                </p>
             </div>
         </div>
 
@@ -250,8 +318,106 @@ const FeesManagement = () => {
     const [activeTab, setActiveTab] = useState('fee-structure')
     const [exportModal, setExportModal] = useState(false)
     const [defineFeeModal, setDefineFeeModal] = useState(false)
+    const [editingStructure, setEditingStructure] = useState(null)
     const [configureFeeModal, setConfigureFeeModal] = useState(false)
-    const { addFeeStructure, addFeeCategory } = useFinance()
+    const [deletingId, setDeletingId] = useState(null)
+    const fileInputRef = useRef(null)
+    const { defineFeeStructure, addFeeCategory, saveFeeCategories, deleteFeeStructure } = useFinance()
+
+    const openDefineModal = (structure = null) => {
+        setEditingStructure(structure)
+        setDefineFeeModal(true)
+    }
+
+    const closeDefineModal = () => {
+        setDefineFeeModal(false)
+        setEditingStructure(null)
+    }
+
+    const handleDeleteStructure = async (row) => {
+        if (!row?.id) return
+        const label = `${row.className || 'Class'} · ${row.feeHead || 'Fee'} · ${formatCurrency(row.amount)}`
+        const confirmed = window.confirm(
+            `Delete this fee structure?\n\n${label}\n\nUnpaid installments for this structure will be removed. Paid installments are kept.`,
+        )
+        if (!confirmed) return
+        setDeletingId(row.id)
+        try {
+            const result = await deleteFeeStructure(row.id)
+            if (!result?.success) {
+                toast.error(result?.message || result?.persist?.message || 'Could not delete fee structure.')
+                return
+            }
+            toast.success(
+                result.persist?.api
+                    ? `Deleted ${label}. Removed ${result.removedInstallments || 0} unpaid installment(s).`
+                    : `Deleted ${label} (offline / pending sync).`,
+            )
+        } catch (error) {
+            toast.error(error?.message || 'Delete failed.')
+        } finally {
+            setDeletingId(null)
+        }
+    }
+
+    const handleImportFile = async (event) => {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        if (!file) return
+        const name = String(file.name || '').toLowerCase()
+        if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+            toast.error('Upload a CSV file (Excel → Save As → CSV). Binary .xlsx is not parsed yet.')
+            return
+        }
+        try {
+            const text = await file.text()
+            const parsed = parseFeeStructureUpload(text)
+            if (!parsed.success) {
+                toast.error(parsed.message || 'Could not parse file.')
+                return
+            }
+            const categoryNames = [...new Set(parsed.rows.map((row) => row.feeCategory).filter(Boolean))]
+            let latestCategories
+            if (categoryNames.length) {
+                const saved = await saveFeeCategories(categoryNames)
+                latestCategories = saved.feeCategories
+            }
+            let installments = 0
+            let latestStructures
+            let latestInstallments
+            for (const row of parsed.rows) {
+                const feeCategoryId = addFeeCategory(row.feeCategory)
+                const result = await defineFeeStructure({
+                    academicYear: row.academicYear,
+                    className: row.className,
+                    feeCategoryId,
+                    feeHead: row.feeHead,
+                    frequency: row.frequency,
+                    amount: row.amount,
+                    dueDayOfMonth: row.dueDayOfMonth,
+                    fineRuleId: null,
+                    concessionApplicable: row.concessionApplicable,
+                    mandatory: row.mandatory,
+                    status: row.status,
+                }, {
+                    feeCategories: latestCategories,
+                    feeStructures: latestStructures,
+                    installments: latestInstallments,
+                })
+                installments += result?.installmentsCreated || 0
+                latestStructures = result?.feeStructures
+                latestInstallments = result?.installments
+            }
+            toast.success(
+                `Imported ${parsed.rows.length} fee structure row(s) · ${installments} installment(s) via finance API.`,
+            )
+            if (parsed.errors?.length) {
+                toast.warn(`${parsed.errors.length} row(s) skipped.`)
+            }
+        } catch (error) {
+            toast.error(error?.message || 'Import failed.')
+        }
+    }
 
     const activeTabLabel = activeTab === 'defaulters'
         ? 'Defaulters Management'
@@ -259,6 +425,13 @@ const FeesManagement = () => {
 
     return (
         <section className='space-y-6'>
+            <input
+                ref={fileInputRef}
+                type='file'
+                accept='.csv,text/csv'
+                className='hidden'
+                onChange={handleImportFile}
+            />
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4'>
                     <h2 className='text-xl font-semibold text-black'>{activeTabLabel}</h2>
@@ -266,10 +439,11 @@ const FeesManagement = () => {
                         <div className='flex flex-wrap items-center gap-3'>
                             <button
                                 type='button'
+                                onClick={() => fileInputRef.current?.click()}
                                 className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] border border-[#515DEF] px-4 py-2 rounded-md hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer'
                             >
                                 <FileSpreadsheet size={16} />
-                                Upload Excel
+                                Upload CSV
                             </button>
                             <button
                                 type='button'
@@ -277,11 +451,11 @@ const FeesManagement = () => {
                                 className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] border border-[#515DEF] px-4 py-2 rounded-md hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer'
                             >
                                 <Settings2 size={16} />
-                                Configure Fee Structure
+                                Configure Categories
                             </button>
                             <button
                                 type='button'
-                                onClick={() => setDefineFeeModal(true)}
+                                onClick={() => openDefineModal(null)}
                                 className='inline-flex items-center gap-2 bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all cursor-pointer'
                             >
                                 <Plus size={16} />
@@ -408,7 +582,15 @@ const FeesManagement = () => {
             </div>
 
             {activeTab === 'fee-structure' && (
-                <FeeStructureTab exportModal={exportModal} setExportModal={setExportModal} />
+                <FeeStructureTab
+                    exportModal={exportModal}
+                    setExportModal={setExportModal}
+                    onImportFile={handleImportFile}
+                    fileInputRef={fileInputRef}
+                    onEditStructure={openDefineModal}
+                    onDeleteStructure={handleDeleteStructure}
+                    deletingId={deletingId}
+                />
             )}
 
             {activeTab === 'fee-collection' && <FeeCollectionTab />}
@@ -426,14 +608,14 @@ const FeesManagement = () => {
             {defineFeeModal && (
                 <DefineFeeStructureModal
                     isOpen
-                    onClose={() => setDefineFeeModal(false)}
-                    onSave={addFeeStructure}
-                    onAddCategory={addFeeCategory}
+                    editingStructure={editingStructure}
+                    onClose={closeDefineModal}
                 />
             )}
             <ConfigureFeeStructureModal
                 isOpen={configureFeeModal}
                 onClose={() => setConfigureFeeModal(false)}
+                onOpenDefine={() => openDefineModal(null)}
             />
         </section>
     )

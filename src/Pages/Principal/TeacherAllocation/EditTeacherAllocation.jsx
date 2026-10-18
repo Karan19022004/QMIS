@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import TeacherAllocationForm from './Components/TeacherAllocationForm'
@@ -7,6 +7,8 @@ import {
     createEmptyMappingRow,
     getAllocationByEmployeeId,
     getTeacherById,
+    hydrateTeacherAllocationsFromApi,
+    hydrateTeachersFromDirectory,
     saveTeacherAllocation,
 } from './teacherAllocationData'
 
@@ -21,13 +23,35 @@ const buildInitialValues = (allocation) => ({
 const EditTeacherAllocation = () => {
     const { employeeId } = useParams()
     const navigate = useNavigate()
-    const teacher = getTeacherById(employeeId)
-    const allocation = getAllocationByEmployeeId(employeeId)
+    const [ready, setReady] = useState(false)
+    const [teacher, setTeacher] = useState(() => getTeacherById(employeeId))
+    const [allocation, setAllocation] = useState(() => getAllocationByEmployeeId(employeeId))
     const [validationErrors, setValidationErrors] = useState([])
     const initialValues = useMemo(
         () => (allocation ? buildInitialValues(allocation) : null),
         [allocation],
     )
+
+    useEffect(() => {
+        let cancelled = false
+        Promise.all([hydrateTeacherAllocationsFromApi(), hydrateTeachersFromDirectory()]).finally(() => {
+            if (cancelled) return
+            setTeacher(getTeacherById(employeeId))
+            setAllocation(getAllocationByEmployeeId(employeeId))
+            setReady(true)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [employeeId])
+
+    if (!ready) {
+        return (
+            <section className='bg-white rounded-2xl shadow-md p-6'>
+                <p className='text-sm text-[#667085]'>Loading allocation…</p>
+            </section>
+        )
+    }
 
     if (!teacher || !allocation || allocation.status === 'Not Allocated') {
         return <Navigate to={ROUTE_BASE} replace />

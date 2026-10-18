@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { EMPLOYEE_CATEGORIES } from '../domain/hrStatus'
 import { employeeName, getAttendance, getEmployees, getLeaveBundle, nextId, pushNotification, saveAttendance, saveLeaveBundle } from '../domain/hrStore'
-import { Badge, Modal, PageIntro, PrimaryButton, Select, TableWrap, inputClass, td, th, useHrTick } from '../components/HrUi'
+import { Badge, DateField, Modal, PageIntro, PrimaryButton, Select, TableWrap, TextField, td, th, useHrTick } from '../components/HrUi'
 
 const LeaveManagement = () => {
     const policiesMode = useLocation().pathname.includes('policies')
@@ -71,16 +71,16 @@ const LeaveManagement = () => {
             {form && <Modal title={policiesMode ? 'Leave policy' : 'Leave request'} onClose={() => setForm(null)}>
                 <form onSubmit={policiesMode ? savePolicy : saveRequest} className='grid gap-3'>
                     {policiesMode ? <>
-                        <input className={inputClass} placeholder='Policy name' value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                        <select className={inputClass} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>{[...new Set(['Academics', 'Admin', 'Support / Operations', ...EMPLOYEE_CATEGORIES])].map((item) => <option key={item}>{item}</option>)}</select>
-                        <input className={inputClass} placeholder='Leave type' value={form.leaveType} onChange={(e) => setForm({ ...form, leaveType: e.target.value })} />
-                        <input className={inputClass} type='number' placeholder='Entitlement' value={form.entitlement} onChange={(e) => setForm({ ...form, entitlement: e.target.value })} />
+                        <TextField label='Policy name' value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                        <Select label='Category' value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} options={[...new Set(['Academics', 'Admin', 'Support / Operations', ...EMPLOYEE_CATEGORIES])]} allLabel='Select category' />
+                        <TextField label='Leave type' value={form.leaveType} onChange={(e) => setForm({ ...form, leaveType: e.target.value })} />
+                        <TextField label='Entitlement (days)' type='number' value={form.entitlement} onChange={(e) => setForm({ ...form, entitlement: e.target.value })} />
                     </> : <>
-                        <select className={inputClass} value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                        <input className={inputClass} value={form.leaveType} onChange={(e) => setForm({ ...form, leaveType: e.target.value })} />
-                        <input className={inputClass} value={form.fromDate} onChange={(e) => setForm({ ...form, fromDate: e.target.value })} />
-                        <input className={inputClass} value={form.toDate} onChange={(e) => setForm({ ...form, toDate: e.target.value })} />
-                        <input className={inputClass} placeholder='Reason' value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+                        <Select label='Employee' value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select employee' />
+                        <TextField label='Leave type' value={form.leaveType} onChange={(e) => setForm({ ...form, leaveType: e.target.value })} />
+                        <DateField label='From date' value={form.fromDate} onChange={(value) => setForm({ ...form, fromDate: value })} bound='future' />
+                        <DateField label='To date' value={form.toDate} onChange={(value) => setForm({ ...form, toDate: value })} bound='future' />
+                        <TextField label='Reason' value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
                     </>}
                     <PrimaryButton type='submit'>Save</PrimaryButton>
                 </form>

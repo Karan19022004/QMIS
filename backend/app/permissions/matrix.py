@@ -47,6 +47,8 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("hr.self", "View own staff profile, leave, attendance, and payslip"),
     ("admissions.write", "Create enquiries and enroll students"),
     ("students.read", "View students and guardians"),
+    ("students.place", "Assign students to class sections and roll numbers"),
+    ("students.promote", "Promote students to the next grade and section"),
     ("attendance.read", "View class attendance"),
     ("attendance.write", "Mark class attendance"),
     ("lessonplans.read", "View lesson plans (own, or all for approvers)"),
@@ -175,10 +177,24 @@ ROLE_PERMISSIONS.update(
         "finance_assistant": list(_FINANCE_ASSISTANT),
         # Staff UIS + class attendance (P1-5 / Y-1)
         "teacher": list(_STAFF_ACADEMIC),
-        "coordinator": [*_STAFF_ACADEMIC, "exams.write"],
+        "coordinator": [*_STAFF_ACADEMIC, "exams.write", "students.place", "students.promote"],
         # Campus employee directory is read-only (hr.employees.read). Not hr.write / admin users.
-        "principal": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.write", "hr.employees.read"],
-        "director": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.configure", "hr.employees.read"],
+        "principal": [
+            *_STAFF_ACADEMIC,
+            "lessonplans.remind",
+            "exams.write",
+            "hr.employees.read",
+            "students.place",
+            "students.promote",
+        ],
+        "director": [
+            *_STAFF_ACADEMIC,
+            "lessonplans.remind",
+            "exams.configure",
+            "hr.employees.read",
+            "students.place",
+            "students.promote",
+        ],
         "parent": list(
             dict.fromkeys(
                 [
@@ -188,6 +204,8 @@ ROLE_PERMISSIONS.update(
                     "attendance.read",
                     "exams.read",
                     "academics.read",
+                    # Parent Academic Payment — scoped via GET /finance/my-fees (not full ledger write).
+                    "finance.read",
                 ]
             )
         ),
@@ -200,6 +218,7 @@ ROLE_PERMISSIONS.update(
                     "attendance.read",
                     "exams.read",
                     "academics.read",
+                    "finance.read",
                 ]
             )
         ),

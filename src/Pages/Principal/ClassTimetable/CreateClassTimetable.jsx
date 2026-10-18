@@ -1,14 +1,14 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import ClassTimelineEditor from './Components/ClassTimelineEditor'
 import {
-    GRADES,
-    ROUTE_BASE,
-    SECTIONS,
     TERMS,
     addClassTimetable,
     defaultClassTimetableForm,
     generateTimetableId,
+    getTimetableRoutes,
+    hydrateClassTimetablesFromApi,
+    loadClassTimetableTeacherOptions,
 } from './classTimetableData'
 
 const inputClass =
@@ -19,23 +19,68 @@ const selectClass =
 
 const CreateClassTimetable = () => {
     const navigate = useNavigate()
+    const { pathname } = useLocation()
+    const { listPath } = getTimetableRoutes(pathname)
+    const createdByRole = pathname.startsWith('/coordinator') ? 'Coordinator' : 'Principal'
+
     const [form, setForm] = useState(() => ({
         ...defaultClassTimetableForm(),
         timetableId: generateTimetableId(),
     }))
     const [errors, setErrors] = useState([])
+    const [teachers, setTeachers] = useState([])
+    const [loadingTeachers, setLoadingTeachers] = useState(true)
+
+    useEffect(() => {
+        hydrateClassTimetablesFromApi().then(() => {
+            setForm((current) => ({
+                ...current,
+                timetableId: current.timetableId || generateTimetableId(),
+            }))
+        })
+        let cancelled = false
+        setLoadingTeachers(true)
+        loadClassTimetableTeacherOptions()
+            .then((rows) => {
+                if (!cancelled) setTeachers(rows)
+            })
+            .finally(() => {
+                if (!cancelled) setLoadingTeachers(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [])
 
     const updateField = (key, value) => {
         setForm((current) => ({ ...current, [key]: value }))
     }
 
+    const selectOwnerTeacher = (employeeId) => {
+        const selected = teachers.find((item) => item.employeeId === employeeId)
+        setForm((current) => ({
+            ...current,
+            ownerTeacherId: selected?.employeeId || '',
+            ownerTeacherName: selected?.name || '',
+            ownerTeacherEmail: selected?.email || '',
+            timelines: current.timelines.map((row) => ({
+                ...row,
+                teacher: selected?.name || '',
+                className: '',
+                section: '',
+                subject: '',
+            })),
+        }))
+    }
+
     const validate = () => {
         const nextErrors = []
-        if (!form.className) nextErrors.push('Class is required.')
-        if (!form.section) nextErrors.push('Section is required.')
         if (!form.academicYear) nextErrors.push('Academic year is required.')
-        if (!form.timelines.some((row) => row.day && row.subject && row.startTime && row.endTime)) {
-            nextErrors.push('Add at least one complete timeline row.')
+        if (!form.ownerTeacherId) nextErrors.push('Select the teacher this timetable belongs to.')
+        if (!form.timelines.some((row) => (
+            row.day && row.className && row.section && row.subject && row.startTime && row.endTime
+        ))) {
+            nextErrors.push('Add at least one complete timeline row (day, class, section, subject, and times).')
         }
         setErrors(nextErrors)
         return nextErrors.length === 0
@@ -43,8 +88,8 @@ const CreateClassTimetable = () => {
 
     const handleSubmit = () => {
         if (!validate()) return
-        addClassTimetable(form)
-        navigate(ROUTE_BASE)
+        addClassTimetable({ ...form, createdByRole })
+        navigate(listPath)
     }
 
     return (
@@ -53,7 +98,7 @@ const CreateClassTimetable = () => {
                 <div>
                     <h2 className='text-xl font-semibold text-black'>Create Class Timetable</h2>
                     <p className='text-sm text-[#667085] mt-1'>
-                        Enter timetable details once, then add multiple period timelines using Add More.
+                        Select the teacher this timetable belongs to, then add periods with the grade for each slot.
                     </p>
                 </div>
 
@@ -75,22 +120,24 @@ const CreateClassTimetable = () => {
                             <input type='text' id='timetable-id' value={form.timetableId} readOnly className={inputClass} />
                         </div>
                         <div className='flex flex-col gap-y-2'>
-                            <label htmlFor='class' className='text-base font-medium text-[#1E1E1E]'>Class:</label>
-                            <select id='class' value={form.className} onChange={(e) => updateField('className', e.target.value)} className={selectClass}>
-                                <option value=''>Select class</option>
-                                {GRADES.map((grade) => (
-                                    <option key={grade} value={grade}>{grade}</option>
+                            <label htmlFor='owner-teacher' className='text-base font-medium text-[#1E1E1E]'>Teacher:</label>
+                            <select
+                                id='owner-teacher'
+                                value={form.ownerTeacherId}
+                                onChange={(e) => selectOwnerTeacher(e.target.value)}
+                                className={selectClass}
+                                disabled={loadingTeachers}
+                            >
+                                <option value=''>
+                                    {loadingTeachers ? 'Loading teachers…' : teachers.length ? 'Select teacher' : 'No teachers found'}
+                                </option>
+                                {teachers.map((teacher) => (
+                                    <option key={teacher.employeeId} value={teacher.employeeId}>
+                                        {teacher.name}{teacher.email ? ` (${teacher.email})` : ''}
+                                    </option>
                                 ))}
                             </select>
-                        </div>
-                        <div className='flex flex-col gap-y-2'>
-                            <label htmlFor='section' className='text-base font-medium text-[#1E1E1E]'>Section:</label>
-                            <select id='section' value={form.section} onChange={(e) => updateField('section', e.target.value)} className={selectClass}>
-                                <option value=''>Select section</option>
-                                {SECTIONS.map((section) => (
-                                    <option key={section} value={section}>{section}</option>
-                                ))}
-                            </select>
+                            <p className='text-xs text-[#667085]'>This timetable ID belongs to the selected teacher.</p>
                         </div>
                         <div className='flex flex-col gap-y-2'>
                             <label htmlFor='academic-year' className='text-base font-medium text-[#1E1E1E]'>Academic Year:</label>
@@ -99,7 +146,7 @@ const CreateClassTimetable = () => {
                                 id='academic-year'
                                 value={form.academicYear}
                                 onChange={(e) => updateField('academicYear', e.target.value)}
-                                placeholder='2025-2026'
+                                placeholder='e.g. 2025-2026'
                                 className={inputClass}
                             />
                         </div>
@@ -118,13 +165,15 @@ const CreateClassTimetable = () => {
                 <ClassTimelineEditor
                     timelines={form.timelines}
                     onChange={(timelines) => updateField('timelines', timelines)}
+                    ownerTeacherId={form.ownerTeacherId}
+                    defaultTeacher={form.ownerTeacherName}
                 />
             </div>
 
             <div className='flex sm:justify-end justify-center gap-x-4 mt-6'>
                 <button
                     type='button'
-                    onClick={() => navigate(ROUTE_BASE)}
+                    onClick={() => navigate(listPath)}
                     className='bg-white text-[#515DEF] text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:bg-[#515DEF] hover:text-white transition-all duration-200 cursor-pointer md:w-auto w-full'
                 >
                     Discard Changes

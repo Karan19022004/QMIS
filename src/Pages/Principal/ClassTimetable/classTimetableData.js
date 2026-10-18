@@ -1,9 +1,23 @@
 import {
+    getClasses as getCatalogClasses,
+    getSections as getCatalogSections,
+    getSubjects as getCatalogSubjects,
+} from '../../../Common/RBAC/academicsCatalogData'
+import {
     canUseAcademicsApi,
     listAcademicsCollectionApi,
     replaceAcademicsCollectionApi,
     stripAcademicsMeta,
 } from '../../../services/academicsApi'
+import { getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
+import { listDirectoryApi } from '../../../services/communicationApi'
+import {
+    getAllocationByEmployeeId,
+    getTeachers,
+    hydrateTeacherAllocationsFromApi,
+    hydrateTeachersFromDirectory,
+    isUsingDemoTeacherRoster,
+} from '../TeacherAllocation/teacherAllocationData'
 
 export const STORAGE_KEY = 'principal-class-timetables'
 export const CHANGE_KEY = 'principal-class-timetable-change-requests'
@@ -11,15 +25,149 @@ export const CLASS_TIMETABLES_UPDATED_EVENT = 'schoolerp-class-timetables-update
 
 export const ROUTE_BASE = '/principal/class-timetable'
 export const CREATE_ROUTE = '/principal/create-class-timetable'
+export const COORDINATOR_ROUTE_BASE = '/coordinator/class/class-timetable'
+export const COORDINATOR_CREATE_ROUTE = '/coordinator/class/create-class-timetable'
 
 export const APPROVAL_STATUSES = ['Pending', 'Approved', 'Denied']
 
-export const GRADES = ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']
-export const SECTIONS = ['A', 'B', 'C']
-export const TERMS = ['Term 1', 'Term 2']
+export const TERMS = ['Term 1', 'Term 2', 'Term 3']
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-export const SUBJECTS = ['English', 'Mathematics', 'Science', 'Social Science', 'Hindi', 'Computer Science', 'Physical Education']
-export const TEACHERS = ['Mr. Ravi Kumar', 'Ms. Anitha Verma', 'Dr. Suresh Menon', 'Mr. Karthik Selvan', 'Mrs. Priya Nair']
+
+/** Live catalog helpers (empty until Class Details / subjects exist). */
+export const getGradeOptions = () => {
+    const classes = getCatalogClasses()
+    return classes.length ? classes : []
+}
+export const getSectionOptions = () => {
+    const sections = getCatalogSections()
+    return sections.length ? sections : ['A', 'B', 'C', 'D']
+}
+export const getSubjectOptions = () => getCatalogSubjects()
+
+/** @deprecated Prefer getGradeOptions / getSectionOptions / getSubjectOptions */
+export const GRADES = []
+export const SECTIONS = ['A', 'B', 'C', 'D']
+export const SUBJECTS = []
+export const TEACHERS = []
+
+export const getTimetableRoutes = (pathname = '') => {
+    if (String(pathname).startsWith('/coordinator')) {
+        return { listPath: COORDINATOR_ROUTE_BASE, createPath: COORDINATOR_CREATE_ROUTE }
+    }
+    return { listPath: ROUTE_BASE, createPath: CREATE_ROUTE }
+}
+
+const classKeysMatch = (left, right) => {
+    const normalize = (value) => String(value || '').trim().toLowerCase().replace(/^grade\s+/, '')
+    return normalize(left) === normalize(right)
+}
+
+/** Subjects allocated to a teacher (optionally narrowed by class / section mappings). */
+export const getSubjectsForTimetableTeacher = (employeeId, className = '', section = '') => {
+    if (!employeeId) return []
+    const allocation = getAllocationByEmployeeId(employeeId)
+    if (!allocation) return []
+
+    const mappings = Array.isArray(allocation.mappings) ? allocation.mappings : []
+    if (className) {
+        const mapped = mappings
+            .filter((item) => classKeysMatch(item.className, className))
+            .filter((item) => !section || !item.section || String(item.section) === String(section))
+            .map((item) => item.subject)
+            .filter(Boolean)
+        if (mapped.length) return [...new Set(mapped)].sort((a, b) => a.localeCompare(b))
+    }
+
+    const subjects = Array.isArray(allocation.subjects) ? allocation.subjects.filter(Boolean) : []
+    if (subjects.length) return [...new Set(subjects)].sort((a, b) => a.localeCompare(b))
+
+    return [...new Set(mappings.map((item) => item.subject).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+}
+
+/** Teaching classes allocated to a teacher. */
+export const getClassesForTimetableTeacher = (employeeId) => {
+    if (!employeeId) return getGradeOptions()
+    const allocation = getAllocationByEmployeeId(employeeId)
+    const teaching = Array.isArray(allocation?.teachingClasses) ? allocation.teachingClasses.filter(Boolean) : []
+    if (teaching.length) return [...new Set(teaching)].sort((a, b) => a.localeCompare(b))
+    const fromMaps = (allocation?.mappings || []).map((item) => item.className).filter(Boolean)
+    if (fromMaps.length) return [...new Set(fromMaps)].sort((a, b) => a.localeCompare(b))
+    return getGradeOptions()
+}
+
+/** Sections mapped for a teacher + class (from allocation mappings). */
+export const getSectionsForTimetableTeacher = (employeeId, className = '') => {
+    if (!employeeId || !className) return []
+    const allocation = getAllocationByEmployeeId(employeeId)
+    const mappings = Array.isArray(allocation?.mappings) ? allocation.mappings : []
+    const sections = mappings
+        .filter((item) => classKeysMatch(item.className, className))
+        .map((item) => item.section)
+        .filter(Boolean)
+    if (sections.length) return [...new Set(sections)].sort((a, b) => a.localeCompare(b))
+    // Class allocated without section detail — fall back to catalog sections.
+    return getSectionOptions()
+}
+
+/** Apply class selection on a timeline row: map section + subject from teacher allocation. */
+export const applyClassToTimelineRow = (row, employeeId, className, teacherName = '') => {
+    const sections = getSectionsForTimetableTeacher(employeeId, className)
+    const section = sections.length === 1 ? sections[0] : (sections.includes(row.section) ? row.section : '')
+    const subjects = getSubjectsForTimetableTeacher(employeeId, className, section)
+    const subject = subjects.length === 1
+        ? subjects[0]
+        : (subjects.includes(row.subject) ? row.subject : '')
+    return {
+        ...row,
+        className: className || '',
+        section,
+        subject,
+        teacher: teacherName || row.teacher,
+    }
+}
+
+/** Active campus teachers for the owner picker (HR directory, else communication directory). */
+export async function loadClassTimetableTeacherOptions() {
+    try {
+        await hydrateTeacherAllocationsFromApi()
+    } catch {
+        /* ignore */
+    }
+    try {
+        await hydrateTeachersFromDirectory({ force: true })
+        if (!isUsingDemoTeacherRoster()) {
+            return getTeachers()
+                .filter((item) => item.employeeId && item.name)
+                .map((item) => ({
+                    employeeId: String(item.employeeId),
+                    name: item.name,
+                    email: item.email || '',
+                }))
+                .sort((a, b) => a.name.localeCompare(b.name))
+        }
+    } catch {
+        /* fall through */
+    }
+
+    if (!(isApiAuthEnabled() && getAccessToken())) return []
+
+    try {
+        const people = await listDirectoryApi()
+        return (Array.isArray(people) ? people : [])
+            .filter((person) => {
+                const role = String(person.role || '').toLowerCase()
+                return role === 'teacher' || role === 'coordinator'
+            })
+            .map((person) => ({
+                employeeId: String(person.employeeId || person.id),
+                name: person.name || person.email || 'Staff',
+                email: person.email || '',
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name))
+    } catch {
+        return []
+    }
+}
 
 export const approvalStatusColor = {
     Approved: 'text-[#4CAF50] border-[#4CAF5033] bg-[#4CAF5014]',
@@ -31,6 +179,8 @@ export const createTimelineRow = () => ({
     id: `TL-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     periodNumber: '',
     day: '',
+    className: '',
+    section: '',
     subject: '',
     teacher: '',
     startTime: '',
@@ -39,43 +189,15 @@ export const createTimelineRow = () => ({
 
 export const defaultClassTimetableForm = () => ({
     timetableId: '',
-    className: '',
-    section: '',
-    academicYear: '2025-2026',
+    academicYear: '',
     term: '',
+    ownerTeacherId: '',
+    ownerTeacherName: '',
+    ownerTeacherEmail: '',
     timelines: [createTimelineRow()],
 })
 
-const DEFAULT_CLASS_TIMETABLES = [
-    {
-        id: 'CTT001',
-        className: 'Grade 9',
-        section: 'A',
-        academicYear: '2025-2026',
-        term: 'Term 1',
-        submittedDate: '15-05-2025',
-        approvalStatus: 'Pending',
-        timelines: [
-            { id: 'TL-1', periodNumber: '1', day: 'Monday', subject: 'English', teacher: 'Ms. Anitha Verma', startTime: '09:00', endTime: '09:45' },
-            { id: 'TL-2', periodNumber: '2', day: 'Monday', subject: 'Mathematics', teacher: 'Mr. Ravi Kumar', startTime: '09:45', endTime: '10:30' },
-            { id: 'TL-3', periodNumber: '1', day: 'Tuesday', subject: 'Science', teacher: 'Dr. Suresh Menon', startTime: '09:00', endTime: '09:45' },
-            { id: 'TL-4', periodNumber: '2', day: 'Wednesday', subject: 'Social Science', teacher: 'Mr. Karthik Selvan', startTime: '09:45', endTime: '10:30' },
-        ],
-    },
-    {
-        id: 'CTT002',
-        className: 'Grade 10',
-        section: 'B',
-        academicYear: '2025-2026',
-        term: 'Term 1',
-        submittedDate: '20-05-2025',
-        approvalStatus: 'Approved',
-        timelines: [
-            { id: 'TL-5', periodNumber: '1', day: 'Monday', subject: 'Mathematics', teacher: 'Mr. Ravi Kumar', startTime: '09:00', endTime: '09:45' },
-            { id: 'TL-6', periodNumber: '2', day: 'Tuesday', subject: 'English', teacher: 'Ms. Anitha Verma', startTime: '09:45', endTime: '10:30' },
-        ],
-    },
-]
+const DEFAULT_CLASS_TIMETABLES = []
 
 let apiMemoryTimetables = null
 let apiMemoryChanges = null
@@ -179,15 +301,28 @@ export const formatSubmittedDate = () =>
     new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
 
 export const addClassTimetable = (payload) => {
+    const ownerName = payload.ownerTeacherName || ''
+    const timelines = (payload.timelines || [])
+        .filter((row) => row.day && row.subject && row.className && row.section)
+        .map((row) => ({
+            ...row,
+            teacher: row.teacher || ownerName,
+        }))
+    const first = timelines[0] || {}
     const record = {
         id: payload.timetableId || generateTimetableId(),
-        className: payload.className,
-        section: payload.section,
+        // Summary fields for list filters (first period); full detail is on each timeline row.
+        className: first.className || '',
+        section: first.section || '',
         academicYear: payload.academicYear,
         term: payload.term,
+        ownerTeacherId: payload.ownerTeacherId || '',
+        ownerTeacherName: ownerName,
+        ownerTeacherEmail: payload.ownerTeacherEmail || '',
+        createdByRole: payload.createdByRole || 'Principal',
         submittedDate: formatSubmittedDate(),
         approvalStatus: 'Pending',
-        timelines: payload.timelines.filter((row) => row.day && row.subject),
+        timelines,
     }
     saveClassTimetables([record, ...getClassTimetables()])
     return record
@@ -215,8 +350,11 @@ export const buildClassGridFromTimelines = (timelines = []) => {
         if (!row.day || !row.startTime || !row.endTime || !row.subject) return
         const label = `${row.startTime} - ${row.endTime}`
         if (!schedule[label]) schedule[label] = {}
+        const classLabel = row.className
+            ? `${String(row.className).replace(/^Grade\s+/i, '')}${row.section ? `-${row.section}` : ''}`
+            : ''
         schedule[label][row.day] = {
-            subject: row.subject,
+            subject: classLabel ? `${row.subject} (${classLabel})` : row.subject,
             teacher: row.teacher || '—',
         }
     })
@@ -228,8 +366,16 @@ export const buildClassGridFromTimelines = (timelines = []) => {
     }
 }
 
-export const getClassSectionLabel = (record) =>
-    `${record.className} - ${record.section}`
+export const getClassSectionLabel = (record) => {
+    const fromRows = [...new Set(
+        (record?.timelines || [])
+            .filter((row) => row.className)
+            .map((row) => `${row.className}${row.section ? ` - ${row.section}` : ''}`),
+    )]
+    if (fromRows.length) return fromRows.join(', ')
+    if (record?.className) return `${record.className}${record.section ? ` - ${record.section}` : ''}`
+    return '—'
+}
 
 const readChangesLocal = () => {
     try {
@@ -325,6 +471,23 @@ const applyChangeToTimetable = (request) => {
             ? { ...item, timelines: changed ? timelines : [...timelines, row], approvalStatus: 'Approved' }
             : item
     )))
+}
+
+/** Principal decides a submitted class timetable (Approve / Deny). */
+export const decideClassTimetableApproval = (id, approvalStatus, reviewer = 'Principal', rejectionReason = '') => {
+    const nextStatus = approvalStatus === 'Approved' ? 'Approved' : 'Denied'
+    const list = getClassTimetables()
+    const target = list.find((item) => item.id === id)
+    if (!target || target.approvalStatus !== 'Pending') return null
+    const updated = {
+        ...target,
+        approvalStatus: nextStatus,
+        reviewedBy: reviewer,
+        reviewedAt: new Date().toISOString(),
+        rejectionReason: nextStatus === 'Denied' ? rejectionReason : '',
+    }
+    saveClassTimetables(list.map((item) => (item.id === id ? updated : item)))
+    return updated
 }
 
 export const decideTimetableChangeRequest = (id, approved, reviewer, rejectionReason = '') => {

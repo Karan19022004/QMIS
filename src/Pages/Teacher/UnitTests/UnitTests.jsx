@@ -7,14 +7,12 @@ import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import pdf_icon from '../../../assets/images/pdf-icon.png'
 import noAssign from '../../../assets/images/no-assign.png'
+import { useTeacherAssignments } from '../../../Common/Teacher/useTeacherAssignments'
 import {
-    CLASSES,
     filterUnitTests,
     formatTestDate,
     getUnitTests,
     ROUTE_BASE,
-    SECTIONS,
-    SUBJECTS,
 } from './unitTestsData'
 
 const emptyFilters = {
@@ -46,11 +44,15 @@ const UnitTestsEmpty = () => (
 )
 
 const UnitTestsList = ({ items }) => {
+    const assignments = useTeacherAssignments()
     const [filters, setFilters] = useState(emptyFilters)
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
     const [entriesPerPage, setEntriesPerPage] = useState(10)
+    const subjects = assignments.subjects
+    const classes = assignments.classes
+    const sections = assignments.sectionsFor(filters.className)
 
     const filteredItems = useMemo(() => filterUnitTests(items, filters), [items, filters])
 
@@ -96,7 +98,7 @@ const UnitTestsList = ({ items }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SUBJECTS.map((subject) => (
+                            {subjects.map((subject) => (
                                 <option key={subject} value={subject}>{subject}</option>
                             ))}
                         </select>
@@ -110,7 +112,7 @@ const UnitTestsList = ({ items }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {CLASSES.map((item) => (
+                            {classes.map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>
@@ -124,7 +126,7 @@ const UnitTestsList = ({ items }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SECTIONS.map((item) => (
+                            {sections.map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>

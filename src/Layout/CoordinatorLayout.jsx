@@ -3,6 +3,7 @@ import CommonHeader from '../Common/CommonHeader/CommonHeader'
 import CommonSidebar from '../Common/CommonSidebar/CommonSidebar'
 import CommonBreadcrumb from '../Common/CommonBreadcrumb/CommonBreadcrumb'
 import CoordinatorRoutes from '../Routes/CoordinatorRoutes'
+import { hydrateClassTimetablesFromApi } from '../Pages/Principal/ClassTimetable/classTimetableData'
 
 const CoordinatorLayout = () => {
     const [sidebarHidden, setSidebarHidden] = useState(() => window.innerWidth < 1024)
@@ -22,6 +23,10 @@ const CoordinatorLayout = () => {
 
         window.addEventListener('resize', handleResize)
         return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
+    useEffect(() => {
+        hydrateClassTimetablesFromApi()
     }, [])
 
     return (

@@ -43,6 +43,11 @@ class Settings(BaseSettings):
     teacher_seed_password: str = "teacher123"
     coordinator_seed_email: str = "coordinator@qmis.edu"
     coordinator_seed_password: str = "coord123"
+    # Grade-band coordinators (1–4 / 5–8 / 9–12). Primary email also maps to grades 1–4.
+    coordinator2_seed_email: str = "coordinator2@qmis.edu"
+    coordinator2_seed_password: str = "coord123"
+    coordinator3_seed_email: str = "coordinator3@qmis.edu"
+    coordinator3_seed_password: str = "coord123"
     principal_seed_email: str = "principal@qmis.edu"
     principal_seed_password: str = "principal123"
     prm_seed_email: str = "prm@qmis.edu"

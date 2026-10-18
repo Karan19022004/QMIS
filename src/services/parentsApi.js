@@ -7,9 +7,12 @@ export async function listMyChildrenApi() {
         id: String(row.id),
         name: row.name || '',
         className: row.className || '',
-        section: row.section || '—',
+        section: row.section || '',
         classSection: row.classSection || row.className || '',
-        rollNumber: row.rollNumber || '',
+        rollNumber: row.rollNumber ?? '',
         admissionNumber: row.admissionNumber || '',
+        placementStatus: row.placementStatus || 'pending',
+        classTeacherEmail: row.classTeacherEmail || '',
+        sectionId: row.sectionId || null,
     }))
 }

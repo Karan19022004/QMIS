@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { DEPARTMENTS } from '../domain/hrStatus'
 import { employeeName, getEmployees, getTraining, nextId, pushNotification, saveTraining } from '../domain/hrStore'
-import { Badge, Modal, PageIntro, PrimaryButton, TableWrap, inputClass, td, th, useHrTick } from '../components/HrUi'
+import { Badge, FormField, KeyFields, Modal, PageIntro, PrimaryButton, Select, TableWrap, TextField, humanizeLabel, inputClass, td, th, useHrTick } from '../components/HrUi'
 
 const Training = () => {
     const path = useLocation().pathname
@@ -59,17 +59,23 @@ const Training = () => {
             </TableWrap>
             {form && <Modal title='Schedule training' onClose={() => setForm(null)}>
                 <form onSubmit={save} className='grid gap-3'>
-                    {['title', 'category', 'trainer', 'participants', 'startDate', 'time', 'location', 'description'].map((key) => <input key={key} className={inputClass} placeholder={key} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />)}
-                    <select className={inputClass} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })}>{DEPARTMENTS.map((item) => <option key={item}>{item}</option>)}</select>
-                    <input type='file' accept='image/*' onChange={(e) => { const file = e.target.files?.[0]; if (file) setForm({ ...form, photoName: file.name, photoSize: `${Math.ceil(file.size / 1024)} KB` }) }} />
+                    <KeyFields keys={['title', 'category', 'trainer', 'participants', 'startDate', 'time', 'location', 'description']} form={form} setForm={setForm} />
+                    <Select label='Department' value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} options={DEPARTMENTS} allLabel='Select department' />
+                    <FormField label='Training photo' hint={form.photoName ? `${form.photoName} · ${form.photoSize || ''}` : 'Optional'}>
+                        <input type='file' accept='image/*' className={inputClass} onChange={(e) => { const file = e.target.files?.[0]; if (file) setForm({ ...form, photoName: file.name, photoSize: `${Math.ceil(file.size / 1024)} KB` }) }} />
+                    </FormField>
                     <PrimaryButton type='submit'>Save</PrimaryButton>
                 </form>
             </Modal>}
             {feedback && <Modal title='Training feedback' onClose={() => setFeedback(null)}>
                 <form onSubmit={saveFeedback} className='grid gap-3'>
-                    <select className={inputClass} value={feedback.employeeId} onChange={(e) => setFeedback({ ...feedback, employeeId: e.target.value })}>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                    {['relevance', 'trainer', 'content', 'usefulness', 'overall'].map((key) => <select key={key} className={inputClass} value={feedback[key]} onChange={(e) => setFeedback({ ...feedback, [key]: Number(e.target.value) })}>{[1, 2, 3].map((n) => <option key={n} value={n}>{key} {n}</option>)}</select>)}
-                    <input className={inputClass} placeholder='Comments' value={feedback.comments} onChange={(e) => setFeedback({ ...feedback, comments: e.target.value })} />
+                    <Select label='Employee' value={feedback.employeeId} onChange={(e) => setFeedback({ ...feedback, employeeId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select employee' />
+                    {['relevance', 'trainer', 'content', 'usefulness', 'overall'].map((key) => (
+                        <FormField key={key} label={humanizeLabel(key)}>
+                            <select className={inputClass} value={feedback[key]} onChange={(e) => setFeedback({ ...feedback, [key]: Number(e.target.value) })}>{[1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}</select>
+                        </FormField>
+                    ))}
+                    <TextField label='Comments' value={feedback.comments} onChange={(e) => setFeedback({ ...feedback, comments: e.target.value })} placeholder='Add comments' />
                     <PrimaryButton type='submit'>Save</PrimaryButton>
                 </form>
             </Modal>}

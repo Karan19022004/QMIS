@@ -21,10 +21,8 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import { useFinance } from '../financeDomain/FinanceContext'
 import { formatCurrency, formatDisplayDate } from '../financeDomain/financeHelpers'
 import {
-    APPROVAL_STATUS,
     CHART_COLORS,
     CHART_PERIODS,
-    COLLECTION_SPLIT,
     KPI_CARDS,
     RECENT_COLLECTIONS,
     RECENT_EXPENSES,
@@ -32,6 +30,7 @@ import {
     collectionStatusBadgeColor,
     expenseStatusBadgeColor,
 } from './dashboardData'
+import { buildApprovalStatus, buildCollectionSplit } from '../financeDomain/financeLiveViews'
 
 const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
@@ -121,6 +120,7 @@ const Dashboard = () => {
         receipts,
         students,
         annualBudget,
+        approvals,
         financeStatus,
         financeError,
         financePersistence,
@@ -128,6 +128,8 @@ const Dashboard = () => {
     } = useFinance()
 
     const apiLive = Boolean(financePersistence?.apiEnabled)
+    const collectionSplit = useMemo(() => buildCollectionSplit(receipts || []), [receipts])
+    const approvalStatus = useMemo(() => buildApprovalStatus(approvals || []), [approvals])
 
     /** KPI values come only from finance snapshot metrics — never add static seed amounts. */
     const liveKpis = KPI_CARDS.map((card) => {
@@ -218,12 +220,12 @@ const Dashboard = () => {
             labelLine: { show: false },
             data: [
                 {
-                    value: COLLECTION_SPLIT.onlineValue,
+                    value: collectionSplit.onlineValue || 0,
                     name: 'Online Transfer',
                     itemStyle: { color: CHART_COLORS.primary },
                 },
                 {
-                    value: COLLECTION_SPLIT.offlineValue,
+                    value: collectionSplit.offlineValue || 0,
                     name: 'Offline Cash',
                     itemStyle: { color: CHART_COLORS.muted },
                 },
@@ -234,7 +236,7 @@ const Dashboard = () => {
             left: 'center',
             top: '30%',
             style: {
-                text: `${COLLECTION_SPLIT.onlinePercent}%\nONLINE`,
+                text: `${collectionSplit.onlinePercent}%\nONLINE`,
                 textAlign: 'center',
                 fill: '#1E1E1E',
                 fontSize: 16,
@@ -243,7 +245,7 @@ const Dashboard = () => {
                 fontFamily: 'Inter',
             },
         }],
-    }), [])
+    }), [collectionSplit])
 
     const incomeExpenseOption = useMemo(() => {
         const rows = annualBudget || []
@@ -299,9 +301,9 @@ const Dashboard = () => {
             label: { show: false },
             labelLine: { show: false },
             data: [
-                { value: APPROVAL_STATUS.approved, name: 'Approved', itemStyle: { color: CHART_COLORS.success } },
-                { value: APPROVAL_STATUS.pending, name: 'Pending', itemStyle: { color: CHART_COLORS.warning } },
-                { value: APPROVAL_STATUS.rejected, name: 'Rejected', itemStyle: { color: CHART_COLORS.danger } },
+                { value: approvalStatus.approved, name: 'Approved', itemStyle: { color: CHART_COLORS.success } },
+                { value: approvalStatus.pending, name: 'Pending', itemStyle: { color: CHART_COLORS.warning } },
+                { value: approvalStatus.rejected, name: 'Rejected', itemStyle: { color: CHART_COLORS.danger } },
             ],
         }],
         graphic: [{
@@ -309,7 +311,7 @@ const Dashboard = () => {
             left: 'center',
             top: 'middle',
             style: {
-                text: `${APPROVAL_STATUS.successRate}%\nSUCCESS RATE`,
+                text: `${approvalStatus.successRate}%\nSUCCESS RATE`,
                 textAlign: 'center',
                 fill: '#1E1E1E',
                 fontSize: 13,
@@ -318,7 +320,7 @@ const Dashboard = () => {
                 fontFamily: 'Inter',
             },
         }],
-    }), [])
+    }), [approvalStatus])
 
     return (
         <section className='space-y-6'>
@@ -328,7 +330,7 @@ const Dashboard = () => {
                         <h2 className='text-xl font-semibold text-black'>Finance Dashboard</h2>
                         <p className='text-sm text-[#667085] mt-0.5'>
                             {apiLive
-                                ? `KPIs from campus finance snapshot (${financeStatus}${financeError ? ` — ${financeError}` : ''}). Charts below still use illustrative demo series.`
+                                ? `KPIs, collection split, approvals, and recent receipts from campus finance snapshot (${financeStatus}${financeError ? ` — ${financeError}` : ''}).`
                                 : 'Offline demo overview — enable Finance API for live campus figures.'}
                         </p>
                     </div>
@@ -454,14 +456,14 @@ const Dashboard = () => {
                                 <span className='size-2.5 rounded-full bg-[#515DEF]' />
                                 Online Transfer
                             </div>
-                            <span className='font-medium text-[#1E1E1E]'>{COLLECTION_SPLIT.onlineAmount}</span>
+                            <span className='font-medium text-[#1E1E1E]'>{collectionSplit.onlineAmount}</span>
                         </div>
                         <div className='flex items-center justify-between text-sm'>
                             <div className='flex items-center gap-2 text-[#667085]'>
                                 <span className='size-2.5 rounded-full bg-[#D9D9D9]' />
                                 Offline Cash
                             </div>
-                            <span className='font-medium text-[#1E1E1E]'>{COLLECTION_SPLIT.offlineAmount}</span>
+                            <span className='font-medium text-[#1E1E1E]'>{collectionSplit.offlineAmount}</span>
                         </div>
                     </div>
                 </Panel>
@@ -486,17 +488,17 @@ const Dashboard = () => {
                             <div className='flex items-center gap-2 text-sm'>
                                 <span className='size-2.5 rounded-full bg-[#4CAF50]' />
                                 <span className='text-[#667085]'>Approved</span>
-                                <span className='font-semibold text-[#1E1E1E]'>{APPROVAL_STATUS.approved}</span>
+                                <span className='font-semibold text-[#1E1E1E]'>{approvalStatus.approved}</span>
                             </div>
                             <div className='flex items-center gap-2 text-sm'>
                                 <span className='size-2.5 rounded-full bg-[#FF9800]' />
                                 <span className='text-[#667085]'>Pending</span>
-                                <span className='font-semibold text-[#1E1E1E]'>{APPROVAL_STATUS.pending}</span>
+                                <span className='font-semibold text-[#1E1E1E]'>{approvalStatus.pending}</span>
                             </div>
                             <div className='flex items-center gap-2 text-sm'>
                                 <span className='size-2.5 rounded-full bg-[#FF5722]' />
                                 <span className='text-[#667085]'>Rejected</span>
-                                <span className='font-semibold text-[#1E1E1E]'>{String(APPROVAL_STATUS.rejected).padStart(2, '0')}</span>
+                                <span className='font-semibold text-[#1E1E1E]'>{String(approvalStatus.rejected).padStart(2, '0')}</span>
                             </div>
                         </div>
                     </div>

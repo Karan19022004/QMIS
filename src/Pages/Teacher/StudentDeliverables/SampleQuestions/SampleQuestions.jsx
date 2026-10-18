@@ -15,6 +15,8 @@ import {
     SECTIONS,
     SUBJECTS,
 } from './sampleQuestionsData'
+import { useActiveStudent } from '../../../../context/ActiveStudentContext'
+import { matchesStudentClass } from '../../../Student/Class/studentClassMatch'
 
 const emptyFilters = {
     search: '',
@@ -54,13 +56,25 @@ const SampleQuestionsEmpty = ({ routeBase, viewMode }) => {
 
 const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
     const isStudent = viewMode === 'student'
+    const { activeStudent } = useActiveStudent()
     const [filters, setFilters] = useState(emptyFilters)
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
     const [entriesPerPage, setEntriesPerPage] = useState(10)
 
-    const filteredItems = useMemo(() => filterSampleQuestions(items, filters), [items, filters])
+    const scopedItems = useMemo(() => {
+        if (!isStudent || !activeStudent) return items
+        return items.filter((row) => matchesStudentClass(row, activeStudent))
+    }, [items, isStudent, activeStudent])
+
+    const filterOptions = useMemo(() => ({
+        subjects: [...new Set(scopedItems.map((r) => r.subject).filter(Boolean))],
+        classes: [...new Set(scopedItems.map((r) => r.className).filter(Boolean))],
+        sections: [...new Set(scopedItems.map((r) => r.section).filter(Boolean))],
+    }), [scopedItems])
+
+    const filteredItems = useMemo(() => filterSampleQuestions(scopedItems, filters), [scopedItems, filters])
 
     const updateFilter = (key, value) => {
         setFilters((current) => ({ ...current, [key]: value }))
@@ -104,7 +118,7 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SUBJECTS.map((subject) => (
+                            {(isStudent ? filterOptions.subjects : SUBJECTS).map((subject) => (
                                 <option key={subject} value={subject}>{subject}</option>
                             ))}
                         </select>
@@ -118,7 +132,7 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {CLASSES.map((item) => (
+                            {(isStudent ? filterOptions.classes : CLASSES).map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>
@@ -132,7 +146,7 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SECTIONS.map((item) => (
+                            {(isStudent ? filterOptions.sections : SECTIONS).map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>
@@ -273,13 +287,19 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
 
 const SampleQuestions = ({ routeBase = DEFAULT_ROUTE_BASE, viewMode = 'teacher' }) => {
     const location = useLocation()
+    const { activeStudent } = useActiveStudent()
     const [items, setItems] = useState(() => getSampleQuestions())
 
     useEffect(() => {
         setItems(getSampleQuestions())
     }, [location.key])
 
-    if (items.length === 0) {
+    const visibleCount = useMemo(() => {
+        if (viewMode !== 'student' || !activeStudent) return items.length
+        return items.filter((row) => matchesStudentClass(row, activeStudent)).length
+    }, [items, viewMode, activeStudent])
+
+    if (visibleCount === 0) {
         return (
             <section>
                 <SampleQuestionsEmpty routeBase={routeBase} viewMode={viewMode} />
