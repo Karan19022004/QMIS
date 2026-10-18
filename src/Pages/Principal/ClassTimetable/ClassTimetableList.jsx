@@ -7,18 +7,23 @@ import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ClassTimeTableModal from './Components/ClassTimeTableModal'
 import {
-    CREATE_ROUTE,
     CLASS_TIMETABLES_UPDATED_EVENT,
     approvalStatusColor,
     getClassSectionLabel,
+    decideClassTimetableApproval,
     decideTimetableChangeRequest,
     getClassTimetables,
+    getGradeOptions,
+    getSectionOptions,
     getTimetableChangeRequests,
+    getTimetableRoutes,
     hydrateClassTimetablesFromApi,
 } from './classTimetableData'
 
 const ClassTimetableList = () => {
     const location = useLocation()
+    const { createPath } = getTimetableRoutes(location.pathname)
+    const isPrincipal = !location.pathname.startsWith('/coordinator')
     const [records, setRecords] = useState(() => getClassTimetables())
     const [changes, setChanges] = useState(() => getTimetableChangeRequests())
     const [rejectReason, setRejectReason] = useState('')
@@ -29,6 +34,16 @@ const ClassTimetableList = () => {
     const [search, setSearch] = useState('')
     const [classFilter, setClassFilter] = useState('')
     const [sectionFilter, setSectionFilter] = useState('')
+
+    const classOptions = useMemo(() => {
+        const fromRecords = [...new Set(records.map((item) => item.className).filter(Boolean))]
+        const catalog = getGradeOptions()
+        return [...new Set([...catalog, ...fromRecords])].sort()
+    }, [records])
+    const sectionOptions = useMemo(() => {
+        const fromRecords = [...new Set(records.map((item) => item.section).filter(Boolean))]
+        return [...new Set([...getSectionOptions(), ...fromRecords])].sort()
+    }, [records])
 
     const refresh = () => {
         setRecords(getClassTimetables())
@@ -49,13 +64,24 @@ const ClassTimetableList = () => {
         setRejectReason('')
     }
 
+    const reviewTimetable = (id, approved) => {
+        if (!isPrincipal) return
+        if (!approved && !rejectReason.trim()) {
+            window.alert('Enter a rejection reason above before denying.')
+            return
+        }
+        decideClassTimetableApproval(id, approved ? 'Approved' : 'Denied', 'Principal', rejectReason.trim())
+        setRecords(getClassTimetables())
+        if (!approved) setRejectReason('')
+    }
+
     const filteredRecords = useMemo(() => {
         const query = search.trim().toLowerCase()
         return records.filter((record) => {
             if (classFilter && record.className !== classFilter) return false
             if (sectionFilter && record.section !== sectionFilter) return false
             if (!query) return true
-            const haystack = `${record.id} ${getClassSectionLabel(record)} ${record.academicYear} ${record.term}`.toLowerCase()
+            const haystack = `${record.id} ${getClassSectionLabel(record)} ${record.academicYear} ${record.term} ${record.ownerTeacherName || ''} ${record.createdByRole || ''}`.toLowerCase()
             return haystack.includes(query)
         })
     }, [records, search, classFilter, sectionFilter])
@@ -83,8 +109,9 @@ const ClassTimetableList = () => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            <option value='Grade 9'>Grade 9</option>
-                            <option value='Grade 10'>Grade 10</option>
+                            {classOptions.map((item) => (
+                                <option key={item} value={item}>{item}</option>
+                            ))}
                         </select>
                     </div>
                     <div className='flex flex-col gap-y-2'>
@@ -96,17 +123,21 @@ const ClassTimetableList = () => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            <option value='A'>A</option>
-                            <option value='B'>B</option>
+                            {sectionOptions.map((item) => (
+                                <option key={item} value={item}>{item}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
             </div>
 
+            {isPrincipal ? (
             <div className='bg-white rounded-2xl shadow-md p-4 mt-8'>
                 <h2 className='text-xl font-medium text-black'>Timetable change requests</h2>
-                <p className='text-sm text-[#667085] mt-1 mb-3'>Only the Principal approves or rejects these requests.</p>
-                <input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder='Rejection reason' className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2 w-full max-w-md mb-3' />
+                <p className='text-sm text-[#667085] mt-1 mb-3'>
+                    Use the rejection reason below when denying a pending timetable or a change request.
+                </p>
+                <input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder='Rejection reason (required to Deny)' className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2 w-full max-w-md mb-3' />
                 {changes.length === 0 && <p className='text-sm text-[#667085]'>No change requests yet.</p>}
                 <ul className='space-y-2'>
                     {changes.map((item) => (
@@ -122,18 +153,19 @@ const ClassTimetableList = () => {
                     ))}
                 </ul>
             </div>
+            ) : null}
 
             <div className='bg-white rounded-2xl shadow-md p-4 mt-8'>
                 <div className='flex justify-between items-center sm:flex-row flex-col gap-y-2 mb-4'>
                     <div>
                         <h2 className='text-xl font-medium text-black'>Class Timetable List</h2>
                         <p className='text-sm text-[#667085] mt-1'>
-                            Class timetables are owned by the Principal. Teacher and Coordinator change requests are approved here.
+                            Principal and Coordinator can create. Pending submissions and change requests are approved by Principal.
                         </p>
                     </div>
                     <div className='flex gap-x-2'>
                         <NavLink
-                            to={CREATE_ROUTE}
+                            to={createPath}
                             className='bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center gap-x-2'
                         >
                             <Plus size={16} />
@@ -155,6 +187,7 @@ const ClassTimetableList = () => {
                         <thead className='text-xs bg-[#EDEEF5] whitespace-nowrap rounded-lg'>
                             <tr>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-s-lg'>Timetable ID</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Teacher</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class & Section</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Academic Year</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Timelines</th>
@@ -167,14 +200,15 @@ const ClassTimetableList = () => {
                         <tbody>
                             {filteredRecords.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className='px-2 py-8 text-center text-[#667085]'>
-                                        No class timetables found.
+                                    <td colSpan={9} className='px-2 py-8 text-center text-[#667085]'>
+                                        No class timetables found. Use Create Timetable to add one.
                                     </td>
                                 </tr>
                             ) : (
                                 filteredRecords.map((record) => (
                                     <tr key={record.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7]'>
                                         <td className='px-2 py-4 rounded-s-lg'>{record.id}</td>
+                                        <td className='px-2 py-4'>{record.ownerTeacherName || '—'}</td>
                                         <td className='px-2 py-4'>{getClassSectionLabel(record)}</td>
                                         <td className='px-2 py-4'>{record.academicYear}</td>
                                         <td className='px-2 py-4'>{record.timelines?.length ?? 0}</td>
@@ -195,29 +229,49 @@ const ClassTimetableList = () => {
                                             </button>
                                         </td>
                                         <td className='px-2 py-4 rounded-e-lg'>
-                                            <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
-                                                <button
-                                                    type='button'
-                                                    onClick={() => setSelectedRecord(record)}
-                                                    className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                >
-                                                    View
-                                                </button>
-                                                <button
-                                                    type='button'
-                                                    onClick={() => setEditRequestModal(true)}
-                                                    className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    type='button'
-                                                    onClick={() => setDeleteRequestModal(true)}
-                                                    className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                >
-                                                    Delete
-                                                </button>
-                                            </Dropdown>
+                                            <div className='flex items-center gap-2'>
+                                                {isPrincipal && record.approvalStatus === 'Pending' ? (
+                                                    <>
+                                                        <button
+                                                            type='button'
+                                                            onClick={() => reviewTimetable(record.id, true)}
+                                                            className='text-sm text-[#4CAF50] font-medium cursor-pointer hover:underline'
+                                                        >
+                                                            Approve
+                                                        </button>
+                                                        <button
+                                                            type='button'
+                                                            onClick={() => reviewTimetable(record.id, false)}
+                                                            className='text-sm text-[#FF5722] font-medium cursor-pointer hover:underline'
+                                                        >
+                                                            Deny
+                                                        </button>
+                                                    </>
+                                                ) : null}
+                                                <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => setSelectedRecord(record)}
+                                                        className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                    >
+                                                        View
+                                                    </button>
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => setEditRequestModal(true)}
+                                                        className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => setDeleteRequestModal(true)}
+                                                        className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </Dropdown>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

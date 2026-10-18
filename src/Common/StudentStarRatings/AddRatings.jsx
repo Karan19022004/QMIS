@@ -1,5 +1,9 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { hydrateEnrolledStudentsFromApi } from '../StudentDatabase/enrolledStudentsData'
+import { getStudentsList } from '../StudentDatabase/studentDatabaseData'
+import { useTeacherAssignments } from '../Teacher/useTeacherAssignments'
+import { isApiStudentsEnabled } from '../../services/apiClient'
 import StarRatingInput from './Components/StarRatingInput'
 import { useStarRatingsRouteBase } from './useStarRatingsRouteBase'
 import {
@@ -21,23 +25,48 @@ const AddRatings = () => {
     const navigate = useNavigate()
     const { pathname } = useLocation()
     const routeBase = useStarRatingsRouteBase()
+    const assignments = useTeacherAssignments()
     const ratedByRole = pathname.startsWith('/coordinator') ? 'Coordinator' : 'Teacher'
 
+    const [scopedRows, setScopedRows] = useState([])
     const [classSection, setClassSection] = useState('')
     const [selectedStudentId, setSelectedStudentId] = useState('')
     const [month, setMonth] = useState(ACADEMIC_YEAR_MONTHS[0])
     const [rating, setRating] = useState(0)
     const [description, setDescription] = useState('')
 
-    const classSectionOptions = useMemo(() => getClassSectionOptions(), [])
+    useEffect(() => {
+        let cancelled = false
+        const apply = () => {
+            const all = getStudentsList()
+            if (!assignments.ready) return
+            const scoped = assignments.assignments.length
+                ? all.filter((student) => assignments.studentInScope(student))
+                : []
+            if (!cancelled) setScopedRows(scoped)
+        }
+        if (!isApiStudentsEnabled()) {
+            apply()
+            return undefined
+        }
+        hydrateEnrolledStudentsFromApi().finally(() => {
+            if (!cancelled) apply()
+        })
+        return () => {
+            cancelled = true
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when assignment hydrate settles
+    }, [assignments.ready, assignments.assignments.length])
+
+    const classSectionOptions = useMemo(() => getClassSectionOptions(scopedRows), [scopedRows])
     const studentOptions = useMemo(() => {
-        const students = getStudents()
+        const students = getStudents(scopedRows)
         if (!classSection) return students
         return students.filter((student) => student.classSection === classSection)
-    }, [classSection])
+    }, [classSection, scopedRows])
 
     const selectedStudent = studentOptions.find((student) => student.id === selectedStudentId)
-        ?? getStudents().find((student) => student.id === selectedStudentId)
+        ?? getStudents(scopedRows).find((student) => student.id === selectedStudentId)
 
     const handleClassSectionChange = (value) => {
         setClassSection(value)
@@ -70,6 +99,9 @@ const AddRatings = () => {
                 <p className='text-sm text-[#667085] mt-1'>
                     Rate students monthly using a 1–3 star scale ({RATING_CATEGORY}).
                 </p>
+                {assignments.emptyReason ? (
+                    <p className='text-sm text-[#E65100] mt-2'>{assignments.emptyReason}</p>
+                ) : null}
                 <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 lg:mt-8 mt-2'>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='class-section' className='text-base font-medium text-[#1E1E1E]'>Class & Section:</label>

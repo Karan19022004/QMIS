@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { employeeName, getEmployees, getExits, nextId, pushNotification, saveExits } from '../domain/hrStore'
-import { Badge, Modal, PageIntro, PrimaryButton, TableWrap, inputClass, td, th, useHrTick } from '../components/HrUi'
+import { Badge, DateField, Modal, PageIntro, PrimaryButton, Select, TableWrap, TextField, td, th, useHrTick } from '../components/HrUi'
 
 const FLAGS = ['noticeServed', 'handover', 'assets', 'documents', 'finance', 'departmentClearance', 'hrClearance', 'exitInterview']
 
@@ -54,10 +54,10 @@ const ExitForm = ({ form, employees, rows, setForm }) => {
     return (
         <Modal title='Initiate exit' onClose={() => setForm(null)}>
             <form onSubmit={save} className='grid gap-3'>
-                <select className={inputClass} value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                <input className={inputClass} placeholder='Last working date' value={form.lastWorkingDate} onChange={(e) => setForm({ ...form, lastWorkingDate: e.target.value })} />
-                <select className={inputClass} value={form.exitType} onChange={(e) => setForm({ ...form, exitType: e.target.value })}><option>Resignation</option><option>Retirement</option><option>Termination</option></select>
-                <input className={inputClass} placeholder='Reason' value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
+                <Select label='Employee' value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select employee' />
+                <DateField label='Last working / leaving date' value={form.lastWorkingDate} onChange={(value) => setForm({ ...form, lastWorkingDate: value })} bound='future' required />
+                <Select label='Exit type' value={form.exitType} onChange={(e) => setForm({ ...form, exitType: e.target.value })} options={['Resignation', 'Retirement', 'Termination']} allLabel={null} />
+                <TextField label='Reason' value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
                 <PrimaryButton type='submit'>Save</PrimaryButton>
             </form>
         </Modal>

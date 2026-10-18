@@ -265,8 +265,12 @@ export const adminSidebarLinks = [
     {
         id: 4,
         title: "Class Details",
-        to: "/admin/class/class-details",
+        to: "#0",
         icon: ClipboardList,
+        subLinks: [
+            { icon: ClipboardList, title: "Class Details List", to: "/admin/class/class-details" },
+            { icon: CalendarDays, title: "Academic Years", to: "/admin/class/academic-years" },
+        ],
     },
     {
         id: 5,
@@ -1315,7 +1319,8 @@ export const coordinatorSidebarLinks = [
         to: "#0",
         icon: School,
         subLinks: [
-            { icon: CalendarDays, title: "Class Timetable", to: "/coordinator/class/class-routine" },
+            { icon: CalendarDays, title: "My Class Timetable", to: "/coordinator/class/class-routine" },
+            { icon: CalendarDays, title: "Create Class Timetable", to: "/coordinator/class/class-timetable" },
             { icon: NotebookPen, title: "Lesson Plan", to: "/coordinator/lesson-plan/my-lesson-plan" },
             { icon: ClipboardCheck, title: "Lesson Plan Approval", to: "/coordinator/lesson-plan-approval" },
             { icon: UserPlus, title: "Extended Class", to: "/coordinator/class/extra-class" },
@@ -1335,6 +1340,7 @@ export const coordinatorSidebarLinks = [
         icon: GraduationCap,
         subLinks: [
             { icon: GraduationCap, title: "Students List", to: "/coordinator/user-management/students-list" },
+            { icon: UserPlus, title: "Section Assignment", to: "/coordinator/student-placement" },
             { icon: UsersRound, title: "Parents List", to: "/coordinator/user-management/parents-list" },
             { icon: FileText, title: "CA / RCT", to: "/coordinator/unit-tests" },
             { icon: CalendarCheck, title: "Exam", to: "/coordinator/student-evaluation/exam" },
@@ -2220,6 +2226,12 @@ export const principalSidebarLinks = [
         title: "Student Allocation",
         to: "/principal/student-allocation-approval",
         icon: UserPlus,
+    },
+    {
+        id: 17,
+        title: "Coordinator Grade Bands",
+        to: "/principal/coordinator-grade-bands",
+        icon: UserRoundCog,
     },
     {
         id: 16,

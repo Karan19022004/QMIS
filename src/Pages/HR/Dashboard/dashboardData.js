@@ -23,12 +23,28 @@ const GROUP_DEPARTMENTS = {
 
 const list = (rows) => (Array.isArray(rows) ? rows : []).filter((item) => item && typeof item === 'object')
 
+/** Accept DD-MM-YYYY, DD/MM/YYYY, or YYYY-MM-DD (API / DateField mix). */
 const parseDate = (value) => {
-    const parts = String(value || '').split('-')
-    if (parts.length !== 3) return null
-    const [day, month, year] = parts.map(Number)
-    if (!day || !month || !year) return null
-    return new Date(year, month - 1, day)
+    if (!value) return null
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value
+    const text = String(value).trim()
+    const dmy = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (dmy) {
+        const parsed = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) {
+        const parsed = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+    const fallback = new Date(text)
+    return Number.isNaN(fallback.getTime()) ? null : fallback
+}
+
+export const currentDashboardMonth = () => {
+    const index = new Date().getMonth() // 0 = January
+    return DASHBOARD_MONTHS[index] || 'October'
 }
 
 const inAcademicYear = (date, yearLabel) => {
@@ -64,10 +80,11 @@ const payrollFor = (employees, month, year) => {
     return summarizePayroll(salaryRows(month, year).filter((row) => row && ids.has(row.employeeId)))
 }
 
-export const buildHrDashboard = ({ academicYear = '2026–2027', department = 'All Departments', month = 'September', revision = 0 } = {}) => {
+export const buildHrDashboard = ({ academicYear = '2026–2027', department = 'All Departments', month = currentDashboardMonth(), revision = 0 } = {}) => {
     void revision
-    const monthNumber = MONTH_INDEX[month] || 9
-    const employees = list(getEmployees()).filter((item) => matchesDepartment(item, department))
+    const monthNumber = MONTH_INDEX[month] || monthOf(new Date())
+    const allEmployees = list(getEmployees())
+    const employees = allEmployees.filter((item) => matchesDepartment(item, department))
     const ids = new Set(employees.map((item) => item.id))
     const inScope = (row) => row && (!row.employeeId || ids.has(row.employeeId))
     const dated = (value) => {
@@ -77,7 +94,18 @@ export const buildHrDashboard = ({ academicYear = '2026–2027', department = 'A
 
     const active = employees.filter((item) => item.status === 'Active' || item.status === 'Probation' || item.status === 'On Leave')
     const inactive = employees.filter((item) => item.status === 'Inactive' || item.status === 'Relieved')
-    const joiners = employees.filter((item) => dated(item.joiningDate))
+    // New joiners = employees whose joining date falls in the selected month,
+    // plus onboarding "Joiners" rows for that month (so Accept Offer → Joiners always counts).
+    const joinerById = new Map()
+    employees.filter((item) => dated(item.joiningDate)).forEach((item) => joinerById.set(item.id, item))
+    list(getOnboarding()).forEach((item) => {
+        const employee = allEmployees.find((row) => row.id === item.employeeId)
+        if (!employee || !matchesDepartment(employee, department)) return
+        if (dated(employee.joiningDate) || dated(item.joiningDate)) {
+            joinerById.set(employee.id, employee)
+        }
+    })
+    const joiners = [...joinerById.values()]
     const attendance = list(getAttendance()).filter((item) => inScope(item) && dated(item.date))
     const latestDate = attendance.map((item) => item.date).sort((a, b) => (parseDate(a) || 0) - (parseDate(b) || 0)).at(-1) || ''
     const today = latestDate ? attendance.filter((item) => item.date === latestDate) : []
@@ -213,7 +241,7 @@ export const buildHrDashboard = ({ academicYear = '2026–2027', department = 'A
             { label: 'Open Positions', value: jobs.reduce((sum, item) => sum + (Number(item.openings) || 1), 0), hint: `${jobs.length} openings`, lines: jobs.slice(0, 2).map((item) => item.position), to: '/hr/recruitment/job-openings' },
             { label: 'Candidates in Recruitment', value: candidates.length, hint: `${stageCount('Interview')} in interview`, lines: [`Screening: ${stageCount('Screening')}`, `Selected: ${stageCount('Selected')}`], to: '/hr/recruitment/candidates' },
             { label: 'Pending HR Actions', value: pendingTotal, hint: 'Across people operations', lines: actions.slice(0, 3).map((item) => `${item.label.split(' ').slice(0, 2).join(' ')} ${item.count}`), to: '/hr/leave-management' },
-            { label: 'New Joiners This Month', value: joiners.length, hint: `${pendingExits.length} exiting`, lines: [`Net change: ${joiners.length - pendingExits.length >= 0 ? '+' : ''}${joiners.length - pendingExits.length}`], to: '/hr/onboarding/joiners' },
+            { label: 'New Joiners This Month', value: joiners.length, hint: `${month} · ${pendingExits.length} exiting`, lines: [`Net change: ${joiners.length - pendingExits.length >= 0 ? '+' : ''}${joiners.length - pendingExits.length}`, 'Uses joining date + Joiners list'], to: '/hr/onboarding/joiners' },
             { label: 'Payroll Cost This Month', value: formatInr(selectedPayroll.totals.grossSalary), hint: month, lines: [`Net ${formatInr(selectedPayroll.totals.netSalary)}`], to: '/hr/payroll/salary-statement' },
         ],
         workforce,

@@ -16,6 +16,8 @@ import {
     SECTIONS,
     SUBJECTS,
 } from './studyMaterialsData'
+import { useActiveStudent } from '../../../../context/ActiveStudentContext'
+import { matchesStudentClass } from '../../../Student/Class/studentClassMatch'
 
 export { DEFAULT_ROUTE_BASE }
 
@@ -62,13 +64,25 @@ const StudyMaterialsEmpty = ({ routeBase, viewMode }) => {
 
 const StudyMaterialsList = ({ items, routeBase, viewMode }) => {
     const isStudent = viewMode === 'student'
+    const { activeStudent } = useActiveStudent()
     const [filters, setFilters] = useState(emptyFilters)
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
     const [entriesPerPage, setEntriesPerPage] = useState(10)
 
-    const filteredItems = useMemo(() => filterStudyMaterials(items, filters), [items, filters])
+    const scopedItems = useMemo(() => {
+        if (!isStudent || !activeStudent) return items
+        return items.filter((row) => matchesStudentClass(row, activeStudent))
+    }, [items, isStudent, activeStudent])
+
+    const filterOptions = useMemo(() => ({
+        subjects: [...new Set(scopedItems.map((r) => r.subject).filter(Boolean))],
+        classes: [...new Set(scopedItems.map((r) => r.className).filter(Boolean))],
+        sections: [...new Set(scopedItems.map((r) => r.section).filter(Boolean))],
+    }), [scopedItems])
+
+    const filteredItems = useMemo(() => filterStudyMaterials(scopedItems, filters), [scopedItems, filters])
 
     const updateFilter = (key, value) => {
         setFilters((current) => ({ ...current, [key]: value }))
@@ -112,7 +126,7 @@ const StudyMaterialsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SUBJECTS.map((subject) => (
+                            {(isStudent ? filterOptions.subjects : SUBJECTS).map((subject) => (
                                 <option key={subject} value={subject}>{subject}</option>
                             ))}
                         </select>
@@ -126,7 +140,7 @@ const StudyMaterialsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {CLASSES.map((item) => (
+                            {(isStudent ? filterOptions.classes : CLASSES).map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>
@@ -140,7 +154,7 @@ const StudyMaterialsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SECTIONS.map((item) => (
+                            {(isStudent ? filterOptions.sections : SECTIONS).map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>
@@ -281,13 +295,19 @@ const StudyMaterialsList = ({ items, routeBase, viewMode }) => {
 
 const StudyMaterials = ({ routeBase = DEFAULT_ROUTE_BASE, viewMode = 'teacher' }) => {
     const location = useLocation()
+    const { activeStudent } = useActiveStudent()
     const [items, setItems] = useState(() => getStudyMaterials())
 
     useEffect(() => {
         setItems(getStudyMaterials())
     }, [location.key])
 
-    if (items.length === 0) {
+    const visibleCount = useMemo(() => {
+        if (viewMode !== 'student' || !activeStudent) return items.length
+        return items.filter((row) => matchesStudentClass(row, activeStudent)).length
+    }, [items, viewMode, activeStudent])
+
+    if (visibleCount === 0) {
         return (
             <section>
                 <StudyMaterialsEmpty routeBase={routeBase} viewMode={viewMode} />

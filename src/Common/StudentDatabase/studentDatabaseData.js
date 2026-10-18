@@ -31,69 +31,95 @@ const resolveAdmissionSource = (record) => {
     return record.admissionSnapshot || record
 }
 
-const mapToStudentView = (admission, record) => ({
-    profileImage: admission.profileImage || record.profileImage || null,
-    admissionNumber: admission.admissionNumber || record.admissionNumber,
-    firstName: admission.firstName || record.firstName || '',
-    middleName: admission.middleName || record.middleName || '',
-    lastName: admission.lastName || record.lastName || '',
-    admissionDate: displayValue(admission.admissionDate),
-    class: displayValue(admission.className || record.className),
-    classSection: displayValue(record.section),
-    registrationFees: displayValue(admission.registrationFees),
-    batchYear: displayValue(admission.batchStartYear),
-    batchEndYear: displayValue(admission.batchEndYear),
-    feesTimeline: displayValue(admission.feesGroup),
-    status: displayValue(record.status || admission.status || 'Active'),
-    studentId: record.id,
-    gender: displayValue(admission.gender || record.gender),
-    religion: displayValue(admission.religion),
-    caste: displayValue(admission.caste),
-    dateOfBirth: displayValue(admission.dateOfBirth || record.dateOfBirth),
-    bloodGroup: displayValue(admission.bloodGroup),
-    height: displayValue(admission.height),
-    weight: displayValue(admission.weight),
-    medicalHistory: displayValue(admission.medicalHistory),
-    previousSchool: displayValue(admission.previousSchool),
-    address: {
-        address: displayValue(admission.address),
+const mapToStudentView = (admission, record) => {
+    const firstName = admission.firstName || record.firstName || ''
+    const middleName = admission.middleName || record.middleName || ''
+    const lastName = admission.lastName || record.lastName || ''
+    const fullName =
+        record.name
+        || [firstName, middleName, lastName].map((p) => String(p || '').trim()).filter(Boolean).join(' ')
+        || 'Student'
+    const className = admission.className || record.className || ''
+    const section = record.section || admission.section || ''
+    const email = admission.email || record.email || ''
+    const mobileNumber = admission.mobileNumber || record.mobileNumber || ''
+    const profileImage = admission.profileImage || record.profileImage || null
+
+    return {
+        id: record.id,
+        profileImage,
+        profile: profileImage || noProfile,
+        name: fullName,
+        admissionNumber: admission.admissionNumber || record.admissionNumber,
+        firstName,
+        middleName,
+        lastName,
+        admissionDate: displayValue(admission.admissionDate),
+        className,
+        class: displayValue(className),
+        section: displayValue(section),
+        classSection: section ? `${className}-${section}` : displayValue(className),
+        rollNumber: displayValue(record.rollNumber),
+        registrationFees: displayValue(admission.registrationFees),
+        batchYear: displayValue(admission.batchStartYear),
+        batchEndYear: displayValue(admission.batchEndYear),
+        feesTimeline: displayValue(admission.feesGroup),
+        status: displayValue(record.status || admission.status || 'Active'),
+        studentId: record.id,
+        gender: displayValue(admission.gender || record.gender),
+        religion: displayValue(admission.religion),
+        caste: displayValue(admission.caste),
+        dateOfBirth: displayValue(admission.dateOfBirth || record.dateOfBirth),
+        bloodGroup: displayValue(admission.bloodGroup),
+        height: displayValue(admission.height),
+        weight: displayValue(admission.weight),
+        medicalHistory: displayValue(admission.medicalHistory),
+        previousSchool: displayValue(admission.previousSchool),
+        email: displayValue(email),
+        mobileNumber: displayValue(mobileNumber),
         country: displayValue(admission.country || record.country),
         state: displayValue(admission.state || record.state),
         city: displayValue(admission.city || record.city),
-        zipCode: displayValue(admission.zipCode),
-    },
-    contact: {
-        mobileNumber: displayValue(admission.mobileNumber || record.mobileNumber),
-        alternativeNumber: displayValue(admission.altMobileNumber),
-        email: displayValue(admission.email || record.email),
-    },
-    transport: {
-        modeOfTransport: displayValue(admission.modeOfTransport),
-        routeList: displayValue(admission.route),
-        busStop: displayValue(admission.busStop),
-    },
-    parent: {
-        fatherName: displayValue(admission.fatherName),
-        motherName: displayValue(admission.motherName),
-        fatherOccupation: displayValue(admission.fatherOccupation),
-        motherOccupation: displayValue(admission.motherOccupation),
-        fatherYearlyIncome: displayValue(admission.fatherIncome),
-        motherYearlyIncome: displayValue(admission.motherIncome),
-        siblings: displayValue(admission.siblings),
         address: {
-            address: displayValue(admission.parentAddress),
-            country: displayValue(admission.parentCountry),
-            state: displayValue(admission.parentState),
-            city: displayValue(admission.parentCity),
-            zipCode: displayValue(admission.parentZipCode),
+            address: displayValue(admission.address),
+            country: displayValue(admission.country || record.country),
+            state: displayValue(admission.state || record.state),
+            city: displayValue(admission.city || record.city),
+            zipCode: displayValue(admission.zipCode),
         },
         contact: {
-            mobileNumber: displayValue(admission.parentMobileNumber),
-            alternativeNumber: displayValue(admission.parentAltMobileNumber),
-            email: displayValue(admission.parentEmail),
+            mobileNumber: displayValue(mobileNumber),
+            alternativeNumber: displayValue(admission.altMobileNumber),
+            email: displayValue(email),
         },
-    },
-})
+        transport: {
+            modeOfTransport: displayValue(admission.modeOfTransport),
+            routeList: displayValue(admission.route),
+            busStop: displayValue(admission.busStop),
+        },
+        parent: {
+            fatherName: displayValue(admission.fatherName),
+            motherName: displayValue(admission.motherName),
+            fatherOccupation: displayValue(admission.fatherOccupation),
+            motherOccupation: displayValue(admission.motherOccupation),
+            fatherYearlyIncome: displayValue(admission.fatherIncome),
+            motherYearlyIncome: displayValue(admission.motherIncome),
+            siblings: displayValue(admission.siblings),
+            address: {
+                address: displayValue(admission.parentAddress),
+                country: displayValue(admission.parentCountry),
+                state: displayValue(admission.parentState),
+                city: displayValue(admission.parentCity),
+                zipCode: displayValue(admission.parentZipCode),
+            },
+            contact: {
+                mobileNumber: displayValue(admission.parentMobileNumber),
+                alternativeNumber: displayValue(admission.parentAltMobileNumber),
+                email: displayValue(admission.parentEmail),
+            },
+        },
+    }
+}
 
 const toListRow = (record) => {
     const admission = resolveAdmissionSource(record)
@@ -111,6 +137,14 @@ const toListRow = (record) => {
         city: admission.city || record.city || '—',
         status: record.status || admission.status || 'Active',
         profileImage: admission.profileImage || record.profileImage || null,
+        className: record.className || admission.className || '',
+        class: record.className || admission.className || '',
+        section: record.section || '',
+        classSection: record.section || '',
+        fatherName: admission.fatherName || '',
+        motherName: admission.motherName || '',
+        parentEmail: admission.parentEmail || '',
+        parentMobileNumber: admission.parentMobileNumber || '',
     }
 }
 

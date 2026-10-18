@@ -3,6 +3,11 @@ import CommonHeader from '../Common/CommonHeader/CommonHeader'
 import CommonSidebar from '../Common/CommonSidebar/CommonSidebar'
 import CommonBreadcrumb from '../Common/CommonBreadcrumb/CommonBreadcrumb'
 import TeacherRoutes from '../Routes/TeacherRoutes'
+import { hydrateTeacherPortalAssignments } from '../Common/Teacher/teacherAssignedClasses'
+import { hydrateEnrolledStudentsFromApi } from '../Common/StudentDatabase/enrolledStudentsData'
+import { hydrateExtraClassesFromApi } from '../Pages/Teacher/ExtraClass/extraClassData'
+import { hydrateOnlineClassesFromApi } from '../Pages/Teacher/OnlineClass/onlineClassData'
+import { isApiStudentsEnabled } from '../services/apiClient'
 
 const TeacherLayout = () => {
     const [sidebarHidden, setSidebarHidden] = useState(() => window.innerWidth < 1024)
@@ -22,6 +27,16 @@ const TeacherLayout = () => {
 
         window.addEventListener('resize', handleResize)
         return () => window.removeEventListener('resize', handleResize)
+    }, [])
+
+    useEffect(() => {
+        ;(async () => {
+            await hydrateTeacherPortalAssignments({ force: true })
+            await Promise.all([hydrateExtraClassesFromApi(), hydrateOnlineClassesFromApi()])
+            if (isApiStudentsEnabled()) {
+                await hydrateEnrolledStudentsFromApi()
+            }
+        })()
     }, [])
 
     return (

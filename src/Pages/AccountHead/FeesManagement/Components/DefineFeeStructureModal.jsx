@@ -1,12 +1,13 @@
-import React, { useMemo, useState } from 'react'
-import { Calculator, X } from 'lucide-react'
-import {
-    DEFAULT_FEE_FORM,
-    MODAL_GRADES,
-} from '../feesManagementData'
-import { FEE_FREQUENCIES } from '../../financeDomain/financeConstants'
-import { FINANCE_ACADEMIC_YEARS } from '../../financeDomain/financeMasters'
+import React, { useEffect, useMemo, useState } from 'react'
+import { Calculator, CalendarClock, Plus, X } from 'lucide-react'
+import { FEE_FREQUENCIES, DEFAULT_ACADEMIC_YEAR } from '../../financeDomain/financeConstants'
 import { useFinance } from '../../financeDomain/FinanceContext'
+import {
+    buildAcademicYearOptions,
+    buildCampusClassOptions,
+    loadAdminAcademicYears,
+} from '../feeCampusOptions'
+import { buildPaymentSchedule, getFrequencyPlan } from '../feePaymentSchedule'
 import { toast } from 'react-toastify'
 
 const parseAmount = (value) => {
@@ -14,7 +15,20 @@ const parseAmount = (value) => {
     return Number.isFinite(parsed) ? parsed : 0
 }
 
-const formatCurrency = (amount) => `₹${amount.toLocaleString('en-IN')}`
+const formatCurrency = (amount) => `₹${Number(amount || 0).toLocaleString('en-IN')}`
+
+const formatDueDate = (iso) => {
+    if (!iso) return '—'
+    try {
+        return new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        })
+    } catch {
+        return iso
+    }
+}
 
 const CurrencyInput = ({ label, required = false, value, onChange }) => (
     <div className='flex flex-col gap-y-2'>
@@ -35,42 +49,252 @@ const CurrencyInput = ({ label, required = false, value, onChange }) => (
     </div>
 )
 
-const DefineFeeStructureModal = ({ isOpen, onClose, onSave, onAddCategory }) => {
-    const { feeCategories, fineRules } = useFinance()
+const DEFAULT_CATEGORY_SEEDS = [
+    'Tuition Fee',
+    'Exam Fee',
+    'Lab Fee',
+    'Activity Fee',
+    'Transport Fee',
+    'Books Fee',
+    'Miscellaneous',
+]
+
+const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) => {
+    const {
+        feeCategories,
+        fineRules,
+        students,
+        feeStructures,
+        defineFeeStructure,
+        addFeeCategory,
+        saveFeeCategories,
+    } = useFinance()
+    const [adminYears, setAdminYears] = useState([])
+    const [saving, setSaving] = useState(false)
+    const isEdit = Boolean(editingStructure?.id)
+
+    const classOptions = useMemo(
+        () => buildCampusClassOptions({ students, feeStructures }),
+        [students, feeStructures],
+    )
+    const { years: yearOptions, currentYear } = useMemo(
+        () => buildAcademicYearOptions({ students, feeStructures, adminYears }),
+        [students, feeStructures, adminYears],
+    )
+
     const [form, setForm] = useState({
-        ...DEFAULT_FEE_FORM,
-        academicYear: '2026-2027',
-        feeCategoryId: 'CAT-TUITION',
-        feeHead: 'Tuition Fee',
-        frequency: 'MONTHLY',
+        grade: '',
+        academicYear: DEFAULT_ACADEMIC_YEAR,
+        feeCategoryId: '',
+        feeHead: '',
+        frequency: 'TERM_WISE',
         dueDayOfMonth: '10',
-        fineRuleId: 'FINE-TUITION-DAILY',
+        fineRuleId: '',
         concessionApplicable: true,
         mandatory: true,
         status: 'ACTIVE',
-        amount: '2500',
+        amount: '',
         newCategory: '',
     })
+    const [categoryDrafts, setCategoryDrafts] = useState([])
 
-    const initialForm = {
-        ...DEFAULT_FEE_FORM,
-        academicYear: '2026-2027',
-        feeCategoryId: 'CAT-TUITION',
-        feeHead: 'Tuition Fee',
-        frequency: 'MONTHLY',
-        dueDayOfMonth: '10',
-        fineRuleId: 'FINE-TUITION-DAILY',
-        concessionApplicable: true,
-        mandatory: true,
-        status: 'ACTIVE',
-        amount: '2500',
-        newCategory: '',
-    }
+    useEffect(() => {
+        if (!isOpen) return undefined
+        let cancelled = false
+        loadAdminAcademicYears()
+            .then((years) => {
+                if (!cancelled) setAdminYears(years)
+            })
+            .catch(() => {
+                if (!cancelled) setAdminYears([])
+            })
+        return () => { cancelled = true }
+    }, [isOpen])
 
-    const totalAmount = useMemo(() => parseAmount(form.amount || form.tuitionFee), [form])
+    useEffect(() => {
+        if (!isOpen) return
+        const existing = (feeCategories || [])
+            .filter((item) => item.active !== false)
+            .map((item) => ({ id: item.id, label: item.name, selected: true, existing: true }))
+        setCategoryDrafts(existing.length
+            ? existing
+            : DEFAULT_CATEGORY_SEEDS.map((label) => ({
+                id: label.toLowerCase().replace(/\s+/g, '-'),
+                label,
+                selected: ['Tuition Fee', 'Exam Fee', 'Activity Fee'].includes(label),
+                existing: false,
+            })))
+        const firstCategory = (feeCategories || []).find((item) => item.active !== false)
+        if (editingStructure?.id) {
+            setForm({
+                grade: editingStructure.className || '',
+                academicYear: editingStructure.academicYear || currentYear || yearOptions[0] || DEFAULT_ACADEMIC_YEAR,
+                feeCategoryId: editingStructure.feeCategoryId || firstCategory?.id || '',
+                feeHead: editingStructure.feeHead || firstCategory?.name || '',
+                frequency: editingStructure.frequency || 'TERM_WISE',
+                dueDayOfMonth: String(editingStructure.dueDayOfMonth ?? 10),
+                fineRuleId: editingStructure.fineRuleId || '',
+                concessionApplicable: editingStructure.concessionApplicable !== false,
+                mandatory: editingStructure.mandatory !== false,
+                status: editingStructure.status || 'ACTIVE',
+                amount: editingStructure.amount != null ? String(Math.round(Number(editingStructure.amount) || 0)) : '',
+                newCategory: '',
+            })
+            return
+        }
+        setForm((prev) => ({
+            ...prev,
+            grade: '',
+            academicYear: currentYear || yearOptions[0] || DEFAULT_ACADEMIC_YEAR,
+            feeCategoryId: firstCategory?.id || '',
+            feeHead: firstCategory?.name || '',
+            frequency: 'TERM_WISE',
+            dueDayOfMonth: '10',
+            fineRuleId: '',
+            concessionApplicable: true,
+            mandatory: true,
+            status: 'ACTIVE',
+            amount: '',
+            newCategory: '',
+        }))
+    }, [isOpen, feeCategories, currentYear, yearOptions, editingStructure])
+
+    const totalAmount = useMemo(() => parseAmount(form.amount), [form.amount])
+    const activeCategories = useMemo(
+        () => (feeCategories || []).filter((item) => item.active !== false),
+        [feeCategories],
+    )
+    const yearStartDate = useMemo(() => {
+        const meta = adminYears.find((item) => item.name === form.academicYear)
+        return meta?.startDate || meta?.start_date || ''
+    }, [adminYears, form.academicYear])
+
+    const schedule = useMemo(() => buildPaymentSchedule({
+        amount: totalAmount,
+        frequency: form.frequency,
+        academicYear: form.academicYear,
+        startDate: yearStartDate,
+        dueDayOfMonth: Number(form.dueDayOfMonth) || 10,
+    }), [form.academicYear, form.dueDayOfMonth, form.frequency, totalAmount, yearStartDate])
+
+    const frequencyHelp = getFrequencyPlan(form.frequency).help
 
     const updateField = (field) => (value) => {
         setForm((prev) => ({ ...prev, [field]: value }))
+    }
+
+    const toggleCategoryDraft = (id) => {
+        setCategoryDrafts((prev) => prev.map((row) => (
+            row.id === id ? { ...row, selected: !row.selected } : row
+        )))
+    }
+
+    const handleAddLocalCategory = () => {
+        const label = form.newCategory.trim()
+        if (!label) return
+        const id = label.toLowerCase().replace(/\s+/g, '-')
+        if (categoryDrafts.some((row) => row.id === id || row.label.toLowerCase() === label.toLowerCase())) {
+            setForm((prev) => ({ ...prev, newCategory: '' }))
+            return
+        }
+        setCategoryDrafts((prev) => [...prev, { id, label, selected: true, existing: false }])
+        setForm((prev) => ({
+            ...prev,
+            newCategory: '',
+            feeHead: prev.feeHead || label,
+        }))
+    }
+
+    const handleSaveCategoriesOnly = async () => {
+        const selected = categoryDrafts.filter((row) => row.selected).map((row) => row.label)
+        if (!selected.length) {
+            toast.error('Select at least one fee category.')
+            return
+        }
+        setSaving(true)
+        try {
+            const { categoryIds, persist } = await saveFeeCategories(selected)
+            if (!persist?.success) {
+                toast.error(persist?.message || 'Could not save categories.')
+                return
+            }
+            toast.success(
+                persist.api
+                    ? `Saved ${selected.length} categor${selected.length === 1 ? 'y' : 'ies'} to campus finance API.`
+                    : `Saved ${selected.length} categor${selected.length === 1 ? 'y' : 'ies'} (offline / pending sync).`,
+            )
+            const firstId = categoryIds[0]
+            const firstLabel = selected[0]
+            setForm((prev) => ({
+                ...prev,
+                feeCategoryId: firstId || prev.feeCategoryId,
+                feeHead: prev.feeHead || firstLabel,
+            }))
+        } finally {
+            setSaving(false)
+        }
+    }
+
+    const handleSaveStructure = async () => {
+        if (!form.grade || !form.feeHead || !totalAmount) {
+            toast.error('Class, fee head and amount are required.')
+            return
+        }
+        setSaving(true)
+        try {
+            // Persist any newly selected categories first so the structure can reference them.
+            const selectedLabels = categoryDrafts.filter((row) => row.selected).map((row) => row.label)
+            let latestCategories
+            if (selectedLabels.length) {
+                const saved = await saveFeeCategories(selectedLabels)
+                latestCategories = saved.feeCategories
+            }
+
+            let categoryId = form.feeCategoryId
+            if (!categoryId && form.feeHead) {
+                categoryId = addFeeCategory(form.feeHead) || ''
+            }
+            // If user picked a draft category label matching fee head, resolve id
+            if (!categoryId && form.feeHead) {
+                categoryId = `CAT-${form.feeHead.toUpperCase().replace(/\s+/g, '-')}`
+            }
+
+            const result = await defineFeeStructure({
+                id: editingStructure?.id,
+                academicYear: form.academicYear,
+                className: form.grade,
+                feeCategoryId: categoryId,
+                feeHead: form.feeHead,
+                frequency: form.frequency,
+                amount: totalAmount,
+                dueDayOfMonth: Number(form.dueDayOfMonth) || 10,
+                fineRuleId: form.fineRuleId || null,
+                concessionApplicable: form.concessionApplicable,
+                mandatory: form.mandatory,
+                status: form.status,
+            }, { startDate: yearStartDate, feeCategories: latestCategories })
+
+            const verb = isEdit ? 'Updated' : 'Saved'
+            if (!result?.persist?.success) {
+                toast.error(result?.persist?.message || 'Fee structure saved locally but API push failed.')
+            } else if (result.persist.api) {
+                toast.success(
+                    `${verb} ${form.grade} · ${schedule.planLabel} · ${result.installmentsCreated} installment row(s) for ${result.studentsMatched} student(s). Synced to API.`,
+                )
+            } else {
+                toast.success(
+                    `${verb} ${form.grade} · ${schedule.planLabel}. ${result.persist.message || 'Will sync when API is ready.'}`,
+                )
+            }
+            if (!result.studentsMatched) {
+                toast.info('No finance students in this class yet. Import enrolled students (Settings) so parents see dues.')
+            }
+            onClose()
+        } catch (error) {
+            toast.error(error?.message || 'Could not save fee structure.')
+        } finally {
+            setSaving(false)
+        }
     }
 
     if (!isOpen) return null
@@ -81,7 +305,16 @@ const DefineFeeStructureModal = ({ isOpen, onClose, onSave, onAddCategory }) => 
 
             <div className='relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-xl'>
                 <div className='flex items-center justify-between px-6 py-4 border-b border-[#F2F4F7]'>
-                    <h2 className='text-lg font-semibold text-[#1E1E1E]'>Define Fees Structure</h2>
+                    <div>
+                        <h2 className='text-lg font-semibold text-[#1E1E1E]'>
+                            {isEdit ? 'Edit Fees Structure' : 'Define Fees Structure'}
+                        </h2>
+                        <p className='text-xs text-[#667085] mt-0.5'>
+                            {isEdit
+                                ? 'Update amount, frequency, or class — unpaid installments are regenerated and synced to the finance API.'
+                                : 'Categories, amount, and payment frequency (with installment split) — saved to the campus finance API.'}
+                        </p>
+                    </div>
                     <button
                         type='button'
                         onClick={onClose}
@@ -93,18 +326,70 @@ const DefineFeeStructureModal = ({ isOpen, onClose, onSave, onAddCategory }) => 
                 </div>
 
                 <div className='px-6 py-5 space-y-6'>
+                    <div>
+                        <div className='flex items-center justify-between gap-3 mb-2'>
+                            <label className='text-sm font-medium text-[#808080]'>Fee categories</label>
+                            <button
+                                type='button'
+                                disabled={saving}
+                                onClick={handleSaveCategoriesOnly}
+                                className='text-xs font-medium text-[#515DEF] hover:underline cursor-pointer disabled:opacity-50'
+                            >
+                                Save categories to API
+                            </button>
+                        </div>
+                        <div className='rounded-xl border border-[#EDEEF5] bg-[#F9F9F9] p-3 flex flex-wrap gap-2'>
+                            {categoryDrafts.map((category) => (
+                                <button
+                                    key={category.id}
+                                    type='button'
+                                    onClick={() => toggleCategoryDraft(category.id)}
+                                    className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full border transition-colors cursor-pointer ${
+                                        category.selected
+                                            ? 'bg-[#515DEF] text-white border-[#515DEF]'
+                                            : 'bg-white text-[#667085] border-[#D9D9D9]'
+                                    }`}
+                                >
+                                    <Plus size={14} className={category.selected ? 'opacity-80' : ''} />
+                                    {category.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className='flex gap-2 mt-3'>
+                            <input
+                                value={form.newCategory}
+                                onChange={(event) => updateField('newCategory')(event.target.value)}
+                                onKeyDown={(event) => {
+                                    if (event.key === 'Enter') {
+                                        event.preventDefault()
+                                        handleAddLocalCategory()
+                                    }
+                                }}
+                                placeholder='Add custom fee category'
+                                className='flex-1 text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5'
+                            />
+                            <button
+                                type='button'
+                                onClick={handleAddLocalCategory}
+                                className='text-sm border border-[#515DEF] text-[#515DEF] px-4 py-2 rounded-md cursor-pointer'
+                            >
+                                Add
+                            </button>
+                        </div>
+                    </div>
+
                     <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
                         <div className='flex flex-col gap-y-2'>
                             <label className='text-sm font-medium text-[#808080]'>
-                                Grade <span className='text-[#FF5722]'>*</span>
+                                Class <span className='text-[#FF5722]'>*</span>
                             </label>
                             <select
                                 value={form.grade}
                                 onChange={(event) => updateField('grade')(event.target.value)}
                                 className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5 focus:outline-none focus:border-[#515DEF]'
                             >
-                                <option value=''>Select Grade</option>
-                                {MODAL_GRADES.map((grade) => (
+                                <option value=''>Select class</option>
+                                {classOptions.map((grade) => (
                                     <option key={grade} value={grade}>{grade}</option>
                                 ))}
                             </select>
@@ -119,9 +404,14 @@ const DefineFeeStructureModal = ({ isOpen, onClose, onSave, onAddCategory }) => 
                                 onChange={(event) => updateField('academicYear')(event.target.value)}
                                 className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5 focus:outline-none focus:border-[#515DEF]'
                             >
-                                {FINANCE_ACADEMIC_YEARS.map((year) => (
-                                    <option key={year} value={year}>{year}</option>
-                                ))}
+                                {yearOptions.map((year) => {
+                                    const meta = adminYears.find((item) => item.name === year)
+                                    return (
+                                        <option key={year} value={year}>
+                                            {year}{meta?.isCurrent ? ' (current)' : ''}
+                                        </option>
+                                    )
+                                })}
                             </select>
                         </div>
 
@@ -130,17 +420,21 @@ const DefineFeeStructureModal = ({ isOpen, onClose, onSave, onAddCategory }) => 
                             <select
                                 value={form.feeCategoryId}
                                 onChange={(event) => {
-                                    const category = feeCategories.find((item) => item.id === event.target.value)
+                                    const fromActive = activeCategories.find((item) => item.id === event.target.value)
+                                    const fromDraft = categoryDrafts.find((item) => item.id === event.target.value)
                                     setForm((prev) => ({
                                         ...prev,
                                         feeCategoryId: event.target.value,
-                                        feeHead: category?.name || prev.feeHead,
+                                        feeHead: fromActive?.name || fromDraft?.label || prev.feeHead,
                                     }))
                                 }}
                                 className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5 focus:outline-none focus:border-[#515DEF]'
                             >
-                                {feeCategories.filter((item) => item.active).map((category) => (
-                                    <option key={category.id} value={category.id}>{category.name}</option>
+                                <option value=''>Select category</option>
+                                {categoryDrafts.filter((row) => row.selected).map((category) => (
+                                    <option key={category.id} value={category.existing ? category.id : `CAT-${category.label.toUpperCase().replace(/\s+/g, '-')}`}>
+                                        {category.label}
+                                    </option>
                                 ))}
                             </select>
                         </div>
@@ -152,23 +446,24 @@ const DefineFeeStructureModal = ({ isOpen, onClose, onSave, onAddCategory }) => 
                             <input value={form.feeHead} onChange={(event) => updateField('feeHead')(event.target.value)} className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5' />
                         </div>
                         <div className='flex flex-col gap-y-2'>
-                            <label className='text-sm font-medium text-[#808080]'>Frequency</label>
+                            <label className='text-sm font-medium text-[#808080]'>Frequency to pay</label>
                             <select value={form.frequency} onChange={(event) => updateField('frequency')(event.target.value)} className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5'>
                                 {FEE_FREQUENCIES.map((item) => (
                                     <option key={item.id} value={item.id}>{item.label}</option>
                                 ))}
                             </select>
+                            <p className='text-xs text-[#667085]'>{frequencyHelp}</p>
                         </div>
-                        <CurrencyInput label='Amount' required value={form.amount} onChange={updateField('amount')} />
+                        <CurrencyInput label='Total amount' required value={form.amount} onChange={updateField('amount')} />
                         <div className='flex flex-col gap-y-2'>
-                            <label className='text-sm font-medium text-[#808080]'>Due Day of Month</label>
+                            <label className='text-sm font-medium text-[#808080]'>Due day of month</label>
                             <input value={form.dueDayOfMonth} onChange={(event) => updateField('dueDayOfMonth')(event.target.value.replace(/[^\d]/g, ''))} className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5' />
                         </div>
                         <div className='flex flex-col gap-y-2'>
                             <label className='text-sm font-medium text-[#808080]'>Fine Rule</label>
                             <select value={form.fineRuleId} onChange={(event) => updateField('fineRuleId')(event.target.value)} className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5'>
                                 <option value=''>None</option>
-                                {fineRules.map((rule) => (
+                                {(fineRules || []).map((rule) => (
                                     <option key={rule.id} value={rule.id}>{rule.name}</option>
                                 ))}
                             </select>
@@ -193,36 +488,58 @@ const DefineFeeStructureModal = ({ isOpen, onClose, onSave, onAddCategory }) => 
                         </label>
                     </div>
 
-                    <div className='flex gap-2'>
-                        <input
-                            value={form.newCategory}
-                            onChange={(event) => updateField('newCategory')(event.target.value)}
-                            placeholder='Add custom fee category'
-                            className='flex-1 text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5'
-                        />
-                        <button
-                            type='button'
-                            onClick={() => {
-                                if (!form.newCategory.trim()) return
-                                onAddCategory?.(form.newCategory.trim())
-                                toast.success('Category added to master data.')
-                                setForm((prev) => ({ ...prev, newCategory: '' }))
-                            }}
-                            className='text-sm border border-[#515DEF] text-[#515DEF] px-4 py-2 rounded-md cursor-pointer'
-                        >
-                            Add category
-                        </button>
+                    <div className='rounded-xl border border-[#515DEF33] bg-[#515DEF0D] p-4 space-y-3'>
+                        <div className='flex items-start gap-3'>
+                            <div className='size-10 rounded-full bg-[#515DEF] text-white flex items-center justify-center shrink-0'>
+                                <CalendarClock size={18} />
+                            </div>
+                            <div className='flex-1 min-w-0'>
+                                <p className='text-sm font-semibold text-[#1E1E1E]'>Payment split — {schedule.planLabel}</p>
+                                <p className='text-xs text-[#667085] mt-0.5'>{schedule.help}</p>
+                                {schedule.nextDue && totalAmount > 0 && (
+                                    <p className='text-xs font-medium text-[#515DEF] mt-1'>
+                                        Next due: {schedule.nextDue.label} · {formatCurrency(schedule.nextDue.amount)} by {formatDueDate(schedule.nextDue.dueDate)}
+                                    </p>
+                                )}
+                            </div>
+                            <div className='text-right shrink-0'>
+                                <p className='text-[10px] font-semibold text-[#808080] uppercase'>Total</p>
+                                <p className='text-xl font-bold text-[#515DEF]'>{formatCurrency(totalAmount)}</p>
+                            </div>
+                        </div>
+                        {totalAmount > 0 ? (
+                            <div className='overflow-x-auto rounded-lg border border-white/60 bg-white'>
+                                <table className='w-full text-sm'>
+                                    <thead>
+                                        <tr className='text-left text-[#667085] border-b border-[#F2F4F7]'>
+                                            <th className='px-3 py-2 font-medium'>Part</th>
+                                            <th className='px-3 py-2 font-medium'>Amount</th>
+                                            <th className='px-3 py-2 font-medium'>Pay by</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {schedule.parts.map((part) => (
+                                            <tr key={part.index} className='border-b border-[#F2F4F7] last:border-0'>
+                                                <td className='px-3 py-2 text-[#1E1E1E] font-medium'>{part.label}</td>
+                                                <td className='px-3 py-2 text-[#1E1E1E]'>{formatCurrency(part.amount)}</td>
+                                                <td className='px-3 py-2 text-[#667085]'>{formatDueDate(part.dueDate)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        ) : (
+                            <p className='text-xs text-[#667085]'>Enter a total amount to preview the installment split parents will see.</p>
+                        )}
                     </div>
 
-                    <div className='flex items-center gap-4 rounded-xl border border-[#515DEF33] bg-[#515DEF0D] px-4 py-4'>
-                        <div className='size-12 rounded-full bg-[#515DEF] text-white flex items-center justify-center shrink-0'>
-                            <Calculator size={22} />
+                    <div className='flex items-center gap-4 rounded-xl border border-[#EDEEF5] px-4 py-3'>
+                        <div className='size-10 rounded-full bg-[#F2F4F7] text-[#515DEF] flex items-center justify-center shrink-0'>
+                            <Calculator size={18} />
                         </div>
-                        <div className='flex-1 min-w-0'>
-                            <p className='text-xs font-semibold text-[#808080] uppercase tracking-wide'>Total Per Student</p>
-                            <p className='text-xs text-[#667085] mt-0.5'>Inclusive of all standard components</p>
-                        </div>
-                        <p className='text-2xl font-bold text-[#515DEF] shrink-0'>{formatCurrency(totalAmount)}</p>
+                        <p className='text-xs text-[#667085]'>
+                            Saving creates installment rows for finance students in this class so Parent → Academic Payment shows the same schedule.
+                        </p>
                     </div>
                 </div>
 
@@ -230,36 +547,18 @@ const DefineFeeStructureModal = ({ isOpen, onClose, onSave, onAddCategory }) => 
                     <button
                         type='button'
                         onClick={onClose}
+                        disabled={saving}
                         className='sm:min-w-[120px] text-sm font-medium text-[#667085] border border-[#D9D9D9] px-5 py-2.5 rounded-md hover:bg-[#F9F9F9] transition-colors cursor-pointer'
                     >
                         Cancel
                     </button>
                     <button
                         type='button'
-                        onClick={() => {
-                            if (!form.grade || !form.feeHead || !totalAmount) {
-                                toast.error('Grade, fee head and amount are required.')
-                                return
-                            }
-                            onSave?.({
-                                academicYear: form.academicYear,
-                                className: form.grade,
-                                feeCategoryId: form.feeCategoryId,
-                                feeHead: form.feeHead,
-                                frequency: form.frequency,
-                                amount: totalAmount,
-                                dueDayOfMonth: Number(form.dueDayOfMonth) || 10,
-                                fineRuleId: form.fineRuleId || null,
-                                concessionApplicable: form.concessionApplicable,
-                                mandatory: form.mandatory,
-                                status: form.status,
-                            })
-                            toast.success('Fee structure saved.')
-                            onClose()
-                        }}
-                        className='sm:min-w-[160px] bg-[#515DEF] text-white text-sm font-medium px-5 py-2.5 rounded-md hover:opacity-90 transition-all cursor-pointer'
+                        disabled={saving}
+                        onClick={handleSaveStructure}
+                        className='sm:min-w-[180px] bg-[#515DEF] text-white text-sm font-medium px-5 py-2.5 rounded-md hover:opacity-90 transition-all cursor-pointer disabled:opacity-60'
                     >
-                        Save Fee Structure
+                        {saving ? 'Saving to API…' : (isEdit ? 'Update Fee Structure' : 'Save Fee Structure')}
                     </button>
                 </div>
             </div>

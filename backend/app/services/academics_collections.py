@@ -16,10 +16,13 @@ COLLECTIONS: dict[str, str] = {
     "class-timetables": "CTT",
     "teacher-allocations": "TAL",
     "class-timetable-change-requests": "TCR",
+    "extra-classes": "EC",
+    "online-classes": "OC",
 }
 
 _FULL_WRITERS = {"principal", "admin", "superadmin", "managing_director", "director"}
 _CHANGE_WRITERS = _FULL_WRITERS | {"teacher", "coordinator"}
+_EXTRA_WRITERS = _CHANGE_WRITERS
 _READERS = _CHANGE_WRITERS | {"student", "parent", "jointdirector"}
 
 
@@ -40,6 +43,8 @@ def _can_write(db: Session, actor: User, collection: str) -> bool:
     code = _code(db, actor)
     if collection == "class-timetable-change-requests":
         return code in _CHANGE_WRITERS
+    if collection in {"extra-classes", "online-classes"}:
+        return code in _EXTRA_WRITERS
     return code in _FULL_WRITERS
 
 

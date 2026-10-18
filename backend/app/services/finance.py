@@ -217,6 +217,108 @@ def _enrolled_students(db: Session, campus_id) -> list[dict]:
     return rows
 
 
+def _child_student_ids_for_actor(db: Session, actor: User) -> set[str]:
+    """Students visible to parent (linked children) or student (own profile)."""
+    from sqlalchemy import String, cast, or_
+
+    from app.deps import role_code_for
+
+    code = role_code_for(db, actor)
+    key = str(actor.id)
+    if code == "parent":
+        rows = db.scalars(
+            select(Student).where(
+                Student.campus_id == actor.campus_id,
+                or_(
+                    Student.parent_user_id == actor.id,
+                    cast(Student.parent_user_id, String) == key,
+                ),
+            )
+        ).all()
+        return {str(row.id) for row in rows}
+    if code == "student":
+        rows = db.scalars(
+            select(Student).where(
+                Student.campus_id == actor.campus_id,
+                or_(
+                    Student.student_user_id == actor.id,
+                    cast(Student.student_user_id, String) == key,
+                ),
+            )
+        ).all()
+        return {str(row.id) for row in rows}
+    return set()
+
+
+def get_my_fees(db: Session, actor: User) -> dict:
+    """
+    Scoped fee snapshot for parent/student portals.
+    Returns only linked students + their installments/receipts (not the full campus ledger).
+    """
+    from app.deps import role_code_for
+
+    code = role_code_for(db, actor)
+    if code not in {"parent", "student"}:
+        fail(403, "forbidden", "Parent or student role required.")
+
+    allowed_ids = _child_student_ids_for_actor(db, actor)
+    full = get_state(db, actor)
+    data = dict(full.get("data") or {})
+
+    students = [
+        row
+        for row in (data.get("students") or [])
+        if str(row.get("id") or "") in allowed_ids
+    ]
+    # Always include DB-enrolled children even if snapshot omitted them.
+    enrolled_by_id = {
+        str(row["id"]): row
+        for row in _enrolled_students(db, actor.campus_id)
+        if str(row["id"]) in allowed_ids
+    }
+    for row in students:
+        enrolled_by_id[str(row["id"])] = {**enrolled_by_id.get(str(row["id"]), {}), **row}
+    students = list(enrolled_by_id.values())
+    student_ids = {str(row.get("id")) for row in students}
+
+    installments = [
+        row
+        for row in (data.get("installments") or [])
+        if str(row.get("studentId") or "") in student_ids
+    ]
+    receipts = [
+        row
+        for row in (data.get("receipts") or [])
+        if str(row.get("studentId") or "") in student_ids
+    ]
+    payment_links = [
+        row
+        for row in (data.get("paymentLinks") or [])
+        if str(row.get("studentId") or "") in student_ids
+    ]
+
+    scoped = _empty_state()
+    scoped["students"] = students
+    scoped["installments"] = installments
+    scoped["receipts"] = receipts
+    scoped["paymentLinks"] = payment_links
+    scoped["feeCategories"] = data.get("feeCategories") or []
+    scoped["feeStructures"] = data.get("feeStructures") or []
+    scoped["fineRules"] = data.get("fineRules") or []
+    scoped["meta"] = {
+        **(data.get("meta") or {}),
+        "seeded": True,
+        "scopedFor": code,
+        "scopedStudentCount": len(students),
+    }
+    scoped = _attach_financial_year_meta(db, actor, scoped)
+    return {
+        "data": scoped,
+        "savedAt": full.get("savedAt"),
+        "seeded": True,
+    }
+
+
 def get_state(db: Session, actor: User) -> dict:
     row = db.scalar(
         select(FinanceRecord).where(

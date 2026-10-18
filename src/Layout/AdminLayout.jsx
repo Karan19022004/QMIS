@@ -3,6 +3,7 @@ import CommonHeader from '../Common/CommonHeader/CommonHeader'
 import CommonSidebar from '../Common/CommonSidebar/CommonSidebar'
 import CommonBreadcrumb from '../Common/CommonBreadcrumb/CommonBreadcrumb'
 import AdminRoutes from '../Routes/AdminRoutes'
+import { canUseClassDetailsApi, refreshClassCatalog } from '../services/classDetailsApi'
 
 const AdminLayout = () => {
 
@@ -25,6 +26,13 @@ const AdminLayout = () => {
 
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Keep Teacher Allocation / Mark Entry class dropdowns aligned with Class Details.
+    useEffect(() => {
+        if (!canUseClassDetailsApi()) return undefined
+        refreshClassCatalog()
+        return undefined
     }, []);
 
     return (

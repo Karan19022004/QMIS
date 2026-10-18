@@ -33,8 +33,9 @@ import ViewSampleQuestion from '../Pages/Teacher/StudentDeliverables/SampleQuest
 import UnitTests from '../Pages/Teacher/UnitTests/UnitTests'
 import AddUnitTest from '../Pages/Teacher/UnitTests/AddUnitTest'
 import ViewUnitTest from '../Pages/Teacher/UnitTests/ViewUnitTest'
-import { BiometricAttendancePage, MyProfilePage, StudentAnalyticsPage } from '../Common/demoDomain/DemoScreens'
+import { BiometricAttendancePage, MyProfilePage } from '../Common/demoDomain/DemoScreens'
 import ExamSchedule from '../Pages/Teacher/StudentEvaluation/ExamSchedule/ExamSchedule'
+import PerformanceAnalytics from '../Pages/Teacher/StudentEvaluation/PerformanceAnalytics'
 import EscalationList from '../Pages/Teacher/EscalationManagement/EscalationList'
 import AddEscalation from '../Pages/Teacher/EscalationManagement/AddEscalation'
 import ViewEscalation from '../Pages/Teacher/EscalationManagement/ViewEscalation'
@@ -62,12 +63,32 @@ const TeacherRoutes = () => {
             <Route path="/teacher/attendance/my-attendance" element={<MyAttendance />} />
             <Route path="/teacher/attendance/class-attendance" element={<ClassAttendance />} />
             <Route path="/teacher/class/class-routine" element={<ClassRoutine />} />
-            <Route path="/teacher/class/extra-class" element={<ExtraClass />} />
-            <Route path="/teacher/class/extra-class/add" element={<AddExtraClass />} />
-            <Route path="/teacher/class/extra-class/view/:id" element={<ViewExtraClass />} />
-            <Route path="/teacher/class/online-class" element={<OnlineClass />} />
-            <Route path="/teacher/class/online-class/add" element={<AddOnlineClass />} />
-            <Route path="/teacher/class/online-class/view/:id" element={<ViewOnlineClass />} />
+            <Route
+                path="/teacher/class/extra-class"
+                element={(
+                    <ExtraClass
+                        canCreate
+                        listPath="/teacher/class/extra-class"
+                        addPath="/teacher/class/extra-class/add"
+                        viewPath="/teacher/class/extra-class/view"
+                    />
+                )}
+            />
+            <Route path="/teacher/class/extra-class/add" element={<AddExtraClass listPath="/teacher/class/extra-class" />} />
+            <Route path="/teacher/class/extra-class/view/:id" element={<ViewExtraClass listPath="/teacher/class/extra-class" />} />
+            <Route
+                path="/teacher/class/online-class"
+                element={(
+                    <OnlineClass
+                        canCreate
+                        listPath="/teacher/class/online-class"
+                        addPath="/teacher/class/online-class/add"
+                        viewPath="/teacher/class/online-class/view"
+                    />
+                )}
+            />
+            <Route path="/teacher/class/online-class/add" element={<AddOnlineClass listPath="/teacher/class/online-class" />} />
+            <Route path="/teacher/class/online-class/view/:id" element={<ViewOnlineClass listPath="/teacher/class/online-class" />} />
             <Route path="/teacher/class/leave-request" element={<Navigate to="/teacher/leave-request/received" replace />} />
             <Route path="/teacher/leave-request/my-requests" element={<MyLeaveRequests />} />
             <Route path="/teacher/leave-request/my-requests/add" element={<AddLeaveRequest />} />
@@ -114,7 +135,7 @@ const TeacherRoutes = () => {
             <Route path="/teacher/escalation-management/add-escalation" element={<AddEscalation />} />
             <Route path="/teacher/escalation-management/view/:id" element={<ViewEscalation />} />
             <Route path="/teacher/student-evaluation/exam" element={<ExamSchedule />} />
-            <Route path="/teacher/student-evaluation/analytics" element={<StudentAnalyticsPage />} />
+            <Route path="/teacher/student-evaluation/analytics" element={<PerformanceAnalytics />} />
             <Route path="/teacher/attendance/biometric" element={<BiometricAttendancePage canOverride />} />
             <Route path="/teacher/my-profile" element={<MyProfilePage roleLabel="Teacher" />} />
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />

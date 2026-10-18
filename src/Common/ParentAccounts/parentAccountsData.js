@@ -228,5 +228,20 @@ export const validateAdmissionAccountFields = (payload, existing = null) => {
         }
     }
 
+    const studentEmail = normalizeEmail(payload.studentAccountEmail)
+    if (studentEmail && !isValidEmail(studentEmail)) {
+        return { success: false, message: 'Enter a valid student username/email in Account Information.' }
+    }
+    if (studentEmail) {
+        const studentPassword = String(payload.studentAccountPassword || '').trim()
+            || String(existing?.studentAccountPassword || '').trim()
+        if (!studentPassword) {
+            return {
+                success: false,
+                message: 'Student password is required when creating a student portal account.',
+            }
+        }
+    }
+
     return { success: true }
 }

@@ -1,7 +1,10 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { SCHOOL_PROFILE } from '../../constants/schoolProfile'
+import { hydrateEnrolledStudentsFromApi, getAllEnrolledStudents } from '../StudentDatabase/enrolledStudentsData'
+import { useTeacherAssignments } from '../Teacher/useTeacherAssignments'
 import { downloadHtml, openPrintDocument } from '../printDocument'
+import { isApiStudentsEnabled } from '../../services/apiClient'
 import { useStarRatingsRouteBase } from './useStarRatingsRouteBase'
 import {
     getDisabledSubs,
@@ -36,24 +39,60 @@ const newId = (prefix) => `${prefix}-${Date.now()}-${Math.random().toString(36).
 
 const SomMatrixPage = () => {
     const routeBase = useStarRatingsRouteBase()
-    const roster = useMemo(() => getSomRoster(), [])
-    const grades = [...new Set(roster.map((student) => student.grade))]
+    const assignments = useTeacherAssignments()
+    const [scopedRows, setScopedRows] = useState([])
+    const [loadingStudents, setLoadingStudents] = useState(isApiStudentsEnabled())
+
+    useEffect(() => {
+        let cancelled = false
+        const apply = () => {
+            const all = getAllEnrolledStudents()
+            if (!assignments.ready) return
+            const scoped = assignments.assignments.length
+                ? all.filter((student) => assignments.studentInScope(student))
+                : []
+            if (!cancelled) {
+                setScopedRows(scoped)
+                setLoadingStudents(false)
+            }
+        }
+        if (!isApiStudentsEnabled()) {
+            queueMicrotask(() => {
+                if (!cancelled) apply()
+            })
+            return () => {
+                cancelled = true
+            }
+        }
+        hydrateEnrolledStudentsFromApi().finally(() => {
+            if (!cancelled) apply()
+        })
+        return () => {
+            cancelled = true
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when assignment hydrate settles
+    }, [assignments.ready, assignments.assignments.length])
+
+    const roster = useMemo(() => getSomRoster(scopedRows), [scopedRows])
+    const grades = useMemo(() => [...new Set(roster.map((student) => student.grade))], [roster])
     const [month, setMonth] = useState('August')
     const [year, setYear] = useState('2026')
-    const [grade, setGrade] = useState(grades[0] || '')
+    const [grade, setGrade] = useState('')
     const [section, setSection] = useState('')
-    const sections = [...new Set(roster.filter((student) => student.grade === grade).map((student) => student.section))]
+    const activeGrade = grade && grades.includes(grade) ? grade : (grades[0] || '')
+
+    const sections = [...new Set(roster.filter((student) => student.grade === activeGrade).map((student) => student.section))]
     const activeSection = section || sections[0] || ''
-    const context = { month, year, grade, section: activeSection }
+    const context = { month, year, grade: activeGrade, section: activeSection }
     const [checklist, setChecklist] = useState(() => getChecklist())
     const [titles, setTitles] = useState(() => getStarTitles())
     const [ratings, setRatings] = useState(() => getRatings())
-    const [meta, setMeta] = useState(() => getMatrixMeta({ month: 'August', year: '2026', grade: grades[0] || '', section: roster.find((student) => student.grade === grades[0])?.section || '' }))
+    const [meta, setMeta] = useState(() => getMatrixMeta({ month: 'August', year: '2026', grade: '', section: '' }))
     const [preview, setPreview] = useState(null)
     const [panel, setPanel] = useState('matrix')
     const [revision, setRevision] = useState(0)
 
-    const students = rosterFor(grade, activeSection)
+    const students = rosterFor(activeGrade, activeSection, scopedRows)
     const subs = visibleSubs(checklist, context)
     const placements = titlePlacements(titles, students, subs, ratings, context)
 
@@ -64,6 +103,7 @@ const SomMatrixPage = () => {
             const nextSections = [...new Set(roster.filter((student) => student.grade === patch.grade).map((student) => student.section))]
             next.section = nextSections[0] || ''
             setSection(next.section)
+            setGrade(patch.grade)
         }
         refreshMeta(next)
     }
@@ -75,7 +115,7 @@ const SomMatrixPage = () => {
     }
 
     const printBody = () => {
-        const head = `<h1 style="text-align:center">${SCHOOL_PROFILE.name}</h1><p style="text-align:center">Star of the Month - ${month} ${year}</p><p>Grade: ${grade}${activeSection} &nbsp; Class Mentor: ${meta.classMentor || 'NA'}</p>`
+        const head = `<h1 style="text-align:center">${SCHOOL_PROFILE.name}</h1><p style="text-align:center">Star of the Month - ${month} ${year}</p><p>Grade: ${activeGrade}${activeSection} &nbsp; Class Mentor: ${meta.classMentor || 'NA'}</p>`
         const header = `<tr><th>Sub Parameter</th>${students.map((student) => `<th>${student.name}</th>`).join('')}<th>Overall 3 Point Scale Rating</th></tr>`
         let lastCategory = ''
         const body = subs.map((item) => {
@@ -98,23 +138,34 @@ const SomMatrixPage = () => {
                 <div className='grid md:grid-cols-5 gap-3'>
                     <label className='text-sm'>Month<select className={inputClass} value={month} onChange={(e) => { setMonth(e.target.value); changeContext({ month: e.target.value }) }}>{SOM_MONTHS.map((item) => <option key={item}>{item}</option>)}</select></label>
                     <label className='text-sm'>Year<input className={inputClass} value={year} onChange={(e) => { setYear(e.target.value); changeContext({ year: e.target.value }) }} /></label>
-                    <label className='text-sm'>Grade<select className={inputClass} value={grade} onChange={(e) => { setGrade(e.target.value); changeContext({ grade: e.target.value }) }}>{grades.map((item) => <option key={item}>{item}</option>)}{!grades.length && <option value=''>No class</option>}</select></label>
+                    <label className='text-sm'>Grade<select className={inputClass} value={activeGrade} onChange={(e) => { setGrade(e.target.value); changeContext({ grade: e.target.value }) }}>{grades.map((item) => <option key={item}>{item}</option>)}{!grades.length && <option value=''>No class</option>}</select></label>
                     <label className='text-sm'>Section<select className={inputClass} value={activeSection} onChange={(e) => { setSection(e.target.value); changeContext({ section: e.target.value }) }}>{sections.map((item) => <option key={item}>{item}</option>)}</select></label>
                     <label className='text-sm'>Class Mentor<input className={inputClass} value={meta.classMentor || ''} onChange={(e) => persistMeta({ ...meta, classMentor: e.target.value })} /></label>
                 </div>
-                <p className='text-sm text-[#667085]'>Grade: {grade || 'NA'}{activeSection} · Students are loaded from the class list, not from the sample PDF. <NavLink className='text-[#515DEF]' to={`${routeBase}/star-of-month`}>Open the earlier monthly rating list</NavLink></p>
+                <p className='text-sm text-[#667085]'>
+                    Grade: {activeGrade || 'NA'}{activeSection}
+                    {loadingStudents
+                        ? ' · Loading enrolled students…'
+                        : assignments.emptyReason
+                            ? ` · ${assignments.emptyReason}`
+                            : roster.length
+                                ? ` · ${roster.length} enrolled student(s) in your assigned classes.`
+                                : ' · No enrolled students in your assigned classes yet.'}
+                    {' '}
+                    <NavLink className='text-[#515DEF]' to={`${routeBase}/star-of-month`}>Open the earlier monthly rating list</NavLink>
+                </p>
                 <div className='flex flex-wrap gap-2'>
                     <button type='button' className='text-sm px-3 py-2 rounded-md bg-[#515DEF] text-white cursor-pointer' onClick={() => setPanel('matrix')}>Matrix</button>
                     <button type='button' className='text-sm px-3 py-2 rounded-md border cursor-pointer' onClick={() => setPanel('checklist')}>Checklist</button>
                     <button type='button' className='text-sm px-3 py-2 rounded-md border cursor-pointer' onClick={() => setPanel('import')}>Bulk upload</button>
                     <button type='button' className='text-sm px-3 py-2 rounded-md border cursor-pointer' onClick={() => openPrintDocument({ title: `SOM ${month} ${year}`, body: printBody(), css: '@page{size:A4 landscape;margin:8mm} th,td{font-size:10px}' })}>Print</button>
-                    <button type='button' className='text-sm px-3 py-2 rounded-md border cursor-pointer' onClick={() => downloadHtml(`som-${grade}${activeSection}-${month}-${year}.html`, `<!doctype html><html><body>${printBody()}</body></html>`)}>Export</button>
+                    <button type='button' className='text-sm px-3 py-2 rounded-md border cursor-pointer' onClick={() => downloadHtml(`som-${activeGrade}${activeSection}-${month}-${year}.html`, `<!doctype html><html><body>${printBody()}</body></html>`)}>Export</button>
                 </div>
             </div>
 
             {panel === 'checklist' && (
                 <ChecklistEditor
-                    key={`${month}-${year}-${grade}-${activeSection}-${revision}`}
+                    key={`${month}-${year}-${activeGrade}-${activeSection}-${revision}`}
                     checklist={checklist}
                     context={context}
                     disabledIds={getDisabledSubs(context)}

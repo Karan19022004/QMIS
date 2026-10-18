@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { ACADEMIC_CRITERIA, ADMIN_CRITERIA } from '../domain/hrSeed'
 import { completionOf, employeeName, getEmployees, getObservations, getOnboarding, getShadow, nextId, saveObservations, saveOnboarding, saveShadow } from '../domain/hrStore'
-import { Badge, Modal, PageIntro, PrimaryButton, TableWrap, inputClass, td, th, useHrTick } from '../components/HrUi'
+import { Badge, DateField, FormField, KeyFields, Modal, PageIntro, PrimaryButton, Select, TableWrap, TextField, humanizeLabel, inputClass, td, th, useHrTick } from '../components/HrUi'
 
 const STATUSES = ['Not Started', 'In Progress', 'Completed', 'Blocked']
 
@@ -94,14 +94,16 @@ const Onboarding = () => {
                     </TableWrap>
                     {form && <Modal title={`${form.template} observation`} onClose={() => setForm(null)} wide>
                         <form onSubmit={saveObservation} className='grid gap-3'>
-                            <select className={inputClass} value={form.template} onChange={(e) => setForm({ ...form, template: e.target.value })}><option>Admin</option><option>Academics</option></select>
-                            <select className={inputClass} value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                            <input className={inputClass} value={form.reviewDate} onChange={(e) => setForm({ ...form, reviewDate: e.target.value })} />
+                            <Select label='Template' value={form.template} onChange={(e) => setForm({ ...form, template: e.target.value })} options={['Admin', 'Academics']} allLabel={null} />
+                            <Select label='Employee' value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select employee' />
+                            <DateField label='Review date' value={form.reviewDate} onChange={(value) => setForm({ ...form, reviewDate: value })} bound='past' />
                             {(form.template === 'Admin' ? ADMIN_CRITERIA : ACADEMIC_CRITERIA).slice(0, 3).map((criterion) => <p key={criterion} className='text-xs text-[#667085]'>{criterion} uses 1–3 in reviewer columns after save. Default score is 2.</p>)}
-                            {Array.from({ length: form.template === 'Admin' ? 2 : 4 }, (_, index) => <input key={index} className={inputClass} placeholder={`Reviewer ${index + 1}`} value={form[`reviewer${index}`] || ''} onChange={(e) => setForm({ ...form, [`reviewer${index}`]: e.target.value })} />)}
-                            <input className={inputClass} placeholder='Appreciation' value={form.appreciation} onChange={(e) => setForm({ ...form, appreciation: e.target.value })} />
-                            <input className={inputClass} placeholder='Area of improvement' value={form.improvement} onChange={(e) => setForm({ ...form, improvement: e.target.value })} />
-                            <input className={inputClass} placeholder='Overall remarks' value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
+                            {Array.from({ length: form.template === 'Admin' ? 2 : 4 }, (_, index) => (
+                                <TextField key={index} label={`Reviewer ${index + 1}`} value={form[`reviewer${index}`] || ''} onChange={(e) => setForm({ ...form, [`reviewer${index}`]: e.target.value })} placeholder={`Reviewer ${index + 1} name`} />
+                            ))}
+                            <TextField label='Appreciation' value={form.appreciation} onChange={(e) => setForm({ ...form, appreciation: e.target.value })} />
+                            <TextField label='Area of improvement' value={form.improvement} onChange={(e) => setForm({ ...form, improvement: e.target.value })} />
+                            <TextField label='Overall remarks' value={form.remarks} onChange={(e) => setForm({ ...form, remarks: e.target.value })} />
                             <PrimaryButton type='submit'>Save</PrimaryButton>
                         </form>
                     </Modal>}
@@ -116,14 +118,20 @@ const Onboarding = () => {
                     </TableWrap>
                     {form && <Modal title='Shadow mentor' onClose={() => setForm(null)} wide>
                         <form onSubmit={saveShadow} className='grid md:grid-cols-2 gap-3'>
-                            <select className={inputClass} value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                            <select className={inputClass} value={form.mentorId} onChange={(e) => setForm({ ...form, mentorId: e.target.value })}>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                            {['startDate', 'endDate', 'duration', 'menteeResponse', 'practicalDifficulties', 'bestQualities', 'generalComments', 'mentorRemarks', 'reviewerRemarks'].map((key) => <input key={key} className={inputClass} placeholder={key} value={form[key] || ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />)}
-                            {['schoolEthos', 'adaptability', 'acceptance'].map((key) => <select key={key} className={inputClass} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })}>{[1, 2, 3].map((n) => <option key={n} value={n}>{key} {n}</option>)}</select>)}
-                            <select className={inputClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}><option>In Progress</option><option>Completed</option><option>Closed</option></select>
+                            <Select label='Recruit / employee' value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select employee' />
+                            <Select label='Mentor' value={form.mentorId} onChange={(e) => setForm({ ...form, mentorId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select mentor' />
+                            <KeyFields keys={['startDate', 'endDate', 'duration', 'menteeResponse', 'practicalDifficulties', 'bestQualities', 'generalComments', 'mentorRemarks', 'reviewerRemarks']} form={form} setForm={setForm} />
+                            {['schoolEthos', 'adaptability', 'acceptance'].map((key) => (
+                                <FormField key={key} label={humanizeLabel(key)}>
+                                    <select className={inputClass} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })}>{[1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}</select>
+                                </FormField>
+                            ))}
+                            <Select label='Status' value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} options={['In Progress', 'Completed', 'Closed']} allLabel={null} />
                             <p className='md:col-span-2 text-xs text-[#667085]'>Principal, Director Academics, JD Admin, and JD Audit can record a remark. Closing the record makes that remark visible on this HR screen.</p>
-                            {['Principal', 'Director Academics', 'JD Admin', 'JD Audit'].map((role) => <input key={role} className={inputClass} placeholder={`${role} remark`} value={form.reviewerComments?.[role] || ''} onChange={(e) => setForm({ ...form, reviewerComments: { ...(form.reviewerComments || {}), [role]: e.target.value } })} />)}
-                            <PrimaryButton type='submit'>Save</PrimaryButton>
+                            {['Principal', 'Director Academics', 'JD Admin', 'JD Audit'].map((role) => (
+                                <TextField key={role} label={`${role} remark`} value={form.reviewerComments?.[role] || ''} onChange={(e) => setForm({ ...form, reviewerComments: { ...(form.reviewerComments || {}), [role]: e.target.value } })} />
+                            ))}
+                            <div className='md:col-span-2 flex justify-end'><PrimaryButton type='submit'>Save</PrimaryButton></div>
                         </form>
                     </Modal>}
                 </>

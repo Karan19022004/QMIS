@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import TeacherAllocationForm from './Components/TeacherAllocationForm'
 import {
@@ -7,6 +7,7 @@ import {
     defaultAllocationForm,
     getAllocationByEmployeeId,
     getTeacherById,
+    hydrateTeachersFromDirectory,
     saveTeacherAllocation,
 } from './teacherAllocationData'
 
@@ -28,10 +29,31 @@ const buildInitialValues = (employeeId) => {
 const AllocateTeacher = () => {
     const { employeeId } = useParams()
     const navigate = useNavigate()
-    const teacher = getTeacherById(employeeId)
+    const [ready, setReady] = useState(false)
+    const [teacher, setTeacher] = useState(() => getTeacherById(employeeId))
     const [validationErrors, setValidationErrors] = useState([])
     const continueAfterSave = useRef(false)
-    const initialValues = useMemo(() => buildInitialValues(employeeId), [employeeId])
+    const initialValues = useMemo(() => buildInitialValues(employeeId), [employeeId, ready])
+
+    useEffect(() => {
+        let cancelled = false
+        hydrateTeachersFromDirectory().finally(() => {
+            if (cancelled) return
+            setTeacher(getTeacherById(employeeId))
+            setReady(true)
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [employeeId])
+
+    if (!ready) {
+        return (
+            <section className='bg-white rounded-2xl shadow-md p-6'>
+                <p className='text-sm text-[#667085]'>Loading teacher from HR directory…</p>
+            </section>
+        )
+    }
 
     if (!teacher) {
         return <Navigate to={ROUTE_BASE} replace />

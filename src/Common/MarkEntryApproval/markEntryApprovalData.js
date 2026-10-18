@@ -1,5 +1,5 @@
 import { CLASSES, SECTIONS, SUBJECTS } from '../../Pages/Teacher/AssignedClass/assignedClassData'
-import { getStudentsList } from '../../Pages/Teacher/StudentsList/studentsListData'
+import { getStudentsList } from '../StudentDatabase/studentDatabaseData'
 import { PARENT_CHILD_PROFILES } from '../../Pages/Parent/parentStudentProfiles'
 import { decideApprovalApi } from '../../services/approvalsApi'
 import {
@@ -44,7 +44,11 @@ const getEncouragementName = (studentId) => {
     return student?.name?.split(' ')[0] ?? 'Student'
 }
 
-export const formatClassLabel = (className) => `Grade ${className}`
+export const formatClassLabel = (className) => {
+    const value = String(className || '').trim()
+    if (!value) return ''
+    return /^grade\s+/i.test(value) ? value : value
+}
 
 export const approvalStatusColor = {
     Pending: 'bg-[#FF980033] text-[#FF9800]',
@@ -102,13 +106,19 @@ export const getExamMaxMarks = (examName) =>
     EXAM_OPTIONS.find((item) => item.name === examName)?.maxMarks ?? 100
 
 export const getStudentsForMarkEntry = (className, section) => {
-    const students = getStudentsList().filter(
-        (student) => student.className === className && student.section === section,
-    )
+    const students = getStudentsList().filter((student) => {
+        const studentClass = student.className || student.class || ''
+        if (studentClass !== className) return false
+        if (!section) return true
+        const studentSection = student.section || ''
+        // Campus student rows often omit section — still include them for the selected class.
+        if (!studentSection || studentSection === '—' || studentSection === 'All') return true
+        return studentSection === section
+    })
 
     return [...students].sort((a, b) => {
-        const rollA = parseInt(String(a.rollNumber).replace(/\D/g, ''), 10) || 0
-        const rollB = parseInt(String(b.rollNumber).replace(/\D/g, ''), 10) || 0
+        const rollA = parseInt(String(a.rollNumber || a.admissionNumber || '').replace(/\D/g, ''), 10) || 0
+        const rollB = parseInt(String(b.rollNumber || b.admissionNumber || '').replace(/\D/g, ''), 10) || 0
         return rollA - rollB
     })
 }

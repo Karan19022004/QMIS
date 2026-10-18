@@ -237,14 +237,16 @@ export const pushNotification = (notice) => {
     saveNotifications([{ id: nextId('HR-NTF', rows), isRead: false, postedBy: 'HR', notificationDate: '24-09-2026', relatedDate: '', ...notice }, ...rows])
 }
 
-export const queueCommunication = ({ channel, subject, audience }) => {
+export const queueCommunication = ({ channel, subject, audience, body = '', note = '' }) => {
     const rows = getComms()
     const record = {
         id: nextId('COM', rows),
         channel,
         subject,
         audience,
-        status: 'queued_stub',
+        body,
+        note: note || 'Demo queue — not a live SMTP send unless campus mail is connected.',
+        status: 'QUEUED_LOCAL',
         at: new Date().toISOString(),
     }
     saveComms([record, ...rows])

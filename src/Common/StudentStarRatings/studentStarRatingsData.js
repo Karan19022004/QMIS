@@ -1,4 +1,4 @@
-import { STUDENTS_LIST } from '../../Pages/Teacher/StudentsList/studentsListData'
+import { getStudentsList } from '../StudentDatabase/studentDatabaseData'
 
 export const MAX_STARS = 3
 
@@ -57,15 +57,32 @@ const buildSomRating = ({
 
 const DEFAULT_SOM_RATINGS = []
 
-export const getClassSectionOptions = () => {
-    const sections = [...new Set(STUDENTS_LIST.map((s) => `${s.className}-${s.section}`))]
+/** Normalize enrolled / list student → star-ratings row shape. */
+export const mapStudentForStarRatings = (student) => {
+    const className = student.className || student.class || ''
+    const section = student.section || (student.classSection && student.classSection !== className ? student.classSection : '') || ''
+    return {
+        id: String(student.id),
+        name: student.name || '',
+        rollNumber: student.rollNumber || student.admissionNumber || '',
+        className,
+        section: section || 'A',
+        classSection: section ? `${className}-${section}` : `${className}-A`,
+    }
+}
+
+export const getStudents = (rows) => {
+    const source = Array.isArray(rows) ? rows : getStudentsList()
+    return source.map(mapStudentForStarRatings).filter((student) => student.className)
+}
+
+export const getClassSectionOptions = (rows) => {
+    const sections = [...new Set(getStudents(rows).map((student) => student.classSection))]
     return sections.sort()
 }
 
-export const getStudents = () => STUDENTS_LIST
-
-export const getStudentById = (studentId) =>
-    STUDENTS_LIST.find((student) => student.id === studentId) ?? null
+export const getStudentById = (studentId, rows) =>
+    getStudents(rows).find((student) => student.id === studentId) ?? null
 
 const readRatings = () => {
     try {

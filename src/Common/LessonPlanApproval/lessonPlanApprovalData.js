@@ -17,8 +17,13 @@ export const COORDINATOR_NAME = 'Ms. Priya Nair'
 export const COORDINATOR_ROLE = 'Coordinator'
 
 export const SUBJECT_OPTIONS = SUBJECTS
-export const getClassOptions = () => getClasses().map((item) => `Grade ${item}`)
-export const CLASS_OPTIONS = liveArray(() => getClasses().map((item) => `Grade ${item}`))
+const formatClassOption = (item) => {
+    const value = String(item || '').trim()
+    if (!value) return ''
+    return /^grade\s+/i.test(value) ? value : value
+}
+export const getClassOptions = () => getClasses().map(formatClassOption).filter(Boolean)
+export const CLASS_OPTIONS = liveArray(() => getClasses().map(formatClassOption).filter(Boolean))
 export const SECTION_OPTIONS = SECTIONS
 
 export const ACADEMIC_YEAR_OPTIONS = ['2026-27', '2024-2025', '2025-2026', '2026-2027']

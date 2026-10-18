@@ -10,6 +10,7 @@ import React, {
 import {
     ACTOR_FINANCE_HEAD,
     CHEQUE_STATUSES,
+    DEFAULT_ACADEMIC_YEAR,
     DEFAULT_BANK_ACCOUNT_ID,
     PAYMENT_MODES,
     SOURCE_MODULES,
@@ -29,6 +30,8 @@ import {
     hydrateInstallment,
     isChequePostDated,
     resolveConcessionAmount,
+    normalizeAcademicYear,
+    sameAcademicYear,
     summarizeStudentFees,
     toIsoDate,
     validatePaymentInput,
@@ -67,7 +70,9 @@ import {
     collectPaymentApi,
     decideApprovalApi,
     gatewayIntentApi,
+    payMyFeesApi,
     pullFinanceState,
+    pullMyFeesState,
     pushFinanceState,
     sendReceiptApi,
     settleChequeApi,
@@ -77,7 +82,15 @@ import { ROLES } from '../../../constants/roles'
 import { FLEET_VEHICLES } from '../TransportFinance/transportFinanceData'
 import { RECHARGE_RECORDS, USER_WALLETS } from '../WalletManagement/walletManagementData'
 import { PENDING_REQUESTS } from '../Approvals/approvalsData'
-import { buildCampusFeeLedger } from './financeBootstrap'
+import { applyFeeStructuresToStudents } from './financeBootstrap'
+import { mapEnrolledToFinanceStudent } from './financeLiveViews'
+import { hydrateEnrolledStudentsFromApi, getAllEnrolledStudents } from '../../../Common/StudentDatabase/enrolledStudentsData'
+import {
+    buildPaymentSchedule,
+    scheduleToInstallments,
+} from '../FeesManagement/feePaymentSchedule'
+
+const classKey = (value) => String(value || '').trim().toLowerCase()
 
 const FinanceContext = createContext(null)
 
@@ -119,8 +132,21 @@ const createEmptyFinanceState = () => ({
 
 const apiMode = () => isApiFinanceEnabled()
 
-/** Roles that may call GET /finance/state. Others skip hydrate (avoids pre-login + cross-role 403 noise). */
+/** Roles that may call GET /finance/state (full campus ledger). */
 const FINANCE_API_ROLES = new Set([
+    ROLES.ACCOUNT_HEAD,
+    ROLES.ADMIN,
+    ROLES.SUPER_ADMIN,
+])
+
+/** Roles that load scoped fees via GET /finance/my-fees. */
+const FINANCE_PORTAL_ROLES = new Set([
+    ROLES.PARENT,
+    ROLES.STUDENT,
+])
+
+/** Roles allowed to PUT finance state (parents/students must never push the campus ledger). */
+const FINANCE_WRITE_ROLES = new Set([
     ROLES.ACCOUNT_HEAD,
     ROLES.ADMIN,
     ROLES.SUPER_ADMIN,
@@ -141,6 +167,7 @@ export const FinanceProvider = ({ children }) => {
     const submittingRef = useRef(false)
     const skipPersistRef = useRef(false)
     const apiHydratedRef = useRef(false)
+    const hydratedRoleRef = useRef(null)
     const pushTimerRef = useRef(null)
 
     const [financeStatus, setFinanceStatus] = useState(() => (apiMode() ? 'loading' : 'ready'))
@@ -241,7 +268,7 @@ export const FinanceProvider = ({ children }) => {
     const getInstallmentsForStudent = useCallback(
         (studentId, academicYear) => hydratedInstallments.filter((row) => (
             row.studentId === studentId
-            && (!academicYear || row.academicYear === academicYear)
+            && (!academicYear || sameAcademicYear(row.academicYear, academicYear))
         )),
         [hydratedInstallments],
     )
@@ -283,8 +310,15 @@ export const FinanceProvider = ({ children }) => {
         if (isApiFinanceEnabled() && apiHydratedRef.current) {
             try {
                 submittingRef.current = true
-                const result = await collectPaymentApi(payload)
+                const portalPay = FINANCE_PORTAL_ROLES.has(role)
+                const result = portalPay
+                    ? await payMyFeesApi(payload)
+                    : await collectPaymentApi(payload)
                 if (result?.state?.data) applyFinanceData(result.state.data)
+                else if (portalPay) {
+                    const scoped = await pullMyFeesState()
+                    if (scoped?.data) applyFinanceData(scoped.data)
+                }
                 return {
                     success: true,
                     receipt: result.receipt,
@@ -469,7 +503,7 @@ export const FinanceProvider = ({ children }) => {
         } finally {
             submittingRef.current = false
         }
-    }, [appendAudit, bankAccounts, getInstallmentsForStudent, getStudentById, postAccounting])
+    }, [appendAudit, applyFinanceData, bankAccounts, getInstallmentsForStudent, getStudentById, postAccounting, role])
 
     const settleCheque = useCallback(async (chequeId, nextStatus, reason = '') => {
         if (isApiFinanceEnabled() && apiHydratedRef.current) {
@@ -683,9 +717,238 @@ export const FinanceProvider = ({ children }) => {
         return { success: false, message: 'Finance API is required to queue receipt delivery.' }
     }, [applyFinanceData])
 
+    const buildSnapshotPayload = useCallback((overrides = {}) => ({
+        students,
+        feeCategories,
+        feeStructures,
+        fineRules,
+        bankAccounts,
+        posTerminals,
+        concessions,
+        installments,
+        annualBudget,
+        chartOfAccounts,
+        journalVouchers,
+        bookFeeBreakup,
+        transactions,
+        receipts,
+        cheques,
+        paymentLinks,
+        auditLog,
+        glEntries,
+        dayBookEntries,
+        cashBookEntries,
+        bankBookEntries,
+        onlineBookEntries,
+        reconciliationItems,
+        wallets,
+        walletRecharges,
+        transportFleet,
+        approvals,
+        sequence: { ...seq.current },
+        meta: { seeded: true },
+        ...overrides,
+    }), [
+        annualBudget,
+        approvals,
+        auditLog,
+        bankAccounts,
+        bankBookEntries,
+        bookFeeBreakup,
+        cashBookEntries,
+        chartOfAccounts,
+        cheques,
+        concessions,
+        dayBookEntries,
+        feeCategories,
+        feeStructures,
+        fineRules,
+        glEntries,
+        installments,
+        journalVouchers,
+        onlineBookEntries,
+        paymentLinks,
+        posTerminals,
+        receipts,
+        reconciliationItems,
+        students,
+        transactions,
+        transportFleet,
+        walletRecharges,
+        wallets,
+    ])
+
+    /** Immediately persist snapshot (awaits PUT /finance/state when API mode is ready). */
+    const flushFinanceToApi = useCallback(async (overrides = {}) => {
+        const data = buildSnapshotPayload(overrides)
+        if (isApiFinanceEnabled()) {
+            saveFinanceState(data)
+        } else {
+            const payload = saveFinanceState(data)
+            if (payload?.savedAt) setLastSavedAt(payload.savedAt)
+            return { success: true, api: false, savedAt: payload?.savedAt || null }
+        }
+        if (!apiHydratedRef.current) {
+            return {
+                success: true,
+                api: false,
+                pending: true,
+                message: 'Saved locally — finance API not hydrated yet; will sync when ready.',
+            }
+        }
+        if (pushTimerRef.current) {
+            window.clearTimeout(pushTimerRef.current)
+            pushTimerRef.current = null
+        }
+        try {
+            const result = await pushFinanceState(data)
+            if (result?.savedAt) setLastSavedAt(result.savedAt)
+            setFinanceError(null)
+            return { success: true, api: true, savedAt: result?.savedAt || null }
+        } catch (error) {
+            const message = error?.message || 'Finance API push failed'
+            setFinanceError(message)
+            return { success: false, api: true, message }
+        }
+    }, [buildSnapshotPayload])
+
+    const addFeeCategory = useCallback((name) => {
+        const label = String(name || '').trim()
+        if (!label) return ''
+        const id = `CAT-${label.toUpperCase().replace(/\s+/g, '-')}`
+        setFeeCategories((prev) => {
+            if (prev.some((item) => item.id === id)) return prev
+            return [...prev, { id, name: label, code: id.replace('CAT-', ''), active: true }]
+        })
+        return id
+    }, [])
+
+    /**
+     * Ensure selected category names exist on the snapshot and flush to API.
+     * @returns {{ categoryIds: string[], persist: object }}
+     */
+    const saveFeeCategories = useCallback(async (names = []) => {
+        const labels = [...new Set((names || []).map((name) => String(name || '').trim()).filter(Boolean))]
+        if (!labels.length) {
+            return { categoryIds: [], persist: { success: false, message: 'No categories selected.' } }
+        }
+        const nextCategories = [...feeCategories]
+        const categoryIds = labels.map((label) => {
+            const id = `CAT-${label.toUpperCase().replace(/\s+/g, '-')}`
+            if (!nextCategories.some((item) => item.id === id)) {
+                nextCategories.push({ id, name: label, code: id.replace('CAT-', ''), active: true })
+            }
+            return id
+        })
+        setFeeCategories(nextCategories)
+        const persist = await flushFinanceToApi({ feeCategories: nextCategories })
+        appendAudit({
+            action: 'FEE_CATEGORIES_SAVED',
+            entity: 'FeeCategory',
+            entityId: 'batch',
+            newValue: labels.join(', '),
+            reason: 'Configure / Define fee categories',
+        })
+        return { categoryIds, persist, feeCategories: nextCategories }
+    }, [appendAudit, feeCategories, flushFinanceToApi])
+
+    /**
+     * Define a fee structure with frequency split, generate parent/student installments, persist to API.
+     */
+    const defineFeeStructure = useCallback(async (structure = {}, options = {}) => {
+        const id = structure.id || `FS-${Date.now()}`
+        const schedule = buildPaymentSchedule({
+            amount: structure.amount,
+            frequency: structure.frequency || 'ONE_TIME',
+            academicYear: structure.academicYear || DEFAULT_ACADEMIC_YEAR,
+            startDate: options.startDate || structure.startDate || '',
+            dueDayOfMonth: structure.dueDayOfMonth || 10,
+        })
+        const nextStructure = {
+            ...structure,
+            id,
+            status: structure.status || 'ACTIVE',
+            paymentSchedule: schedule,
+        }
+        const baseStructures = options.feeStructures || feeStructures
+        const baseInstallments = options.installments || installments
+        const baseCategories = options.feeCategories || feeCategories
+        const nextStructures = [nextStructure, ...baseStructures.filter((row) => row.id !== id)]
+
+        const targetClass = classKey(structure.className)
+        const targetYear = String(structure.academicYear || '').trim()
+        const matchingStudents = students.filter((student) => {
+            if (classKey(student.className) !== targetClass) return false
+            if (!targetYear) return true
+            const studentYear = String(student.academicYear || '').trim()
+            return !studentYear || sameAcademicYear(studentYear, targetYear)
+        })
+
+        const generated = matchingStudents.flatMap((student) => scheduleToInstallments({
+            schedule,
+            studentId: student.id,
+            academicYear: normalizeAcademicYear(
+                student.academicYear || structure.academicYear || DEFAULT_ACADEMIC_YEAR,
+            ) || DEFAULT_ACADEMIC_YEAR,
+            structureId: id,
+            feeCategoryId: structure.feeCategoryId,
+            feeHead: structure.feeHead,
+        }))
+
+        const nextInstallments = (() => {
+            const keep = baseInstallments.filter((row) => {
+                if (row.feeStructureId !== id) return true
+                const paid = Number(row.paidAmount) || 0
+                return paid > 0 || ['PAID', 'PARTIALLY_PAID', 'WAIVED'].includes(row.status)
+            })
+            const protectedKeys = new Set(
+                keep
+                    .filter((row) => row.feeStructureId === id)
+                    .map((row) => `${row.studentId}:${row.scheduleIndex ?? row.dueDate}`),
+            )
+            const fresh = generated.filter(
+                (row) => !protectedKeys.has(`${row.studentId}:${row.scheduleIndex ?? row.dueDate}`),
+            )
+            return [...fresh, ...keep]
+        })()
+
+        setFeeStructures(nextStructures)
+        setInstallments(nextInstallments)
+        appendAudit({
+            action: 'FEE_STRUCTURE_CHANGED',
+            entity: 'FeeStructure',
+            entityId: id,
+            newValue: `${structure.feeHead} ${formatCurrency(structure.amount)} · ${schedule.planLabel} · ${generated.length} installment(s)`,
+            reason: 'Structure defined with payment schedule',
+        })
+
+        const persist = await flushFinanceToApi({
+            feeCategories: baseCategories,
+            feeStructures: nextStructures,
+            installments: nextInstallments,
+        })
+
+        return {
+            id,
+            schedule,
+            studentsMatched: matchingStudents.length,
+            installmentsCreated: generated.length,
+            persist,
+            feeStructures: nextStructures,
+            installments: nextInstallments,
+        }
+    }, [appendAudit, feeCategories, feeStructures, flushFinanceToApi, installments, students])
+
+    /** Legacy sync helper — prefer defineFeeStructure for schedule + API flush. */
     const addFeeStructure = useCallback((structure) => {
         const id = structure.id || `FS-${Date.now()}`
-        setFeeStructures((prev) => [{ ...structure, id, status: structure.status || 'ACTIVE' }, ...prev])
+        const schedule = structure.paymentSchedule || buildPaymentSchedule({
+            amount: structure.amount,
+            frequency: structure.frequency || 'ONE_TIME',
+            academicYear: structure.academicYear || DEFAULT_ACADEMIC_YEAR,
+            dueDayOfMonth: structure.dueDayOfMonth || 10,
+        })
+        setFeeStructures((prev) => [{ ...structure, id, status: structure.status || 'ACTIVE', paymentSchedule: schedule }, ...prev])
         appendAudit({
             action: 'FEE_STRUCTURE_CHANGED',
             entity: 'FeeStructure',
@@ -696,62 +959,172 @@ export const FinanceProvider = ({ children }) => {
         return id
     }, [appendAudit])
 
-    const addFeeCategory = useCallback((name) => {
-        const id = `CAT-${name.toUpperCase().replace(/\s+/g, '-')}`
-        setFeeCategories((prev) => {
-            if (prev.some((item) => item.id === id)) return prev
-            return [...prev, { id, name, code: id.replace('CAT-', ''), active: true }]
+    /**
+     * Remove a fee structure and its unpaid installments; keep paid/partial rows for audit.
+     */
+    const deleteFeeStructure = useCallback(async (structureId) => {
+        const id = String(structureId || '')
+        if (!id) return { success: false, message: 'Missing fee structure id.' }
+        const existing = feeStructures.find((row) => row.id === id)
+        if (!existing) return { success: false, message: 'Fee structure not found.' }
+
+        const nextStructures = feeStructures.filter((row) => row.id !== id)
+        let removedInstallments = 0
+        let keptPaid = 0
+        const nextInstallments = installments.filter((row) => {
+            if (row.feeStructureId !== id) return true
+            const paid = Number(row.paidAmount) || 0
+            if (paid > 0 || ['PAID', 'PARTIALLY_PAID', 'WAIVED'].includes(row.status)) {
+                keptPaid += 1
+                return true
+            }
+            removedInstallments += 1
+            return false
         })
-        return id
-    }, [])
+
+        setFeeStructures(nextStructures)
+        setInstallments(nextInstallments)
+        appendAudit({
+            action: 'FEE_STRUCTURE_DELETED',
+            entity: 'FeeStructure',
+            entityId: id,
+            oldValue: `${existing.feeHead} ${formatCurrency(existing.amount)} · ${existing.className}`,
+            reason: 'Structure deleted from Configured Fee Structures',
+        })
+
+        const persist = await flushFinanceToApi({
+            feeStructures: nextStructures,
+            installments: nextInstallments,
+        })
+
+        return {
+            success: Boolean(persist?.success),
+            persist,
+            removedInstallments,
+            keptPaidInstallments: keptPaid,
+            structure: existing,
+        }
+    }, [appendAudit, feeStructures, flushFinanceToApi, installments])
 
     /**
-     * Fill empty fee masters + unpaid installments for enrolled students.
-     * Safe for demo: does not invent paid collections; preserves existing receipts/transactions.
+     * Apply existing fee structures onto finance students as unpaid installments.
+     * Never replaces Account Head–defined categories or structures with sample data.
      */
     const bootstrapDemoFeeLedger = useCallback(({ force = false } = {}) => {
         if (!students.length) {
-            return { success: false, message: 'No enrolled finance students to assign fees to.' }
+            return { success: false, message: 'No enrolled finance students to assign fees to. Import students first.' }
         }
-        if (!force && installments.length > 0) {
+        if (!feeStructures.length) {
             return {
                 success: false,
-                message: `Campus already has ${installments.length} installment(s). Use force only if you intend to merge more demand rows.`,
+                message: 'No fee structures defined. Use Define Fee Structure first — bootstrap will not invent sample fees.',
             }
         }
-        const ledger = buildCampusFeeLedger({
+        if (!force && installments.length > 0) {
+            // Still allow apply: regenerate unpaid demand from structures without wiping paid rows.
+        }
+        const applied = applyFeeStructuresToStudents({
             students,
-            existingInstallments: force ? installments : [],
+            feeStructures,
+            existingInstallments: installments,
         })
-        setFeeCategories(ledger.feeCategories)
-        setFeeStructures(ledger.feeStructures)
-        setFineRules(ledger.fineRules)
-        setBankAccounts((prev) => (prev.length ? prev : ledger.bankAccounts))
-        setPosTerminals((prev) => (prev.length ? prev : ledger.posTerminals))
-        setInstallments(ledger.installments)
-        setApprovals((prev) => {
-            if (prev.length) return prev
-            return ledger.approvals
-        })
-        setChartOfAccounts((prev) => (prev.length ? prev : SNAPSHOT_COA_SEED.map((row) => ({ ...row }))))
-        setAnnualBudget((prev) => (prev.length ? prev : BUDGET_SEED.map((row) => ({ ...row }))))
-        setBookFeeBreakup((prev) => (
-            prev.length ? prev : buildBookFeeFromStudents(students)
-        ))
+        if (!applied.generatedCount && !force) {
+            const studentClasses = [...new Set(students.map((s) => s.className).filter(Boolean))].join(', ')
+            const structureClasses = [...new Set(feeStructures.map((s) => s.className).filter(Boolean))].join(', ')
+            return {
+                success: false,
+                message: `No new installments created. Student classes (${studentClasses || 'none'}) do not match your fee structures (${structureClasses || 'none'}). Edit structures or student class names so they match.`,
+                installments: installments.length,
+                structures: feeStructures.length,
+                studentsMatched: 0,
+            }
+        }
+        setInstallments(applied.installments)
         appendAudit({
-            action: 'DEMO_FEE_LEDGER_BOOTSTRAPPED',
+            action: 'FEE_STRUCTURES_APPLIED',
             entity: 'FeeLedger',
             entityId: 'campus',
-            newValue: `${ledger.installments.length} installments · ${ledger.feeStructures.length} structures`,
-            reason: 'Account Head demo fee ledger',
+            newValue: `${applied.generatedCount} installment(s) · ${applied.structuresApplied} structure(s) · ${applied.studentsMatched} student(s)`,
+            reason: 'Apply defined fee structures to finance students',
         })
         return {
             success: true,
-            installments: ledger.installments.length,
-            structures: ledger.feeStructures.length,
-            approvals: ledger.approvals.length,
+            installments: applied.installments.length,
+            generated: applied.generatedCount,
+            structures: applied.structuresApplied,
+            studentsMatched: applied.studentsMatched,
+            approvals: approvals.length,
         }
-    }, [appendAudit, installments, students])
+    }, [appendAudit, approvals.length, feeStructures, installments, students])
+
+    /**
+     * Pull campus enrolled students into the finance snapshot so Bootstrap / Fee Collection have people to bill.
+     * Merges by id; does not invent fee rows.
+     */
+    const importEnrolledStudentsToFinance = useCallback(async () => {
+        let syncResult = null
+        try {
+            const { syncStudentsFromAdmissionsApi } = await import('../../../services/studentsApi')
+            syncResult = await syncStudentsFromAdmissionsApi()
+        } catch (error) {
+            // Non-fatal when already enrolled or offline; hydrate may still succeed.
+            syncResult = { error: error?.message || 'Sync from admissions failed' }
+        }
+
+        await hydrateEnrolledStudentsFromApi().catch(() => [])
+        const enrolled = getAllEnrolledStudents()
+        if (!enrolled.length) {
+            const pending = Number(syncResult?.pendingAdmissions) || 0
+            const syncErrors = Array.isArray(syncResult?.errors) ? syncResult.errors.length : 0
+            return {
+                success: false,
+                imported: 0,
+                syncResult,
+                message: pending || syncErrors
+                    ? `No students in the campus students table yet. ${pending} admission(s) were found but ${syncErrors || 'enrol'} failed — check Admin admissions (status Active → Enrol), then try again.`
+                    : 'No enrolled students found. Create admissions under Admin / PRM and Enrol them (or use Import again to auto-enrol Active admissions into students).',
+            }
+        }
+        const mapped = enrolled.map((row) => mapEnrolledToFinanceStudent(row, DEFAULT_ACADEMIC_YEAR))
+        const existingIds = new Set(students.map((row) => String(row.id)))
+        const added = mapped.filter((row) => !existingIds.has(String(row.id))).length
+        const nextStudents = (() => {
+            const byId = new Map(students.map((row) => [String(row.id), row]))
+            mapped.forEach((row) => {
+                byId.set(String(row.id), { ...(byId.get(String(row.id)) || {}), ...row })
+            })
+            return [...byId.values()]
+        })()
+        setStudents(nextStudents)
+
+        // Apply existing (user-defined) fee structures only — never invent sample masters.
+        const applied = feeStructures.length
+            ? applyFeeStructuresToStudents({
+                students: nextStudents,
+                feeStructures,
+                existingInstallments: installments,
+            })
+            : null
+        if (applied) setInstallments(applied.installments)
+
+        appendAudit({
+            action: 'FINANCE_STUDENTS_IMPORTED',
+            entity: 'FinanceStudent',
+            entityId: 'campus',
+            newValue: `${mapped.length} enrolled → finance`
+                + (syncResult?.created ? ` · synced ${syncResult.created} from admissions` : '')
+                + (applied?.generatedCount ? ` · ${applied.generatedCount} installment(s) from your structures` : ''),
+            reason: 'Import enrolled students into fee ledger',
+        })
+        return {
+            success: true,
+            imported: mapped.length,
+            added,
+            syncedFromAdmissions: Number(syncResult?.created) || 0,
+            installmentsGenerated: applied?.generatedCount || 0,
+            syncResult,
+        }
+    }, [appendAudit, feeStructures, installments, students])
 
     const addManualEntry = useCallback((entry) => {
         seq.current.txn += 1
@@ -963,7 +1336,7 @@ export const FinanceProvider = ({ children }) => {
     useEffect(() => {
         if (!isApiFinanceEnabled()) return undefined
 
-        // Signed out (or token cleared): reset so the next Account Head login hydrates cleanly.
+        // Signed out (or token cleared): reset so the next login hydrates cleanly.
         if (!isAuthenticated || !getAccessToken()) {
             apiHydratedRef.current = false
             setFinanceError(null)
@@ -971,30 +1344,38 @@ export const FinanceProvider = ({ children }) => {
             return undefined
         }
 
+        const isStaffFinance = FINANCE_API_ROLES.has(role)
+        const isPortalFinance = FINANCE_PORTAL_ROLES.has(role)
         // Non-finance roles must not pull — FinanceProvider is app-wide and would 403 otherwise.
-        if (!FINANCE_API_ROLES.has(role)) {
+        if (!isStaffFinance && !isPortalFinance) {
             apiHydratedRef.current = false
             setFinanceError(null)
             setFinanceStatus('ready')
             return undefined
         }
 
-        if (apiHydratedRef.current) return undefined
+        // Re-hydrate when role changes (parent vs Account Head use different endpoints).
+        if (apiHydratedRef.current && hydratedRoleRef.current === role) return undefined
+        apiHydratedRef.current = false
 
         let cancelled = false
         setFinanceStatus('loading')
-        pullFinanceState()
+        const pull = isPortalFinance ? pullMyFeesState() : pullFinanceState()
+        pull
             .then(async (remote) => {
                 if (cancelled) return
                 apiHydratedRef.current = true
+                hydratedRoleRef.current = role
                 if (remote?.seeded && remote?.data) {
                     applyFinanceData(remote.data)
                     if (remote.savedAt) setLastSavedAt(remote.savedAt)
-                } else {
+                } else if (isStaffFinance) {
                     const empty = createEmptyFinanceState()
                     applyFinanceData(empty)
                     const savedRemote = await pushFinanceState(empty)
                     if (!cancelled && savedRemote?.savedAt) setLastSavedAt(savedRemote.savedAt)
+                } else {
+                    applyFinanceData(createEmptyFinanceState())
                 }
                 if (!cancelled) {
                     setFinanceStatus('ready')
@@ -1119,7 +1500,12 @@ export const FinanceProvider = ({ children }) => {
             if (payload?.savedAt) setLastSavedAt(payload.savedAt)
         }
 
-        if (isApiFinanceEnabled() && apiHydratedRef.current && financeStatus === 'ready') {
+        if (
+            isApiFinanceEnabled()
+            && apiHydratedRef.current
+            && financeStatus === 'ready'
+            && FINANCE_WRITE_ROLES.has(role)
+        ) {
             if (pushTimerRef.current) window.clearTimeout(pushTimerRef.current)
             pushTimerRef.current = window.setTimeout(() => {
                 pushFinanceState(data)
@@ -1134,6 +1520,7 @@ export const FinanceProvider = ({ children }) => {
         }
     }, [
         financeStatus,
+        role,
         students,
         wallets,
         walletRecharges,
@@ -1292,8 +1679,13 @@ export const FinanceProvider = ({ children }) => {
         approvals,
         setApprovals,
         addFeeStructure,
+        defineFeeStructure,
+        deleteFeeStructure,
         addFeeCategory,
+        saveFeeCategories,
+        flushFinanceToApi,
         bootstrapDemoFeeLedger,
+        importEnrolledStudentsToFinance,
         setFeeStructures,
         setFineRules,
         setBankAccounts,
@@ -1321,8 +1713,13 @@ export const FinanceProvider = ({ children }) => {
     }), [
         annualBudget,
         addFeeCategory,
+        saveFeeCategories,
         addFeeStructure,
+        defineFeeStructure,
+        deleteFeeStructure,
+        flushFinanceToApi,
         bootstrapDemoFeeLedger,
+        importEnrolledStudentsToFinance,
         addManualEntry,
         auditLog,
         bankAccounts,

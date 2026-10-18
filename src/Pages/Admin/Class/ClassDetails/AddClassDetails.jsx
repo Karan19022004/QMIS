@@ -1,57 +1,41 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ClassInfo from './Components/ClassInfo'
 import SectionInfo from './Components/SectionInfo'
-import { saveClassDetails } from '../../../../Common/RBAC/academicsCatalogData'
-import { getCreatedUsersByRole, syncCreatedUsersFromApi } from '../../../../Common/RBAC/createdUsersData'
+import { getClassDetails, saveClassDetails } from '../../../../Common/RBAC/academicsCatalogData'
 import { saveClassWithSections } from '../../../../services/classDetailsApi'
-import { useClassDirectory, useClassTeacherOptions } from './useClassDirectory'
+import { useClassDirectory } from './useClassDirectory'
 
 const emptyForm = {
     className: '',
-    classTeacher: '',
-    classTeacherEmail: '',
     classCapacity: '',
     classRoomNumber: '',
 }
 
-// API mode keeps room and the class teacher (a login id) per section; local mode keeps its old shape.
+// Capacity and room are optional per section; class teacher is assigned under Principal Allocation.
 const blankSection = (apiMode) => (
     apiMode
-        ? { name: '', capacity: '', roomNumber: '', classTeacherUserId: '' }
+        ? { name: '', capacity: '', roomNumber: '' }
         : { name: '', capacity: '' }
 )
 
 const AddClassDetails = () => {
     const navigate = useNavigate()
-    // API mode: the server stores the class, its academic year and, per section, the capacity, room
-    // and class teacher (chosen from real teacher logins, never typed as a name).
     const directory = useClassDirectory('')
     const apiMode = directory.apiMode
-    const teacherPicker = useClassTeacherOptions(apiMode)
     const [saving, setSaving] = useState(false)
     const [academicYearId, setAcademicYearId] = useState('')
-    const [teacherRecords, setTeacherRecords] = useState(() => getCreatedUsersByRole('teacher'))
-    const teachers = useMemo(
-        () => teacherRecords.filter((user) => user.status === 'Active'),
-        [teacherRecords],
-    )
-
-    // In API mode the server owns the user list; refresh the local mirror before showing teachers.
-    useEffect(() => {
-        if (apiMode) return undefined // API mode picks teachers from the masters API (useClassTeacherOptions)
-        let cancelled = false
-        syncCreatedUsersFromApi()
-            .then((mapped) => {
-                if (mapped && !cancelled) setTeacherRecords(getCreatedUsersByRole('teacher'))
-            })
-            .catch(() => { /* keep whatever is already mirrored */ })
-        return () => { cancelled = true }
-    }, [apiMode])
     const [form, setForm] = useState(emptyForm)
     const [sections, setSections] = useState(() => [blankSection(apiMode)])
     const [error, setError] = useState('')
+
+    const existingClassNames = useMemo(() => {
+        if (apiMode) {
+            return directory.records.map((record) => record.className).filter(Boolean)
+        }
+        return getClassDetails().map((record) => record.className).filter(Boolean)
+    }, [apiMode, directory.records])
 
     const updateForm = (keyOrPatch, value) => {
         if (typeof keyOrPatch === 'object' && keyOrPatch !== null) {
@@ -100,7 +84,6 @@ const AddClassDetails = () => {
                 academicYearId,
             })
             if (result.failures.length > 0) {
-                // The class exists now; saving again only adds what is still missing.
                 const listed = result.failures.map((item) => `${item.name} (${item.message})`).join('; ')
                 setError(
                     `Class ${result.className} was saved, but these sections were not: ${listed}. `
@@ -152,22 +135,23 @@ const AddClassDetails = () => {
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h2 className='text-xl font-semibold text-black'>Class Information</h2>
                 <p className='text-sm text-[#667085] mt-1'>
-                    Selected class and sections feed Mark Entry and student assignment dropdowns.
+                    Selected class and sections feed Mark Entry, Teacher Allocation, and student assignment dropdowns.
                 </p>
                 <ClassInfo
                     form={form}
-                    teachers={teachers}
                     onChange={updateForm}
                     apiMode={apiMode}
                     years={directory.years}
                     academicYearId={academicYearId}
                     onAcademicYearChange={setAcademicYearId}
+                    existingClassNames={existingClassNames}
                 />
                 {apiMode && (
                     <p className='text-xs text-[#667085] mt-4'>
                         A class belongs to one academic year. Choosing a class that already exists in that year adds
                         only the new sections to it; sections it already has are left as they are (edit them from
-                        the class list). Capacity, room and class teacher are saved with each section.
+                        the class list). Capacity and room are optional. Class teachers are assigned under
+                        Principal → Teacher Allocation.
                     </p>
                 )}
             </div>
@@ -181,10 +165,6 @@ const AddClassDetails = () => {
                     onRemoveSection={removeSectionRow}
                     showCapacity={!apiMode}
                     apiMode={apiMode}
-                    teacherOptions={teacherPicker.options}
-                    teacherStatus={teacherPicker.status}
-                    teacherError={teacherPicker.error}
-                    onRetryTeachers={teacherPicker.reload}
                 />
             </div>
 

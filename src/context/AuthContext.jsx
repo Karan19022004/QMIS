@@ -27,6 +27,7 @@ import { clearLeaveRequestMemory } from '../Common/LeaveRequest/leaveRequestData
 import { clearClassTimetableMemory } from '../Pages/Principal/ClassTimetable/classTimetableData'
 import { clearCampusJsonMemory } from '../services/campusJsonStore'
 import { clearTeacherAllocationMemory } from '../Pages/Principal/TeacherAllocation/teacherAllocationData'
+import { clearTeacherAssignmentCache } from '../Common/Teacher/teacherAssignedClasses'
 import { clearEscalationMemory } from '../Common/EscalationManagement/escalationData'
 import { clearAnnouncementsMemory } from '../Common/Announcement/announcementData'
 import { clearCalendarMemory } from '../Common/AcademicCalendar/academicCalendarData'
@@ -367,6 +368,7 @@ export const AuthProvider = ({ children }) => {
         clearClassTimetableMemory()
         clearCampusJsonMemory()
         clearTeacherAllocationMemory()
+        clearTeacherAssignmentCache()
         clearEscalationMemory()
         clearStudentDocumentsMemory() // uploaded-document lists are server data too
         clearEmployeeDocumentsMemory()

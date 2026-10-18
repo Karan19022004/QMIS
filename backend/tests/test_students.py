@@ -114,9 +114,44 @@ def test_parent_cannot_list_campus_students(client):
 
 def test_teacher_can_list_students(client):
     admin = _login(client)
-    _enroll_one(client, admin)
+    enrolled = _enroll_one(client, admin)
+    student_id = enrolled["student_id"]
 
     teacher = _login(client, "teacher@qmis.edu", "teacher123")
+    me = client.get("/api/v1/auth/me", headers=teacher)
+    assert me.status_code == 200, me.text
+    teacher_user_id = me.json()["id"]
+
+    # Assign seed teacher as class teacher of Grade 2 so roster scope is non-empty.
+    classes = client.get("/api/v1/masters/classes", headers=admin)
+    assert classes.status_code == 200, classes.text
+    grade2 = next(
+        (row for row in classes.json() if str(row.get("name") or "").lower() in {"grade 2", "2"}),
+        None,
+    )
+    assert grade2 is not None, classes.json()
+    sections = client.get(f"/api/v1/masters/sections?class_id={grade2['id']}", headers=admin)
+    if sections.status_code != 200 or not sections.json():
+        created = client.post(
+            "/api/v1/masters/sections",
+            headers=admin,
+            json={"class_id": grade2["id"], "name": "A", "class_teacher_user_id": teacher_user_id},
+        )
+        assert created.status_code in {200, 201}, created.text
+    else:
+        section_id = sections.json()[0]["id"]
+        patched = client.patch(
+            f"/api/v1/masters/sections/{section_id}",
+            headers=admin,
+            json={"class_teacher_user_id": teacher_user_id},
+        )
+        assert patched.status_code == 200, patched.text
+
     listed = client.get("/api/v1/students", headers=teacher)
     assert listed.status_code == 200, listed.text
-    assert len(listed.json()) >= 1
+    ids = {row["id"] for row in listed.json()}
+    assert student_id in ids
+
+    parents = client.get("/api/v1/parents", headers=teacher)
+    assert parents.status_code == 200, parents.text
+    assert any(row.get("studentId") == student_id for row in parents.json())

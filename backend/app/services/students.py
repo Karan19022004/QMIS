@@ -2,13 +2,162 @@
 
 from __future__ import annotations
 
+import re
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.models import Admission, Guardian, Student, User
 from app.services.errors import fail
+
+
+def _norm_class_key(value: str | None) -> str:
+    text = re.sub(r"\s+", " ", str(value or "").strip().lower())
+    text = re.sub(r"^class\s+", "", text)
+    grade = re.match(r"^grade\s*(\d+[a-z]?)$", text)
+    if grade:
+        return f"grade {grade.group(1)}"
+    bare = re.match(r"^(\d+[a-z]?)$", text)
+    if bare:
+        return f"grade {bare.group(1)}"
+    return text
+
+
+def _norm_section_key(value: str | None) -> str:
+    return str(value or "").strip().upper()
+
+
+def _teacher_roster_scope(db: Session, actor: User) -> list[dict]:
+    """
+    Classes/sections the teacher may see:
+    - Sections where they are class teacher (masters.sections.class_teacher_user_id)
+    - Principal teacher-allocation mappings for their HR employee / email
+    """
+    from app.models import AcademicsRecord, HrEmployee, SchoolClass, Section
+
+    scope: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    def _add(class_name: str, section: str = "", *, is_class_teacher: bool = False) -> None:
+        class_name = str(class_name or "").strip()
+        section = str(section or "").strip()
+        if not class_name:
+            return
+        key = (_norm_class_key(class_name), _norm_section_key(section))
+        if key in seen:
+            return
+        seen.add(key)
+        scope.append(
+            {
+                "className": class_name,
+                "section": section,
+                "isClassTeacher": is_class_teacher,
+            }
+        )
+
+    class_teacher_rows = db.execute(
+        select(SchoolClass.name, Section.name)
+        .join(Section, Section.class_id == SchoolClass.id)
+        .where(
+            Section.campus_id == actor.campus_id,
+            Section.class_teacher_user_id == actor.id,
+            Section.is_active.is_(True),
+        )
+    ).all()
+    for class_name, section_name in class_teacher_rows:
+        _add(class_name, section_name or "", is_class_teacher=True)
+
+    hr = db.scalar(
+        select(HrEmployee).where(
+            HrEmployee.campus_id == actor.campus_id,
+            or_(
+                HrEmployee.user_id == actor.id,
+                func.lower(HrEmployee.email) == str(actor.email or "").lower(),
+            ),
+        )
+    )
+    employee_codes = {
+        str(hr.employee_code).strip().lower() if hr and hr.employee_code else "",
+        str(hr.id).strip().lower() if hr else "",
+        str(actor.id).strip().lower(),
+        str(actor.email or "").strip().lower(),
+    }
+    employee_codes.discard("")
+
+    allocations = db.scalars(
+        select(AcademicsRecord).where(
+            AcademicsRecord.campus_id == actor.campus_id,
+            AcademicsRecord.collection == "teacher-allocations",
+        )
+    ).all()
+    actor_email = str(actor.email or "").strip().lower()
+    for row in allocations:
+        body = dict(row.body or {})
+        if str(body.get("status") or "").strip().lower() in {"inactive", "not allocated"}:
+            continue
+        public_id = str(row.public_id or body.get("employeeId") or body.get("id") or "").strip().lower()
+        body_email = str(body.get("email") or body.get("teacherEmail") or "").strip().lower()
+        linked = public_id in employee_codes or (body_email and body_email == actor_email)
+        if not linked:
+            continue
+
+        class_teacher = body.get("classTeacher") or {}
+        ct_class = str(class_teacher.get("className") or "").strip()
+        ct_section = str(class_teacher.get("section") or "").strip()
+        if ct_class:
+            _add(ct_class, ct_section, is_class_teacher=True)
+
+        for mapping in body.get("mappings") or []:
+            if not isinstance(mapping, dict):
+                continue
+            _add(
+                mapping.get("className") or "",
+                mapping.get("section") or "",
+                is_class_teacher=bool(
+                    ct_class
+                    and _norm_class_key(mapping.get("className")) == _norm_class_key(ct_class)
+                    and (
+                        not ct_section
+                        or _norm_section_key(mapping.get("section")) == _norm_section_key(ct_section)
+                    )
+                ),
+            )
+        for class_name in body.get("teachingClasses") or []:
+            _add(class_name, "", is_class_teacher=_norm_class_key(class_name) == _norm_class_key(ct_class))
+
+    return scope
+
+
+def _student_in_teacher_scope(student: Student, scope: list[dict]) -> bool:
+    if not scope:
+        return False
+    student_class = student.class_name or ""
+    student_section = student.section or ""
+    for entry in scope:
+        if _norm_class_key(student_class) != _norm_class_key(entry.get("className")):
+            continue
+        want_section = _norm_section_key(entry.get("section"))
+        if not want_section:
+            return True
+        if not student_section or student_section in {"—", "-"}:
+            # Not section-placed yet: class teachers of that grade still see them.
+            if entry.get("isClassTeacher"):
+                return True
+            continue
+        if _norm_section_key(student_section) == want_section:
+            return True
+    return False
+
+# Admissions in these statuses are not promoted into the students table.
+_SYNC_SKIP_STATUSES = {
+    "rejected",
+    "withdrawn",
+    "cancelled",
+    "canceled",
+    "in active",
+    "inactive",
+}
 
 
 def _iso(value) -> str | None:
@@ -31,14 +180,19 @@ def _admission_for(db: Session, student: Student) -> Admission | None:
 
 def _list_item(student: Student, admission: Admission | None) -> dict:
     class_name = student.class_name or ""
+    section = student.section or ""
     return {
         "id": str(student.id),
         "name": student.full_name,
         "admissionNumber": student.admission_number,
         "className": class_name,
-        "section": "",
-        "classSection": class_name,
-        "rollNumber": "",
+        "section": section,
+        "classSection": f"{class_name}-{section}" if section else class_name,
+        "rollNumber": student.roll_number if student.roll_number is not None else "",
+        "placementStatus": student.placement_status or "pending",
+        "sectionId": str(student.section_id) if student.section_id else None,
+        "classId": str(student.class_id) if student.class_id else None,
+        "academicYearId": str(student.academic_year_id) if student.academic_year_id else None,
         "admissionId": str(student.admission_id) if student.admission_id else None,
         "parentUserId": str(student.parent_user_id) if student.parent_user_id else None,
         "studentUserId": str(student.student_user_id) if student.student_user_id else None,
@@ -88,25 +242,191 @@ def link_student_user(db: Session, *, student_id: UUID, user_id: UUID) -> Studen
 
 
 def list_students(db: Session, actor: User, class_name: str | None = None) -> list[dict]:
+    from app.deps import role_code_for
+    from app.services.placement import (
+        actor_can_manage_grade,
+        parse_grade,
+        student_placement_fields,
+    )
+
     stmt = select(Student).where(Student.campus_id == actor.campus_id)
     if class_name:
         stmt = stmt.where(Student.class_name == class_name)
     stmt = stmt.order_by(Student.full_name)
     rows = db.scalars(stmt).all()
-    return [_list_item(row, _admission_for(db, row)) for row in rows]
+    role = role_code_for(db, actor)
+    teacher_scope = _teacher_roster_scope(db, actor) if role == "teacher" else []
+    out = []
+    for row in rows:
+        grade = parse_grade(row.class_name)
+        if role == "coordinator" and not actor_can_manage_grade(db, actor, grade):
+            continue
+        if role == "teacher" and not _student_in_teacher_scope(row, teacher_scope):
+            continue
+        item = _list_item(row, _admission_for(db, row))
+        item.update(student_placement_fields(db, row))
+        out.append(item)
+    return out
+
+
+def sync_students_from_admissions(db: Session, actor: User) -> dict:
+    """
+    Promote campus admissions (Active / not yet enrolled) into the students table.
+
+    Admin/PRM often create admission rows without clicking Enrol. Finance Import
+    previously only read /students (empty), so Account Head saw “no enrolled students”
+    despite admissions existing. This sync enrols those admissions without creating
+    parent/student portal logins.
+    """
+    from fastapi import HTTPException
+
+    from app.schemas.admissions import EnrollAdmissionIn
+    from app.services.admissions import enroll_admission
+
+    already = (
+        db.scalar(select(func.count()).select_from(Student).where(Student.campus_id == actor.campus_id))
+        or 0
+    )
+    admissions = db.scalars(
+        select(Admission)
+        .where(
+            Admission.campus_id == actor.campus_id,
+            Admission.enrolled_student_id.is_(None),
+        )
+        .order_by(Admission.created_at.asc())
+    ).all()
+
+    pending = [
+        row
+        for row in admissions
+        if str(row.status or "").strip().lower() not in _SYNC_SKIP_STATUSES
+    ]
+
+    created: list[dict] = []
+    errors: list[dict] = []
+    for row in pending:
+        try:
+            result = enroll_admission(
+                db,
+                actor,
+                row.id,
+                EnrollAdmissionIn(skip_parent_account=True, skip_student_account=True),
+            )
+            created.append(
+                {
+                    "admissionId": str(row.id),
+                    "studentId": str(result["student_id"]),
+                    "studentCode": result.get("student_code"),
+                    "name": _full_name_safe(row),
+                    "className": row.class_name or "",
+                }
+            )
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, dict) else {}
+            errors.append(
+                {
+                    "admissionId": str(row.id),
+                    "message": detail.get("message") or str(exc.detail),
+                }
+            )
+        except Exception as exc:  # noqa: BLE001 — surface per-row failures to the client
+            errors.append({"admissionId": str(row.id), "message": str(exc)})
+
+    total = (
+        db.scalar(select(func.count()).select_from(Student).where(Student.campus_id == actor.campus_id))
+        or 0
+    )
+    return {
+        "created": len(created),
+        "alreadyEnrolled": int(already),
+        "pendingAdmissions": len(pending),
+        "totalStudents": int(total),
+        "students": created,
+        "errors": errors,
+    }
+
+
+def _full_name_safe(row: Admission) -> str:
+    parts = [row.first_name, row.middle_name, row.last_name]
+    name = " ".join(str(part or "").strip() for part in parts if str(part or "").strip())
+    return name or "Student"
+
+
+def list_parents_for_staff(db: Session, actor: User) -> list[dict]:
+    """One row per student in the actor's student scope (parent contact from admission)."""
+    students = list_students(db, actor)
+    out: list[dict] = []
+    for item in students:
+        try:
+            sid = UUID(str(item["id"]))
+        except (TypeError, ValueError):
+            continue
+        student = db.get(Student, sid)
+        if student is None:
+            continue
+        admission = _admission_for(db, student)
+        parent_name = ""
+        parent_email = ""
+        parent_mobile = ""
+        if admission is not None:
+            parent_name = (
+                (admission.father_name or "").strip()
+                or (admission.mother_name or "").strip()
+                or "Parent"
+            )
+            parent_email = (
+                (admission.parent_account_email or "").strip()
+                or (admission.parent_email or "").strip()
+            )
+            parent_mobile = (
+                (admission.parent_mobile_number or "").strip()
+                or (admission.mobile_number or "").strip()
+            )
+        out.append(
+            {
+                "id": str(student.id),
+                "studentId": str(student.id),
+                "studentName": student.full_name,
+                "admissionNumber": student.admission_number,
+                "className": student.class_name or "",
+                "section": student.section or "",
+                "parentName": parent_name or "—",
+                "parentEmail": parent_email or "—",
+                "mobileNumber": parent_mobile or "—",
+                "parentUserId": str(student.parent_user_id) if student.parent_user_id else None,
+            }
+        )
+    out.sort(key=lambda row: (row["parentName"] or "", row["studentName"] or ""))
+    return out
 
 
 def get_student(db: Session, actor: User, student_id: UUID) -> dict:
+    from app.deps import role_code_for
+    from app.services.placement import actor_can_manage_grade, parse_grade
+
     student = db.get(Student, student_id)
     if student is None or student.campus_id != actor.campus_id:
         fail(404, "not_found", "Student not found.")
+
+    role = role_code_for(db, actor)
+    if role == "coordinator":
+        grade = parse_grade(student.class_name)
+        if not actor_can_manage_grade(db, actor, grade):
+            fail(403, "forbidden", "This student is outside your grade band.")
+    if role == "teacher":
+        scope = _teacher_roster_scope(db, actor)
+        if not _student_in_teacher_scope(student, scope):
+            fail(403, "forbidden", "This student is outside your assigned classes.")
 
     admission = _admission_for(db, student)
     guardians = db.scalars(
         select(Guardian).where(Guardian.student_id == student.id).order_by(Guardian.created_at)
     ).all()
 
+    from app.services.placement import student_placement_fields
+
     base = _list_item(student, admission)
+    base.update(student_placement_fields(db, student))
     base["guardians"] = [
         {
             "id": str(g.id),

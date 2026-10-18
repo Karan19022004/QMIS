@@ -9,15 +9,11 @@ const SectionInfo = ({
     onAddSection,
     onRemoveSection,
     showCapacity = true,
-    // API mode: the server stores capacity, room and the class teacher (a login) per section.
+    // API mode: capacity and room per section (class teacher is assigned under Principal Allocation).
     apiMode = false,
-    teacherOptions = [],
-    teacherStatus = 'idle',
-    teacherError = '',
-    onRetryTeachers,
 }) => {
     const gridColumns = apiMode
-        ? 'lg:grid-cols-[1fr_1fr_1fr_2fr_auto]'
+        ? 'lg:grid-cols-[1fr_1fr_1fr_auto]'
         : showCapacity ? 'lg:grid-cols-[1fr_1fr_auto]' : 'lg:grid-cols-[1fr_auto]'
 
     return (
@@ -45,43 +41,24 @@ const SectionInfo = ({
                                 inputMode={apiMode ? 'numeric' : undefined}
                                 value={section.capacity}
                                 onChange={(e) => onChangeSection(index, 'capacity', e.target.value)}
-                                placeholder='e.g. 25'
+                                placeholder='e.g. 25 (optional)'
                                 className={inputClass}
                             />
                         </div>
                         )}
                         {apiMode && (
-                            <>
-                                <div className='flex flex-col gap-y-2'>
-                                    <label htmlFor={`section-room-${index}`} className='text-base font-medium text-[#1E1E1E]'>Room No.:</label>
-                                    <input
-                                        id={`section-room-${index}`}
-                                        type='text'
-                                        maxLength={20}
-                                        value={section.roomNumber}
-                                        onChange={(e) => onChangeSection(index, 'roomNumber', e.target.value)}
-                                        placeholder='e.g. 102'
-                                        className={inputClass}
-                                    />
-                                </div>
-                                <div className='flex flex-col gap-y-2'>
-                                    <label htmlFor={`section-teacher-${index}`} className='text-base font-medium text-[#1E1E1E]'>Class Teacher:</label>
-                                    <select
-                                        id={`section-teacher-${index}`}
-                                        value={section.classTeacherUserId}
-                                        disabled={teacherStatus === 'loading'}
-                                        onChange={(e) => onChangeSection(index, 'classTeacherUserId', e.target.value)}
-                                        className={inputClass}
-                                    >
-                                        <option value=''>{teacherStatus === 'loading' ? 'Loading teachers…' : 'No class teacher'}</option>
-                                        {teacherOptions.map((teacher) => (
-                                            <option key={teacher.userId} value={teacher.userId}>
-                                                {teacher.name}{teacher.name !== teacher.email ? ` (${teacher.email})` : ''}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </>
+                            <div className='flex flex-col gap-y-2'>
+                                <label htmlFor={`section-room-${index}`} className='text-base font-medium text-[#1E1E1E]'>Room No.:</label>
+                                <input
+                                    id={`section-room-${index}`}
+                                    type='text'
+                                    maxLength={20}
+                                    value={section.roomNumber}
+                                    onChange={(e) => onChangeSection(index, 'roomNumber', e.target.value)}
+                                    placeholder='e.g. 102 (optional)'
+                                    className={inputClass}
+                                />
+                            </div>
                         )}
                         <button
                             type='button'
@@ -95,21 +72,6 @@ const SectionInfo = ({
                     </div>
                 ))}
             </div>
-
-            {apiMode && teacherStatus === 'error' && (
-                <p role='alert' className='text-xs text-[#B42318] mt-3'>
-                    Could not load the teacher list: {teacherError}{' '}
-                    {onRetryTeachers && (
-                        <button type='button' onClick={onRetryTeachers} className='underline cursor-pointer'>Retry</button>
-                    )}
-                </p>
-            )}
-            {apiMode && teacherStatus === 'ready' && teacherOptions.length === 0 && (
-                <p className='text-xs text-[#667085] mt-3'>
-                    There are no active teacher or coordinator logins yet, so a class teacher cannot be chosen.
-                    Create one under User Management, then come back.
-                </p>
-            )}
 
             <div className='flex justify-end mt-6'>
                 <button

@@ -25,9 +25,10 @@ def test_service_uses_only_masters_routes_and_never_touches_storage():
         "/masters/classes",
         "/masters/sections",
     }
-    # edit and deactivate are PATCH, permanent delete is DELETE; nothing else is used
+    # edit and deactivate are PATCH, permanent delete is DELETE; academic year create/set-current use POST
     assert "method: 'PATCH'" in source and "method: 'DELETE'" in source
     assert "method: 'PUT'" not in source
+    assert "set-current" in source
 
 
 def test_year_filter_goes_to_the_server_and_only_the_active_current_year_list_is_mirrored():
@@ -84,8 +85,10 @@ def test_list_page_shows_server_fields_and_actions_in_api_mode_and_keeps_local_m
     assert "useClassDirectory(yearId, showInactive)" in page
     assert "directory.status === 'loading'" in page and "directory.status === 'error'" in page
     assert "directory.reload" in page  # Retry and refresh after an action
-    for needle in ("Academic Year", "Capacity", "Class Teacher", "Room", "Status", "Show deactivated"):
+    for needle in ("Academic Year", "Capacity", "Room", "Status", "Show deactivated"):
         assert needle in page
+    assert "Class Teacher" not in page  # class teachers live under Principal Allocation
+    assert "academic-years" in page  # link to manage years
     # API actions go through the service, behind a confirmation, with a double-click guard
     assert "setClassActive" in page and "deleteClass" in page and "EditClassModal" in page
     assert "if (!confirm || busy) return" in page
@@ -100,21 +103,23 @@ def test_list_page_shows_server_fields_and_actions_in_api_mode_and_keeps_local_m
 def test_edit_modal_saves_row_by_row_and_never_renames():
     modal = _read(DETAILS + "Components/EditClassModal.jsx")
     assert "updateSectionDetails" in modal and "addSectionToClass" in modal
-    assert "useClassTeacherOptions(true)" in modal
+    assert "useClassTeacherOptions" not in modal
+    assert "Class Teacher" not in modal
     assert "readOnly" in modal or "disabled" in modal  # an existing section's name cannot change
 
 
-def test_add_page_sends_capacity_room_and_teacher_in_api_mode_and_keeps_local_mode():
+def test_add_page_sends_capacity_and_room_in_api_mode_and_keeps_local_mode():
     page = _read(DETAILS + "AddClassDetails.jsx")
     assert "saveClassWithSections" in page and "showCapacity={!apiMode}" in page
-    assert "useClassTeacherOptions(apiMode)" in page
+    assert "useClassTeacherOptions" not in page
     assert "saveClassDetails" in page  # local mode is unchanged
-    assert "if (apiMode) return undefined" in page  # no user sync just to fill a teacher picker
     assert "disabled={saving}" in page  # no double submit
     info = _read(DETAILS + "Components/ClassInfo.jsx")
-    assert "apiMode ? null : (<>" in info  # class-level teacher, capacity and room are derived in API mode
+    assert "Academic Years" in info
+    assert "existingClassNames" in info
     section = _read(DETAILS + "Components/SectionInfo.jsx")
-    assert "apiMode" in section and "teacherOptions" in section
+    assert "apiMode" in section and "teacherOptions" not in section
+    assert "Class Teacher" not in section
 
 
 def test_hook_derives_loading_from_the_request_key_not_from_set_state_in_the_effect():
@@ -123,3 +128,10 @@ def test_hook_derives_loading_from_the_request_key_not_from_set_state_in_the_eff
     effect = hook[hook.index("useEffect(") :]
     assert "setResult({" in effect and ".then(" in effect  # only inside the promise callbacks
     assert "setResult" not in effect[: effect.index("loadClassDirectory(")]
+
+
+def test_academic_years_page_creates_and_sets_current():
+    page = _read("Pages/Admin/Class/AcademicYears/AcademicYears.jsx")
+    assert "createAcademicYear" in page and "setAcademicYearCurrent" in page
+    assert "listAcademicYears" in page
+    assert "Add Academic Year" in page

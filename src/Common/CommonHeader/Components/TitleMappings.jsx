@@ -96,6 +96,7 @@
     // Class
     "/admin/class/class-details": "Class Details List",
     "/admin/class/add-class-details": "Add Class Details",
+    "/admin/class/academic-years": "Academic Years",
     "/admin/class/online-class": "Online Class List",
     "/admin/class/add-online-class": "Add Online Class",
     "/admin/class/extended-class": "Extended Class List",
@@ -473,7 +474,9 @@
     "/coordinator/task-management/my-tasks": "My Tasks",
     "/coordinator/attendance/my-attendance": "My Attendance",
     "/coordinator/attendance/class-attendance": "Class Attendance",
-    "/coordinator/class/class-routine": "Class Timetable",
+    "/coordinator/class/class-routine": "My Class Timetable",
+    "/coordinator/class/class-timetable": "Class Timetable List",
+    "/coordinator/class/create-class-timetable": "Create Class Timetable",
     "/coordinator/class/extra-class": "Extended Class",
     "/coordinator/class/extra-class/add": "Add Extended Class",
     "/coordinator/class/online-class": "Online Class",

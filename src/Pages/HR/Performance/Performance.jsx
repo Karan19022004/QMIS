@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { formatInr } from '../domain/payrollCalculations'
 import { applyRevision, canMutate, employeeName, getEmployees, getPerformance, getPayrollBundle, nextId, savePerformance, savePayrollBundle } from '../domain/hrStore'
-import { Badge, Modal, PageIntro, PrimaryButton, TableWrap, inputClass, td, th, useHrTick } from '../components/HrUi'
+import { Badge, KeyFields, Modal, PageIntro, PrimaryButton, Select, TableWrap, td, th, useHrTick } from '../components/HrUi'
 
 const RATINGS = ['Above Average', 'Average', 'Below Average']
 
@@ -60,18 +60,18 @@ const Performance = () => {
             )}
             {form && mode !== 'increment' && <Modal title='Review' onClose={() => setForm(null)}>
                 <form onSubmit={saveReview} className='grid gap-3'>
-                    <select className={inputClass} value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                    {['period', 'reviewer', 'goals', 'bsc', 'audit', 'score', 'strengths', 'improvement', 'remarks'].map((key) => <input key={key} className={inputClass} placeholder={key} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />)}
-                    <select className={inputClass} value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })}>{RATINGS.map((item) => <option key={item}>{item}</option>)}</select>
+                    <Select label='Employee' value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select employee' />
+                    <KeyFields keys={['period', 'reviewer', 'goals', 'bsc', 'audit', 'score', 'strengths', 'improvement', 'remarks']} form={form} setForm={setForm} />
+                    <Select label='Rating' value={form.rating} onChange={(e) => setForm({ ...form, rating: e.target.value })} options={RATINGS} allLabel='Select rating' />
                     <PrimaryButton type='submit'>Save</PrimaryButton>
                 </form>
             </Modal>}
             {form && mode === 'increment' && <Modal title='Revision' onClose={() => setForm(null)}>
                 <form onSubmit={saveRevision} className='grid gap-3'>
-                    <select className={inputClass} value={form.employeeId} onChange={(e) => { const employee = employees.find((item) => item.id === e.target.value); setForm({ ...form, employeeId: e.target.value, currentDesignation: employee.designation, currentGross: employee.grossSalary }) }}>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                    {['effectiveDate', 'newDesignation', 'currentGross', 'revisionPercent', 'incrementType', 'reason', 'approvedBy'].map((key) => <input key={key} className={inputClass} placeholder={key} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />)}
-                    <select className={inputClass} value={form.promotion} onChange={(e) => setForm({ ...form, promotion: e.target.value })}><option>No</option><option>Yes</option></select>
-                    <select className={inputClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{['Draft', 'Recommended', 'Approved', 'Rejected', 'Applied'].map((item) => <option key={item}>{item}</option>)}</select>
+                    <Select label='Employee' value={form.employeeId} onChange={(e) => { const employee = employees.find((item) => item.id === e.target.value); setForm({ ...form, employeeId: e.target.value, currentDesignation: employee.designation, currentGross: employee.grossSalary }) }} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select employee' />
+                    <KeyFields keys={['effectiveDate', 'newDesignation', 'currentGross', 'revisionPercent', 'incrementType', 'reason', 'approvedBy']} form={form} setForm={setForm} types={{ currentGross: 'number', revisionPercent: 'number' }} />
+                    <Select label='Promotion' value={form.promotion} onChange={(e) => setForm({ ...form, promotion: e.target.value })} options={['No', 'Yes']} allLabel={null} />
+                    <Select label='Status' value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} options={['Draft', 'Recommended', 'Approved', 'Rejected', 'Applied']} allLabel='Select status' />
                     <PrimaryButton type='submit'>Save</PrimaryButton>
                 </form>
             </Modal>}

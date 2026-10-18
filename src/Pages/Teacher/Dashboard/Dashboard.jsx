@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { apiRequest, getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
+import { useTeacherAssignments } from '../../../Common/Teacher/useTeacherAssignments'
 
 const today = () => new Date().toISOString().slice(0, 10)
 
 const CARDS = [
-    { key: 'students', label: 'Students', to: '/teacher/user-management/students-list', hint: 'Campus roster (students.read)' },
+    { key: 'students', label: 'My class students', to: '/teacher/user-management/students-list', hint: 'Students in your class-teacher / assigned sections' },
+    { key: 'parents', label: 'Parents', to: '/teacher/user-management/parents-list', hint: 'Parents of your class students' },
     { key: 'attendance', label: 'Attendance marks today', to: '/teacher/attendance/class-attendance', hint: `For ${today()}` },
     { key: 'lessonPlans', label: 'My lesson plans', to: '/teacher/lesson-plan/my-lesson-plan', hint: 'Submitted plans' },
     { key: 'tasks', label: 'My tasks', to: '/teacher/task-management/my-tasks', hint: 'Assigned to you' },
@@ -18,9 +20,10 @@ const CARDS = [
 const countList = (payload) => (Array.isArray(payload) ? payload.length : 0)
 
 const loadSnapshot = async () => {
-    const [students, attendance, lessonPlans, tasks, leave, notifications, announcements, exams] =
+    const [students, parents, attendance, lessonPlans, tasks, leave, notifications, announcements, exams] =
         await Promise.allSettled([
             apiRequest('/students'),
+            apiRequest('/parents'),
             apiRequest(`/attendance?date=${today()}`),
             apiRequest('/lesson-plans?mine=true'),
             apiRequest('/tasks'),
@@ -34,6 +37,7 @@ const loadSnapshot = async () => {
 
     return {
         students: value(students),
+        parents: value(parents),
         attendance: value(attendance),
         lessonPlans: value(lessonPlans),
         tasks: value(tasks),
@@ -47,6 +51,7 @@ const loadSnapshot = async () => {
 
 const Dashboard = () => {
     const api = isApiAuthEnabled() && Boolean(getAccessToken())
+    const assignments = useTeacherAssignments()
     const [snap, setSnap] = useState(null)
     const [error, setError] = useState('')
 
@@ -68,12 +73,21 @@ const Dashboard = () => {
         }
     }, [api])
 
+    const classTeacherLabels = assignments.assignments
+        .filter((row) => row.isClassTeacher)
+        .map((row) => `${row.className}${row.section ? `-${row.section}` : ''}`)
+
     return (
         <section className='space-y-6'>
             <div>
                 <h1 className='text-2xl font-semibold text-black'>Teacher Dashboard</h1>
                 <p className='text-sm text-[#667085] mt-1'>
-                    Live counts from APIs available to your role
+                    Counts for your assigned classes
+                    {classTeacherLabels.length
+                        ? ` · class teacher of ${classTeacherLabels.join(', ')}`
+                        : assignments.ready && assignments.emptyReason
+                            ? ` · ${assignments.emptyReason}`
+                            : ''}
                     {snap?.asOf ? ` · as of ${snap.asOf}` : ''}.
                 </p>
             </div>

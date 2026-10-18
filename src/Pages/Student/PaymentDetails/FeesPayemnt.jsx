@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
-import { History, Smartphone } from 'lucide-react'
+import React, { useMemo, useState } from 'react'
+import { CalendarClock, History, Smartphone } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useFinance } from '../../AccountHead/financeDomain/FinanceContext'
-import { DEFAULT_ACADEMIC_YEAR } from '../../AccountHead/financeDomain/financeConstants'
+import { DEFAULT_ACADEMIC_YEAR, FEE_INSTALLMENT_STATUSES } from '../../AccountHead/financeDomain/financeConstants'
 import { formatCurrency, groupInstallmentsByMonth } from '../../AccountHead/financeDomain/financeHelpers'
 import FeeInstallmentCard from '../../AccountHead/FeesManagement/Components/FeeInstallmentCard'
 import CheckoutMockModal from '../../AccountHead/FeesManagement/Components/CheckoutMockModal'
@@ -12,6 +12,19 @@ import StudentFeeSummary from '../../AccountHead/FeesManagement/Components/Stude
 import { useActiveStudent } from '../../../context/ActiveStudentContext'
 import EntryClosureGate from '../../../Common/demoDomain/EntryClosureGate'
 import { entryBlocked } from '../../../Common/demoDomain/governance'
+
+const formatDueDate = (iso) => {
+    if (!iso) return '—'
+    try {
+        return new Date(`${iso}T00:00:00`).toLocaleDateString('en-IN', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric',
+        })
+    } catch {
+        return iso
+    }
+}
 
 const FeesPayemnt = () => {
     const {
@@ -24,14 +37,29 @@ const FeesPayemnt = () => {
         sendReceipt,
     } = useFinance()
 
-    const { activeStudent } = useActiveStudent()
+    const { activeStudent, isParentPortal } = useActiveStudent()
     const admissionNumber = activeStudent?.admissionNumber || activeStudent?.admissionNo
-    const student = students.find((item) => (
-        item.id === activeStudent?.id
-        || item.admissionNo === admissionNumber
-        || item.admissionNumber === admissionNumber
-    )) || null
-    const [academicYear] = useState(student?.academicYear || DEFAULT_ACADEMIC_YEAR)
+    const student = useMemo(() => {
+        if (!activeStudent) return null
+        const byId = students.find((item) => String(item.id) === String(activeStudent.id))
+        if (byId) return byId
+        if (admissionNumber) {
+            const byAdmission = students.find((item) => (
+                item.admissionNo === admissionNumber
+                || item.admissionNumber === admissionNumber
+            ))
+            if (byAdmission) return byAdmission
+        }
+        // Soft match when finance row uses a display name + class (rare offline demos).
+        const name = String(activeStudent.name || '').trim().toLowerCase()
+        const klass = String(activeStudent.className || '').trim().toLowerCase()
+        if (!name) return null
+        return students.find((item) => (
+            String(item.name || '').trim().toLowerCase() === name
+            && (!klass || String(item.className || '').trim().toLowerCase() === klass)
+        )) || null
+    }, [activeStudent, admissionNumber, students])
+    const [academicYear] = useState(student?.academicYear || activeStudent?.academicYear || DEFAULT_ACADEMIC_YEAR)
     const [view, setView] = useState('pay')
     const [selectedIds, setSelectedIds] = useState([])
     const [checkoutOpen, setCheckoutOpen] = useState(false)
@@ -42,6 +70,21 @@ const FeesPayemnt = () => {
     const summary = student ? getStudentSummary(student.id, academicYear) : null
     const grouped = groupInstallmentsByMonth(installments)
     const studentReceipts = receipts.filter((item) => item.studentId === student?.id)
+
+    const scheduleHint = useMemo(() => {
+        const open = installments.filter((row) => (
+            row.status !== FEE_INSTALLMENT_STATUSES.PAID
+            && row.status !== FEE_INSTALLMENT_STATUSES.WAIVED
+            && row.status !== FEE_INSTALLMENT_STATUSES.CANCELLED
+            && (Number(row.balanceAmount) || 0) > 0
+        ))
+        if (!open.length) return null
+        const today = new Date().toISOString().slice(0, 10)
+        const sorted = [...open].sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')))
+        const next = sorted.find((row) => (row.dueDate || '') >= today) || sorted[0]
+        const overdue = open.filter((row) => row.dueDate && row.dueDate < today).length
+        return { next, openCount: open.length, overdue }
+    }, [installments])
 
     const allocations = selectedIds.map((id) => {
         const row = installments.find((item) => item.id === id)
@@ -90,13 +133,46 @@ const FeesPayemnt = () => {
 
             <EntryClosureGate moduleName='Finance' actor={activeStudent?.name || 'Student'} />
             {!student && (
-                <div className='bg-white rounded-2xl shadow-md p-8 text-center text-[#667085]'>
-                    Fee information is not available for the selected student.
+                <div className='bg-white rounded-2xl shadow-md p-8 text-center text-[#667085] space-y-2'>
+                    <p>Fee information is not available for the selected student.</p>
+                    <p className='text-xs'>
+                        {isParentPortal
+                            ? 'Parent fees load from the campus finance ledger for linked children. Ask Account Head to import the student and apply fee structures, then refresh this page.'
+                            : 'Ask Account Head to import this student into finance and apply fee structures.'}
+                    </p>
                 </div>
             )}
             {view === 'pay' && student && (
                 <>
-                    <StudentFeeSummary summary={summary} />
+                    <StudentFeeSummary summary={summary} nextDue={scheduleHint?.next} />
+                    {scheduleHint && (
+                        <div className='bg-white rounded-2xl shadow-md p-4 flex items-start gap-3'>
+                            <div className='size-10 rounded-full bg-[#515DEF0D] text-[#515DEF] flex items-center justify-center shrink-0'>
+                                <CalendarClock size={18} />
+                            </div>
+                            <div className='min-w-0'>
+                                <p className='text-sm font-semibold text-[#1E1E1E]'>Payment schedule</p>
+                                <p className='text-sm text-[#667085] mt-1'>
+                                    Next: <span className='font-medium text-[#1E1E1E]'>{scheduleHint.next.installmentLabel || scheduleHint.next.feeHead}</span>
+                                    {' · '}
+                                    {formatCurrency(scheduleHint.next.balanceAmount || scheduleHint.next.netAmount)}
+                                    {' by '}
+                                    {formatDueDate(scheduleHint.next.dueDate)}
+                                </p>
+                                <p className='text-xs text-[#808080] mt-1'>
+                                    {scheduleHint.openCount} open installment{scheduleHint.openCount === 1 ? '' : 's'}
+                                    {scheduleHint.overdue ? ` · ${scheduleHint.overdue} overdue` : ''}
+                                    {' · '}
+                                    One Time = pay full amount once; Monthly / Quarterly / Term Wise show each part below.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+                    {!installments.length && (
+                        <div className='bg-white rounded-2xl shadow-md p-8 text-center text-[#667085]'>
+                            No fee installments yet for this student. Account Head must Define Fee Structure for this class (and import the student into finance) before dues appear here.
+                        </div>
+                    )}
                     {grouped.map((group) => (
                         <div key={group.label} className='space-y-3'>
                             <h3 className='text-base font-semibold'>{group.label}</h3>

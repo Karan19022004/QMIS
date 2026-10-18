@@ -1,4 +1,3 @@
-import { SUBMISSIONS_LIST } from '../../Teacher/StudentDeliverables/HomeFun/homeFunSubmissionsData'
 import { CURRENT_STUDENT_ID } from './studentDeliverablesConfig'
 
 const STORAGE_KEY = 'student-home-fun-submissions'
@@ -36,37 +35,14 @@ const saveStoredSubmissions = (items) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
 }
 
-const findInMockData = (assignmentId, assignmentTitle, studentId) => {
-    const matched = SUBMISSIONS_LIST.find(
-        (item) => item.assignmentId === assignmentId || item.assignmentTitle === assignmentTitle,
-    )
-    if (!matched) return null
-
-    const submitted = matched.studentDetails.submitted.find((entry) => entry.id === studentId)
-    if (!submitted) return null
-
-    return {
-        studentId,
-        assignmentId: matched.assignmentId,
-        assignmentTitle: matched.assignmentTitle,
-        submittedAt: submitted.submittedAt,
-        isLate: submitted.isLate ?? false,
-        fileName: submitted.submission?.fileName ?? '',
-        fileSize: submitted.submission?.fileSize ?? '',
-        additionalNote: submitted.submission?.additionalNote ?? '',
-    }
-}
-
 export const getStudentSubmission = (
     assignmentId,
     assignmentTitle,
     studentId = CURRENT_STUDENT_ID,
 ) => {
-    const stored = getStoredSubmissions().find(
+    return getStoredSubmissions().find(
         (entry) => entry.assignmentId === assignmentId && entry.studentId === studentId,
-    )
-    if (stored) return stored
-    return findInMockData(assignmentId, assignmentTitle, studentId)
+    ) || null
 }
 
 export const getStudentSubmissionStatus = (record, studentId = CURRENT_STUDENT_ID) => {

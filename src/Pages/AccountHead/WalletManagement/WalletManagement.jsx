@@ -41,7 +41,7 @@ const WalletManagement = () => {
                             {' · '}
                             All Roles
                         </p>
-                        <FinanceSnapshotBanner mockNote='Wallets & recharges come from the finance snapshot. Spending history and recharge method catalogs remain illustrative.' />
+                        <FinanceSnapshotBanner mockNote='Wallets, recharges, and WALLET OUT spend use the finance snapshot in API mode. Gateway method catalogs stay stub labels until provider keys exist.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select

@@ -1,15 +1,30 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ExtraClassForm from './Components/ExtraClassForm'
+import { addExtraClass } from './extraClassData'
 
 const AddExtraClass = ({ listPath = '/teacher/class/extra-class' }) => {
     const navigate = useNavigate()
+    const [error, setError] = useState('')
+
+    const handleSubmit = (values) => {
+        if (!values.subject || !values.className || !values.section || !values.topic || !values.date) {
+            setError('Subject, class, section, topic, and date are required.')
+            return
+        }
+        addExtraClass(values)
+        navigate(listPath)
+    }
 
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h2 className='text-xl font-semibold text-black'>Extended Class Information</h2>
-                <ExtraClassForm />
+                <p className='text-sm text-[#667085] mt-1'>
+                    Saved sessions are stored in the campus academics database (or local browser store when API mode is off).
+                </p>
+                {error ? <p className='text-sm text-[#B42318] mt-3'>{error}</p> : null}
+                <ExtraClassForm formId='extra-class-form' onSubmit={handleSubmit} />
             </div>
 
             <div className='flex sm:justify-end justify-center gap-x-4 mt-6'>
@@ -21,7 +36,8 @@ const AddExtraClass = ({ listPath = '/teacher/class/extra-class' }) => {
                     Discard Changes
                 </button>
                 <button
-                    type='button'
+                    type='submit'
+                    form='extra-class-form'
                     className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'
                 >
                     Save Changes

@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { DISCIPLINE_ACTORS, DISCIPLINE_FLOW } from '../domain/hrSeed'
 import { canMutate, employeeName, getDisciplinary, getEmployees, nextId, pushNotification, saveDisciplinary } from '../domain/hrStore'
-import { Badge, Modal, PageIntro, PrimaryButton, TableWrap, inputClass, td, th, useHrTick } from '../components/HrUi'
+import { Badge, Modal, PageIntro, PrimaryButton, Select, TableWrap, TextField, td, th, useHrTick } from '../components/HrUi'
 
 const Disciplinary = () => {
     const tick = useHrTick()
@@ -70,10 +70,10 @@ const DisciplineForm = ({ form, employees, rows, setForm }) => {
     return (
         <Modal title='Disciplinary notice' onClose={() => setForm(null)}>
             <form onSubmit={save} className='grid gap-3'>
-                <select className={inputClass} value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>{employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
-                <select className={inputClass} value={form.actionType} onChange={(e) => setForm({ ...form, actionType: e.target.value })}><option>Warning</option><option>Memo</option><option>Suspended</option></select>
-                <input className={inputClass} placeholder='Deviation / incident' value={form.incident} onChange={(e) => setForm({ ...form, incident: e.target.value })} />
-                <input className={inputClass} placeholder='Details' value={form.details} onChange={(e) => setForm({ ...form, details: e.target.value })} />
+                <Select label='Employee' value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select employee' />
+                <Select label='Action type' value={form.actionType} onChange={(e) => setForm({ ...form, actionType: e.target.value })} options={['Warning', 'Memo', 'Suspended']} allLabel={null} />
+                <TextField label='Deviation / incident' value={form.incident} onChange={(e) => setForm({ ...form, incident: e.target.value })} />
+                <TextField label='Details' value={form.details} onChange={(e) => setForm({ ...form, details: e.target.value })} />
                 <PrimaryButton type='submit'>Save</PrimaryButton>
             </form>
         </Modal>
