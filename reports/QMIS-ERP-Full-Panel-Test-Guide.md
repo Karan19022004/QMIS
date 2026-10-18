@@ -2,9 +2,14 @@
 
 Regenerate PDF: `python3 reports/_build_full_panel_test_guide_pdf.py`
 
-Updated: **17 October 2026** — Phase 3 Ops + Audit closed. Sheet TOTAL **480 / 0 / 0 / 0** of 480.  
+Updated: **18 October 2026** — Phase 3 Ops + Audit closed. Sheet TOTAL **480 / 0 / 0 / 0** of 480.  
 Ops collections: `/api/v1/ops/{collection}` · Audit: `/api/v1/campus-audit/{collection}` · Alembic **0014**.  
 Stack: PostgreSQL **18 @ 5433** · API `:8000` · Vite `:5173`.
+
+**Module-by-module flow (every sidebar leaf):** see  
+[`QMIS-ERP-Module-Flow-Test-Guide.md`](./QMIS-ERP-Module-Flow-Test-Guide.md)  
+and PDF `reports/QMIS-ERP-Module-Flow-Test-Guide.pdf`  
+(each module: **Do → Stored in → Reflects to → Pass**).
 
 ---
 

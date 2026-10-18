@@ -8,6 +8,18 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 18 October 2026 — Full module-flow test guide
+
+**Status:** Added exhaustive sidebar module test document for campus-order testing.
+
+### Docs
+- `reports/QMIS-ERP-Module-Flow-Test-Guide.md` (+ PDF) — every leaf: **Do → Stored in → Reflects to → Pass**
+- Builder: `reports/_build_module_flow_test_guide_pdf.py`
+- Linked from `QMIS-ERP-Full-Panel-Test-Guide.md`
+- Copies under `erp complete documentation/`
+
+---
+
 ## 17 October 2026 — ProTrack365 bus tracking + ops SoT hardening
 
 **Status:** Sheet already **480 / 0 / 0 / 0**. Continued wiring so Ops/Audit screens hydrate for real browser testing; added **ProTrack365** GPS integration.

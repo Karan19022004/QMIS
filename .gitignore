@@ -35,6 +35,8 @@ dist-ssr
 !backend/docs/**/*.md
 !reports/daily-work-report.md
 !reports/testing-report.md
+!reports/QMIS-ERP-Full-Panel-Test-Guide.md
+!reports/QMIS-ERP-Module-Flow-Test-Guide.md
 
 # Local credential / seed dumps must never be committed
 cred.txt
