@@ -23,7 +23,7 @@ import {
     isDemoLoginEnabled,
 } from '../services/apiClient'
 import { apiChangePassword, apiLogin, apiLogout, apiMe } from '../services/authApi'
-import { clearLeaveRequestMemory } from '../Common/LeaveRequest/leaveRequestData'
+import { clearLeaveRequestMemory, hydrateLeaveRequestsFromApi } from '../Common/LeaveRequest/leaveRequestData'
 import { clearClassTimetableMemory } from '../Pages/Principal/ClassTimetable/classTimetableData'
 import { clearCampusJsonMemory } from '../services/campusJsonStore'
 import { clearTeacherAllocationMemory } from '../Pages/Principal/TeacherAllocation/teacherAllocationData'
@@ -173,6 +173,15 @@ export const AuthProvider = ({ children }) => {
         window.addEventListener(SESSION_EXPIRED_EVENT, endLocalSession)
         return () => window.removeEventListener(SESSION_EXPIRED_EVENT, endLocalSession)
     }, [endLocalSession])
+
+    // Prefetch leave inboxes as soon as a backend session exists so leave pages are not empty
+    // on the first paint after a hard reload (lists only read the in-memory/session cache).
+    useEffect(() => {
+        if (!isApiAuthEnabled() || !isAuthenticated) return undefined
+        if (!getAccessToken()) return undefined
+        hydrateLeaveRequestsFromApi()
+        return undefined
+    }, [isAuthenticated, email])
 
     // On load, never trust the role kept in sessionStorage by itself: confirm it with the server
     // using the real token, so editing storage cannot grant a role in the UI.

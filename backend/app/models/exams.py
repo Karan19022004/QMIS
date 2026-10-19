@@ -31,6 +31,8 @@ class Exam(Base):
     exam_type_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("exam_types.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     class_name: Mapped[str] = mapped_column(String(40), nullable=False)
+    # Display label from masters academic years (e.g. "2026 - 2027") for mark entry / forwarding.
+    academic_year: Mapped[str | None] = mapped_column(String(40), nullable=True)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)

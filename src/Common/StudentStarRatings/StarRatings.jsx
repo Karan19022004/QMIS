@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { EllipsisIcon, ChevronLeft, ChevronRight, Plus, Download, Trophy, Star } from 'lucide-react'
 import Dropdown from '../CommonComponents/Dropdown'
 import ExportModal from '../CommonComponents/ExportModal'
@@ -11,30 +11,45 @@ import { useTeacherAssignments } from '../Teacher/useTeacherAssignments'
 import { isApiStudentsEnabled } from '../../services/apiClient'
 import StarRatingDisplay from './Components/StarRatingDisplay'
 import { useStarRatingsRouteBase } from './useStarRatingsRouteBase'
+import { canUseClassDetailsApi, listAcademicYears } from '../../services/classDetailsApi'
 import {
     ACADEMIC_YEARS,
     RATING_CATEGORY,
+    SOM_RATINGS_UPDATED_EVENT,
     SOY_MONTH_COUNT,
-    getAvailableSomMonths,
     getClassSectionOptions,
     getConsolidatedSoyRatings,
+    getDefaultAcademicYear,
+    getDefaultSomMonth,
+    getSomMonthOptions,
     getSomRatings,
+    hydrateSomRatingsFromApi,
 } from './studentStarRatingsData'
 
 const StarRatings = ({ view = 'som' }) => {
+    const location = useLocation()
     const routeBase = useStarRatingsRouteBase()
     const assignments = useTeacherAssignments()
     const isSom = view === 'som'
-    const months = useMemo(() => getAvailableSomMonths(), [])
+    const months = useMemo(() => getSomMonthOptions(), [])
     const [scopedRows, setScopedRows] = useState([])
-    const classSectionOptions = useMemo(() => getClassSectionOptions(scopedRows), [scopedRows])
+    const classSectionOptions = useMemo(() => {
+        if (assignments.classSections?.length) return assignments.classSections
+        return getClassSectionOptions(scopedRows)
+    }, [assignments.classSections, scopedRows])
     const [search, setSearch] = useState('')
     const [classSection, setClassSection] = useState('')
-    const [selectedMonth, setSelectedMonth] = useState(months[months.length - 1] ?? '')
-    const [academicYear, setAcademicYear] = useState(ACADEMIC_YEARS[0])
+    const [selectedMonth, setSelectedMonth] = useState(() => {
+        const fromNav = location.state?.month
+        if (fromNav && getSomMonthOptions().includes(fromNav)) return fromNav
+        return getDefaultSomMonth()
+    })
+    const [academicYear, setAcademicYear] = useState(() => getDefaultAcademicYear())
+    const [academicYearOptions, setAcademicYearOptions] = useState(() => [...ACADEMIC_YEARS])
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
+    const [revision, setRevision] = useState(0)
 
     useEffect(() => {
         let cancelled = false
@@ -47,8 +62,12 @@ const StarRatings = ({ view = 'som' }) => {
             if (!cancelled) setScopedRows(scoped)
         }
         if (!isApiStudentsEnabled()) {
-            apply()
-            return undefined
+            queueMicrotask(() => {
+                if (!cancelled) apply()
+            })
+            return () => {
+                cancelled = true
+            }
         }
         hydrateEnrolledStudentsFromApi().finally(() => {
             if (!cancelled) apply()
@@ -57,30 +76,80 @@ const StarRatings = ({ view = 'som' }) => {
             cancelled = true
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when assignment hydrate settles
-    }, [assignments.ready, assignments.assignments.length])
+    }, [assignments.ready, assignments.assignments.length, assignments.classSections?.join('|')])
+
+    useEffect(() => {
+        let cancelled = false
+        hydrateSomRatingsFromApi({ force: true }).finally(() => {
+            if (!cancelled) setRevision((value) => value + 1)
+        })
+        const onUpdated = () => setRevision((value) => value + 1)
+        window.addEventListener(SOM_RATINGS_UPDATED_EVENT, onUpdated)
+        return () => {
+            cancelled = true
+            window.removeEventListener(SOM_RATINGS_UPDATED_EVENT, onUpdated)
+        }
+    }, [location.key])
+
+    useEffect(() => {
+        const fromNav = location.state?.month
+        if (fromNav && months.includes(fromNav)) {
+            setSelectedMonth(fromNav)
+        }
+    }, [location.state, months])
+
+    useEffect(() => {
+        let cancelled = false
+        if (!canUseClassDetailsApi()) return undefined
+        listAcademicYears()
+            .then((years) => {
+                if (cancelled || !Array.isArray(years) || !years.length) return
+                const names = years.map((row) => String(row.name || '').trim()).filter(Boolean)
+                if (!names.length) return
+                setAcademicYearOptions(names)
+                const current = years.find((row) => row.isCurrent)
+                if (current?.name) setAcademicYear(String(current.name))
+            })
+            .catch(() => {
+                /* keep computed academic-year fallback */
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [])
 
     const scopedStudentIds = useMemo(() => new Set(scopedRows.map((row) => String(row.id))), [scopedRows])
 
+    const isInTeacherScope = (item) => {
+        if (!assignments.assignments.length) return true
+        if (scopedStudentIds.has(String(item.studentId))) return true
+        if (!assignments.classSections?.length) return true
+        return assignments.classSections.some((option) => assignments.matchesClassSection(item, option))
+    }
+
     const somRatings = useMemo(() => {
         return getSomRatings().filter((item) => {
-            if (scopedStudentIds.size && !scopedStudentIds.has(String(item.studentId))) return false
+            if (!isInTeacherScope(item)) return false
             const matchesMonth = !selectedMonth || item.month === selectedMonth
-            const matchesClass = !classSection || item.classSection === classSection
+            const matchesClass = !classSection || assignments.matchesClassSection(item, classSection)
             const query = search.trim().toLowerCase()
             const matchesSearch = !query
-                || item.studentName.toLowerCase().includes(query)
-                || item.studentId.toLowerCase().includes(query)
-                || item.rollNumber.toLowerCase().includes(query)
-                || item.ratingId.toLowerCase().includes(query)
+                || String(item.studentName || '').toLowerCase().includes(query)
+                || String(item.studentId || '').toLowerCase().includes(query)
+                || String(item.rollNumber || '').toLowerCase().includes(query)
+                || String(item.ratingId || '').toLowerCase().includes(query)
             return matchesMonth && matchesClass && matchesSearch
         })
-    }, [selectedMonth, classSection, search, scopedStudentIds])
+        // revision forces re-read after add/save navigation
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedMonth, classSection, search, scopedStudentIds, assignments, revision])
 
     const soyRatings = useMemo(
-        () => getConsolidatedSoyRatings(academicYear).filter((item) => (
-            !scopedStudentIds.size || scopedStudentIds.has(String(item.studentId))
-        )),
-        [academicYear, scopedStudentIds],
+        () => getConsolidatedSoyRatings(academicYear)
+            .filter((item) => isInTeacherScope(item))
+            .filter((item) => !classSection || assignments.matchesClassSection(item, classSection)),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [academicYear, scopedStudentIds, assignments, classSection, revision],
     )
 
     const filteredSoyRatings = useMemo(() => {
@@ -112,9 +181,9 @@ const StarRatings = ({ view = 'som' }) => {
         setSearch('')
         setClassSection('')
         if (isSom) {
-            setSelectedMonth(months[months.length - 1] ?? '')
+            setSelectedMonth('')
         } else {
-            setAcademicYear(ACADEMIC_YEARS[0])
+            setAcademicYear(academicYearOptions[0] || getDefaultAcademicYear())
         }
     }
 
@@ -156,11 +225,14 @@ const StarRatings = ({ view = 'som' }) => {
                             onChange={(e) => setClassSection(e.target.value)}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full bg-white'
                         >
-                            <option value=''>All</option>
+                            <option value=''>All assigned classes</option>
                             {classSectionOptions.map((opt) => (
                                 <option key={opt} value={opt}>{opt}</option>
                             ))}
                         </select>
+                        {assignments.emptyReason ? (
+                            <p className='text-xs text-[#E65100]'>{assignments.emptyReason}</p>
+                        ) : null}
                     </div>
                     {isSom ? (
                         <div className='flex flex-col gap-y-2'>
@@ -171,6 +243,7 @@ const StarRatings = ({ view = 'som' }) => {
                                 onChange={(e) => setSelectedMonth(e.target.value)}
                                 className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full bg-white'
                             >
+                                <option value=''>All months</option>
                                 {months.map((month) => (
                                     <option key={month} value={month}>{month}</option>
                                 ))}
@@ -185,9 +258,12 @@ const StarRatings = ({ view = 'som' }) => {
                                 onChange={(e) => setAcademicYear(e.target.value)}
                                 className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full bg-white'
                             >
-                                {ACADEMIC_YEARS.map((year) => (
+                                {academicYearOptions.map((year) => (
                                     <option key={year} value={year}>{year}</option>
                                 ))}
+                                {!academicYearOptions.includes(academicYear) && academicYear ? (
+                                    <option value={academicYear}>{academicYear}</option>
+                                ) : null}
                             </select>
                         </div>
                     )}

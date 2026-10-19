@@ -94,6 +94,36 @@ def test_teacher_cannot_replace_timetables(client):
     assert put.status_code == 403
 
 
+def test_coordinator_can_replace_timetables(client):
+    headers = _login(client, settings.coordinator_seed_email, settings.coordinator_seed_password)
+    put = client.put(
+        "/api/v1/academics/class-timetables",
+        json=[{"id": "CTT-COORD-1", "className": "Grade 1", "section": "A", "timelines": []}],
+        headers=headers,
+    )
+    assert put.status_code == 200, put.text
+    assert put.json()[0]["id"] == "CTT-COORD-1"
+
+
+def test_unit_tests_and_deliverables_collections(client):
+    headers = _login(client, TEACHER[0], TEACHER[1])
+    for collection, item_id in (
+        ("unit-tests", "UT-2001"),
+        ("sample-questions", "SQ-2001"),
+        ("home-fun", "HF-2001"),
+        ("study-materials", "SM-2001"),
+    ):
+        put = client.put(
+            f"/api/v1/academics/{collection}",
+            json=[{"id": item_id, "title": "Demo", "subject": "Math"}],
+            headers=headers,
+        )
+        assert put.status_code == 200, put.text
+        get = client.get(f"/api/v1/academics/{collection}", headers=headers)
+        assert get.status_code == 200
+        assert get.json()[0]["id"] == item_id
+
+
 def test_online_classes_replace_and_list(client):
     headers = _principal_headers(client)
     payload = [

@@ -177,7 +177,14 @@ ROLE_PERMISSIONS.update(
         "finance_assistant": list(_FINANCE_ASSISTANT),
         # Staff UIS + class attendance (P1-5 / Y-1)
         "teacher": list(_STAFF_ACADEMIC),
-        "coordinator": [*_STAFF_ACADEMIC, "exams.write", "students.place", "students.promote"],
+        # hr.employees.read: campus teacher directory for Class Timetable / allocations (read-only).
+        "coordinator": [
+            *_STAFF_ACADEMIC,
+            "exams.write",
+            "students.place",
+            "students.promote",
+            "hr.employees.read",
+        ],
         # Campus employee directory is read-only (hr.employees.read). Not hr.write / admin users.
         "principal": [
             *_STAFF_ACADEMIC,

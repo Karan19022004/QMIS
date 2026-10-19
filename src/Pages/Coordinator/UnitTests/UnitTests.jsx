@@ -3,18 +3,19 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus } from 'lucide-react'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
-import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
-import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import pdf_icon from '../../../assets/images/pdf-icon.png'
 import noAssign from '../../../assets/images/no-assign.png'
 import {
     CLASSES,
+    deleteUnitTest,
     filterUnitTests,
     formatTestDate,
     getUnitTests,
+    hydrateUnitTestsFromApi,
     ROUTE_BASE,
     SECTIONS,
     SUBJECTS,
+    UNIT_TESTS_UPDATED_EVENT,
 } from './unitTestsData'
 
 const emptyFilters = {
@@ -48,11 +49,21 @@ const UnitTestsEmpty = () => (
 const UnitTestsList = ({ items }) => {
     const [filters, setFilters] = useState(emptyFilters)
     const [exportModal, setExportModal] = useState(false)
-    const [editRequestModal, setEditRequestModal] = useState(false)
-    const [deleteRequestModal, setDeleteRequestModal] = useState(false)
+    const [deletingId, setDeletingId] = useState('')
     const [entriesPerPage, setEntriesPerPage] = useState(10)
 
     const filteredItems = useMemo(() => filterUnitTests(items, filters), [items, filters])
+
+    const handleDelete = async (record) => {
+        const label = record.entryId || record.title || 'this unit test'
+        if (!window.confirm(`Delete ${label}? This cannot be undone.`)) return
+        setDeletingId(record.id)
+        try {
+            await deleteUnitTest(record.id)
+        } finally {
+            setDeletingId('')
+        }
+    }
 
     const updateFilter = (key, value) => {
         setFilters((current) => ({ ...current, [key]: value }))
@@ -207,19 +218,19 @@ const UnitTestsList = ({ items }) => {
                                             >
                                                 View
                                             </NavLink>
-                                            <button
-                                                type='button'
-                                                onClick={() => setEditRequestModal(true)}
-                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                            <NavLink
+                                                to={`${ROUTE_BASE}/edit/${record.id}`}
+                                                className='block w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
                                             >
                                                 Edit
-                                            </button>
+                                            </NavLink>
                                             <button
                                                 type='button'
-                                                onClick={() => setDeleteRequestModal(true)}
-                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                disabled={deletingId === record.id}
+                                                onClick={() => handleDelete(record)}
+                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer disabled:opacity-50'
                                             >
-                                                Delete
+                                                {deletingId === record.id ? 'Deleting…' : 'Delete'}
                                             </button>
                                         </Dropdown>
                                     </td>
@@ -248,8 +259,6 @@ const UnitTestsList = ({ items }) => {
             </div>
 
             <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
-            <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
-            <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </>
     )
 }
@@ -259,7 +268,16 @@ const UnitTests = () => {
     const [items, setItems] = useState(() => getUnitTests())
 
     useEffect(() => {
-        setItems(getUnitTests())
+        let cancelled = false
+        hydrateUnitTestsFromApi().finally(() => {
+            if (!cancelled) setItems(getUnitTests())
+        })
+        const onUpdate = () => setItems(getUnitTests())
+        window.addEventListener(UNIT_TESTS_UPDATED_EVENT, onUpdate)
+        return () => {
+            cancelled = true
+            window.removeEventListener(UNIT_TESTS_UPDATED_EVENT, onUpdate)
+        }
     }, [location.key])
 
     if (items.length === 0) {

@@ -61,8 +61,10 @@ const PrincipalRoutes = () => {
             <Route path="/principal/star-ratings-list" element={<Navigate to="/principal/star-ratings/star-of-month" replace />} />
             <Route path="/principal/examination-timetable" element={<ExaminationTimetableList />} />
             <Route path="/principal/create-examination-timetable" element={<CreateExaminationTimetable />} />
+            <Route path="/principal/edit-examination-timetable/:id" element={<CreateExaminationTimetable />} />
             <Route path="/principal/class-timetable" element={<ClassTimetableList />} />
             <Route path="/principal/create-class-timetable" element={<CreateClassTimetable />} />
+            <Route path="/principal/edit-class-timetable/:id" element={<CreateClassTimetable />} />
             <Route path="/principal/user-management/student-database" element={<StudentDatabaseList />} />
             <Route path="/principal/user-management/student-database/view/:id" element={<ViewStudentDatabase />} />
             <Route path="/principal/user-management/employee-database" element={<EmployeeDatabaseList />} />

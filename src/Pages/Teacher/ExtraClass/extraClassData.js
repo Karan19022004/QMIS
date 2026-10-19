@@ -15,11 +15,8 @@ export const STORAGE_KEY = 'campus-extra-classes'
 export const EXTRA_CLASSES_UPDATED_EVENT = 'schoolerp-extra-classes-updated'
 
 export const VENUES = [
-    'Room 204 — Science Block',
-    'Room 112 — Main Building',
-    'Computer Lab — Block B',
-    'Seminar Hall — Admin Wing',
-    'Library Conference Room',
+    'Classroom',
+    'Online Class',
 ]
 
 /** Offline seed only — never shown when academics API mode is on. */
@@ -41,8 +38,8 @@ const DEMO_EXTRA_CLASSES = [
 ]
 
 let apiMemory = null
-
-const usesApiMemory = () => canUseAcademicsApi()
+let hydratePromise = null
+let persistPromise = null
 
 const emitUpdated = () => {
     try {
@@ -113,23 +110,37 @@ export const clearExtraClassMemory = () => {
     emitUpdated()
 }
 
-export const hydrateExtraClassesFromApi = async () => {
+export const hydrateExtraClassesFromApi = async ({ force = false } = {}) => {
     if (!canUseAcademicsApi()) return false
-    try {
-        const rows = await listAcademicsCollectionApi('extra-classes')
-        apiMemory = cleanList(rows).map(normalizeRecord).filter((item) => item.id)
-        purgeBrowserCopies()
-        emitUpdated()
-        return true
-    } catch {
-        apiMemory = []
-        emitUpdated()
-        return false
+    // Wait for any in-flight save so a list remount does not GET stale data over the new row.
+    if (persistPromise) {
+        try {
+            await persistPromise
+        } catch {
+            /* continue to hydrate */
+        }
     }
+    if (hydratePromise && !force) return hydratePromise
+    hydratePromise = listAcademicsCollectionApi('extra-classes')
+        .then((rows) => {
+            apiMemory = cleanList(rows).map(normalizeRecord).filter((item) => item.id)
+            purgeBrowserCopies()
+            emitUpdated()
+            return true
+        })
+        .catch(() => {
+            if (apiMemory == null) apiMemory = []
+            emitUpdated()
+            return false
+        })
+        .finally(() => {
+            hydratePromise = null
+        })
+    return hydratePromise
 }
 
 export const getExtraClasses = () => {
-    if (usesApiMemory()) {
+    if (canUseAcademicsApi()) {
         return Array.isArray(apiMemory) ? apiMemory.map((item) => ({ ...item })) : []
     }
     try {
@@ -147,16 +158,28 @@ export const getExtraClasses = () => {
 /** Kept for older imports that expected a constant array. */
 export const EXTRA_CLASSES = DEMO_EXTRA_CLASSES
 
-export const saveExtraClasses = (records) => {
+export const saveExtraClasses = async (records) => {
     const list = (Array.isArray(records) ? records : []).map(normalizeRecord).filter((item) => item.id)
-    if (usesApiMemory()) {
+    if (canUseAcademicsApi()) {
         apiMemory = list
-        replaceAcademicsCollectionApi('extra-classes', cleanList(list)).catch(() => {})
         emitUpdated()
-        return
+        persistPromise = replaceAcademicsCollectionApi('extra-classes', cleanList(list))
+            .then((rows) => {
+                if (Array.isArray(rows)) {
+                    apiMemory = cleanList(rows).map(normalizeRecord).filter((item) => item.id)
+                }
+                emitUpdated()
+                return apiMemory
+            })
+            .finally(() => {
+                persistPromise = null
+            })
+        await persistPromise
+        return list
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
     emitUpdated()
+    return list
 }
 
 export const getExtraClassById = (id) => {
@@ -183,7 +206,10 @@ export const formatExtraClassDate = (date) => {
     return `${day}-${month}-${year}`
 }
 
-export const addExtraClass = (payload, meta = {}) => {
+export const addExtraClass = async (payload, meta = {}) => {
+    if (canUseAcademicsApi()) {
+        await hydrateExtraClassesFromApi()
+    }
     const existing = getExtraClasses()
     const id = nextExtraClassId(existing)
     const className = String(payload.className || '').trim()
@@ -196,11 +222,14 @@ export const addExtraClass = (payload, meta = {}) => {
         createdBy: meta.createdBy || '',
         createdAt: new Date().toISOString(),
     })
-    saveExtraClasses([record, ...existing])
+    await saveExtraClasses([record, ...existing])
     return record
 }
 
-export const updateExtraClass = (id, payload) => {
+export const updateExtraClass = async (id, payload) => {
+    if (canUseAcademicsApi()) {
+        await hydrateExtraClassesFromApi()
+    }
     const key = String(id || '')
     const existing = getExtraClasses()
     const index = existing.findIndex((item) => item.id === key || item.extraClassId === key)
@@ -218,15 +247,18 @@ export const updateExtraClass = (id, payload) => {
     })
     const list = [...existing]
     list[index] = next
-    saveExtraClasses(list)
+    await saveExtraClasses(list)
     return next
 }
 
-export const deleteExtraClass = (id) => {
+export const deleteExtraClass = async (id) => {
+    if (canUseAcademicsApi()) {
+        await hydrateExtraClassesFromApi()
+    }
     const key = String(id || '')
     const next = getExtraClasses().filter((item) => item.id !== key && item.extraClassId !== key)
-    saveExtraClasses(next)
+    await saveExtraClasses(next)
 }
 
 export const isUsingDemoExtraClasses = () =>
-    !usesApiMemory() && !localStorage.getItem(STORAGE_KEY)
+    !canUseAcademicsApi() && !localStorage.getItem(STORAGE_KEY)

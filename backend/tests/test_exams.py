@@ -70,7 +70,10 @@ def _approved_exam(client, cls: str, exam_type="MIDTERM", start=FUTURE, end=FUTU
     eid = created.json()["id"]
     sub = client.post(f"/api/v1/exams/{eid}/submit", headers=principal)
     assert sub.status_code == 200, sub.text
-    assert sub.json()["awaitingRole"] == "director"
+    awaiting = set(sub.json().get("awaitingRoles") or [])
+    if not awaiting and sub.json().get("awaitingRole"):
+        awaiting = set(str(sub.json()["awaitingRole"]).split("|"))
+    assert awaiting == {"principal", "director"}
     ok = client.post(
         f"/api/v1/approvals/{sub.json()['approvalId']}/decide", json={"decision": "approve"}, headers=director
     )
@@ -79,11 +82,13 @@ def _approved_exam(client, cls: str, exam_type="MIDTERM", start=FUTURE, end=FUTU
 
 
 def _publish(client, batch: dict) -> None:
-    for who in ("coordinator", "principal", "director"):
-        r = client.post(
-            f"/api/v1/approvals/{batch['approvalId']}/decide", json={"decision": "approve"}, headers=_h(client, who)
-        )
-        assert r.status_code == 200, r.text
+    # Marks batches are decided by Director (Approve & Publish).
+    r = client.post(
+        f"/api/v1/approvals/{batch['approvalId']}/decide",
+        json={"decision": "approve"},
+        headers=_h(client, "director"),
+    )
+    assert r.status_code == 200, r.text
 
 
 def test_exam_types_default_and_configurable(client):
@@ -242,3 +247,41 @@ def test_weightage_rules_and_weighted_final(client):
     _approved_exam(client, "Grade 4", "CA", start=date.today().isoformat(), end=date.today().isoformat())
     locked = client.put(url, params={"className": "Grade 4"}, json=good, headers=director)
     assert locked.status_code == 409
+
+
+def test_exam_timetable_principal_or_director_may_approve(client):
+    """Exam timetable approvals are any-of: Principal or Director can decide."""
+    principal, director = _h(client, "principal"), _h(client, "director")
+    created = client.post(
+        "/api/v1/exams",
+        json={
+            "name": "Principal Approve Exam",
+            "examType": "MIDTERM",
+            "className": "Grade 6",
+            "startDate": FUTURE,
+            "endDate": FUTURE_END,
+        },
+        headers=principal,
+    )
+    assert created.status_code == 201, created.text
+    eid = created.json()["id"]
+    sub = client.post(f"/api/v1/exams/{eid}/submit", headers=principal)
+    assert sub.status_code == 200, sub.text
+    approval_id = sub.json()["approvalId"]
+    assert set(sub.json().get("awaitingRoles") or []) == {"principal", "director"}
+
+    ok = client.post(
+        f"/api/v1/approvals/{approval_id}/decide",
+        json={"decision": "approve"},
+        headers=principal,
+    )
+    assert ok.status_code == 200, ok.text
+    assert ok.json()["status"] == "approved"
+
+    # Director cannot decide again after Principal finalized.
+    again = client.post(
+        f"/api/v1/approvals/{approval_id}/decide",
+        json={"decision": "approve"},
+        headers=director,
+    )
+    assert again.status_code == 409

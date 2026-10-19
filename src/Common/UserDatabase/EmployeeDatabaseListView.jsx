@@ -14,7 +14,10 @@ const EmployeeDatabaseListView = ({
     title = 'Employee Database',
     subtitle = 'Employees come from HR. Staff logins created through User Creation are included when your role can read them.',
     fixedDepartmentFilter = '',
+    /** Optional predicate — e.g. Teacher Database matches role Teacher even when HR department is Academic. */
+    recordFilter = null,
     showDepartmentFilter = true,
+    emptyMessage = '',
 }) => {
     const location = useLocation()
     const api = canUseEmployeeDirectoryApi()
@@ -76,12 +79,13 @@ const EmployeeDatabaseListView = ({
     const filteredEmployees = useMemo(() => {
         const query = search.trim().toLowerCase()
         return employees.filter((employee) => {
+            if (typeof recordFilter === 'function' && !recordFilter(employee)) return false
             if (departmentFilter && employee.department !== departmentFilter) return false
             if (!query) return true
             const haystack = `${employee.employeeId} ${employee.name} ${employee.department} ${employee.role} ${employee.email}`.toLowerCase()
             return haystack.includes(query)
         })
-    }, [employees, search, departmentFilter])
+    }, [employees, search, departmentFilter, recordFilter])
 
     const clearFilters = () => {
         setSearch('')
@@ -180,9 +184,12 @@ const EmployeeDatabaseListView = ({
                             ) : filteredEmployees.length === 0 ? (
                                 <tr>
                                     <td colSpan={15} className='px-2 py-8 text-center text-[#667085]'>
-                                        {api
-                                            ? 'No employees found in HR yet. Accept an offer in HR (or create staff) and refresh this page.'
-                                            : 'No employees found.'}
+                                        {emptyMessage
+                                            || (api
+                                                ? (employees.length
+                                                    ? 'No matching employees for this filter.'
+                                                    : 'No employees found in HR yet. Accept an offer in HR (or create staff) and refresh this page.')
+                                                : 'No employees found.')}
                                     </td>
                                 </tr>
                             ) : (

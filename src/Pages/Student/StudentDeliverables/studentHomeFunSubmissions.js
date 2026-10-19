@@ -1,6 +1,15 @@
 import { CURRENT_STUDENT_ID } from './studentDeliverablesConfig'
 
 const STORAGE_KEY = 'student-home-fun-submissions'
+export const HOME_FUN_SUBMISSIONS_UPDATED_EVENT = 'schoolerp-home-fun-submissions-updated'
+
+const emitSubmissionsUpdated = () => {
+    try {
+        window.dispatchEvent(new CustomEvent(HOME_FUN_SUBMISSIONS_UPDATED_EVENT))
+    } catch {
+        /* ignore */
+    }
+}
 
 const parseDueDate = (value) => {
     if (!value) return null
@@ -33,6 +42,7 @@ export const getStoredSubmissions = () => {
 
 const saveStoredSubmissions = (items) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    emitSubmissionsUpdated()
 }
 
 export const getStudentSubmission = (
@@ -52,14 +62,23 @@ export const getStudentSubmissionStatus = (record, studentId = CURRENT_STUDENT_I
 }
 
 export const saveStudentSubmission = (
-    { assignmentId, assignmentTitle, fileName, fileSize, additionalNote, dueDate },
+    {
+        assignmentId,
+        assignmentTitle,
+        fileName,
+        fileSize,
+        additionalNote,
+        dueDate,
+        studentName = '',
+    },
     studentId = CURRENT_STUDENT_ID,
 ) => {
     const due = parseDueDate(dueDate)
     const isLate = due ? new Date() > due : false
 
     const submission = {
-        studentId,
+        studentId: String(studentId || ''),
+        studentName: String(studentName || '').trim(),
         assignmentId,
         assignmentTitle,
         submittedAt: formatSubmittedAt(),

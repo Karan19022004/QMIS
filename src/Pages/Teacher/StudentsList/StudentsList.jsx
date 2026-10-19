@@ -49,40 +49,40 @@ const StudentsList = () => {
         }
     }, [apiMode])
 
-    // API /students is already scoped to this teacher (class teacher + allocations).
-    // Do not re-filter with FE allocation cache — it can miss grades (e.g. Grade 6 vs Grade 1).
+    // API /students is campus-scoped for the teacher, then tighten with FE allocations
+    // so empty-section teachingClasses wildcards cannot leak other sections (e.g. 6-B for 6-A).
     const scopedRows = useMemo(() => {
-        if (apiMode) return allRows
-        if (!assignments.ready) return []
-        if (!assignments.assignments.length) return []
+        if (!assignments.ready) return apiMode ? allRows : []
+        if (!assignments.assignments.length) return apiMode ? allRows : []
         return allRows.filter((student) => assignments.studentInScope(student))
     }, [allRows, assignments, apiMode])
 
     const classOptions = useMemo(() => {
+        if (assignments.classes?.length) return assignments.classes
         const fromRoster = [...new Set(scopedRows.map((row) => row.className || row.class).filter(Boolean))]
-        if (fromRoster.length) return fromRoster.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-        return assignments.classes
+        return fromRoster.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
     }, [scopedRows, assignments.classes])
 
     const sectionOptions = useMemo(() => {
-        const fromRoster = [
+        const fromAssignments = assignments.sectionsFor(classFilter)
+        if (fromAssignments.length) return fromAssignments
+        return [
             ...new Set(
                 scopedRows
                     .filter((row) => !classFilter || row.className === classFilter || row.class === classFilter)
                     .map((row) => row.section)
                     .filter(Boolean),
             ),
-        ]
-        if (fromRoster.length) return fromRoster.sort()
-        return assignments.sectionsFor(classFilter)
+        ].sort()
     }, [scopedRows, classFilter, assignments])
 
     const filteredRows = useMemo(() => {
         const query = search.trim().toLowerCase()
         return scopedRows.filter((student) => {
             if (classFilter && student.className !== classFilter && student.class !== classFilter) return false
-            if (sectionFilter && student.section !== sectionFilter && student.classSection !== sectionFilter) {
-                return false
+            if (sectionFilter) {
+                const studentSection = String(student.section || '').trim().toUpperCase()
+                if (studentSection !== String(sectionFilter).trim().toUpperCase()) return false
             }
             if (genderFilter && student.gender !== genderFilter) return false
             if (!query) return true
@@ -112,9 +112,8 @@ const StudentsList = () => {
                         Clear Filters
                     </button>
                     <p className='text-sm text-[#667085]'>
-                        {apiMode
-                            ? 'Students in your class-teacher / allocated classes (same roster as the dashboard).'
-                            : (assignments.emptyReason || 'Showing students in your assigned classes only.')}
+                        {assignments.emptyReason
+                            || 'Students in your assigned class & section only (class teacher / teacher allocation).'}
                     </p>
                 </div>
                 <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>

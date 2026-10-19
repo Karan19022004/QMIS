@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { ChevronRight, Download, Eye, Plus, EllipsisIcon } from 'lucide-react'
-import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
@@ -18,22 +17,25 @@ import {
     getTimetableChangeRequests,
     getTimetableRoutes,
     hydrateClassTimetablesFromApi,
+    loadAcademicYearOptions,
 } from './classTimetableData'
 
 const ClassTimetableList = () => {
     const location = useLocation()
-    const { createPath } = getTimetableRoutes(location.pathname)
-    const isPrincipal = !location.pathname.startsWith('/coordinator')
+    const navigate = useNavigate()
+    const { createPath, editPath, canApprove, canEdit, reviewer } = getTimetableRoutes(location.pathname)
+    const isCoordinator = location.pathname.startsWith('/coordinator')
     const [records, setRecords] = useState(() => getClassTimetables())
     const [changes, setChanges] = useState(() => getTimetableChangeRequests())
     const [rejectReason, setRejectReason] = useState('')
-    const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
     const [exportModal, setExportModal] = useState(false)
     const [selectedRecord, setSelectedRecord] = useState(null)
     const [search, setSearch] = useState('')
     const [classFilter, setClassFilter] = useState('')
     const [sectionFilter, setSectionFilter] = useState('')
+    const [academicYearFilter, setAcademicYearFilter] = useState('')
+    const [academicYearOptions, setAcademicYearOptions] = useState([])
 
     const classOptions = useMemo(() => {
         const fromRecords = [...new Set(records.map((item) => item.className).filter(Boolean))]
@@ -45,6 +47,14 @@ const ClassTimetableList = () => {
         return [...new Set([...getSectionOptions(), ...fromRecords])].sort()
     }, [records])
 
+    const yearFilterOptions = useMemo(() => {
+        const fromRecords = records.map((item) => item.academicYear).filter(Boolean)
+        const fromMasters = academicYearOptions.map((item) => item.name)
+        return [...new Set([...fromMasters, ...fromRecords])].sort((a, b) =>
+            b.localeCompare(a, undefined, { numeric: true }),
+        )
+    }, [records, academicYearOptions])
+
     const refresh = () => {
         setRecords(getClassTimetables())
         setChanges(getTimetableChangeRequests())
@@ -52,6 +62,9 @@ const ClassTimetableList = () => {
 
     useEffect(() => {
         hydrateClassTimetablesFromApi().finally(refresh)
+        loadAcademicYearOptions()
+            .then((rows) => setAcademicYearOptions(Array.isArray(rows) ? rows : []))
+            .catch(() => setAcademicYearOptions([]))
         window.addEventListener(CLASS_TIMETABLES_UPDATED_EVENT, refresh)
         return () => window.removeEventListener(CLASS_TIMETABLES_UPDATED_EVENT, refresh)
     }, [location.key])
@@ -65,12 +78,12 @@ const ClassTimetableList = () => {
     }
 
     const reviewTimetable = (id, approved) => {
-        if (!isPrincipal) return
+        if (!canApprove) return
         if (!approved && !rejectReason.trim()) {
             window.alert('Enter a rejection reason above before denying.')
             return
         }
-        decideClassTimetableApproval(id, approved ? 'Approved' : 'Denied', 'Principal', rejectReason.trim())
+        decideClassTimetableApproval(id, approved ? 'Approved' : 'Denied', reviewer, rejectReason.trim())
         setRecords(getClassTimetables())
         if (!approved) setRejectReason('')
     }
@@ -78,18 +91,19 @@ const ClassTimetableList = () => {
     const filteredRecords = useMemo(() => {
         const query = search.trim().toLowerCase()
         return records.filter((record) => {
+            if (academicYearFilter && record.academicYear !== academicYearFilter) return false
             if (classFilter && record.className !== classFilter) return false
             if (sectionFilter && record.section !== sectionFilter) return false
             if (!query) return true
             const haystack = `${record.id} ${getClassSectionLabel(record)} ${record.academicYear} ${record.term} ${record.ownerTeacherName || ''} ${record.createdByRole || ''}`.toLowerCase()
             return haystack.includes(query)
         })
-    }, [records, search, classFilter, sectionFilter])
+    }, [records, search, academicYearFilter, classFilter, sectionFilter])
 
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4'>
-                <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
+                <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='search' className='text-base font-medium text-[#808080]'>Search</label>
                         <input
@@ -99,6 +113,20 @@ const ClassTimetableList = () => {
                             onChange={(e) => setSearch(e.target.value)}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         />
+                    </div>
+                    <div className='flex flex-col gap-y-2'>
+                        <label htmlFor='academic-year-filter' className='text-base font-medium text-[#808080]'>Academic Year</label>
+                        <select
+                            id='academic-year-filter'
+                            value={academicYearFilter}
+                            onChange={(e) => setAcademicYearFilter(e.target.value)}
+                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                        >
+                            <option value=''>All</option>
+                            {yearFilterOptions.map((item) => (
+                                <option key={item} value={item}>{item}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='class-filter' className='text-base font-medium text-[#808080]'>Class</label>
@@ -131,13 +159,15 @@ const ClassTimetableList = () => {
                 </div>
             </div>
 
-            {isPrincipal ? (
+            {canApprove ? (
             <div className='bg-white rounded-2xl shadow-md p-4 mt-8'>
-                <h2 className='text-xl font-medium text-black'>Timetable change requests</h2>
+                <h2 className='text-xl font-medium text-black'>Timetable approval</h2>
                 <p className='text-sm text-[#667085] mt-1 mb-3'>
-                    Use the rejection reason below when denying a pending timetable or a change request.
+                    Use the rejection reason below when denying a pending timetable.
                 </p>
                 <input value={rejectReason} onChange={(event) => setRejectReason(event.target.value)} placeholder='Rejection reason (required to Deny)' className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2 w-full max-w-md mb-3' />
+                {/* Hidden for now — re-enable when timetable change requests are implemented.
+                <h2 className='text-xl font-medium text-black'>Timetable change requests</h2>
                 {changes.length === 0 && <p className='text-sm text-[#667085]'>No change requests yet.</p>}
                 <ul className='space-y-2'>
                     {changes.map((item) => (
@@ -152,6 +182,7 @@ const ClassTimetableList = () => {
                         </li>
                     ))}
                 </ul>
+                */}
             </div>
             ) : null}
 
@@ -160,7 +191,7 @@ const ClassTimetableList = () => {
                     <div>
                         <h2 className='text-xl font-medium text-black'>Class Timetable List</h2>
                         <p className='text-sm text-[#667085] mt-1'>
-                            Principal and Coordinator can create. Pending submissions and change requests are approved by Principal.
+                            Principal and Coordinator can create. Pending submissions are approved by Principal or Director. Principal and Director can edit (edits return to Pending).
                         </p>
                     </div>
                     <div className='flex gap-x-2'>
@@ -230,7 +261,7 @@ const ClassTimetableList = () => {
                                         </td>
                                         <td className='px-2 py-4 rounded-e-lg'>
                                             <div className='flex items-center gap-2'>
-                                                {isPrincipal && record.approvalStatus === 'Pending' ? (
+                                                {canApprove && record.approvalStatus === 'Pending' ? (
                                                     <>
                                                         <button
                                                             type='button'
@@ -256,20 +287,24 @@ const ClassTimetableList = () => {
                                                     >
                                                         View
                                                     </button>
-                                                    <button
-                                                        type='button'
-                                                        onClick={() => setEditRequestModal(true)}
-                                                        className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        type='button'
-                                                        onClick={() => setDeleteRequestModal(true)}
-                                                        className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                    >
-                                                        Delete
-                                                    </button>
+                                                    {canEdit ? (
+                                                        <button
+                                                            type='button'
+                                                            onClick={() => navigate(editPath(record.id))}
+                                                            className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    ) : null}
+                                                    {!isCoordinator ? (
+                                                        <button
+                                                            type='button'
+                                                            onClick={() => setDeleteRequestModal(true)}
+                                                            className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    ) : null}
                                                 </Dropdown>
                                             </div>
                                         </td>
@@ -295,7 +330,6 @@ const ClassTimetableList = () => {
                 </div>
             </div>
 
-            <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
             <ExportModal
                 exportModal={exportModal}

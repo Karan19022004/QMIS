@@ -1,10 +1,14 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
 import { useActiveStudent } from '../../../context/ActiveStudentContext'
-import { canUseExamsApi, listExamsApi } from '../../../services/examsApi'
-import { matchesStudentClass } from '../Class/studentClassMatch'
+import ExamSchedulePanel from '../../../Common/ExamSchedule/ExamSchedulePanel'
+import {
+    filterStudentVisibleExams,
+    loadMergedExamRecords,
+    toScheduleRow,
+} from '../../../Common/ExamSchedule/examScheduleData'
 import PlacementAwaitingNotice, { isStudentPlaced } from '../Class/Components/PlacementAwaitingNotice'
 
 const ExamSchedule = () => {
@@ -17,53 +21,38 @@ const ExamSchedule = () => {
     const [toDate, setToDate] = useState(null)
     const placed = isStudentPlaced(activeStudent)
 
-    useEffect(() => {
-        let cancelled = false
+    const reload = useCallback(async () => {
+        if (!placed) {
+            setRows([])
+            setLoading(false)
+            return
+        }
         setLoading(true)
         setError('')
-        ;(async () => {
-            if (!canUseExamsApi()) {
-                if (!cancelled) {
-                    setRows([])
-                    setLoading(false)
-                }
-                return
-            }
-            try {
-                const list = await listExamsApi({ className: activeStudent?.className || undefined })
-                if (!cancelled) setRows(list)
-            } catch (err) {
-                if (!cancelled) {
-                    setRows([])
-                    setError(err.message || 'Could not load exam schedules.')
-                }
-            } finally {
-                if (!cancelled) setLoading(false)
-            }
-        })()
-        return () => { cancelled = true }
-    }, [activeStudent?.id, activeStudent?.className])
+        try {
+            const merged = await loadMergedExamRecords()
+            const visible = filterStudentVisibleExams(merged, activeStudent)
+            setRows(visible.map(toScheduleRow))
+        } catch (err) {
+            setRows([])
+            setError(err?.message || 'Could not load exam schedules.')
+        } finally {
+            setLoading(false)
+        }
+    }, [activeStudent, placed])
+
+    useEffect(() => {
+        reload()
+    }, [reload])
 
     const filtered = useMemo(() => {
         const query = search.trim().toLowerCase()
         return rows.filter((row) => {
-            const status = String(row.status || row.approvalStatus || '').toLowerCase()
-            if (status && !['approved', 'published', 'scheduled', 'active'].includes(status)) {
-                // still show if class matches and no strict status
-            }
-            const asRecord = {
-                className: row.className || row.class_name || '',
-                section: row.section || '',
-            }
-            if (activeStudent?.className && !matchesStudentClass(asRecord, activeStudent)) {
-                // exams API may already filter by className
-                if (asRecord.className && !matchesStudentClass(asRecord, activeStudent)) return false
-            }
             if (query) {
-                const hay = `${row.name || row.examName || ''} ${row.examType || ''} ${row.id || ''}`.toLowerCase()
+                const hay = `${row.name || ''} ${row.examType || ''} ${row.id || ''}`.toLowerCase()
                 if (!hay.includes(query)) return false
             }
-            const start = row.startDate || row.examDate || row.date
+            const start = row.startDate
             if (start && fromDate) {
                 const d = new Date(start)
                 const begin = new Date(fromDate)
@@ -78,10 +67,24 @@ const ExamSchedule = () => {
             }
             return true
         })
-    }, [rows, activeStudent, search, fromDate, toDate])
+    }, [rows, search, fromDate, toDate])
+
+    if (!placed) {
+        return (
+            <section>
+                <div className='bg-white rounded-2xl shadow-md p-8'>
+                    <h2 className='text-xl font-semibold text-black mb-4'>Exam Schedule</h2>
+                    <PlacementAwaitingNotice
+                        studentName={activeStudent?.name}
+                        featureLabel='exam schedules'
+                    />
+                </div>
+            </section>
+        )
+    }
 
     return (
-        <section>
+        <section className='space-y-6'>
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex flex-wrap gap-4 justify-between'>
                     <button
@@ -123,53 +126,15 @@ const ExamSchedule = () => {
                 </div>
             </div>
 
-            <div className='bg-white rounded-2xl shadow-md p-4 mt-8'>
-                <h2 className='text-xl font-medium text-black mb-4'>Exam Schedule</h2>
-                {!placed && (
-                    <PlacementAwaitingNotice
-                        studentName={activeStudent?.name}
-                        featureLabel='exam schedules'
-                    />
-                )}
-                {placed && error && <p className='text-sm text-[#B54708] mb-3'>{error}</p>}
-                {placed && loading && <p className='text-sm text-[#667085] py-8 text-center'>Loading…</p>}
-                {placed && !loading && (
-                    <div className='overflow-x-auto'>
-                        <table className='w-full text-sm text-left'>
-                            <thead className='text-xs bg-[#EDEEF5]'>
-                                <tr>
-                                    <th className='px-2 py-3'>Exam</th>
-                                    <th className='px-2 py-3'>Class</th>
-                                    <th className='px-2 py-3'>Start</th>
-                                    <th className='px-2 py-3'>End</th>
-                                    <th className='px-2 py-3'>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {filtered.length === 0 && (
-                                    <tr>
-                                        <td colSpan={5} className='px-2 py-10 text-center text-[#667085]'>
-                                            No exam schedules published for your class yet.
-                                        </td>
-                                    </tr>
-                                )}
-                                {filtered.map((row) => (
-                                    <tr key={row.id} className='border-b border-[#f2f4f7]'>
-                                        <td className='px-2 py-4'>{row.name || row.examName || '—'}</td>
-                                        <td className='px-2 py-4'>
-                                            {row.className || '—'}
-                                            {row.section ? `-${row.section}` : ''}
-                                        </td>
-                                        <td className='px-2 py-4'>{row.startDate || row.examDate || '—'}</td>
-                                        <td className='px-2 py-4'>{row.endDate || '—'}</td>
-                                        <td className='px-2 py-4'>{row.status || row.approvalStatus || '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
+            <ExamSchedulePanel
+                title='Exam Schedule'
+                description='Exam timetables for your class after your grade coordinator forwards them.'
+                rows={filtered}
+                loading={loading}
+                error={error}
+                mode='view'
+                emptyMessage='No exam timetables forwarded for your class yet.'
+            />
         </section>
     )
 }

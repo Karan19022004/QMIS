@@ -124,6 +124,18 @@ export async function hydrateHrStore() {
             cache[HR_KEYS.claims] = asList(SEED.claims, [])
             await pushHrKey(HR_KEYS.claims, cache[HR_KEYS.claims])
         }
+
+        // Leave approval once wiped demo punches down to a single leave row — restore coverage.
+        const repairedAttendance = repairAttendanceRows(
+            cache[HR_KEYS.attendance],
+            cache[HR_KEYS.employees],
+        )
+        const currentAttendance = asList(cache[HR_KEYS.attendance], [])
+        if (repairedAttendance.length > currentAttendance.length) {
+            cache[HR_KEYS.attendance] = repairedAttendance
+            await pushHrKey(HR_KEYS.attendance, repairedAttendance)
+        }
+
         if (!snapshot.seeded) {
             await markHrSeeded()
         }
@@ -184,6 +196,56 @@ export const getLeaveBundle = () => {
     }
 }
 export const saveLeaveBundle = (value) => write(HR_KEYS.leave, value)
+
+const isLeaveApprovalAttendance = (row) =>
+    String(row?.source || '').toLowerCase().includes('leave')
+
+/**
+ * Rebuild a usable attendance register when remote data was reduced to leave-only rows
+ * (e.g. approving leave while the punch list was empty).
+ */
+export function repairAttendanceRows(rows, employees) {
+    const current = asList(rows, [])
+    const punchRows = current.filter((row) => !isLeaveApprovalAttendance(row))
+    const leaveRows = current.filter(isLeaveApprovalAttendance)
+    const seedRows = asList(SEED.attendance, [])
+    const activeEmployees = asList(employees, []).filter(
+        (employee) => employee?.id && String(employee.status || '').toLowerCase() !== 'inactive',
+    )
+
+    // Enough real punch rows already — keep as-is (still append leave rows that are missing).
+    if (punchRows.length >= Math.max(3, Math.min(seedRows.length, 5))) {
+        const byId = new Map(punchRows.map((row) => [row.id, row]))
+        leaveRows.forEach((row) => byId.set(row.id, row))
+        return [...byId.values()]
+    }
+
+    const byId = new Map()
+    seedRows.forEach((row) => byId.set(row.id, row))
+    punchRows.forEach((row) => byId.set(row.id, row))
+    leaveRows.forEach((row) => byId.set(row.id, row))
+
+    const demoDate = seedRows[0]?.date || '22-09-2026'
+    const covered = new Set([...byId.values()].map((row) => row.employeeId))
+    activeEmployees.forEach((employee) => {
+        if (covered.has(employee.id)) return
+        const id = `ATT-AUTO-${employee.id}`
+        byId.set(id, {
+            id,
+            employeeId: employee.id,
+            date: demoDate,
+            checkIn: '08:30 AM',
+            checkOut: '04:30 PM',
+            status: 'Present',
+            source: 'ESSL Demo',
+            punchIn: '08:30',
+            punchOut: '16:30',
+        })
+        covered.add(employee.id)
+    })
+
+    return [...byId.values()]
+}
 
 export const getAttendance = () => read(HR_KEYS.attendance, SEED.attendance)
 export const saveAttendance = (rows) => write(HR_KEYS.attendance, rows)

@@ -72,7 +72,16 @@ const MarkEntryReview = () => {
         if (approvalStatus === 'Rejected' && !rejectionReason.trim()) return
         setBusy(true)
         try {
-            const result = await resolveMarkSessionApproval(session, approvalStatus, rejectionReason.trim())
+            // Always goes through resolveMarkSessionApproval → POST /approvals/{id}/decide when API is on.
+            const result = await resolveMarkSessionApproval(
+                {
+                    ...session,
+                    batchId: session.batchId || session.contextKey,
+                    source: api ? 'api' : session.source,
+                },
+                approvalStatus,
+                rejectionReason.trim(),
+            )
             if (!result.success) {
                 toast.error(result.message || 'Decision failed.')
                 return
@@ -91,16 +100,17 @@ const MarkEntryReview = () => {
             <div>
                 <h1 className='text-2xl font-semibold text-black'>Review Mark Entry</h1>
                 <p className='text-sm text-[#667085] mt-1'>
-                    {getSessionDisplayLabel(session)} — submitted by {session.submittedByRole ?? 'Staff'}
+                    {getSessionDisplayLabel(session)} — submitted by{' '}
+                    {session.submittedByName || session.submittedByRole || 'Staff'}
                 </p>
             </div>
 
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='rounded-xl border border-[#EEF0F6] bg-[#FAFBFD] p-4'>
                     <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 text-sm'>
-                        <p><span className='text-[#808080]'>Academic Year :</span> <span className='text-[#1E1E1E]'>{session.academicYear}</span></p>
-                        <p><span className='text-[#808080]'>Term :</span> <span className='text-[#1E1E1E]'>{session.term}</span></p>
-                        <p><span className='text-[#808080]'>Exam Date :</span> <span className='text-[#1E1E1E]'>{session.examDate}</span></p>
+                        <p><span className='text-[#808080]'>Academic Year :</span> <span className='text-[#1E1E1E]'>{session.academicYear || '—'}</span></p>
+                        <p><span className='text-[#808080]'>Submitted By :</span> <span className='text-[#1E1E1E]'>{session.submittedByName || session.submittedByRole || '—'}</span></p>
+                        <p><span className='text-[#808080]'>Exam Date :</span> <span className='text-[#1E1E1E]'>{session.examDate || '—'}</span></p>
                         <p><span className='text-[#808080]'>Class :</span> <span className='text-[#1E1E1E]'>{formatClassLabel(session.className)} Section {session.section}</span></p>
                         <p><span className='text-[#808080]'>Maximum Marks :</span> <span className='text-[#1E1E1E]'>{session.maxMarks}</span></p>
                         <p><span className='text-[#808080]'>Approval Status :</span> <span className='text-[#1E1E1E]'>{session.approvalStatus}</span></p>
@@ -236,7 +246,7 @@ const MarkEntryReview = () => {
                                 disabled={busy}
                                 className='bg-[#4CAF50] text-white text-sm px-6 py-2.5 rounded-md border border-[#4CAF50] hover:opacity-90 cursor-pointer disabled:opacity-50'
                             >
-                                Approve & Publish
+                                {busy ? 'Publishing…' : 'Approve & Publish'}
                             </button>
                         </div>
                     )}

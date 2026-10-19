@@ -12,10 +12,13 @@ import {
     DEFAULT_ROUTE_BASE,
     filterSampleQuestions,
     getSampleQuestions,
+    hydrateSampleQuestionsFromApi,
+    SAMPLE_QUESTIONS_UPDATED_EVENT,
     SECTIONS,
     SUBJECTS,
 } from './sampleQuestionsData'
 import { useActiveStudent } from '../../../../context/ActiveStudentContext'
+import { useTeacherAssignments } from '../../../../Common/Teacher/useTeacherAssignments'
 import { matchesStudentClass } from '../../../Student/Class/studentClassMatch'
 
 const emptyFilters = {
@@ -57,6 +60,7 @@ const SampleQuestionsEmpty = ({ routeBase, viewMode }) => {
 const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
     const isStudent = viewMode === 'student'
     const { activeStudent } = useActiveStudent()
+    const assignments = useTeacherAssignments()
     const [filters, setFilters] = useState(emptyFilters)
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
@@ -73,6 +77,16 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
         classes: [...new Set(scopedItems.map((r) => r.className).filter(Boolean))],
         sections: [...new Set(scopedItems.map((r) => r.section).filter(Boolean))],
     }), [scopedItems])
+
+    const staffFilterOptions = useMemo(() => ({
+        subjects: assignments.subjects?.length ? assignments.subjects : SUBJECTS,
+        classes: assignments.classes?.length ? assignments.classes : CLASSES,
+        sections: filters.className
+            ? (assignments.sectionsFor?.(filters.className) || [])
+            : (assignments.assignments?.length
+                ? [...new Set(assignments.assignments.map((row) => row.section).filter(Boolean))]
+                : SECTIONS),
+    }), [assignments, filters.className])
 
     const filteredItems = useMemo(() => filterSampleQuestions(scopedItems, filters), [scopedItems, filters])
 
@@ -118,7 +132,7 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {(isStudent ? filterOptions.subjects : SUBJECTS).map((subject) => (
+                            {(isStudent ? filterOptions.subjects : staffFilterOptions.subjects).map((subject) => (
                                 <option key={subject} value={subject}>{subject}</option>
                             ))}
                         </select>
@@ -128,11 +142,15 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
                         <select
                             id='class-filter'
                             value={filters.className}
-                            onChange={(event) => updateFilter('className', event.target.value)}
+                            onChange={(event) => setFilters((current) => ({
+                                ...current,
+                                className: event.target.value,
+                                section: '',
+                            }))}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {(isStudent ? filterOptions.classes : CLASSES).map((item) => (
+                            {(isStudent ? filterOptions.classes : staffFilterOptions.classes).map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>
@@ -146,7 +164,7 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {(isStudent ? filterOptions.sections : SECTIONS).map((item) => (
+                            {(isStudent ? filterOptions.sections : staffFilterOptions.sections).map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>
@@ -291,7 +309,16 @@ const SampleQuestions = ({ routeBase = DEFAULT_ROUTE_BASE, viewMode = 'teacher' 
     const [items, setItems] = useState(() => getSampleQuestions())
 
     useEffect(() => {
-        setItems(getSampleQuestions())
+        let cancelled = false
+        hydrateSampleQuestionsFromApi().finally(() => {
+            if (!cancelled) setItems(getSampleQuestions())
+        })
+        const onUpdate = () => setItems(getSampleQuestions())
+        window.addEventListener(SAMPLE_QUESTIONS_UPDATED_EVENT, onUpdate)
+        return () => {
+            cancelled = true
+            window.removeEventListener(SAMPLE_QUESTIONS_UPDATED_EVENT, onUpdate)
+        }
     }, [location.key])
 
     const visibleCount = useMemo(() => {

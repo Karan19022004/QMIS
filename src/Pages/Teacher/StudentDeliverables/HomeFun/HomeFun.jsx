@@ -14,6 +14,8 @@ import {
     getHomeFunItems,
     getRecordAssessmentType,
     formatTotalSubmissions,
+    hydrateHomeFunFromApi,
+    HOME_FUN_UPDATED_EVENT,
     SUBJECTS,
     CLASSES,
     SECTIONS,
@@ -22,8 +24,11 @@ import {
 } from './homeFunData'
 import {
     getStudentSubmissionStatus,
+    HOME_FUN_SUBMISSIONS_UPDATED_EVENT,
 } from '../../../Student/StudentDeliverables/studentHomeFunSubmissions'
 import { useActiveStudent } from '../../../../context/ActiveStudentContext'
+import { useTeacherAssignments } from '../../../../Common/Teacher/useTeacherAssignments'
+import { hydrateEnrolledStudentsFromApi } from '../../../../Common/StudentDatabase/enrolledStudentsData'
 import { matchesStudentClass } from '../../../Student/Class/studentClassMatch'
 
 const studentStatusBadgeColor = {
@@ -75,6 +80,7 @@ const HomeFunEmpty = ({ routeBase, viewMode }) => {
 const HomeFunList = ({ items, routeBase, viewMode }) => {
     const isStudent = viewMode === 'student'
     const { activeStudentId, activeStudent } = useActiveStudent()
+    const assignments = useTeacherAssignments()
     const [filters, setFilters] = useState(emptyFilters)
     const [exportModal, setExportModal] = useState(false)
 
@@ -89,6 +95,16 @@ const HomeFunList = ({ items, routeBase, viewMode }) => {
         const sections = [...new Set(scopedItems.map((r) => r.section).filter(Boolean))]
         return { subjects, classes, sections }
     }, [scopedItems])
+
+    const staffFilterOptions = useMemo(() => ({
+        subjects: assignments.subjects?.length ? assignments.subjects : SUBJECTS,
+        classes: assignments.classes?.length ? assignments.classes : CLASSES,
+        sections: filters.className
+            ? (assignments.sectionsFor?.(filters.className) || [])
+            : (assignments.assignments?.length
+                ? [...new Set(assignments.assignments.map((row) => row.section).filter(Boolean))]
+                : SECTIONS),
+    }), [assignments, filters.className])
 
     const filteredItems = useMemo(
         () => filterHomeFunItems(scopedItems, filters),
@@ -155,7 +171,7 @@ const HomeFunList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {(isStudent ? filterOptions.subjects : SUBJECTS).map((subject) => (
+                            {(isStudent ? filterOptions.subjects : staffFilterOptions.subjects).map((subject) => (
                                 <option key={subject} value={subject}>{subject}</option>
                             ))}
                         </select>
@@ -165,11 +181,15 @@ const HomeFunList = ({ items, routeBase, viewMode }) => {
                         <select
                             id='class-filter'
                             value={filters.className}
-                            onChange={(event) => updateFilter('className', event.target.value)}
+                            onChange={(event) => setFilters((current) => ({
+                                ...current,
+                                className: event.target.value,
+                                section: '',
+                            }))}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {(isStudent ? filterOptions.classes : CLASSES).map((item) => (
+                            {(isStudent ? filterOptions.classes : staffFilterOptions.classes).map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>
@@ -183,7 +203,7 @@ const HomeFunList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {(isStudent ? filterOptions.sections : SECTIONS).map((item) => (
+                            {(isStudent ? filterOptions.sections : staffFilterOptions.sections).map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>
@@ -343,7 +363,7 @@ const HomeFunList = ({ items, routeBase, viewMode }) => {
                                         <td className='px-2 py-4 text-center rounded-e-lg'>
                                             <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
                                                 <NavLink
-                                                    to={`${routeBase}/view/${record.id}`}
+                                                    to={`${routeBase}/view/${encodeURIComponent(record.id || record.assignmentId)}`}
                                                     className='block w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
                                                 >
                                                     View
@@ -393,7 +413,21 @@ const HomeFun = ({ routeBase = DEFAULT_ROUTE_BASE, viewMode = 'teacher' }) => {
     const [items, setItems] = useState(() => getHomeFunItems())
 
     useEffect(() => {
-        setItems(getHomeFunItems())
+        let cancelled = false
+        Promise.all([
+            hydrateHomeFunFromApi().catch(() => {}),
+            hydrateEnrolledStudentsFromApi().catch(() => {}),
+        ]).finally(() => {
+            if (!cancelled) setItems(getHomeFunItems())
+        })
+        const onUpdate = () => setItems(getHomeFunItems())
+        window.addEventListener(HOME_FUN_UPDATED_EVENT, onUpdate)
+        window.addEventListener(HOME_FUN_SUBMISSIONS_UPDATED_EVENT, onUpdate)
+        return () => {
+            cancelled = true
+            window.removeEventListener(HOME_FUN_UPDATED_EVENT, onUpdate)
+            window.removeEventListener(HOME_FUN_SUBMISSIONS_UPDATED_EVENT, onUpdate)
+        }
     }, [location.pathname])
 
     const visibleCount = useMemo(() => {

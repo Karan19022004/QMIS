@@ -52,11 +52,15 @@ const MyLessonPlan = () => {
         setConfirmPlan(plan)
     }
 
-    const handleConfirmMarkAsDone = () => {
+    const handleConfirmMarkAsDone = async () => {
         if (!confirmPlan) return
-        markLessonPlanAsDone(confirmPlan.id)
-        setConfirmPlan(null)
-        refreshPlans()
+        try {
+            await markLessonPlanAsDone(confirmPlan.id)
+            setConfirmPlan(null)
+            refreshPlans()
+        } catch {
+            /* keep modal open; API error surfaces via console / future toast */
+        }
     }
 
     const exportDescription = (

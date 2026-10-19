@@ -115,12 +115,12 @@ const ViewStudent = () => {
 
                     <div>
                         <h2 className='text-xl font-semibold text-black mb-4'>Attendance Information</h2>
-                        <StudentAttendanceDetails />
+                        <StudentAttendanceDetails studentId={student.id || id} />
                     </div>
 
                     <div>
                         <h2 className='text-xl font-semibold text-black mb-4'>Results</h2>
-                        <StudentResultDetails />
+                        <StudentResultDetails studentId={student.id || id} />
                     </div>
                 </>
             )}

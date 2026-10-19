@@ -49,8 +49,10 @@ const ExtraClass = ({
 
     useEffect(() => {
         let cancelled = false
-        setLoading(api)
-        hydrateExtraClassesFromApi().finally(() => {
+        // Show in-memory rows immediately (includes a just-saved session), then sync from API.
+        refresh()
+        setLoading(api && !getExtraClasses().length)
+        hydrateExtraClassesFromApi({ force: true }).finally(() => {
             if (cancelled) return
             refresh()
             setLoading(false)
@@ -61,7 +63,18 @@ const ExtraClass = ({
             cancelled = true
             window.removeEventListener(EXTRA_CLASSES_UPDATED_EVENT, onUpdate)
         }
-    }, [api, location.key])
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- remount / return from add
+    }, [api, location.key, location.state?.refresh, location.state?.createdId])
+
+    const handleDeleteConfirm = async () => {
+        if (!deleteTarget) return
+        try {
+            await deleteExtraClass(deleteTarget.id)
+        } finally {
+            setDeleteTarget(null)
+            refresh()
+        }
+    }
 
     const filteredRows = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -82,13 +95,6 @@ const ExtraClass = ({
         setSectionFilter('')
         setFromDate(null)
         setToDate(null)
-    }
-
-    const handleDeleteConfirm = () => {
-        if (!deleteTarget) return
-        deleteExtraClass(deleteTarget.id)
-        setDeleteTarget(null)
-        refresh()
     }
 
     return (

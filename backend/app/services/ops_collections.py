@@ -138,6 +138,9 @@ def _readers_for(collection: str) -> set[str]:
         return writers | {"jointdirectoraudit", "principal", "director"}
     if collection == "biometric-attendance":
         return writers | {"parent", "student"}
+    # Teachers/coordinators need library issues/members to show Books Borrowed.
+    if collection.startswith("library-"):
+        return writers | {"principal", "director", "jointdirector", "teacher", "coordinator"}
     return writers | {"principal", "director", "jointdirector"}
 
 

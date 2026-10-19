@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import ClassTimelineEditor from './Components/ClassTimelineEditor'
 import {
     TERMS,
     addClassTimetable,
+    classRecordToForm,
     defaultClassTimetableForm,
     generateTimetableId,
+    getClassTimetableById,
     getTimetableRoutes,
     hydrateClassTimetablesFromApi,
+    loadAcademicYearOptions,
     loadClassTimetableTeacherOptions,
+    updateClassTimetable,
 } from './classTimetableData'
 
 const inputClass =
@@ -20,8 +24,14 @@ const selectClass =
 const CreateClassTimetable = () => {
     const navigate = useNavigate()
     const { pathname } = useLocation()
+    const { id: editId } = useParams()
+    const isEdit = Boolean(editId)
     const { listPath } = getTimetableRoutes(pathname)
-    const createdByRole = pathname.startsWith('/coordinator') ? 'Coordinator' : 'Principal'
+    const createdByRole = pathname.startsWith('/coordinator')
+        ? 'Coordinator'
+        : pathname.startsWith('/director')
+          ? 'Director'
+          : 'Principal'
 
     const [form, setForm] = useState(() => ({
         ...defaultClassTimetableForm(),
@@ -29,28 +39,58 @@ const CreateClassTimetable = () => {
     }))
     const [errors, setErrors] = useState([])
     const [teachers, setTeachers] = useState([])
+    const [academicYears, setAcademicYears] = useState([])
     const [loadingTeachers, setLoadingTeachers] = useState(true)
+    const [loadingYears, setLoadingYears] = useState(true)
+    const [recordLoading, setRecordLoading] = useState(isEdit)
 
     useEffect(() => {
-        hydrateClassTimetablesFromApi().then(() => {
-            setForm((current) => ({
-                ...current,
-                timetableId: current.timetableId || generateTimetableId(),
-            }))
-        })
         let cancelled = false
         setLoadingTeachers(true)
-        loadClassTimetableTeacherOptions()
-            .then((rows) => {
-                if (!cancelled) setTeachers(rows)
+        setLoadingYears(true)
+        Promise.all([
+            hydrateClassTimetablesFromApi(),
+            loadClassTimetableTeacherOptions({ viewerPath: pathname }),
+            loadAcademicYearOptions(),
+        ])
+            .then(([, teacherRows, yearRows]) => {
+                if (cancelled) return
+                setTeachers(teacherRows || [])
+                const years = Array.isArray(yearRows) ? yearRows : []
+                setAcademicYears(years)
+                const currentYear = years.find((y) => y.isCurrent)?.name || years[0]?.name || ''
+                if (isEdit) {
+                    const record = getClassTimetableById(editId)
+                    if (!record) {
+                        setErrors(['Class timetable not found.'])
+                    } else {
+                        const nextForm = classRecordToForm(record)
+                        // Keep saved year even if it is no longer in the masters list.
+                        if (nextForm.academicYear && !years.some((y) => y.name === nextForm.academicYear)) {
+                            setAcademicYears([{ id: nextForm.academicYear, name: nextForm.academicYear, isCurrent: false }, ...years])
+                        }
+                        setForm(nextForm)
+                    }
+                    setRecordLoading(false)
+                } else {
+                    setForm((current) => ({
+                        ...current,
+                        timetableId: current.timetableId || generateTimetableId(),
+                        academicYear: current.academicYear || currentYear,
+                    }))
+                    setRecordLoading(false)
+                }
             })
             .finally(() => {
-                if (!cancelled) setLoadingTeachers(false)
+                if (!cancelled) {
+                    setLoadingTeachers(false)
+                    setLoadingYears(false)
+                }
             })
         return () => {
             cancelled = true
         }
-    }, [])
+    }, [isEdit, editId, pathname])
 
     const updateField = (key, value) => {
         setForm((current) => ({ ...current, [key]: value }))
@@ -88,7 +128,11 @@ const CreateClassTimetable = () => {
 
     const handleSubmit = () => {
         if (!validate()) return
-        addClassTimetable({ ...form, createdByRole })
+        if (isEdit) {
+            updateClassTimetable(editId, form)
+        } else {
+            addClassTimetable({ ...form, createdByRole })
+        }
         navigate(listPath)
     }
 
@@ -96,10 +140,19 @@ const CreateClassTimetable = () => {
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4 space-y-8'>
                 <div>
-                    <h2 className='text-xl font-semibold text-black'>Create Class Timetable</h2>
+                    <h2 className='text-xl font-semibold text-black'>
+                        {isEdit ? 'Edit Class Timetable' : 'Create Class Timetable'}
+                    </h2>
                     <p className='text-sm text-[#667085] mt-1'>
-                        Select the teacher this timetable belongs to, then add periods with the grade for each slot.
+                        {isEdit
+                            ? 'Update periods as needed. Saving returns the timetable to Pending for Principal or Director approval.'
+                            : pathname.startsWith('/coordinator')
+                              ? 'Select a teacher, then add periods from their allocation. Principal or Director can approve.'
+                              : 'Select a teacher or coordinator, then add periods from their allocation. Principal or Director can approve.'}
                     </p>
+                    {recordLoading && (
+                        <p className='text-sm text-[#667085] mt-2'>Loading timetable…</p>
+                    )}
                 </div>
 
                 {errors.length > 0 && (
@@ -141,14 +194,31 @@ const CreateClassTimetable = () => {
                         </div>
                         <div className='flex flex-col gap-y-2'>
                             <label htmlFor='academic-year' className='text-base font-medium text-[#1E1E1E]'>Academic Year:</label>
-                            <input
-                                type='text'
+                            <select
                                 id='academic-year'
                                 value={form.academicYear}
                                 onChange={(e) => updateField('academicYear', e.target.value)}
-                                placeholder='e.g. 2025-2026'
-                                className={inputClass}
-                            />
+                                className={selectClass}
+                                disabled={loadingYears}
+                            >
+                                <option value=''>
+                                    {loadingYears
+                                        ? 'Loading years…'
+                                        : academicYears.length
+                                          ? 'Select academic year'
+                                          : 'No academic years found'}
+                                </option>
+                                {academicYears.map((year) => (
+                                    <option key={year.id} value={year.name}>
+                                        {year.name}{year.isCurrent ? ' (Current)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                            {!loadingYears && academicYears.length === 0 && (
+                                <p className='text-xs text-[#B54708]'>
+                                    Add academic years under Admin → Class → Academic Years.
+                                </p>
+                            )}
                         </div>
                         <div className='flex flex-col gap-y-2'>
                             <label htmlFor='term' className='text-base font-medium text-[#1E1E1E]'>Term:</label>
@@ -180,10 +250,11 @@ const CreateClassTimetable = () => {
                 </button>
                 <button
                     type='button'
+                    disabled={recordLoading}
                     onClick={handleSubmit}
-                    className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'
+                    className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full disabled:opacity-60'
                 >
-                    Submit for Approval
+                    {isEdit ? 'Save Changes' : 'Submit for Approval'}
                 </button>
             </div>
         </section>
