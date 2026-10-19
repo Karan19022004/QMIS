@@ -23,6 +23,11 @@ export async function createExamApi(body) {
 }
 
 /** @returns {Promise<object>} */
+export async function updateExamApi(examId, body) {
+    return apiRequest(`/exams/${examId}`, { method: 'PUT', body })
+}
+
+/** @returns {Promise<object>} */
 export async function submitExamApi(examId) {
     return apiRequest(`/exams/${examId}/submit`, { method: 'POST' })
 }
@@ -67,9 +72,17 @@ export function mapExamFromApi(row) {
         name: row.name || '',
         examType: row.examType || row.exam_type || '',
         className: row.className || row.class_name || '',
+        academicYear: row.academicYear || row.academic_year || '',
         startDate: row.startDate || row.start_date || '',
         endDate: row.endDate || row.end_date || '',
         status: row.status || '',
+        approvalId: row.approvalId || row.approval_id || null,
+        awaitingRole: row.awaitingRole || row.awaiting_role || null,
+        awaitingRoles: Array.isArray(row.awaitingRoles)
+            ? row.awaitingRoles
+            : Array.isArray(row.awaiting_roles)
+              ? row.awaiting_roles
+              : [],
         source: 'api',
     }
 }
@@ -84,6 +97,15 @@ export function mapMarksBatchFromApi(row) {
         section: row.section || '',
         maxMarks: row.maxMarks ?? row.max_marks ?? null,
         status: row.status || '',
+        approvalId: row.approvalId || row.approval_id || null,
+        awaitingRole: row.awaitingRole || row.awaiting_role || null,
+        awaitingRoles: Array.isArray(row.awaitingRoles)
+            ? row.awaitingRoles
+            : Array.isArray(row.awaiting_roles)
+              ? row.awaitingRoles
+              : [],
+        teacherEmail: row.teacherEmail || row.teacher_email || '',
+        teacherName: row.teacherName || row.teacher_name || '',
         entries: Array.isArray(row.entries)
             ? row.entries.map((entry) => ({
                   studentId: String(entry.studentId || entry.student_id || ''),

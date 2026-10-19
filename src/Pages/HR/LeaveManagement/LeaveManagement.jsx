@@ -18,10 +18,22 @@ const LeaveManagement = () => {
         const requestsNext = getLeaveBundle().requests.map((item) => item.id === request.id ? { ...item, status: next, approvedBy: next === 'Approved' ? 'Reporting Manager' : item.approvedBy } : item)
         saveLeaveBundle({ ...getLeaveBundle(), requests: requestsNext })
         if (next === 'Approved') {
+            // Upsert one leave mark — never replace the whole register.
             const attendanceId = `LVE-${request.id}`
-            const attendance = getAttendance().filter((row) => row.id !== attendanceId)
             const attendanceStatus = String(request.leaveType || '').toLowerCase().includes('permission') ? 'Permission' : 'Leave'
-            saveAttendance([{ id: attendanceId, employeeId: request.employeeId, date: request.fromDate, status: attendanceStatus, source: 'Leave approval', checkIn: '—', checkOut: '—', punchIn: '', punchOut: '' }, ...attendance])
+            const leaveRow = {
+                id: attendanceId,
+                employeeId: request.employeeId,
+                date: request.fromDate,
+                status: attendanceStatus,
+                source: 'Leave approval',
+                checkIn: '—',
+                checkOut: '—',
+                punchIn: '',
+                punchOut: '',
+            }
+            const attendance = getAttendance().filter((row) => row && row.id !== attendanceId)
+            saveAttendance([leaveRow, ...attendance])
         }
         if (next === 'Pending') pushNotification({ type: 'Leave', title: 'Leave Approval Pending', message: `${employeeName(request.employeeId)} requested ${request.leaveType}.`, relatedDate: request.fromDate })
         toast.success(`Leave ${next.toLowerCase()}.`)

@@ -37,6 +37,7 @@ def _person(db: Session, user: User) -> dict:
     return {
         "id": str(user.id),
         "name": name,
+        "email": user.email or "",
         "employeeId": employee.employee_code if employee else "",
         "role": ROLE_NAMES.get(role.code, role.code) if role else "",
         "department": (employee.department or "") if employee else "",

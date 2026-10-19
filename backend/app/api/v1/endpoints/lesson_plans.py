@@ -29,6 +29,10 @@ class LessonPlanPatch(BaseModel):
     fileId: UUID | None = None
 
 
+class LessonPlanCompleteIn(BaseModel):
+    remarks: str = Field(default="", max_length=2000)
+
+
 @router.post("", status_code=201)
 def create_route(
     body: LessonPlanIn,
@@ -95,6 +99,18 @@ def submit_route(
     user: User = Depends(require_permission("lessonplans.write")),
 ) -> dict:
     return svc.submit(db, user, plan_id)
+
+
+@router.post("/{plan_id}/complete")
+def complete_route(
+    plan_id: UUID,
+    body: LessonPlanCompleteIn | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("lessonplans.write")),
+) -> dict:
+    """Mark a submitted/approved lesson plan as taught (Mark as Done)."""
+    payload = body or LessonPlanCompleteIn()
+    return svc.mark_complete(db, user, plan_id, remarks=payload.remarks)
 
 
 @router.post("/{plan_id}/revise", status_code=201)

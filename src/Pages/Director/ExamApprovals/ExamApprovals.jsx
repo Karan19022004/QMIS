@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { toast } from 'react-toastify'
@@ -14,6 +15,7 @@ import {
 } from '../timetableApprovalsData'
 import { decideApprovalApi } from '../../../services/approvalsApi'
 import { canUseExamsApi, listExamsApi, mapExamFromApi } from '../../../services/examsApi'
+import { decideExamTimetableApproval } from '../../Principal/ExaminationTimetable/examinationTimetableData'
 
 const formatDisplayDate = (iso) => {
     if (!iso) return '—'
@@ -23,28 +25,34 @@ const formatDisplayDate = (iso) => {
 }
 
 const mapExamToApprovalRow = (exam) => {
-    const status = String(exam.status || '').toLowerCase()
+    const mapped = exam.source === 'api' || exam.approvalId != null || exam.name != null
+        ? exam
+        : mapExamFromApi(exam)
+    const status = String(mapped.status || '').toLowerCase()
     let approvalStatus = 'Pending'
     if (status === 'approved') approvalStatus = 'Approved'
     else if (status === 'denied' || status === 'rejected') approvalStatus = 'Denied'
     else if (status === 'draft') approvalStatus = 'Pending'
+    else if (status === 'submitted' || status.includes('pending')) approvalStatus = 'Pending'
+    const className = mapped.className || ''
     return {
-        id: exam.id,
-        examName: exam.name || 'Exam',
-        classSection: exam.className ? `Grade ${exam.className}` : '—',
-        startDate: formatDisplayDate(exam.startDate),
-        endDate: formatDisplayDate(exam.endDate),
+        id: mapped.id,
+        examName: mapped.name || mapped.examName || 'Exam',
+        classSection: className || '—',
+        startDate: formatDisplayDate(mapped.startDate),
+        endDate: formatDisplayDate(mapped.endDate),
         submittedBy: SUBMITTED_BY,
-        submittedDate: formatDisplayDate(exam.startDate),
+        submittedDate: formatDisplayDate(mapped.startDate),
         approvalStatus,
-        approvalId: exam.approvalId || null,
+        approvalId: mapped.approvalId || null,
         rejectionReason: '',
-        modalTitle: `${exam.name || 'Exam'} — ${exam.className || ''}`,
+        modalTitle: `${mapped.name || mapped.examName || 'Exam'} — ${className}`,
         source: 'api',
     }
 }
 
 const ExamApprovals = () => {
+    const navigate = useNavigate()
     const api = canUseExamsApi()
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
@@ -71,7 +79,7 @@ const ExamApprovals = () => {
                 const mapped = (Array.isArray(rows) ? rows : [])
                     .map(mapExamFromApi)
                     .filter((exam) => exam.approvalId || String(exam.status).toLowerCase() !== 'draft')
-                    .map(mapExamToApprovalRow)
+                    .map((exam) => mapExamToApprovalRow(exam))
                 setApprovals(mapped)
             })
             .catch(() => {
@@ -97,29 +105,49 @@ const ExamApprovals = () => {
         })
     }, [approvals, search, statusFilter])
 
-    const handleApprove = async (id) => {
-        const entry = approvals.find((item) => item.id === id)
-        if (api && entry?.approvalId) {
-            try {
-                await decideApprovalApi(entry.approvalId, { decision: 'approve' })
-                setApprovals((prev) =>
-                    prev.map((item) =>
-                        item.id === id ? { ...item, approvalStatus: 'Approved', rejectionReason: '' } : item,
-                    ),
-                )
-                toast.success('Exam timetable approved.')
-            } catch (error) {
-                toast.error(error?.message || 'Approve failed.')
-            }
-            return
-        }
+    const applyLocalDecision = (entry, approved, reason = '') => {
+        decideExamTimetableApproval(
+            entry.id,
+            approved ? 'Approved' : 'Denied',
+            'Director',
+            reason,
+            {
+                id: entry.id,
+                examName: entry.examName,
+                className: entry.classSection,
+                startDate: entry.startDate,
+                endDate: entry.endDate,
+                approvalId: entry.approvalId,
+                source: entry.source,
+            },
+        )
         setApprovals((prev) =>
             prev.map((item) =>
-                item.id === id
-                    ? { ...item, approvalStatus: 'Approved', rejectionReason: '' }
+                item.id === entry.id
+                    ? {
+                        ...item,
+                        approvalStatus: approved ? 'Approved' : 'Denied',
+                        rejectionReason: approved ? '' : reason,
+                    }
                     : item,
             ),
         )
+    }
+
+    const handleApprove = async (id) => {
+        const entry = approvals.find((item) => item.id === id)
+        if (!entry) return
+        let apiOk = false
+        if (api && entry.approvalId) {
+            try {
+                await decideApprovalApi(entry.approvalId, { decision: 'approve' })
+                apiOk = true
+            } catch (error) {
+                console.warn('Campus approval decide failed; applying local decision.', error)
+            }
+        }
+        applyLocalDecision(entry, true)
+        toast.success(apiOk ? 'Exam timetable approved.' : 'Exam timetable approved (saved locally).')
     }
 
     const openDenyModal = (entry) => {
@@ -129,31 +157,17 @@ const ExamApprovals = () => {
 
     const handleDenyConfirm = async (reason) => {
         if (!selectedEntry) return
+        let apiOk = false
         if (api && selectedEntry.approvalId) {
             try {
                 await decideApprovalApi(selectedEntry.approvalId, { decision: 'deny', comment: reason })
-                setApprovals((prev) =>
-                    prev.map((item) =>
-                        item.id === selectedEntry.id
-                            ? { ...item, approvalStatus: 'Denied', rejectionReason: reason }
-                            : item,
-                    ),
-                )
-                toast.success('Exam timetable denied.')
+                apiOk = true
             } catch (error) {
-                toast.error(error?.message || 'Deny failed.')
+                console.warn('Campus approval decide failed; applying local decision.', error)
             }
-            setDenyModal(false)
-            setSelectedEntry(null)
-            return
         }
-        setApprovals((prev) =>
-            prev.map((item) =>
-                item.id === selectedEntry.id
-                    ? { ...item, approvalStatus: 'Denied', rejectionReason: reason }
-                    : item,
-            ),
-        )
+        applyLocalDecision(selectedEntry, false, reason)
+        toast.success(apiOk ? 'Exam timetable denied.' : 'Exam timetable denied (saved locally).')
         setDenyModal(false)
         setSelectedEntry(null)
     }
@@ -175,7 +189,7 @@ const ExamApprovals = () => {
                         Clear Filters
                     </button>
                     <p className='text-sm text-[#667085]'>
-                        Examination timetables submitted by the Principal for Director approval.
+                        Principal or Director can approve, deny, or edit exam timetables.
                         {api ? ' Live exam schedules.' : ''}
                     </p>
                 </div>
@@ -325,9 +339,22 @@ const ExamApprovals = () => {
                                                     >
                                                         Deny
                                                     </button>
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => navigate(`/director/edit-examination-timetable/${entry.id}`)}
+                                                        className='bg-[#515DEF] text-white text-xs px-3 py-1.5 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer'
+                                                    >
+                                                        Edit
+                                                    </button>
                                                 </div>
                                             ) : (
-                                                <span className='text-xs text-[#808080]'>—</span>
+                                                <button
+                                                    type='button'
+                                                    onClick={() => navigate(`/director/edit-examination-timetable/${entry.id}`)}
+                                                    className='bg-[#515DEF] text-white text-xs px-3 py-1.5 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer'
+                                                >
+                                                    Edit
+                                                </button>
                                             )}
                                         </td>
                                     </tr>

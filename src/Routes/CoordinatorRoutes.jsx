@@ -7,8 +7,9 @@ import ClassRoutine from '../Pages/Coordinator/ClassRoutine/ClassRoutine'
 import ClassTimetableList from '../Pages/Principal/ClassTimetable/ClassTimetableList'
 import CreateClassTimetable from '../Pages/Principal/ClassTimetable/CreateClassTimetable'
 import ExtraClass from '../Pages/Teacher/ExtraClass/ExtraClass'
-import { BiometricAttendancePage, MyProfilePage } from '../Common/demoDomain/DemoScreens'
-import ExamSchedule from '../Pages/Teacher/StudentEvaluation/ExamSchedule/ExamSchedule'
+import { BiometricAttendancePage } from '../Common/demoDomain/DemoScreens'
+import MyProfilePage from '../Common/MyProfile/MyProfilePage'
+import ExamSchedule from '../Pages/Coordinator/StudentEvaluation/ExamSchedule/ExamSchedule'
 import PerformanceAnalytics from '../Pages/Teacher/StudentEvaluation/PerformanceAnalytics'
 import AddExtraClass from '../Pages/Teacher/ExtraClass/AddExtraClass'
 import ViewExtraClass from '../Pages/Teacher/ExtraClass/ViewExtraClass'
@@ -37,6 +38,7 @@ import AddSampleQuestion from '../Pages/Coordinator/StudentDeliverables/SampleQu
 import ViewSampleQuestion from '../Pages/Coordinator/StudentDeliverables/SampleQuestions/ViewSampleQuestion'
 import UnitTests from '../Pages/Coordinator/UnitTests/UnitTests'
 import AddUnitTest from '../Pages/Coordinator/UnitTests/AddUnitTest'
+import EditUnitTest from '../Pages/Coordinator/UnitTests/EditUnitTest'
 import ViewUnitTest from '../Pages/Coordinator/UnitTests/ViewUnitTest'
 import EscalationList from '../Pages/Coordinator/EscalationManagement/EscalationList'
 import AddEscalation from '../Pages/Coordinator/EscalationManagement/AddEscalation'
@@ -68,6 +70,7 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/class/class-routine" element={<ClassRoutine />} />
             <Route path="/coordinator/class/class-timetable" element={<ClassTimetableList />} />
             <Route path="/coordinator/class/create-class-timetable" element={<CreateClassTimetable />} />
+            <Route path="/coordinator/class/edit-class-timetable/:id" element={<CreateClassTimetable />} />
             <Route path="/coordinator/create-class-timetable" element={<Navigate to="/coordinator/class/create-class-timetable" replace />} />
             <Route
                 path="/coordinator/class/extra-class"
@@ -112,6 +115,7 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/student-deliverables/sample-questions/view/:id" element={<ViewSampleQuestion />} />
             <Route path="/coordinator/unit-tests" element={<UnitTests />} />
             <Route path="/coordinator/unit-tests/add" element={<AddUnitTest />} />
+            <Route path="/coordinator/unit-tests/edit/:id" element={<EditUnitTest />} />
             <Route path="/coordinator/unit-tests/view/:id" element={<ViewUnitTest />} />
             <Route path="/coordinator/student-evaluation/mark-entry" element={<MarkEntry />} />
             <Route path="/coordinator/user-management/students-list" element={<StudentsList />} />
@@ -146,7 +150,16 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/student-evaluation/exam" element={<ExamSchedule />} />
             <Route path="/coordinator/student-evaluation/analytics" element={<PerformanceAnalytics />} />
             <Route path="/coordinator/attendance/biometric" element={<BiometricAttendancePage />} />
-            <Route path="/coordinator/my-profile" element={<MyProfilePage roleLabel="Coordinator" />} />
+            <Route
+                path="/coordinator/my-profile"
+                element={(
+                    <MyProfilePage
+                        roleLabel="Coordinator"
+                        attendancePath="/coordinator/attendance/my-attendance"
+                        leavePath="/coordinator/leave-request/my-requests"
+                    />
+                )}
+            />
             <Route path="*" element={<Navigate to="/coordinator/dashboard" replace />} />
         </ReactRoutes>
     )

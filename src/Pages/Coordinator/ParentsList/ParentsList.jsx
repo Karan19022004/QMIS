@@ -6,20 +6,21 @@ import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import noProfile from '../../../assets/images/no-profile.png'
 import { isApiStudentsEnabled } from '../../../services/apiClient'
 import { listStaffParentsApi } from '../../../services/parentsStaffApi'
-import { PARENTS_LIST } from './parentsListData'
 
 const ParentsList = () => {
-    const [fromDate, setFromDate] = useState(new Date())
-    const [toDate, setToDate] = useState(new Date())
+    const [fromDate, setFromDate] = useState(null)
+    const [toDate, setToDate] = useState(null)
     const [exportModal, setExportModal] = useState(false)
-    const [rows, setRows] = useState(() => (isApiStudentsEnabled() ? [] : PARENTS_LIST))
-    const [loading, setLoading] = useState(isApiStudentsEnabled())
+    const [rows, setRows] = useState([])
+    const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
+    const [search, setSearch] = useState('')
 
     useEffect(() => {
         let cancelled = false
         if (!isApiStudentsEnabled()) {
-            setRows(PARENTS_LIST)
+            setRows([])
+            setError('Parents list requires API auth — connect to the database to load real parent records.')
             setLoading(false)
             return undefined
         }
@@ -27,7 +28,19 @@ const ParentsList = () => {
         setError('')
         listStaffParentsApi()
             .then((list) => {
-                if (!cancelled) setRows(list)
+                if (cancelled) return
+                const mapped = (Array.isArray(list) ? list : []).map((row, index) => ({
+                    id: row.id || row.studentId || `parent-${index}`,
+                    parentProfile: row.parentProfile || '',
+                    parentName: row.parentName || '—',
+                    parentEmail: row.parentEmail || '—',
+                    mobileNumber: row.mobileNumber || '—',
+                    studentName: row.studentName || '—',
+                    className: row.className || '',
+                    section: row.section || '',
+                    admissionNumber: row.admissionNumber || '—',
+                }))
+                setRows(mapped)
             })
             .catch((err) => {
                 if (!cancelled) {
@@ -43,6 +56,14 @@ const ParentsList = () => {
         }
     }, [])
 
+    const filteredRows = rows.filter((parent) => {
+        const query = search.trim().toLowerCase()
+        if (!query) return true
+        return `${parent.parentName} ${parent.studentName} ${parent.parentEmail} ${parent.admissionNumber}`
+            .toLowerCase()
+            .includes(query)
+    })
+
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4'>
@@ -57,7 +78,7 @@ const ParentsList = () => {
                 <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='search' className='text-base font-medium text-[#808080]'>Search</label>
-                        <input type='text' id='search' placeholder='Parent name, student name...' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full' />
+                        <input type='text' id='search' value={search} onChange={(event) => setSearch(event.target.value)} placeholder='Parent name, student name...' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full' />
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label className='text-base font-medium text-[#808080]'>From</label>
@@ -95,7 +116,7 @@ const ParentsList = () => {
                     <div>
                         <h2 className='text-xl font-medium text-black'>Parents List</h2>
                         <p className='text-sm text-[#667085] mt-1'>
-                            Parents of students in your grade band only.
+                            Parents of students in your grade band and teaching allocations.
                         </p>
                     </div>
                     <button
@@ -129,14 +150,14 @@ const ParentsList = () => {
                                     </td>
                                 </tr>
                             )}
-                            {!loading && rows.length === 0 && (
+                            {!loading && filteredRows.length === 0 && (
                                 <tr>
                                     <td colSpan={7} className='px-2 py-10 text-center text-[#667085]'>
-                                        No parents in your grade band yet.
+                                        No parents in your scope yet.
                                     </td>
                                 </tr>
                             )}
-                            {!loading && rows.map((parent) => (
+                            {!loading && filteredRows.map((parent) => (
                                 <tr key={parent.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
                                     <td className='px-2 py-4 flex justify-center rounded-s-lg'>
                                         <img
@@ -163,9 +184,9 @@ const ParentsList = () => {
 
             <div className='flex justify-between items-center px-4 mt-4'>
                 <p className='text-sm font-medium text-[#515DEF]'>
-                    {loading || rows.length === 0
+                    {loading || filteredRows.length === 0
                         ? 'Showing 0 entries'
-                        : `Showing 1 to ${rows.length} of ${rows.length} entries`}
+                        : `Showing 1 to ${filteredRows.length} of ${filteredRows.length} entries`}
                 </p>
                 <div className='flex justify-center gap-x-2 flex-wrap'>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'>

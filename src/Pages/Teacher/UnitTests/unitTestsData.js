@@ -1,55 +1,96 @@
 import { CLASSES, SECTIONS, SUBJECTS } from '../AssignedClass/assignedClassData'
+import {
+    createAcademicsCollectionStore,
+    nextPrefixedId,
+} from '../../../services/academicsCollectionStore'
 
-const STORAGE_KEY = 'teacher-unit-tests'
+export { CLASSES, SECTIONS, SUBJECTS }
 
 export const ROUTE_BASE = '/teacher/unit-tests'
+export const UNIT_TESTS_UPDATED_EVENT = 'schoolerp-unit-tests-updated'
 
-const DEFAULT_UNIT_TESTS = []
-
-export const getUnitTests = () => {
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored) return JSON.parse(stored)
-    } catch {
-        /* ignore */
+const normalizeRecord = (raw) => {
+    const id = String(raw?.id || raw?.entryId || '').trim()
+    return {
+        id,
+        entryId: String(raw?.entryId || id).trim() || id,
+        subject: String(raw?.subject || '').trim(),
+        className: String(raw?.className || '').trim(),
+        section: String(raw?.section || '').trim(),
+        title: String(raw?.title || '').trim(),
+        description: String(raw?.description || '').trim(),
+        testDate: String(raw?.testDate || '').trim(),
+        totalMarks: String(raw?.totalMarks ?? '').trim(),
+        duration: String(raw?.duration ?? '').trim(),
+        fileName: String(raw?.fileName || '—').trim() || '—',
+        fileType: String(raw?.fileType || 'pdf').trim() || 'pdf',
+        createdBy: String(raw?.createdBy || '').trim(),
+        createdAt: String(raw?.createdAt || '').trim(),
     }
-    return DEFAULT_UNIT_TESTS
 }
 
-export const saveUnitTests = (records) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records))
+const store = createAcademicsCollectionStore({
+    collection: 'unit-tests',
+    storageKey: 'teacher-unit-tests',
+    eventName: UNIT_TESTS_UPDATED_EVENT,
+    normalize: normalizeRecord,
+    offlineFallback: () => [],
+})
+
+export const hydrateUnitTestsFromApi = store.hydrate
+export const clearUnitTestsMemory = store.clearMemory
+
+export const getUnitTests = () => store.getAll()
+
+export const saveUnitTests = (records) => store.saveAll(records)
+
+export const getUnitTestById = (id) => {
+    const key = String(id || '')
+    return getUnitTests().find((item) => item.id === key || item.entryId === key) ?? null
 }
 
-export const getUnitTestById = (id) =>
-    getUnitTests().find((item) => item.id === id) ?? null
+export const generateEntryId = () => nextPrefixedId(getUnitTests(), 'UT', 1001)
 
-export const generateEntryId = () => {
-    const list = getUnitTests()
-    const max = list.reduce((acc, item) => {
-        const num = Number(item.entryId.split('-').pop())
-        return Number.isFinite(num) ? Math.max(acc, num) : acc
-    }, 1000)
-    return `UT-${max + 1}`
-}
-
-export const addUnitTest = (values) => {
-    const entryId = generateEntryId()
-    const record = {
+export const addUnitTest = async (values, meta = {}) => {
+    await store.ensureHydrated()
+    const existing = getUnitTests()
+    const entryId = nextPrefixedId(existing, 'UT', 1001)
+    const record = normalizeRecord({
+        ...values,
         id: entryId,
         entryId,
-        subject: values.subject,
-        className: values.className,
-        section: values.section,
-        title: values.title,
-        description: values.description,
-        testDate: values.testDate,
-        totalMarks: values.totalMarks,
-        duration: values.duration,
-        fileName: values.fileName || '—',
-        fileType: values.fileType || 'pdf',
-    }
-    saveUnitTests([record, ...getUnitTests()])
+        createdBy: meta.createdBy || '',
+        createdAt: new Date().toISOString(),
+    })
+    await saveUnitTests([record, ...existing])
     return record
+}
+
+export const updateUnitTest = async (id, values) => {
+    await store.ensureHydrated()
+    const key = String(id || '')
+    const list = getUnitTests()
+    const index = list.findIndex((item) => item.id === key || item.entryId === key)
+    if (index < 0) return null
+    const existing = list[index]
+    const record = normalizeRecord({
+        ...existing,
+        ...values,
+        id: existing.id,
+        entryId: existing.entryId,
+        fileName: values.fileName || existing.fileName || '—',
+        fileType: values.fileType || existing.fileType || 'pdf',
+    })
+    const next = [...list]
+    next[index] = record
+    await saveUnitTests(next)
+    return record
+}
+
+export const deleteUnitTest = async (id) => {
+    await store.ensureHydrated()
+    const key = String(id || '')
+    await saveUnitTests(getUnitTests().filter((item) => item.id !== key && item.entryId !== key))
 }
 
 export const filterUnitTests = (items, filters) =>
@@ -79,5 +120,3 @@ export const formatTestDate = (value) => {
         year: 'numeric',
     })
 }
-
-export { CLASSES, SECTIONS, SUBJECTS }

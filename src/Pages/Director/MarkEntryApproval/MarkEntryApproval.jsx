@@ -161,7 +161,6 @@ const MarkEntryApproval = () => {
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-s-lg'>Exam</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Subject</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Term</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Submitted By</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Students</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Status</th>
@@ -171,7 +170,7 @@ const MarkEntryApproval = () => {
                         <tbody>
                             {filteredSessions.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className='px-2 py-8 text-center text-[#667085]'>
+                                    <td colSpan={7} className='px-2 py-8 text-center text-[#667085]'>
                                         No submitted mark entries match the selected filters.
                                     </td>
                                 </tr>
@@ -181,8 +180,9 @@ const MarkEntryApproval = () => {
                                         <td className='px-2 py-4 rounded-s-lg font-medium text-[#1E1E1E]'>{session.exam}</td>
                                         <td className='px-2 py-4'>{formatClassLabel(session.className)} — {session.section}</td>
                                         <td className='px-2 py-4'>{session.subject}</td>
-                                        <td className='px-2 py-4'>{session.term}</td>
-                                        <td className='px-2 py-4'>{session.submittedByRole ?? '—'}</td>
+                                        <td className='px-2 py-4'>
+                                            {session.submittedByName || session.submittedByRole || '—'}
+                                        </td>
                                         <td className='px-2 py-4'>{session.students?.length ?? 0}</td>
                                         <td className='px-2 py-4'>
                                             <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${approvalStatusColor[session.approvalStatus] ?? 'bg-[#66708533] text-[#667085]'}`}>

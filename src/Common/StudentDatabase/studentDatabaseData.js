@@ -140,7 +140,11 @@ const toListRow = (record) => {
         className: record.className || admission.className || '',
         class: record.className || admission.className || '',
         section: record.section || '',
-        classSection: record.section || '',
+        classSection:
+            record.classSection
+            || (record.section
+                ? `${record.className || admission.className || ''}-${record.section}`
+                : (record.className || admission.className || '')),
         fatherName: admission.fatherName || '',
         motherName: admission.motherName || '',
         parentEmail: admission.parentEmail || '',

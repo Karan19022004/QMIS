@@ -1,6 +1,7 @@
 import React from 'react'
 import TeacherWeeklyTimetable from './Components/TeacherWeeklyTimetable'
-import TimetableChangePanel from '../../../Common/ClassTimetable/TimetableChangePanel'
+// Hidden for now — re-enable when timetable change requests are implemented.
+// import TimetableChangePanel from '../../../Common/ClassTimetable/TimetableChangePanel'
 import { useTeacherAssignments } from '../../../Common/Teacher/useTeacherAssignments'
 
 const ClassRoutine = () => {
@@ -27,7 +28,7 @@ const ClassRoutine = () => {
                 ) : null}
             </div>
 
-            <TimetableChangePanel requestedBy={teacherName} requestedByRole='Teacher' />
+            {/* <TimetableChangePanel requestedBy={teacherName} requestedByRole='Teacher' /> */}
             <TeacherWeeklyTimetable />
         </section>
     )

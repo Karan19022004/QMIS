@@ -50,17 +50,30 @@ export const classKeysMatch = (a, b) => {
 }
 
 /**
- * Resolve the logged-in teacher's HR employee code (allocation key).
- * Teachers can call GET /hr/portal/employees with hr.self — returns own row only.
+ * Resolve the logged-in staff HR employee code (allocation / timetable key).
+ * Always match by session email — never take list[0] (coordinators with
+ * hr.employees.read receive the full campus roster).
+ * @param {{ email?: string, name?: string }} [hint]
  */
-export const resolveOwnTeacherProfile = async () => {
-    if (cachedSelf) return cachedSelf
+export const resolveOwnTeacherProfile = async (hint = {}) => {
+    const session = getActiveCreatedUserSession()
+    const sessionEmail = String(hint.email || session?.email || '').trim().toLowerCase()
+    const sessionName = String(hint.name || session?.name || '').trim()
+
+    if (
+        cachedSelf
+        && sessionEmail
+        && String(cachedSelf.email || '').toLowerCase() === sessionEmail
+    ) {
+        return cachedSelf
+    }
+    if (cachedSelf && !sessionEmail) return cachedSelf
+
     if (!isApiAuthEnabled() || !getAccessToken()) {
-        const session = getActiveCreatedUserSession()
         cachedSelf = {
             employeeId: session?.staffCode || session?.employeeId || '',
-            name: session?.name || '',
-            email: String(session?.email || '').toLowerCase(),
+            name: sessionName,
+            email: sessionEmail,
             source: 'session',
         }
         return cachedSelf
@@ -68,24 +81,39 @@ export const resolveOwnTeacherProfile = async () => {
     try {
         const rows = await apiRequest('/hr/portal/employees')
         const list = Array.isArray(rows) ? rows : []
-        const first = list[0]
-        if (first) {
+        const own = sessionEmail
+            ? list.find((row) => String(row.email || '').trim().toLowerCase() === sessionEmail)
+            : null
+        if (own) {
             cachedSelf = {
-                employeeId: String(first.id || '').trim(),
-                name: String(first.name || '').trim(),
-                email: String(first.email || '').toLowerCase(),
+                employeeId: String(own.id || own.employeeId || '').trim(),
+                name: String(own.name || sessionName).trim(),
+                email: String(own.email || sessionEmail).trim().toLowerCase(),
                 source: 'hr',
             }
             return cachedSelf
         }
+        // hr.self-only responses may return a single own row
+        if (list.length === 1) {
+            const only = list[0]
+            const onlyEmail = String(only.email || '').trim().toLowerCase()
+            if (!sessionEmail || !onlyEmail || onlyEmail === sessionEmail) {
+                cachedSelf = {
+                    employeeId: String(only.id || only.employeeId || '').trim(),
+                    name: String(only.name || sessionName).trim(),
+                    email: onlyEmail || sessionEmail,
+                    source: 'hr',
+                }
+                return cachedSelf
+            }
+        }
     } catch {
         /* fall through */
     }
-    const session = getActiveCreatedUserSession()
     cachedSelf = {
         employeeId: session?.staffCode || session?.employeeId || '',
-        name: session?.name || '',
-        email: String(session?.email || '').toLowerCase(),
+        name: sessionName,
+        email: sessionEmail,
         source: 'session',
     }
     return cachedSelf
@@ -100,32 +128,69 @@ export const getCachedTeacherProfile = () => cachedSelf
 
 const rowsFromAllocation = (allocation) => {
     if (!allocation || allocation.status === 'Not Allocated') return []
-    const fromMappings = (allocation.mappings || [])
-        .filter((row) => row.className)
-        .map((row) => ({
-            className: String(row.className).trim(),
-            section: String(row.section || '').trim(),
+    const rows = []
+    const seen = new Set()
+    const pushRow = (row) => {
+        const className = String(row.className || '').trim()
+        if (!className) return
+        const section = String(row.section || '').trim()
+        const key = `${normalizeClassKey(className)}|${normalizeSectionKey(section)}`
+        if (seen.has(key)) return
+        seen.add(key)
+        rows.push({
+            className,
+            section,
             subject: String(row.subject || '').trim(),
-            isClassTeacher: Boolean(
-                allocation.classTeacher &&
-                    classKeysMatch(allocation.classTeacher.className, row.className) &&
-                    normalizeSectionKey(allocation.classTeacher.section) === normalizeSectionKey(row.section),
-            ),
+            isClassTeacher: Boolean(row.isClassTeacher),
             source: 'allocation',
-        }))
-    if (fromMappings.length) return fromMappings
+        })
+    }
 
+    const classTeacher = allocation.classTeacher
+    if (classTeacher?.className) {
+        pushRow({
+            className: classTeacher.className,
+            section: classTeacher.section || '',
+            subject: '',
+            isClassTeacher: true,
+        })
+    }
+
+    const mappedClassKeys = new Set()
+    ;(allocation.mappings || []).forEach((row) => {
+        if (!row?.className) return
+        mappedClassKeys.add(normalizeClassKey(row.className))
+        pushRow({
+            className: row.className,
+            section: row.section || '',
+            subject: row.subject || '',
+            isClassTeacher: Boolean(
+                classTeacher &&
+                    classKeysMatch(classTeacher.className, row.className) &&
+                    (!classTeacher.section
+                        || normalizeSectionKey(classTeacher.section) === normalizeSectionKey(row.section)),
+            ),
+        })
+    })
+
+    // teachingClasses has no section — do not expand to every section when mappings /
+    // class-teacher already pin Grade X-A (that was why Grade 6-B appeared for a 6-A teacher).
     const teaching = Array.isArray(allocation.teachingClasses) ? allocation.teachingClasses : []
     const subjects = Array.isArray(allocation.subjects) ? allocation.subjects : []
-    return teaching.map((className) => ({
-        className: String(className).trim(),
-        section: '',
-        subject: subjects[0] || '',
-        isClassTeacher: Boolean(
-            allocation.classTeacher && classKeysMatch(allocation.classTeacher.className, className),
-        ),
-        source: 'allocation',
-    }))
+    teaching.forEach((className) => {
+        const key = normalizeClassKey(className)
+        if (!key) return
+        if (mappedClassKeys.has(key)) return
+        if (classTeacher && classKeysMatch(classTeacher.className, className)) return
+        pushRow({
+            className,
+            section: '',
+            subject: subjects[0] || '',
+            isClassTeacher: false,
+        })
+    })
+
+    return rows
 }
 
 const rowsFromRbac = (email) =>
@@ -188,7 +253,58 @@ export const getTeacherSectionOptions = (email = '', className = '') => {
         (row) => !className || classKeysMatch(row.className, className),
     )
     const sections = [...new Set(rows.map((row) => row.section).filter(Boolean))]
-    return sections.length ? sections.sort() : ['A', 'B', 'C']
+    return sections.sort()
+}
+
+/** Unique "Class-Section" labels from the teacher's current allocations. */
+export const getTeacherClassSectionOptions = (email = '') => {
+    const options = []
+    const seen = new Set()
+    getTeacherAssignmentRows(email).forEach((row) => {
+        const className = String(row.className || '').trim()
+        if (!className) return
+        const section = String(row.section || '').trim()
+        const label = section ? `${className}-${section}` : className
+        const key = label.toLowerCase()
+        if (seen.has(key)) return
+        seen.add(key)
+        options.push(label)
+    })
+    return options.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+}
+
+/**
+ * Match a student/rating against a Class & Section filter value like "Grade 1-A" or "Grade 1".
+ * Uses normalized class/section keys so "1-A" and "Grade 1-A" both match.
+ */
+export const matchesClassSectionFilter = (entity, classSectionFilter) => {
+    if (!classSectionFilter) return true
+    const filter = String(classSectionFilter).trim()
+    if (!filter) return true
+
+    const className = entity.className || entity.class || entity.grade || ''
+    const section = entity.section
+        || (entity.classSection && entity.classSection !== className
+            ? String(entity.classSection).split('-').pop()
+            : '')
+        || ''
+    const entityLabel = section ? `${className}-${section}` : className
+
+    if (entity.classSection && String(entity.classSection).toLowerCase() === filter.toLowerCase()) {
+        return true
+    }
+    if (entityLabel.toLowerCase() === filter.toLowerCase()) return true
+
+    // "Grade 1-A" → class "Grade 1", section "A"
+    const dashed = filter.match(/^(.*)-([A-Za-z0-9]+)$/)
+    if (dashed) {
+        const [, filterClass, filterSection] = dashed
+        if (!classKeysMatch(className, filterClass)) return false
+        if (!section) return true
+        return normalizeSectionKey(section) === normalizeSectionKey(filterSection)
+    }
+
+    return classKeysMatch(className, filter)
 }
 
 export const getTeacherSubjectOptions = (email = '') => {
@@ -198,22 +314,47 @@ export const getTeacherSubjectOptions = (email = '') => {
     return subjects.sort((a, b) => a.localeCompare(b))
 }
 
+const studentSectionKey = (student) => {
+    const direct = String(student.section || '').trim()
+    if (direct && direct !== '—' && direct !== '-' && direct.toLowerCase() !== 'all') {
+        return normalizeSectionKey(direct)
+    }
+    const className = String(student.className || student.class || student.class_name || '').trim()
+    const classSection = String(student.classSection || student.class_section || '').trim()
+    if (classSection && className && classSection !== className) {
+        const dashed = classSection.match(/-([A-Za-z0-9]+)$/)
+        if (dashed) return normalizeSectionKey(dashed[1])
+    }
+    return ''
+}
+
 export const studentInTeacherScope = (student, email = '') => {
     const assignments = getTeacherAssignmentRows(email)
     if (!assignments.length) return false
     const className = student.className || student.class || student.class_name
-    const section = student.section || student.classSection || student.class_section
-    return assignments.some((row) => {
-        if (!classKeysMatch(row.className, className)) return false
+    const studentSection = studentSectionKey(student)
+
+    const classRows = assignments.filter((row) => classKeysMatch(row.className, className))
+    if (!classRows.length) return false
+
+    const sectionPinned = classRows.filter((row) => row.section)
+    const rows = sectionPinned.length ? sectionPinned : classRows
+
+    return rows.some((row) => {
         if (!row.section) return true
-        if (!section || section === '—' || section === 'All') return true
-        return normalizeSectionKey(row.section) === normalizeSectionKey(section)
+        if (!studentSection) {
+            // Unplaced students: only class-teacher of that pinned section may see them.
+            return Boolean(row.isClassTeacher)
+        }
+        return normalizeSectionKey(row.section) === studentSection
     })
 }
 
 /** Build weekly schedule cells from Principal class timetables for this teacher's name. */
-export const getTeacherWeeklyScheduleFromTimetables = (teacherName = '') => {
+export const getTeacherWeeklyScheduleFromTimetables = (teacherName = '', teacherEmployeeId = '') => {
     const name = String(teacherName || cachedSelf?.name || '').trim().toLowerCase()
+    const employeeId = String(teacherEmployeeId || cachedSelf?.employeeId || '').trim().toLowerCase()
+    const email = String(cachedSelf?.email || '').trim().toLowerCase()
     const timetables = getClassTimetables().filter(
         (item) => !item.approvalStatus || item.approvalStatus === 'Approved' || item.approvalStatus === 'Pending',
     )
@@ -221,15 +362,28 @@ export const getTeacherWeeklyScheduleFromTimetables = (teacherName = '') => {
     const timeSlots = new Map()
     const days = new Set()
 
-    timetables.forEach((tt) => {
+    const ownsTimetable = (tt) => {
+        const ownerId = String(tt.ownerTeacherId || '').trim().toLowerCase()
+        const ownerEmail = String(tt.ownerTeacherEmail || '').trim().toLowerCase()
         const ownerName = String(tt.ownerTeacherName || '').trim().toLowerCase()
-        const ownedByTeacher = Boolean(name && ownerName && ownerName === name)
+        if (employeeId && ownerId && ownerId === employeeId) return true
+        if (email && ownerEmail && ownerEmail === email) return true
+        if (name && ownerName && ownerName === name) return true
+        return false
+    }
+
+    const rowMatchesTeacher = (row) => {
+        const teacher = String(row.teacher || '').trim().toLowerCase()
+        const rowEmp = String(row.teacherId || row.employeeId || '').trim().toLowerCase()
+        if (employeeId && rowEmp && rowEmp === employeeId) return true
+        if (name && teacher && teacher === name) return true
+        return false
+    }
+
+    timetables.forEach((tt) => {
+        const ownedByTeacher = ownsTimetable(tt)
         ;(tt.timelines || []).forEach((row) => {
-            const teacher = String(row.teacher || '').trim().toLowerCase()
-            if (!ownedByTeacher) {
-                if (name && teacher && teacher !== name) return
-                if (!name && !teacher) return
-            }
+            if (!ownedByTeacher && !rowMatchesTeacher(row)) return
             if (!row.day || !row.startTime || !row.endTime || !row.subject) return
             const label = `${row.startTime} - ${row.endTime}`
             if (!timeSlots.has(label)) {
@@ -257,15 +411,22 @@ export const getTeacherWeeklyScheduleFromTimetables = (teacherName = '') => {
     }
 }
 
-export const hydrateTeacherPortalAssignments = async ({ force = false } = {}) => {
+export const hydrateTeacherPortalAssignments = async ({
+    force = false,
+    email = '',
+    name = '',
+} = {}) => {
+    if (force) {
+        clearTeacherAssignmentCache()
+    }
     if (!force && hydratePromise) return hydratePromise
     hydratePromise = (async () => {
-        await resolveOwnTeacherProfile()
+        await resolveOwnTeacherProfile({ email, name })
         if (canUseAcademicsApi()) {
             await Promise.all([hydrateTeacherAllocationsFromApi(), hydrateClassTimetablesFromApi()])
         }
         emitUpdated()
-        return getTeacherAssignmentRows(cachedSelf?.email || '')
+        return getTeacherAssignmentRows(cachedSelf?.email || email || '')
     })()
     try {
         return await hydratePromise

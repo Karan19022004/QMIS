@@ -18,11 +18,27 @@ COLLECTIONS: dict[str, str] = {
     "class-timetable-change-requests": "TCR",
     "extra-classes": "EC",
     "online-classes": "OC",
+    "student-star-ratings": "SSR",
+    "unit-tests": "UT",
+    "sample-questions": "SQ",
+    "home-fun": "HF",
+    "study-materials": "SM",
 }
 
 _FULL_WRITERS = {"principal", "admin", "superadmin", "managing_director", "director"}
 _CHANGE_WRITERS = _FULL_WRITERS | {"teacher", "coordinator"}
 _EXTRA_WRITERS = _CHANGE_WRITERS
+# Coordinators create/edit class timetables; teachers use change-requests only.
+_TIMETABLE_WRITERS = _FULL_WRITERS | {"coordinator"}
+_STAFF_DELIVERABLE_COLLECTIONS = {
+    "extra-classes",
+    "online-classes",
+    "student-star-ratings",
+    "unit-tests",
+    "sample-questions",
+    "home-fun",
+    "study-materials",
+}
 _READERS = _CHANGE_WRITERS | {"student", "parent", "jointdirector"}
 
 
@@ -43,7 +59,9 @@ def _can_write(db: Session, actor: User, collection: str) -> bool:
     code = _code(db, actor)
     if collection == "class-timetable-change-requests":
         return code in _CHANGE_WRITERS
-    if collection in {"extra-classes", "online-classes"}:
+    if collection == "class-timetables":
+        return code in _TIMETABLE_WRITERS
+    if collection in _STAFF_DELIVERABLE_COLLECTIONS:
         return code in _EXTRA_WRITERS
     return code in _FULL_WRITERS
 

@@ -1343,7 +1343,7 @@ export const coordinatorSidebarLinks = [
             { icon: UserPlus, title: "Section Assignment", to: "/coordinator/student-placement" },
             { icon: UsersRound, title: "Parents List", to: "/coordinator/user-management/parents-list" },
             { icon: FileText, title: "CA / RCT", to: "/coordinator/unit-tests" },
-            { icon: CalendarCheck, title: "Exam", to: "/coordinator/student-evaluation/exam" },
+            { icon: CalendarCheck, title: "Exam Timetable", to: "/coordinator/student-evaluation/exam" },
             { icon: CircleHelp, title: "Question Bank", to: "/coordinator/student-deliverables/sample-questions" },
             { icon: ClipboardPen, title: "Mark Entry", to: "/coordinator/student-evaluation/mark-entry" },
             { icon: BarChart3, title: "Performance Analytics", to: "/coordinator/student-evaluation/analytics" },
@@ -2072,6 +2072,7 @@ export const directorSidebarLinks = [
         icon: CalendarCheck,
         subLinks: [
             { icon: CalendarCheck, title: "Exam Timetable", to: "/director/examination-approvals" },
+            { icon: CalendarDays, title: "Class Timetable", to: "/director/class-timetable-approvals" },
         ],
     },
     {

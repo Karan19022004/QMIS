@@ -188,6 +188,7 @@ export const mapDirectoryRecordToTeacher = ({ row, detail }) => {
     return {
         employeeId,
         name: dashToEmpty(row.name) || employeeId,
+        email: dashToEmpty(row.email || detail?.contactInfo?.email || detail?.email).toLowerCase(),
         department: dashToEmpty(row.department) || 'Academic',
         designation,
         qualification:

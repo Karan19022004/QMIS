@@ -32,8 +32,10 @@ import AddSampleQuestion from '../Pages/Teacher/StudentDeliverables/SampleQuesti
 import ViewSampleQuestion from '../Pages/Teacher/StudentDeliverables/SampleQuestions/ViewSampleQuestion'
 import UnitTests from '../Pages/Teacher/UnitTests/UnitTests'
 import AddUnitTest from '../Pages/Teacher/UnitTests/AddUnitTest'
+import EditUnitTest from '../Pages/Teacher/UnitTests/EditUnitTest'
 import ViewUnitTest from '../Pages/Teacher/UnitTests/ViewUnitTest'
-import { BiometricAttendancePage, MyProfilePage } from '../Common/demoDomain/DemoScreens'
+import { BiometricAttendancePage } from '../Common/demoDomain/DemoScreens'
+import MyProfilePage from '../Common/MyProfile/MyProfilePage'
 import ExamSchedule from '../Pages/Teacher/StudentEvaluation/ExamSchedule/ExamSchedule'
 import PerformanceAnalytics from '../Pages/Teacher/StudentEvaluation/PerformanceAnalytics'
 import EscalationList from '../Pages/Teacher/EscalationManagement/EscalationList'
@@ -106,6 +108,7 @@ const TeacherRoutes = () => {
             <Route path="/teacher/student-deliverables/sample-questions/view/:id" element={<ViewSampleQuestion />} />
             <Route path="/teacher/unit-tests" element={<UnitTests />} />
             <Route path="/teacher/unit-tests/add" element={<AddUnitTest />} />
+            <Route path="/teacher/unit-tests/edit/:id" element={<EditUnitTest />} />
             <Route path="/teacher/unit-tests/view/:id" element={<ViewUnitTest />} />
             <Route path="/teacher/student-evaluation/mark-entry" element={<MarkEntry />} />
             <Route path="/teacher/user-management/students-list" element={<StudentsList />} />
@@ -137,7 +140,16 @@ const TeacherRoutes = () => {
             <Route path="/teacher/student-evaluation/exam" element={<ExamSchedule />} />
             <Route path="/teacher/student-evaluation/analytics" element={<PerformanceAnalytics />} />
             <Route path="/teacher/attendance/biometric" element={<BiometricAttendancePage canOverride />} />
-            <Route path="/teacher/my-profile" element={<MyProfilePage roleLabel="Teacher" />} />
+            <Route
+                path="/teacher/my-profile"
+                element={(
+                    <MyProfilePage
+                        roleLabel="Teacher"
+                        attendancePath="/teacher/attendance/my-attendance"
+                        leavePath="/teacher/leave-request/my-requests"
+                    />
+                )}
+            />
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
         </ReactRoutes>
     )

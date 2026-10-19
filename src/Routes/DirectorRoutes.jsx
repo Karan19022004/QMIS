@@ -8,6 +8,9 @@ import StarRatings from '../Pages/Director/StarRatings/StarRatings'
 import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 import AddRatings from '../Pages/Director/StarRatings/AddRatings'
 import ExamApprovals from '../Pages/Director/ExamApprovals/ExamApprovals'
+import ClassTimetableApprovals from '../Pages/Director/ClassTimetable/ClassTimetableApprovals'
+import CreateExaminationTimetable from '../Pages/Principal/ExaminationTimetable/CreateExaminationTimetable'
+import CreateClassTimetable from '../Pages/Principal/ClassTimetable/CreateClassTimetable'
 import StudentDatabaseList from '../Pages/Director/UserManagement/StudentDatabase/StudentsList'
 import ViewStudentDatabase from '../Pages/Director/UserManagement/StudentDatabase/ViewStudent'
 import EmployeeDatabaseList from '../Pages/Director/UserManagement/EmployeeDatabase/EmployeesList'
@@ -57,7 +60,9 @@ const DirectorRoutes = () => {
             <Route path="/director/star-ratings/add-ratings" element={<AddRatings />} />
             <Route path="/director/star-ratings-list" element={<Navigate to="/director/star-ratings/star-of-month" replace />} />
             <Route path="/director/examination-approvals" element={<ExamApprovals />} />
-            <Route path="/director/class-timetable-approvals" element={<Navigate to="/director/examination-approvals" replace />} />
+            <Route path="/director/edit-examination-timetable/:id" element={<CreateExaminationTimetable />} />
+            <Route path="/director/class-timetable-approvals" element={<ClassTimetableApprovals />} />
+            <Route path="/director/edit-class-timetable/:id" element={<CreateClassTimetable />} />
             <Route path="/director/user-management/student-database" element={<StudentDatabaseList />} />
             <Route path="/director/user-management/student-database/view/:id" element={<ViewStudentDatabase />} />
             <Route path="/director/user-management/employee-database" element={<EmployeeDatabaseList />} />

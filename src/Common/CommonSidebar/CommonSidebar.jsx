@@ -103,6 +103,7 @@ const CommonSidebar = ({ sidebarHidden, toggleSidebar }) => {
 
     return (
         <aside
+            data-app-sidebar
             className={`bg-[#515DEF] flex flex-col h-full transition-all duration-300 fixed top-0 left-0 z-300 font-inter overflow-visible ${sidebarHidden
                 ? "w-[280px] -translate-x-full lg:translate-x-0 lg:w-[90px] shadow-none"
                 : "w-[280px] translate-x-0"

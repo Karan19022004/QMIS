@@ -108,23 +108,44 @@ def _teacher_roster_scope(db: Session, actor: User) -> list[dict]:
         if ct_class:
             _add(ct_class, ct_section, is_class_teacher=True)
 
+        mapped_classes: set[str] = set()
         for mapping in body.get("mappings") or []:
             if not isinstance(mapping, dict):
                 continue
+            mapping_class = str(mapping.get("className") or "").strip()
+            mapping_section = str(mapping.get("section") or "").strip()
+            if mapping_class:
+                mapped_classes.add(_norm_class_key(mapping_class))
             _add(
-                mapping.get("className") or "",
-                mapping.get("section") or "",
+                mapping_class,
+                mapping_section,
                 is_class_teacher=bool(
                     ct_class
-                    and _norm_class_key(mapping.get("className")) == _norm_class_key(ct_class)
+                    and _norm_class_key(mapping_class) == _norm_class_key(ct_class)
                     and (
                         not ct_section
-                        or _norm_section_key(mapping.get("section")) == _norm_section_key(ct_section)
+                        or _norm_section_key(mapping_section) == _norm_section_key(ct_section)
                     )
                 ),
             )
+
+        # teachingClasses is a grade list without sections. Never expand it to every
+        # section of that grade when we already have class-teacher / mapping pins —
+        # that was leaking e.g. Grade 6-B when the teacher is only assigned Grade 6-A.
         for class_name in body.get("teachingClasses") or []:
-            _add(class_name, "", is_class_teacher=_norm_class_key(class_name) == _norm_class_key(ct_class))
+            class_name = str(class_name or "").strip()
+            if not class_name:
+                continue
+            class_key = _norm_class_key(class_name)
+            if class_key in mapped_classes:
+                continue
+            if ct_class and class_key == _norm_class_key(ct_class):
+                # Already added via classTeacher above (with section when present).
+                continue
+            # Unpinned subject-teacher grade: keep for visibility of unplaced students only
+            # (empty section), but _student_in_teacher_scope will not treat it as all sections
+            # when any section-specific entry exists for the same grade.
+            _add(class_name, "", is_class_teacher=False)
 
     return scope
 
@@ -134,14 +155,25 @@ def _student_in_teacher_scope(student: Student, scope: list[dict]) -> bool:
         return False
     student_class = student.class_name or ""
     student_section = student.section or ""
-    for entry in scope:
-        if _norm_class_key(student_class) != _norm_class_key(entry.get("className")):
-            continue
+    class_entries = [
+        entry
+        for entry in scope
+        if _norm_class_key(student_class) == _norm_class_key(entry.get("className"))
+    ]
+    if not class_entries:
+        return False
+
+    section_specific = [entry for entry in class_entries if _norm_section_key(entry.get("section"))]
+    # Prefer section pins (class teacher / mappings). Ignore empty-section wildcards for that grade.
+    entries = section_specific or class_entries
+
+    for entry in entries:
         want_section = _norm_section_key(entry.get("section"))
         if not want_section:
+            # Whole-grade fallback only when no section was pinned for this class.
             return True
         if not student_section or student_section in {"—", "-"}:
-            # Not section-placed yet: class teachers of that grade still see them.
+            # Not section-placed yet: only class teachers of a pinned section see them.
             if entry.get("isClassTeacher"):
                 return True
             continue
@@ -255,13 +287,18 @@ def list_students(db: Session, actor: User, class_name: str | None = None) -> li
     stmt = stmt.order_by(Student.full_name)
     rows = db.scalars(stmt).all()
     role = role_code_for(db, actor)
-    teacher_scope = _teacher_roster_scope(db, actor) if role == "teacher" else []
+    # Coordinators also see students in classes they were allocated to teach (Teacher Allocation),
+    # in addition to their Principal grade band (e.g. 1–4).
+    roster_scope = _teacher_roster_scope(db, actor) if role in {"teacher", "coordinator"} else []
     out = []
     for row in rows:
         grade = parse_grade(row.class_name)
-        if role == "coordinator" and not actor_can_manage_grade(db, actor, grade):
-            continue
-        if role == "teacher" and not _student_in_teacher_scope(row, teacher_scope):
+        if role == "coordinator":
+            in_band = actor_can_manage_grade(db, actor, grade)
+            in_alloc = bool(roster_scope) and _student_in_teacher_scope(row, roster_scope)
+            if not in_band and not in_alloc:
+                continue
+        if role == "teacher" and not _student_in_teacher_scope(row, roster_scope):
             continue
         item = _list_item(row, _admission_for(db, row))
         item.update(student_placement_fields(db, row))
@@ -411,8 +448,11 @@ def get_student(db: Session, actor: User, student_id: UUID) -> dict:
     role = role_code_for(db, actor)
     if role == "coordinator":
         grade = parse_grade(student.class_name)
-        if not actor_can_manage_grade(db, actor, grade):
-            fail(403, "forbidden", "This student is outside your grade band.")
+        in_band = actor_can_manage_grade(db, actor, grade)
+        scope = _teacher_roster_scope(db, actor)
+        in_alloc = bool(scope) and _student_in_teacher_scope(student, scope)
+        if not in_band and not in_alloc:
+            fail(403, "forbidden", "This student is outside your grade band and teaching allocations.")
     if role == "teacher":
         scope = _teacher_roster_scope(db, actor)
         if not _student_in_teacher_scope(student, scope):

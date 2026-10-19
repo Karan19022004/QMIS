@@ -12,9 +12,12 @@ import {
     DEFAULT_ROUTE_BASE,
     filterSampleQuestions,
     getSampleQuestions,
+    hydrateSampleQuestionsFromApi,
+    SAMPLE_QUESTIONS_UPDATED_EVENT,
     SECTIONS,
     SUBJECTS,
 } from './sampleQuestionsData'
+import { useTeacherAssignments } from '../../../../Common/Teacher/useTeacherAssignments'
 
 const emptyFilters = {
     search: '',
@@ -55,6 +58,17 @@ const SampleQuestionsEmpty = ({ routeBase, viewMode }) => {
 const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
     const isStudent = viewMode === 'student'
     const [filters, setFilters] = useState(emptyFilters)
+    const assignments = useTeacherAssignments()
+    const staffFilterOptions = useMemo(() => ({
+        subjects: assignments.subjects?.length ? assignments.subjects : SUBJECTS,
+        classes: assignments.classes?.length ? assignments.classes : CLASSES,
+        sections: filters.className
+            ? (assignments.sectionsFor?.(filters.className) || [])
+            : (assignments.assignments?.length
+                ? [...new Set(assignments.assignments.map((row) => row.section).filter(Boolean))]
+                : SECTIONS),
+    }), [assignments, filters.className])
+
     const [exportModal, setExportModal] = useState(false)
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
@@ -104,7 +118,7 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SUBJECTS.map((subject) => (
+                            {staffFilterOptions.subjects.map((subject) => (
                                 <option key={subject} value={subject}>{subject}</option>
                             ))}
                         </select>
@@ -114,11 +128,11 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
                         <select
                             id='class-filter'
                             value={filters.className}
-                            onChange={(event) => updateFilter('className', event.target.value)}
+                            onChange={(event) => setFilters((current) => ({ ...current, className: event.target.value, section: '' }))}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {CLASSES.map((item) => (
+                            {staffFilterOptions.classes.map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>
@@ -132,7 +146,7 @@ const SampleQuestionsList = ({ items, routeBase, viewMode }) => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SECTIONS.map((item) => (
+                            {staffFilterOptions.sections.map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>
@@ -270,7 +284,16 @@ const SampleQuestions = ({ routeBase = DEFAULT_ROUTE_BASE, viewMode = 'teacher' 
     const [items, setItems] = useState(() => getSampleQuestions())
 
     useEffect(() => {
-        setItems(getSampleQuestions())
+        let cancelled = false
+        hydrateSampleQuestionsFromApi().finally(() => {
+            if (!cancelled) setItems(getSampleQuestions())
+        })
+        const onUpdate = () => setItems(getSampleQuestions())
+        window.addEventListener(SAMPLE_QUESTIONS_UPDATED_EVENT, onUpdate)
+        return () => {
+            cancelled = true
+            window.removeEventListener(SAMPLE_QUESTIONS_UPDATED_EVENT, onUpdate)
+        }
     }, [location.key])
 
     if (items.length === 0) {

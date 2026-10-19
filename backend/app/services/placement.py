@@ -31,7 +31,7 @@ _BYPASS_ROLES = {
 
 
 def parse_grade(class_name: str | None) -> int | None:
-    """Extract grade number from names like 'Grade 1', 'I', '1', 'Class 5'."""
+    """Extract grade number from names like 'Grade 1', 'I', '1', 'Class 5', 'VI'."""
     text = str(class_name or "").strip()
     if not text:
         return None
@@ -53,11 +53,10 @@ def parse_grade(class_name: str | None) -> int | None:
         "xi": 11,
         "xii": 12,
     }
+    # Exact token only — never endswith("i") which mis-parsed "VI" as grade 1.
     token = re.sub(r"[^a-z]", "", text.lower())
-    for key, value in roman.items():
-        if token == key or token.endswith(key):
-            return value
-    return None
+    token = re.sub(r"^(grade|class)", "", token)
+    return roman.get(token)
 
 
 def current_academic_year(db: Session, campus_id: UUID) -> AcademicYear | None:

@@ -22,6 +22,7 @@ class ExamIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     examType: str
     className: str = Field(min_length=1, max_length=40)
+    academicYear: str | None = Field(default=None, max_length=40)
     startDate: date
     endDate: date
 
@@ -74,8 +75,14 @@ def create_exam_route(
     body: ExamIn, db: Session = Depends(get_db), user: User = Depends(require_permission("exams.write"))
 ) -> dict:
     return svc.create_exam(
-        db, user, name=body.name, exam_type=body.examType, class_name=body.className,
-        start_date=body.startDate, end_date=body.endDate,
+        db,
+        user,
+        name=body.name,
+        exam_type=body.examType,
+        class_name=body.className,
+        start_date=body.startDate,
+        end_date=body.endDate,
+        academic_year=body.academicYear,
     )
 
 
@@ -94,6 +101,27 @@ def get_exam_route(
     exam_id: UUID, db: Session = Depends(get_db), user: User = Depends(require_permission("exams.read"))
 ) -> dict:
     return svc.get_exam(db, user, exam_id)
+
+
+@router.put("/exams/{exam_id}")
+def update_exam_route(
+    exam_id: UUID,
+    body: ExamIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("exams.write")),
+) -> dict:
+    """Update exam details and reopen Principal/Director approval."""
+    return svc.update_exam(
+        db,
+        user,
+        exam_id,
+        name=body.name,
+        exam_type=body.examType,
+        class_name=body.className,
+        start_date=body.startDate,
+        end_date=body.endDate,
+        academic_year=body.academicYear,
+    )
 
 
 @router.post("/exams/{exam_id}/submit")

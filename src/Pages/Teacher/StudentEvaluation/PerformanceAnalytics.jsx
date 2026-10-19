@@ -6,11 +6,13 @@ import { useTeacherAssignments } from '../../../Common/Teacher/useTeacherAssignm
 import { isApiStudentsEnabled } from '../../../services/apiClient'
 import {
     canUseExamsApi,
+    getMarksBatchApi,
     listExamsApi,
     listMarksBatchesApi,
     mapExamFromApi,
     mapMarksBatchFromApi,
 } from '../../../services/examsApi'
+import { canUseResultsApi, getStudentResultsApi } from '../../../services/resultsApi'
 
 const selectClass = 'border border-[#D9D9D9] rounded-md px-2 py-2 text-sm bg-white min-w-[12rem]'
 
@@ -19,6 +21,7 @@ const PerformanceAnalytics = () => {
     const [students, setStudents] = useState([])
     const [batches, setBatches] = useState([])
     const [examsById, setExamsById] = useState({})
+    const [publishedExams, setPublishedExams] = useState([])
     const [studentId, setStudentId] = useState('')
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -42,7 +45,7 @@ const PerformanceAnalytics = () => {
                     setExamsById({})
                     return
                 }
-                const [examRows, batchRows] = await Promise.all([
+                const [examRows, batchSummaries] = await Promise.all([
                     listExamsApi(),
                     listMarksBatchesApi({ mine: true }),
                 ])
@@ -52,7 +55,19 @@ const PerformanceAnalytics = () => {
                     examMap[exam.id] = exam
                 })
                 setExamsById(examMap)
-                setBatches(batchRows.map(mapMarksBatchFromApi))
+
+                // List endpoint omits mark entries — load each batch detail.
+                const detailed = await Promise.all(
+                    (Array.isArray(batchSummaries) ? batchSummaries : []).map((row) =>
+                        getMarksBatchApi(row.id).catch(() => null),
+                    ),
+                )
+                if (cancelled) return
+                setBatches(
+                    detailed
+                        .filter(Boolean)
+                        .map(mapMarksBatchFromApi),
+                )
             } catch (err) {
                 if (!cancelled) setError(err?.message || 'Could not load marks.')
             } finally {
@@ -70,11 +85,31 @@ const PerformanceAnalytics = () => {
         if (!studentId && students[0]) setStudentId(String(students[0].id))
     }, [students, studentId])
 
+    useEffect(() => {
+        let cancelled = false
+        if (!studentId || !canUseResultsApi()) {
+            setPublishedExams([])
+            return undefined
+        }
+        getStudentResultsApi(studentId)
+            .then((payload) => {
+                if (!cancelled) setPublishedExams(Array.isArray(payload?.exams) ? payload.exams : [])
+            })
+            .catch(() => {
+                if (!cancelled) setPublishedExams([])
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [studentId])
+
     const selected = students.find((row) => String(row.id) === String(studentId))
 
     const series = useMemo(() => {
         if (!studentId) return { labels: [], scores: [], averages: [], rows: [] }
         const points = []
+        const seen = new Set()
+
         batches.forEach((batch) => {
             const entry = (batch.entries || []).find((item) => String(item.studentId) === String(studentId))
             if (!entry || entry.absent || entry.marks == null || !batch.maxMarks) return
@@ -86,21 +121,68 @@ const PerformanceAnalytics = () => {
                 ? classMarks.reduce((sum, value) => sum + value, 0) / classMarks.length
                 : null
             const exam = examsById[batch.examId]
+            const label = exam?.name || batch.examName || batch.subject || 'Exam'
+            const key = `${batch.id}:${batch.subject}`
+            if (seen.has(key)) return
+            seen.add(key)
             points.push({
-                label: exam?.name || batch.examName || batch.subject || 'Exam',
+                label,
                 subject: batch.subject || '',
                 score: Math.round(scored * 10) / 10,
                 average: classAvg == null ? null : Math.round(classAvg * 10) / 10,
                 status: batch.status,
+                source: 'batch',
             })
         })
+
+        // Published campus results fill gaps when the teacher has no batch entries yet.
+        publishedExams.forEach((exam) => {
+            const subjects = Array.isArray(exam.subjects) ? exam.subjects : []
+            if (subjects.length) {
+                subjects.forEach((subject) => {
+                    if (subject.absent || subject.marks == null || !subject.maxMarks) return
+                    const key = `pub:${exam.examId}:${subject.subject}`
+                    if (seen.has(key)) return
+                    // Skip if we already charted this exam+subject from a teacher batch
+                    const already = points.some(
+                        (point) =>
+                            point.label === (exam.examName || 'Exam')
+                            && point.subject === (subject.subject || ''),
+                    )
+                    if (already) return
+                    seen.add(key)
+                    const scored = (Number(subject.marks) / Number(subject.maxMarks)) * 100
+                    points.push({
+                        label: exam.examName || 'Exam',
+                        subject: subject.subject || '',
+                        score: Math.round(scored * 10) / 10,
+                        average: null,
+                        status: 'published',
+                        source: 'results',
+                    })
+                })
+            } else if (exam.percentage != null) {
+                const key = `pub:${exam.examId}:overall`
+                if (seen.has(key)) return
+                seen.add(key)
+                points.push({
+                    label: exam.examName || 'Exam',
+                    subject: 'Overall',
+                    score: Math.round(Number(exam.percentage) * 10) / 10,
+                    average: null,
+                    status: 'published',
+                    source: 'results',
+                })
+            }
+        })
+
         return {
             labels: points.map((item) => item.label),
             scores: points.map((item) => item.score),
             averages: points.map((item) => item.average),
             rows: points,
         }
-    }, [batches, examsById, studentId])
+    }, [batches, examsById, publishedExams, studentId])
 
     const option = useMemo(() => ({
         color: ['#515DEF', '#B4C4FF'],
@@ -124,7 +206,7 @@ const PerformanceAnalytics = () => {
                 <div>
                     <h2 className='text-xl font-semibold'>Student performance comparison</h2>
                     <p className='text-sm text-[#667085]'>
-                        Scores from your marks batches for students in assigned classes. Empty until marks are entered and submitted.
+                        Scores from your marks batches and published results for students in assigned classes.
                     </p>
                     {assignments.emptyReason ? (
                         <p className='text-sm text-[#E65100] mt-1'>{assignments.emptyReason}</p>
@@ -162,7 +244,8 @@ const PerformanceAnalytics = () => {
                 <p className='text-sm text-[#667085]'>Sign in with API auth to load exam marks.</p>
             ) : !series.rows.length ? (
                 <p className='text-sm text-[#667085]'>
-                    No marks found for this student in your batches yet. Enter marks under Student Evaluation / Mark Entry, then return here.
+                    No marks found for this student yet. Enter marks under Student Evaluation / Mark Entry
+                    (or wait for published results), then return here.
                 </p>
             ) : (
                 <ReactECharts option={option} style={{ height: 320 }} />
@@ -177,12 +260,12 @@ const PerformanceAnalytics = () => {
                                 <th className='py-2 pr-3'>Subject</th>
                                 <th className='py-2 pr-3'>Student %</th>
                                 <th className='py-2 pr-3'>Class avg %</th>
-                                <th className='py-2'>Batch status</th>
+                                <th className='py-2'>Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {series.rows.map((row) => (
-                                <tr key={`${row.label}-${row.subject}`} className='border-b border-[#F0F0F0]'>
+                            {series.rows.map((row, index) => (
+                                <tr key={`${row.label}-${row.subject}-${index}`} className='border-b border-[#F0F0F0]'>
                                     <td className='py-2 pr-3'>{row.label}</td>
                                     <td className='py-2 pr-3'>{row.subject || '—'}</td>
                                     <td className='py-2 pr-3'>{row.score}</td>

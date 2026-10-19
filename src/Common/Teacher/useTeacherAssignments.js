@@ -7,10 +7,12 @@ import {
     getCachedTeacherProfile,
     getTeacherAssignmentRows,
     getTeacherClassOptions,
+    getTeacherClassSectionOptions,
     getTeacherSectionOptions,
     getTeacherSubjectOptions,
     getTeacherWeeklyScheduleFromTimetables,
     hydrateTeacherPortalAssignments,
+    matchesClassSectionFilter,
     studentInTeacherScope,
     TEACHER_ASSIGNMENTS_UPDATED_EVENT,
 } from './teacherAssignedClasses'
@@ -25,7 +27,11 @@ export const useTeacherAssignments = () => {
     useEffect(() => {
         let cancelled = false
         setReady(false)
-        hydrateTeacherPortalAssignments({ force: true }).finally(() => {
+        hydrateTeacherPortalAssignments({
+            force: true,
+            email: sessionEmail,
+            name: name || '',
+        }).finally(() => {
             if (!cancelled) {
                 setReady(true)
                 setTick((n) => n + 1)
@@ -41,7 +47,7 @@ export const useTeacherAssignments = () => {
             window.removeEventListener(TEACHER_ALLOCATIONS_UPDATED_EVENT, onUpdate)
             window.removeEventListener(CLASS_TIMETABLES_UPDATED_EVENT, onUpdate)
         }
-    }, [sessionEmail])
+    }, [sessionEmail, name])
 
     return useMemo(() => {
         const profile = getCachedTeacherProfile() || { employeeId: '', name: name || '', email: sessionEmail }
@@ -55,10 +61,15 @@ export const useTeacherAssignments = () => {
             },
             assignments,
             classes: getTeacherClassOptions(sessionEmail),
+            classSections: getTeacherClassSectionOptions(sessionEmail),
             sectionsFor: (className) => getTeacherSectionOptions(sessionEmail, className),
             subjects: getTeacherSubjectOptions(sessionEmail),
             studentInScope: (student) => studentInTeacherScope(student, sessionEmail),
-            weeklyFromTimetables: getTeacherWeeklyScheduleFromTimetables(profile.name || name),
+            matchesClassSection: (entity, filter) => matchesClassSectionFilter(entity, filter),
+            weeklyFromTimetables: getTeacherWeeklyScheduleFromTimetables(
+                profile.name || name,
+                profile.employeeId,
+            ),
             emptyReason: !assignments.length
                 ? 'No classes assigned yet. Ask Principal to allocate you under Teacher Allocation (or Admin Class Details assignments).'
                 : '',

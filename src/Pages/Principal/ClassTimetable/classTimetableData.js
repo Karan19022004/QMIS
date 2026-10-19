@@ -10,9 +10,11 @@ import {
     stripAcademicsMeta,
 } from '../../../services/academicsApi'
 import { getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
+import { listAcademicYears } from '../../../services/classDetailsApi'
 import { listDirectoryApi } from '../../../services/communicationApi'
 import {
     getAllocationByEmployeeId,
+    getAllocations,
     getTeachers,
     hydrateTeacherAllocationsFromApi,
     hydrateTeachersFromDirectory,
@@ -27,6 +29,7 @@ export const ROUTE_BASE = '/principal/class-timetable'
 export const CREATE_ROUTE = '/principal/create-class-timetable'
 export const COORDINATOR_ROUTE_BASE = '/coordinator/class/class-timetable'
 export const COORDINATOR_CREATE_ROUTE = '/coordinator/class/create-class-timetable'
+export const DIRECTOR_ROUTE_BASE = '/director/class-timetable-approvals'
 
 export const APPROVAL_STATUSES = ['Pending', 'Approved', 'Denied']
 
@@ -52,9 +55,33 @@ export const TEACHERS = []
 
 export const getTimetableRoutes = (pathname = '') => {
     if (String(pathname).startsWith('/coordinator')) {
-        return { listPath: COORDINATOR_ROUTE_BASE, createPath: COORDINATOR_CREATE_ROUTE }
+        return {
+            listPath: COORDINATOR_ROUTE_BASE,
+            createPath: COORDINATOR_CREATE_ROUTE,
+            editPath: (id) => `/coordinator/class/edit-class-timetable/${id}`,
+            reviewer: 'Coordinator',
+            canApprove: false,
+            canEdit: true,
+        }
     }
-    return { listPath: ROUTE_BASE, createPath: CREATE_ROUTE }
+    if (String(pathname).startsWith('/director')) {
+        return {
+            listPath: DIRECTOR_ROUTE_BASE,
+            createPath: CREATE_ROUTE,
+            editPath: (id) => `/director/edit-class-timetable/${id}`,
+            reviewer: 'Director',
+            canApprove: true,
+            canEdit: true,
+        }
+    }
+    return {
+        listPath: ROUTE_BASE,
+        createPath: CREATE_ROUTE,
+        editPath: (id) => `/principal/edit-class-timetable/${id}`,
+        reviewer: 'Principal',
+        canApprove: true,
+        canEdit: true,
+    }
 }
 
 const classKeysMatch = (left, right) => {
@@ -82,6 +109,53 @@ export const getSubjectsForTimetableTeacher = (employeeId, className = '', secti
     if (subjects.length) return [...new Set(subjects)].sort((a, b) => a.localeCompare(b))
 
     return [...new Set(mappings.map((item) => item.subject).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+}
+
+/**
+ * Subjects teachers currently handle for a class (union of active allocation mappings).
+ * Optionally narrow by selected sections; `__ALL__` / empty sections = all sections for that class.
+ * Falls back to subjects already used on class timetables for the same class.
+ */
+export const getSubjectsForClass = (className = '', sections = []) => {
+    if (!className) return []
+
+    const selectedSections = Array.isArray(sections)
+        ? sections.map(String).filter((value) => value && value !== '__ALL__')
+        : []
+    const matchAllSections = !selectedSections.length
+        || (Array.isArray(sections) && sections.includes('__ALL__'))
+
+    const fromAllocations = []
+    getAllocations().forEach((allocation) => {
+        const status = String(allocation?.status || 'Active').toLowerCase()
+        if (status && status !== 'active') return
+        const mappings = Array.isArray(allocation?.mappings) ? allocation.mappings : []
+        mappings.forEach((item) => {
+            if (!classKeysMatch(item.className, className)) return
+            if (!matchAllSections) {
+                const section = String(item.section || '')
+                if (section && !selectedSections.includes(section)) return
+            }
+            if (item.subject) fromAllocations.push(item.subject)
+        })
+    })
+    if (fromAllocations.length) {
+        return [...new Set(fromAllocations)].sort((a, b) => a.localeCompare(b))
+    }
+
+    const fromTimetables = []
+    getClassTimetables().forEach((record) => {
+        const timelines = Array.isArray(record?.timelines) ? record.timelines : []
+        timelines.forEach((row) => {
+            if (!classKeysMatch(row.className || record.className, className)) return
+            if (!matchAllSections) {
+                const section = String(row.section || '')
+                if (section && !selectedSections.includes(section)) return
+            }
+            if (row.subject) fromTimetables.push(row.subject)
+        })
+    })
+    return [...new Set(fromTimetables)].sort((a, b) => a.localeCompare(b))
 }
 
 /** Teaching classes allocated to a teacher. */
@@ -126,8 +200,26 @@ export const applyClassToTimelineRow = (row, employeeId, className, teacherName 
     }
 }
 
-/** Active campus teachers for the owner picker (HR directory, else communication directory). */
-export async function loadClassTimetableTeacherOptions() {
+const classifyTimetableOwnerRole = (rawRole = '', rawName = '') => {
+    const blob = `${rawRole} ${rawName}`.toLowerCase()
+    if (/\b(director|principal|admin|super\s*admin|hr\b|human resources|account|finance|prm|gate|driver|librarian|parent|student)\b/.test(blob)) {
+        if (/\bteacher\b|\btgt\b|\bpgt\b|\bprt\b/.test(blob)) return 'teacher'
+        if (/\bcoordinator\b/.test(blob)) return 'coordinator'
+        return 'other'
+    }
+    if (/\bcoordinator\b/.test(blob)) return 'coordinator'
+    if (/\bteacher\b|\btgt\b|\bpgt\b|\bprt\b|\binstructor\b|\blecturer\b/.test(blob)) return 'teacher'
+    return 'other'
+}
+
+/**
+ * Owner picker for Class Timetable.
+ * - Coordinator panel: teachers only
+ * - Principal / Director: teachers + coordinators (not Director/HR/etc.)
+ */
+export async function loadClassTimetableTeacherOptions({ viewerPath = '' } = {}) {
+    const includeCoordinators = !String(viewerPath).startsWith('/coordinator')
+
     try {
         await hydrateTeacherAllocationsFromApi()
     } catch {
@@ -135,38 +227,139 @@ export async function loadClassTimetableTeacherOptions() {
     }
     try {
         await hydrateTeachersFromDirectory({ force: true })
-        if (!isUsingDemoTeacherRoster()) {
-            return getTeachers()
-                .filter((item) => item.employeeId && item.name)
-                .map((item) => ({
-                    employeeId: String(item.employeeId),
-                    name: item.name,
-                    email: item.email || '',
-                }))
-                .sort((a, b) => a.name.localeCompare(b.name))
+    } catch {
+        /* ignore */
+    }
+
+    const byKey = new Map()
+    const put = (row) => {
+        const employeeId = String(row?.employeeId || '').trim()
+        const name = String(row?.name || '').trim()
+        const email = String(row?.email || '').trim().toLowerCase()
+        const roleKind = classifyTimetableOwnerRole(row?.role || row?.designation || '', name)
+        if (!employeeId && !email) return
+        if (roleKind === 'other') return
+        if (roleKind === 'coordinator' && !includeCoordinators) return
+
+        const key = employeeId || `email:${email}`
+        const prev = byKey.get(key) || {}
+        const nextName = name || prev.name || email || employeeId
+        const prevId = String(prev.employeeId || '')
+        const preferIncomingId = Boolean(employeeId) && (
+            !prevId
+            || (/^emp[-_]/i.test(employeeId) && !/^emp[-_]/i.test(prevId))
+            || (/^tea[-_]/i.test(employeeId) && !/^(emp|tea)[-_]/i.test(prevId))
+        )
+        const next = {
+            employeeId: preferIncomingId ? employeeId : (prevId || employeeId),
+            name: nextName,
+            email: email || prev.email || '',
+            roleKind: roleKind === 'coordinator' || prev.roleKind === 'coordinator' ? 'coordinator' : 'teacher',
         }
-    } catch {
-        /* fall through */
+        byKey.set(key, next)
+        if (email) byKey.set(`email:${email}`, next)
     }
 
-    if (!(isApiAuthEnabled() && getAccessToken())) return []
-
-    try {
-        const people = await listDirectoryApi()
-        return (Array.isArray(people) ? people : [])
-            .filter((person) => {
-                const role = String(person.role || '').toLowerCase()
-                return role === 'teacher' || role === 'coordinator'
-            })
-            .map((person) => ({
-                employeeId: String(person.employeeId || person.id),
-                name: person.name || person.email || 'Staff',
-                email: person.email || '',
+    if (!isUsingDemoTeacherRoster()) {
+        getTeachers()
+            .filter((item) => item.employeeId && item.name)
+            .forEach((item) => put({
+                employeeId: item.employeeId,
+                name: item.name,
+                email: item.email || '',
+                designation: item.designation || 'Teacher',
+                role: item.designation || 'Teacher',
             }))
-            .sort((a, b) => a.name.localeCompare(b.name))
-    } catch {
-        return []
     }
+
+    if (isApiAuthEnabled() && getAccessToken()) {
+        try {
+            const people = await listDirectoryApi()
+            ;(Array.isArray(people) ? people : []).forEach((person) => {
+                const role = String(person.role || '').toLowerCase()
+                if (role !== 'teacher' && role !== 'coordinator') return
+                if (role === 'coordinator' && !includeCoordinators) return
+                put({
+                    employeeId: person.employeeId || '',
+                    name: person.name || person.email || 'Staff',
+                    email: person.email || '',
+                    role,
+                    designation: person.role || '',
+                })
+            })
+        } catch {
+            /* ignore */
+        }
+    }
+
+    // Allocated staff: only keep if we already classified them as teacher/coordinator,
+    // or their id is known from the filtered maps above.
+    getAllocations()
+        .filter((row) => row?.employeeId && String(row.status || '').toLowerCase() !== 'not allocated')
+        .forEach((row) => {
+            const id = String(row.employeeId)
+            const known = [...byKey.values()].find((item) => item.employeeId === id)
+            if (!known) return
+            put({
+                employeeId: id,
+                name: known.name,
+                email: known.email || '',
+                role: known.roleKind,
+                designation: known.roleKind,
+            })
+        })
+
+    const deduped = new Map()
+    byKey.forEach((row) => {
+        const id = String(row.employeeId || '').trim()
+        if (!id || id.startsWith('email:')) return
+        if (row.roleKind === 'coordinator' && !includeCoordinators) return
+        const prev = deduped.get(id)
+        if (!prev || (row.name && row.name !== id && prev.name === id)) {
+            deduped.set(id, row)
+        }
+    })
+
+    return [...deduped.values()]
+        .filter((item) => item.employeeId && item.name)
+        .map(({ employeeId, name, email }) => ({ employeeId, name, email }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Campus academic years for create/filter dropdowns.
+ * Prefers GET /masters/academic-years; falls back to years already used on timetables.
+ * @returns {Promise<Array<{ id: string, name: string, isCurrent: boolean }>>}
+ */
+export async function loadAcademicYearOptions() {
+    let years = []
+    if (isApiAuthEnabled() && getAccessToken()) {
+        try {
+            const rows = await listAcademicYears()
+            years = (Array.isArray(rows) ? rows : [])
+                .filter((row) => row?.name && row.isActive !== false)
+                .map((row) => ({
+                    id: String(row.id || row.name),
+                    name: String(row.name),
+                    isCurrent: Boolean(row.isCurrent),
+                }))
+        } catch {
+            years = []
+        }
+    }
+
+    const fromTimetables = getClassTimetables()
+        .map((row) => row.academicYear)
+        .filter(Boolean)
+        .map((name) => ({ id: String(name), name: String(name), isCurrent: false }))
+
+    const byName = new Map()
+    ;[...years, ...fromTimetables].forEach((row) => {
+        if (!byName.has(row.name)) byName.set(row.name, row)
+        else if (row.isCurrent) byName.set(row.name, { ...byName.get(row.name), isCurrent: true })
+    })
+
+    return [...byName.values()].sort((a, b) => b.name.localeCompare(a.name, undefined, { numeric: true }))
 }
 
 export const approvalStatusColor = {
@@ -326,6 +519,54 @@ export const addClassTimetable = (payload) => {
     }
     saveClassTimetables([record, ...getClassTimetables()])
     return record
+}
+
+export const classRecordToForm = (record) => {
+    if (!record) return defaultClassTimetableForm()
+    return {
+        timetableId: record.id || '',
+        academicYear: record.academicYear || '',
+        term: record.term || '',
+        ownerTeacherId: record.ownerTeacherId || '',
+        ownerTeacherName: record.ownerTeacherName || '',
+        ownerTeacherEmail: record.ownerTeacherEmail || '',
+        timelines: Array.isArray(record.timelines) && record.timelines.length
+            ? record.timelines.map((row) => ({ ...createTimelineRow(), ...row }))
+            : [createTimelineRow()],
+    }
+}
+
+/** Update an existing class timetable; edits reset approval to Pending. */
+export const updateClassTimetable = (id, payload) => {
+    const ownerName = payload.ownerTeacherName || ''
+    const timelines = (payload.timelines || [])
+        .filter((row) => row.day && row.subject && row.className && row.section)
+        .map((row) => ({
+            ...row,
+            teacher: row.teacher || ownerName,
+        }))
+    const first = timelines[0] || {}
+    const list = getClassTimetables()
+    const idx = list.findIndex((item) => String(item.id) === String(id))
+    if (idx < 0) return null
+    const updated = {
+        ...list[idx],
+        className: first.className || list[idx].className || '',
+        section: first.section || list[idx].section || '',
+        academicYear: payload.academicYear,
+        term: payload.term,
+        ownerTeacherId: payload.ownerTeacherId || '',
+        ownerTeacherName: ownerName,
+        ownerTeacherEmail: payload.ownerTeacherEmail || '',
+        approvalStatus: 'Pending',
+        rejectionReason: '',
+        reviewedBy: '',
+        timelines,
+    }
+    const next = [...list]
+    next[idx] = updated
+    saveClassTimetables(next)
+    return updated
 }
 
 export const buildClassGridFromTimelines = (timelines = []) => {

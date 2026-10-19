@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink, useLocation, useParams } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import AttachmentChip from './AttachmentChip'
 import LessonPlanTemplateView from './LessonPlanTemplateView'
@@ -39,6 +40,7 @@ const LessonPlanGroupDetail = () => {
     const [plans, setPlans] = useState([])
     const [expandedPlanId, setExpandedPlanId] = useState(null)
     const [confirmPlan, setConfirmPlan] = useState(null)
+    const [busyPlanId, setBusyPlanId] = useState(null)
 
     const listBackPath =
         variant === 'mark-as-done'
@@ -53,10 +55,14 @@ const LessonPlanGroupDetail = () => {
               : 'Lesson Plans'
 
     const applyPlans = (sourcePlans) => {
+        const teacherKey = String(decodedTeacher || '').trim().toLowerCase()
+        const subjectKey = String(decodedSubject || '').trim().toLowerCase()
         setPlans(
-            sourcePlans.filter(
-                (plan) => plan.submitterName === decodedTeacher && plan.subject === decodedSubject
-            )
+            sourcePlans.filter((plan) => {
+                const planTeacher = String(plan.submitterName || '').trim().toLowerCase()
+                const planSubject = String(plan.subject || '').trim().toLowerCase()
+                return planTeacher === teacherKey && planSubject === subjectKey
+            }),
         )
     }
 
@@ -78,19 +84,15 @@ const LessonPlanGroupDetail = () => {
         let cancelled = false
         const refresh = () => {
             if (canUseLessonPlansApi()) {
-                hydrateLessonPlansFromApi({ mine: true })
+                // Director reviews campus-wide plans; teachers use "mine".
+                const mine = variant !== 'director-approval'
+                hydrateLessonPlansFromApi({ mine })
                     .then((rows) => {
                         if (cancelled) return
                         const source = variant === 'mark-as-done'
                             ? rows.filter((item) => item.approvalStatus === 'Approved')
-                            : variant === 'director-approval'
-                                ? rows
-                                : rows
-                        if (variant === 'director-approval') {
-                            applyPlans(getLessonPlans().length ? getLessonPlans() : source)
-                        } else {
-                            applyPlans(source)
-                        }
+                            : rows
+                        applyPlans(source)
                     })
                     .catch(() => {
                         if (!cancelled) loadPlans()
@@ -121,14 +123,47 @@ const LessonPlanGroupDetail = () => {
         loadPlans()
     }
 
-    const handleApprove = (id) => {
-        updateLessonPlanStatus(id, 'Approved')
-        refreshPlans()
+    const handleApprove = async (id) => {
+        setBusyPlanId(id)
+        try {
+            await updateLessonPlanStatus(id, 'Approved')
+            toast.success('Lesson plan approved.')
+            // Reload from campus so refresh keeps the decision.
+            if (canUseLessonPlansApi()) {
+                const rows = await hydrateLessonPlansFromApi({ mine: variant !== 'director-approval' })
+                applyPlans(rows)
+            } else {
+                refreshPlans()
+            }
+        } catch (error) {
+            toast.error(error?.message || 'Could not approve lesson plan.')
+        } finally {
+            setBusyPlanId(null)
+        }
     }
 
-    const handleReject = (id) => {
-        updateLessonPlanStatus(id, 'Rejected')
-        refreshPlans()
+    const handleReject = async (id) => {
+        const reason = window.prompt('Rejection reason (required):')
+        if (reason == null) return
+        if (!String(reason).trim()) {
+            toast.error('A rejection reason is required.')
+            return
+        }
+        setBusyPlanId(id)
+        try {
+            await updateLessonPlanStatus(id, 'Rejected', String(reason).trim())
+            toast.success('Lesson plan rejected.')
+            if (canUseLessonPlansApi()) {
+                const rows = await hydrateLessonPlansFromApi({ mine: variant !== 'director-approval' })
+                applyPlans(rows)
+            } else {
+                refreshPlans()
+            }
+        } catch (error) {
+            toast.error(error?.message || 'Could not reject lesson plan.')
+        } finally {
+            setBusyPlanId(null)
+        }
     }
 
     const handleMarkAsDoneClick = (plan) => {
@@ -136,11 +171,20 @@ const LessonPlanGroupDetail = () => {
         setConfirmPlan(plan)
     }
 
-    const handleConfirmMarkAsDone = (remarks) => {
+    const handleConfirmMarkAsDone = async (remarks) => {
         if (!confirmPlan) return
-        markLessonPlanAsDone(confirmPlan.id, remarks)
-        setConfirmPlan(null)
-        refreshPlans()
+        const planId = confirmPlan.id
+        setBusyPlanId(planId)
+        try {
+            await markLessonPlanAsDone(planId, remarks)
+            setConfirmPlan(null)
+            toast.success('Lesson plan marked as done.')
+            refreshPlans()
+        } catch (error) {
+            toast.error(error?.message || 'Could not mark lesson plan as done.')
+        } finally {
+            setBusyPlanId(null)
+        }
     }
 
     const togglePlanDetails = (planId) => {
@@ -219,19 +263,22 @@ const LessonPlanGroupDetail = () => {
                                     </div>
 
                                     <div className='flex flex-wrap items-center gap-3 shrink-0'>
-                                        {variant === 'director-approval' && plan.approvalStatus === 'Pending' ? (
+                                        {variant === 'director-approval'
+                                            && (plan.approvalStatus === 'Pending' || plan.approvalStatus === 'Draft') ? (
                                             <>
                                                 <button
                                                     type='button'
                                                     onClick={() => handleApprove(plan.id)}
-                                                    className='bg-[#4CAF50] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all cursor-pointer'
+                                                    disabled={busyPlanId === plan.id}
+                                                    className='bg-[#4CAF50] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all cursor-pointer disabled:opacity-50'
                                                 >
-                                                    Approve
+                                                    {busyPlanId === plan.id ? 'Saving…' : 'Approve'}
                                                 </button>
                                                 <button
                                                     type='button'
                                                     onClick={() => handleReject(plan.id)}
-                                                    className='bg-white text-[#FF0000] text-sm px-4 py-2 rounded-md border border-[#FF0000] hover:bg-[#FF0000] hover:text-white transition-all cursor-pointer'
+                                                    disabled={busyPlanId === plan.id}
+                                                    className='bg-white text-[#FF0000] text-sm px-4 py-2 rounded-md border border-[#FF0000] hover:bg-[#FF0000] hover:text-white transition-all cursor-pointer disabled:opacity-50'
                                                 >
                                                     Reject
                                                 </button>
