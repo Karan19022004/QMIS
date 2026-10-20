@@ -41,12 +41,8 @@ import AnnouncementList from '../Pages/Principal/Announcement/AnnouncementList'
 import AddAnnouncement from '../Pages/Principal/Announcement/AddAnnouncement'
 import ViewAnnouncement from '../Pages/Principal/Announcement/ViewAnnouncement'
 import MyAttendance from '../Pages/Principal/Attendance/MyAttendance'
-import {
-    PrincipalPendingPlacement,
-    PrincipalPlaceStudent,
-    PrincipalPromoteStudents,
-} from '../Pages/Principal/StudentAllocation/PrincipalStudentPlacement'
-import CoordinatorGradeBands from '../Pages/Principal/CoordinatorGradeBands/CoordinatorGradeBands'
+import PrincipalStudentAllocationApproval from '../Pages/Principal/StudentAllocation/PrincipalStudentAllocationApproval'
+import StudentAllocationDetail from '../Common/StudentAllocation/StudentAllocationDetail'
 
 const PrincipalRoutes = () => {
     return (
@@ -61,10 +57,8 @@ const PrincipalRoutes = () => {
             <Route path="/principal/star-ratings-list" element={<Navigate to="/principal/star-ratings/star-of-month" replace />} />
             <Route path="/principal/examination-timetable" element={<ExaminationTimetableList />} />
             <Route path="/principal/create-examination-timetable" element={<CreateExaminationTimetable />} />
-            <Route path="/principal/edit-examination-timetable/:id" element={<CreateExaminationTimetable />} />
             <Route path="/principal/class-timetable" element={<ClassTimetableList />} />
             <Route path="/principal/create-class-timetable" element={<CreateClassTimetable />} />
-            <Route path="/principal/edit-class-timetable/:id" element={<CreateClassTimetable />} />
             <Route path="/principal/user-management/student-database" element={<StudentDatabaseList />} />
             <Route path="/principal/user-management/student-database/view/:id" element={<ViewStudentDatabase />} />
             <Route path="/principal/user-management/employee-database" element={<EmployeeDatabaseList />} />
@@ -100,12 +94,9 @@ const PrincipalRoutes = () => {
             <Route path="/principal/academic/teacher-allocation/allocate/:employeeId" element={<AllocateTeacher />} />
             <Route path="/principal/academic/teacher-allocation/view/:employeeId" element={<ViewTeacherAllocation />} />
             <Route path="/principal/academic/teacher-allocation/edit/:employeeId" element={<EditTeacherAllocation />} />
-            <Route path="/principal/student-allocation-approval" element={<PrincipalPendingPlacement />} />
-            <Route path="/principal/student-allocation-approval/place/:id" element={<PrincipalPlaceStudent />} />
-            <Route path="/principal/student-allocation-approval/promote" element={<PrincipalPromoteStudents />} />
-            <Route path="/principal/student-allocation-approval/allocate/:id" element={<Navigate to="/principal/student-allocation-approval" replace />} />
-            <Route path="/principal/student-allocation-approval/review/:id" element={<Navigate to="/principal/student-allocation-approval" replace />} />
-            <Route path="/principal/coordinator-grade-bands" element={<CoordinatorGradeBands />} />
+            <Route path="/principal/student-allocation-approval" element={<PrincipalStudentAllocationApproval />} />
+            <Route path="/principal/student-allocation-approval/allocate/:id" element={<StudentAllocationDetail />} />
+            <Route path="/principal/student-allocation-approval/review/:id" element={<StudentAllocationDetail />} />
             <Route path="/principal/communication" element={<Navigate to="/principal/communication/inbox" replace />} />
             <Route path="/principal/communication/inbox" element={<CommunicationInbox />} />
             <Route path="/principal/communication/inbox/:conversationId" element={<CommunicationInbox />} />

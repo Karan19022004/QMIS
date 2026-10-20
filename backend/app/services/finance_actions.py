@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-import math
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
 
 from sqlalchemy import select
@@ -32,143 +31,6 @@ def _save(db: Session, actor: User, data: dict) -> dict:
     return fin.save_state(db, actor, {"data": data})
 
 
-def _parse_iso_date(value) -> date | None:
-    if not value:
-        return None
-    text = str(value).strip()[:10]
-    try:
-        return date.fromisoformat(text)
-    except ValueError:
-        return None
-
-
-def _fine_rule_for_category(fine_rules: list | None, category_id) -> dict | None:
-    want = str(category_id or "")
-    for rule in fine_rules or []:
-        if not isinstance(rule, dict):
-            continue
-        if not rule.get("active", True):
-            continue
-        if str(rule.get("feeCategoryId") or "") == want:
-            return rule
-    return None
-
-
-def _calculate_late_fee(row: dict, fine_rule: dict | None, as_of: date) -> float:
-    """Match frontend hydrateInstallment / calculateLateFee for open instalments."""
-    if row.get("fineWaived"):
-        return 0.0
-    status = str(row.get("forcedStatus") or row.get("status") or "").upper()
-    if status in {"PAID", "WAIVED", "CANCELLED"}:
-        return float(row.get("fineAmount") or 0)
-
-    if not fine_rule:
-        return float(row.get("fineAmount") or 0)
-
-    fine_type = str(fine_rule.get("fineType") or "").upper()
-    if fine_type in {"", "NONE"}:
-        return float(row.get("fineAmount") or 0)
-
-    due = _parse_iso_date(row.get("dueDate"))
-    if due is None:
-        return float(row.get("fineAmount") or 0)
-
-    grace = int(fine_rule.get("gracePeriod") or fine_rule.get("graceDays") or 0)
-    days_late = (as_of - (due + timedelta(days=grace))).days
-    if days_late <= 0:
-        return 0.0
-
-    value = float(fine_rule.get("fineValue") if fine_rule.get("fineValue") is not None else fine_rule.get("amount") or 0)
-    fee_amount = float(row.get("feeAmount") or 0)
-    if fine_type == "FLAT":
-        fine = value
-    elif fine_type == "DAILY":
-        fine = days_late * value
-    elif fine_type == "WEEKLY":
-        fine = math.ceil(days_late / 7) * value
-    elif fine_type == "PERCENTAGE":
-        percent = float(fine_rule.get("percent") if fine_rule.get("percent") is not None else value)
-        fine = (fee_amount * percent) / 100.0
-    else:
-        fine = 0.0
-
-    max_fine = fine_rule.get("maximumFine")
-    if max_fine is not None and float(max_fine or 0) > 0:
-        fine = min(fine, float(max_fine))
-
-    return max(0.0, float(round(fine)))
-
-
-def _live_payable(row: dict, fine_rules: list | None, as_of: date | None = None) -> tuple[float, float, float]:
-    """
-    Returns (fine_amount, net_amount, balance_amount) including accrued late fee.
-    Portal UI hydrates the same way; payment must accept fee + late fee.
-    """
-    as_of = as_of or datetime.now(timezone.utc).date()
-    status = str(row.get("forcedStatus") or row.get("status") or "").upper()
-    settled = status in {"PAID", "WAIVED", "CANCELLED"}
-    fee = float(row.get("feeAmount") or 0)
-    concession = float(row.get("concessionAmount") or 0)
-    stored_fine = float(row.get("fineAmount") or 0)
-    stored_net = float(row.get("netAmount") or 0)
-    paid = float(row.get("paidAmount") or 0)
-
-    if settled:
-        fine = stored_fine
-        net = max(stored_net, max(0.0, fee - concession + fine))
-    else:
-        rule = _fine_rule_for_category(fine_rules, row.get("feeCategoryId"))
-        accrued = _calculate_late_fee(row, rule, as_of)
-        fine = max(stored_fine, accrued)
-        net = max(0.0, fee - concession + fine)
-        # Prefer computed net; never under-cut a higher stored net that already embeds fines.
-        net = max(net, stored_net)
-
-    balance = max(0.0, net - paid)
-    return fine, net, balance
-
-
-def pay_my_fees(db: Session, actor: User, payload: dict) -> dict:
-    """
-    Parent/student self-service payment for linked children / self only.
-    Reuses collect_payment, then returns a scoped my-fees snapshot for the portal.
-    """
-    from app.deps import role_code_for
-
-    code = role_code_for(db, actor)
-    if code not in {"parent", "student"}:
-        fail(403, "forbidden", "Parent or student role required.")
-
-    student_id = str(payload.get("studentId") or "")
-    allowed = fin._child_student_ids_for_actor(db, actor)
-    if not student_id or student_id not in allowed:
-        fail(403, "forbidden", "You can only pay fees for your linked student.")
-
-    mode = str(payload.get("paymentMode") or "UPI").upper()
-    # Desk cash/cheque collection stays with Account Head; portal pays online-style modes.
-    if mode in {"CASH", "CHEQUE"}:
-        fail(400, "validation_error", "Use UPI, card, or payment gateway for online fee payment.")
-
-    result = collect_payment(
-        db,
-        actor,
-        {
-            **payload,
-            "studentId": student_id,
-            "paymentMode": mode,
-            "collectedBy": payload.get("collectedBy") or actor.email,
-            "narration": payload.get("narration") or f"Online fee payment — {actor.email}",
-        },
-    )
-    scoped = fin.get_my_fees(db, actor)
-    return {
-        "success": True,
-        "transaction": result.get("transaction"),
-        "receipt": result.get("receipt"),
-        "state": scoped,
-    }
-
-
 def collect_payment(db: Session, actor: User, payload: dict) -> dict:
     state = fin.get_state(db, actor)
     data = dict(state["data"])
@@ -188,39 +50,10 @@ def collect_payment(db: Session, actor: User, payload: dict) -> dict:
     if not allocations:
         fail(400, "validation_error", "Select at least one payable instalment.")
 
-    fine_rules = list(data.get("fineRules") or [])
-    as_of = _parse_iso_date(payload.get("paymentDate")) or datetime.now(timezone.utc).date()
-
-    # Cap each allocation to remaining balance (fee + accrued late fee); reject settled rows.
-    normalized: list[dict] = []
-    for alloc in allocations:
-        row = next((i for i in installments if i.get("id") == alloc.get("installmentId")), None)
-        if row is None:
-            fail(400, "validation_error", "One or more instalments were not found.")
-        if str(row.get("studentId") or "") != str(student_id):
-            fail(403, "forbidden", "Instalment does not belong to this student.")
-        fine, net, balance = _live_payable(row, fine_rules, as_of)
-        # Persist live fine/net so subsequent reads and partial pays stay consistent.
-        row["fineAmount"] = fine
-        row["netAmount"] = net
-        row["balanceAmount"] = balance
-        if balance <= 0 or str(row.get("status") or "").upper() in {"PAID", "WAIVED", "CANCELLED"}:
-            fail(400, "validation_error", f"Instalment {row.get('installmentLabel') or row.get('id')} is already settled.")
-        amount = float(alloc.get("amount") or 0)
-        if amount > balance + 0.009:
-            fail(
-                400,
-                "validation_error",
-                f"Amount exceeds balance for {row.get('installmentLabel') or 'instalment'} "
-                f"(balance ₹{balance:.2f}).",
-            )
-        normalized.append({"installmentId": row.get("id"), "amount": min(amount, balance)})
-
-    allocations = normalized
     total = sum(float(a.get("amount") or 0) for a in allocations)
     mode = payload.get("paymentMode") or "CASH"
     details = payload.get("details") or {}
-    iso_date = payload.get("paymentDate") or as_of.isoformat()
+    iso_date = payload.get("paymentDate") or _now()[:10]
     seq = _seq(data)
     seq["pay"] += 1
     seq["txn"] += 1
@@ -246,16 +79,11 @@ def collect_payment(db: Session, actor: User, payload: dict) -> dict:
             row = next((i for i in installments if i.get("id") == alloc.get("installmentId")), None)
             if not row:
                 continue
-            fine, net, _ = _live_payable(row, fine_rules, as_of)
-            row["fineAmount"] = fine
-            row["netAmount"] = net
-            paid = min(net, float(row.get("paidAmount") or 0) + float(alloc.get("amount") or 0))
-            balance = max(0.0, net - paid)
+            paid = float(row.get("paidAmount") or 0) + float(alloc.get("amount") or 0)
+            balance = max(0.0, float(row.get("netAmount") or row.get("feeAmount") or 0) - paid)
             row["paidAmount"] = paid
             row["balanceAmount"] = balance
             row["status"] = "PAID" if balance <= 0 else "PARTIALLY_PAID"
-            if balance <= 0:
-                row["forcedStatus"] = "PAID"
 
     transaction = {
         "id": txn_id,

@@ -1,22 +1,17 @@
-import React, { useMemo } from 'react'
+import React from 'react'
 import { CLASS_LEVEL_OPTIONS } from '../classDetailsOptions'
 
 const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
 
 const ClassInfo = ({
     form,
+    teachers = [],
     onChange,
     apiMode = false,
     years = [],
     academicYearId = '',
     onAcademicYearChange,
-    existingClassNames = [],
 }) => {
-    const classOptions = useMemo(() => {
-        const merged = [...CLASS_LEVEL_OPTIONS, ...(existingClassNames || [])]
-        return [...new Set(merged.map((item) => String(item || '').trim()).filter(Boolean))]
-    }, [existingClassNames])
-
     return (
         <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6 lg:mt-8 mt-2'>
             <div className='flex flex-col gap-y-2'>
@@ -28,13 +23,10 @@ const ClassInfo = ({
                     className={inputClass}
                 >
                     <option value=''>Select Class</option>
-                    {classOptions.map((item) => (
+                    {CLASS_LEVEL_OPTIONS.map((item) => (
                         <option key={item} value={item}>{item}</option>
                     ))}
                 </select>
-                <p className='text-xs text-[#667085]'>
-                    Names stay as saved (e.g. Pre-KG, LKG, Grade 1) and sync to Teacher Allocation and other dropdowns.
-                </p>
             </div>
             {apiMode ? (
                 <div className='flex flex-col gap-y-2'>
@@ -52,11 +44,54 @@ const ClassInfo = ({
                             </option>
                         ))}
                     </select>
-                    <p className='text-xs text-[#667085]'>
-                        Manage years under Class Details → Academic Years (add 2027-2028, set current).
-                    </p>
                 </div>
             ) : null}
+            {apiMode ? null : (<>
+            <div className='flex flex-col gap-y-2'>
+                <label htmlFor='classTeacher' className='text-base font-medium text-[#1E1E1E]'>Class Teacher:</label>
+                <select
+                    id='classTeacher'
+                    value={form.classTeacherEmail}
+                    onChange={(e) => {
+                        const teacher = teachers.find((item) => item.email === e.target.value)
+                        onChange({
+                            classTeacherEmail: e.target.value,
+                            classTeacher: teacher?.name || '',
+                        })
+                    }}
+                    className={inputClass}
+                >
+                    <option value=''>Select Teacher</option>
+                    {teachers.map((teacher) => (
+                        <option key={teacher.id} value={teacher.email}>
+                            {teacher.name}
+                        </option>
+                    ))}
+                </select>
+            </div>
+            <div className='flex flex-col gap-y-2'>
+                <label htmlFor='classCapacity' className='text-base font-medium text-[#1E1E1E]'>Class Capacity:</label>
+                <input
+                    id='classCapacity'
+                    type='text'
+                    value={form.classCapacity}
+                    onChange={(e) => onChange('classCapacity', e.target.value)}
+                    placeholder='e.g. 40'
+                    className={inputClass}
+                />
+            </div>
+            <div className='flex flex-col gap-y-2'>
+                <label htmlFor='classRoomNumber' className='text-base font-medium text-[#1E1E1E]'>Class Room Number:</label>
+                <input
+                    id='classRoomNumber'
+                    type='text'
+                    value={form.classRoomNumber}
+                    onChange={(e) => onChange('classRoomNumber', e.target.value)}
+                    placeholder='e.g. 102'
+                    className={inputClass}
+                />
+            </div>
+            </>)}
         </div>
     )
 }

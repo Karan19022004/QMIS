@@ -15,13 +15,6 @@ export async function pullFinanceState() {
     return apiRequest('/finance/state')
 }
 
-/** Parent/student scoped fees (linked children / self only). */
-export async function pullMyFeesState() {
-    const connected = await connectFinanceApi()
-    if (!connected) throw new Error('Finance API is not available')
-    return apiRequest('/finance/my-fees')
-}
-
 export async function pushFinanceState(data) {
     const connected = await connectFinanceApi()
     if (!connected) throw new Error('Finance API is not available')
@@ -50,8 +43,6 @@ const postAction = async (path, body = {}) => {
 }
 
 export const collectPaymentApi = (body) => postAction('collect-payment', body)
-/** Parent/student self-pay (linked children / self only). */
-export const payMyFeesApi = (body) => postAction('pay-my-fees', body)
 export const settleChequeApi = (body) => postAction('settle-cheque', body)
 export const sendReceiptApi = (body) => postAction('send-receipt', body)
 export const gatewayIntentApi = (body) => postAction('gateway-intent', body)

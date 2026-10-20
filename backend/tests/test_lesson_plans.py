@@ -101,24 +101,6 @@ def test_full_approval_then_visibility(client):
     mine = client.get("/api/v1/lesson-plans", params={"mine": True, "status": "approved"}, headers=teacher)
     assert any(p["id"] == plan["id"] for p in mine.json())
 
-    # Mark as Done must work after submit (PATCH content is locked)
-    locked = client.patch(
-        f"/api/v1/lesson-plans/{plan['id']}",
-        json={"content": {"markAsDone": True}},
-        headers=teacher,
-    )
-    assert locked.status_code == 409
-    done = client.post(
-        f"/api/v1/lesson-plans/{plan['id']}/complete",
-        json={"remarks": "Covered all sessions"},
-        headers=teacher,
-    )
-    assert done.status_code == 200, done.text
-    content = done.json()["content"]
-    assert content["markAsDone"] is True
-    assert content["completionRemarks"] == "Covered all sessions"
-    assert content["trackStatus"] == "Completed"
-
 
 def test_deny_then_revise_creates_new_version(client):
     teacher = _h(client, "teacher")

@@ -18,15 +18,6 @@ def get_finance_state(
     return svc.get_state(db, user)
 
 
-@router.get("/my-fees")
-def get_my_fees_route(
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("finance.read")),
-) -> dict:
-    """Parent/student scoped fee ledger (children / self only)."""
-    return svc.get_my_fees(db, user)
-
-
 @router.put("/state")
 def put_finance_state(
     body: dict = Body(...),
@@ -51,16 +42,6 @@ def collect_payment_route(
     user: User = Depends(require_any("finance.collect", "finance.write")),
 ) -> dict:
     return actions.collect_payment(db, user, body)
-
-
-@router.post("/actions/pay-my-fees")
-def pay_my_fees_route(
-    body: dict = Body(...),
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("finance.read")),
-) -> dict:
-    """Parent/student online payment for linked children / self (scoped)."""
-    return actions.pay_my_fees(db, user, body)
 
 
 @router.post("/actions/settle-cheque")

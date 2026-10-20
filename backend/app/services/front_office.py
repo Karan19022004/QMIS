@@ -21,7 +21,7 @@ COLLECTIONS: dict[str, str] = {
     "student-re-enrollments": "SRE",
 }
 
-_WRITERS = {"prm", "admin", "superadmin", "managing_director", "gatekeeper", "gatekeepermanager"}
+_WRITERS = {"prm", "admin", "superadmin", "managing_director"}
 _READERS = _WRITERS | {"principal", "director"}
 
 

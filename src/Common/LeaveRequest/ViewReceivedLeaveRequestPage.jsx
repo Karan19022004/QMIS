@@ -6,12 +6,10 @@ import { useAuth } from '../../context/AuthContext'
 import {
     canApproverAccessRequest,
     decideLeaveRequestViaApi,
-    getAwaitingRoleLabel,
     getLeaveRequestById,
-    getLeaveStatusLabel,
     hydrateLeaveRequestsFromApi,
     isAwaitingApprover,
-    leaveStatusBadgeClass,
+    statusBadgeColor,
     updateLeaveRequestStatus,
 } from './leaveRequestData'
 import { canUseLeaveApi } from '../../services/leaveApi'
@@ -61,7 +59,7 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
         }
     }, [id, roleKey])
 
-    const decide = async (status, failMessage) => {
+    const decide = async (status, successMessage, failMessage) => {
         if (busy) return
         if (canUseLeaveApi()) {
             setBusy(true)
@@ -72,14 +70,7 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
                     return
                 }
                 setRequest(updated)
-                if (status === 'Rejected') {
-                    toast.success('Leave request rejected.')
-                } else if (updated.status === 'Approved') {
-                    toast.success('Leave request fully approved.')
-                } else {
-                    const next = getAwaitingRoleLabel(updated) || 'the next approver'
-                    toast.success(`Your approval was recorded. Awaiting ${next} for final confirmation.`)
-                }
+                toast.success(successMessage)
             } catch (error) {
                 toast.error(error?.message || failMessage)
             } finally {
@@ -93,17 +84,17 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
             return
         }
         setRequest(updated)
-        toast.success(status === 'Approved' ? 'Leave request approved.' : 'Leave request rejected.')
+        toast.success(successMessage)
     }
 
-    const handleApprove = () => decide('Approved', 'Unable to approve this leave request.')
+    const handleApprove = () => decide('Approved', 'Leave request approved.', 'Unable to approve this leave request.')
 
     const handleReject = () => {
         if (canUseLeaveApi() && !approverRemarks.trim()) {
             toast.error('Add a remark explaining the rejection.')
             return
         }
-        return decide('Rejected', 'Unable to reject this leave request.')
+        return decide('Rejected', 'Leave request rejected.', 'Unable to reject this leave request.')
     }
 
     return (
@@ -120,7 +111,7 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
                     <div className='bg-white rounded-2xl shadow-md p-4'>
                         <div className='flex flex-wrap items-center gap-3'>
                             <h1 className='text-2xl font-semibold text-black'>{request.leaveRequestId}</h1>
-                            <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap ${leaveStatusBadgeClass(request)}`}>{getLeaveStatusLabel(request)}</span>
+                            <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap ${statusBadgeColor[request.status]}`}>{request.status}</span>
                         </div>
                         <p className='text-sm text-[#667085] mt-2'>
                             <span className='font-medium text-[#1E1E1E]'>{request.requestedBy}</span>
@@ -128,11 +119,6 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
                             {request.role}
                             {request.department ? ` · ${request.department}` : ''}
                         </p>
-                        {!isAwaitingApprover(request, roleKey) && request.status === 'Pending' && getAwaitingRoleLabel(request) ? (
-                            <p className='text-sm text-[#2196F3] mt-2'>
-                                Your step is done. This request is now awaiting {getAwaitingRoleLabel(request)}.
-                            </p>
-                        ) : null}
                     </div>
 
                     <Section title='Leave Request Information'>

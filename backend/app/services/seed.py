@@ -5,19 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import hash_password
-from app.models import (
-    AcademicYear,
-    Campus,
-    CoordinatorGradeBand,
-    FinancialYear,
-    HrEmployee,
-    Permission,
-    Role,
-    RolePermission,
-    SchoolClass,
-    Section,
-    User,
-)
+from app.models import AcademicYear, Campus, FinancialYear, HrEmployee, Permission, Role, RolePermission, User
 from app.permissions.matrix import ALL_ROLES, PERMISSIONS, ROLE_PERMISSIONS
 from app.services.audit import write_audit
 
@@ -71,8 +59,6 @@ def seed_reference_data(db: Session) -> None:
     if settings.seed_demo_accounts:
         _seed_demo_users(db, campus, roles_by_code)
         _ensure_demo_staff_hr_links(db, campus)
-        _seed_coordinator_grade_bands(db, campus)
-        _seed_default_grade_classes(db, campus)
     if created_campus:
         write_audit(
             db,
@@ -126,8 +112,6 @@ def _seed_demo_users(db: Session, campus: Campus, roles_by_code: dict[str, Role]
     for role_code, email, password in (
         ("teacher", settings.teacher_seed_email, settings.teacher_seed_password),
         ("coordinator", settings.coordinator_seed_email, settings.coordinator_seed_password),
-        ("coordinator", settings.coordinator2_seed_email, settings.coordinator2_seed_password),
-        ("coordinator", settings.coordinator3_seed_email, settings.coordinator3_seed_password),
         ("principal", settings.principal_seed_email, settings.principal_seed_password),
         ("prm", settings.prm_seed_email, settings.prm_seed_password),
         ("director", settings.director_seed_email, settings.director_seed_password),
@@ -237,15 +221,6 @@ def _ensure_demo_staff_hr_links(db: Session, campus: Campus) -> None:
             "designation": "Principal",
             "role_title": "Principal",
         },
-        {
-            "email": settings.teacher_seed_email.lower(),
-            "employee_code": "EMP-TEA-001",
-            "first_name": "Campus",
-            "last_name": "Teacher",
-            "department": "Academics",
-            "designation": "Teacher",
-            "role_title": "Teacher",
-        },
     )
     for profile in profiles:
         user = db.scalar(select(User).where(User.email == profile["email"]))
@@ -282,85 +257,4 @@ def _ensure_demo_staff_hr_links(db: Session, campus: Campus) -> None:
                 row.department = profile["department"]
             if not row.designation:
                 row.designation = profile["designation"]
-    db.flush()
-
-
-def _seed_default_grade_classes(db: Session, campus: Campus) -> None:
-    """Ensure Grade 1–12 with sections A/B/C exist for the current academic year."""
-    year = db.scalar(
-        select(AcademicYear).where(
-            AcademicYear.campus_id == campus.id,
-            AcademicYear.is_current.is_(True),
-        )
-    )
-    if year is None:
-        return
-    for grade in range(1, 13):
-        name = f"Grade {grade}"
-        school_class = db.scalar(
-            select(SchoolClass).where(
-                SchoolClass.campus_id == campus.id,
-                SchoolClass.academic_year_id == year.id,
-                SchoolClass.name == name,
-            )
-        )
-        if school_class is None:
-            school_class = SchoolClass(
-                campus_id=campus.id,
-                academic_year_id=year.id,
-                name=name,
-                is_active=True,
-            )
-            db.add(school_class)
-            db.flush()
-        existing = {
-            s.name.upper()
-            for s in db.scalars(select(Section).where(Section.class_id == school_class.id)).all()
-        }
-        for section_name in ("A", "B", "C"):
-            if section_name in existing:
-                continue
-            db.add(
-                Section(
-                    campus_id=campus.id,
-                    class_id=school_class.id,
-                    name=section_name,
-                    is_active=True,
-                )
-            )
-    db.flush()
-
-
-def _seed_coordinator_grade_bands(db: Session, campus: Campus) -> None:
-    """Map demo coordinator logins to grade bands 1–4 / 5–8 / 9–12."""
-    from datetime import datetime, timezone
-
-    mapping = (
-        (settings.coordinator_seed_email.lower(), 1, 4),
-        (settings.coordinator2_seed_email.lower(), 5, 8),
-        (settings.coordinator3_seed_email.lower(), 9, 12),
-    )
-    for email, grade_from, grade_to in mapping:
-        user = db.scalar(select(User).where(User.email == email))
-        if user is None:
-            continue
-        existing = db.scalar(
-            select(CoordinatorGradeBand).where(
-                CoordinatorGradeBand.campus_id == campus.id,
-                CoordinatorGradeBand.user_id == user.id,
-            )
-        )
-        if existing is not None:
-            existing.grade_from = grade_from
-            existing.grade_to = grade_to
-            continue
-        db.add(
-            CoordinatorGradeBand(
-                campus_id=campus.id,
-                user_id=user.id,
-                grade_from=grade_from,
-                grade_to=grade_to,
-                created_at=datetime.now(timezone.utc),
-            )
-        )
     db.flush()

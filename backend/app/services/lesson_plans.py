@@ -179,22 +179,10 @@ def update(db: Session, actor: User, plan_id: UUID, *, title, content, file_id) 
     return _out(db, plan)
 
 
-_LEADERSHIP_SUBMIT_ROLES = {
-    "coordinator",
-    "principal",
-    "director",
-    "jointdirector",
-    "admin",
-    "superadmin",
-}
-
-
 def submit(db: Session, actor: User, plan_id: UUID, *, today: date | None = None) -> dict:
     plan = _load(db, actor, plan_id)
-    role = role_code_for(db, actor)
-    # Owner may always submit; campus leadership may submit a stuck draft for review.
-    if plan.teacher_id != actor.id and role not in _LEADERSHIP_SUBMIT_ROLES:
-        fail(403, "forbidden", "Only the owning teacher or campus leadership can submit.")
+    if plan.teacher_id != actor.id:
+        fail(403, "forbidden", "Only the owning teacher can submit.")
     if plan.approval_id:
         fail(409, "conflict", "Already submitted.")
     today = today or date.today()
@@ -210,41 +198,6 @@ def submit(db: Session, actor: User, plan_id: UUID, *, today: date | None = None
     )
     plan.approval_id = UUID(approval["id"])
     plan.updated_at = utcnow()
-    db.commit()
-    return _out(db, plan)
-
-
-def mark_complete(
-    db: Session,
-    actor: User,
-    plan_id: UUID,
-    *,
-    remarks: str = "",
-) -> dict:
-    """Owner marks an approved (or submitted) plan as taught/done.
-
-    Allowed after submit: content edits stay locked via PATCH, but completion
-    flags live in content_json and must be writable without unlocking the plan.
-    """
-    plan = _load(db, actor, plan_id)
-    if plan.teacher_id != actor.id:
-        fail(403, "forbidden", "Only the owning teacher can mark a lesson plan as done.")
-    content = json.loads(plan.content_json or "{}")
-    if not isinstance(content, dict):
-        content = {}
-    content["markAsDone"] = True
-    content["trackStatus"] = "Completed"
-    content["completionRemarks"] = (remarks or "").strip()
-    plan.content_json = json.dumps(content)
-    plan.updated_at = utcnow()
-    write_audit(
-        db,
-        action="LESSON_PLAN_MARKED_DONE",
-        entity_type="lesson_plan",
-        entity_id=str(plan.id),
-        actor_id=actor.id,
-        campus_id=actor.campus_id,
-    )
     db.commit()
     return _out(db, plan)
 

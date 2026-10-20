@@ -39,13 +39,6 @@ export async function createStaff(employee) {
     return apiRequest('/hr/staff', { method: 'POST', body: employee })
 }
 
-/** Reset employee portal password; returns { temporaryPassword, loginEmail, ... }. */
-export async function resetStaffPassword(employeeCode) {
-    const connected = await connectHrApi()
-    if (!connected) throw new Error('HR API is not available')
-    return apiRequest(`/hr/staff/${encodeURIComponent(employeeCode)}/reset-password`, { method: 'POST' })
-}
-
 export const getJson = (path) => apiRequest(path)
 
 export const putJson = (path, value) => apiRequest(path, { method: 'PUT', body: value })

@@ -24,37 +24,16 @@ export async function createLessonPlanApi(body) {
     return apiRequest('/lesson-plans', { method: 'POST', body })
 }
 
-/** @returns {Promise<object>} */
-export async function submitLessonPlanApi(planId) {
-    return apiRequest(`/lesson-plans/${planId}/submit`, { method: 'POST' })
-}
-
-/** @returns {Promise<object>} */
-export async function completeLessonPlanApi(planId, remarks = '') {
-    return apiRequest(`/lesson-plans/${planId}/complete`, {
-        method: 'POST',
-        body: { remarks: String(remarks || '').trim() },
-    })
-}
-
 /** Map API lesson plan → existing Teacher/Coordinator UI record shape. */
 export function mapLessonPlanFromApi(row) {
     const content = row.content && typeof row.content === 'object' ? row.content : {}
     const status = String(row.status || '').toLowerCase()
-    let approvalStatus = 'Pending'
-    if (status === 'approved') approvalStatus = 'Approved'
-    else if (status === 'denied' || status === 'rejected') approvalStatus = 'Rejected'
-    else if (status === 'draft') approvalStatus = 'Draft'
-
-    const markAsDone = Boolean(content.markAsDone)
-    let trackStatus = content.trackStatus || 'On Track'
-    if (markAsDone) trackStatus = 'Completed'
-    else if (!content.trackStatus && approvalStatus === 'Approved') trackStatus = 'On Track'
-
+    const approvalStatus =
+        status === 'approved' ? 'Approved' : status === 'denied' || status === 'rejected' ? 'Rejected' : 'Pending'
     return {
         id: String(row.id),
         subject: row.subject || content.subject || '',
-        submitterName: content.submitterName || row.teacherName || row.teacherEmail || '',
+        submitterName: row.teacherEmail || row.teacherName || content.submitterName || '',
         submitterRole: content.submitterRole || 'Teacher',
         className: row.className || '',
         section: row.section || '',
@@ -80,13 +59,9 @@ export function mapLessonPlanFromApi(row) {
         toDate: content.toDate || '',
         submittedAt: row.createdAt || row.submittedAt || '',
         approvalStatus,
-        trackStatus,
-        markAsDone,
-        completionRemarks: content.completionRemarks || '',
+        trackStatus: approvalStatus === 'Approved' ? 'Completed' : 'On Track',
+        markAsDone: Boolean(content.markAsDone),
         attachment: row.fileId ? String(row.fileId) : content.attachment || '',
-        approvalId: row.approvalId || row.approval_id || null,
-        awaitingRole: row.awaitingRole || row.awaiting_role || null,
-        campusStatus: status,
         source: 'api',
     }
 }

@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import ScrollableSelect from '../../../Common/CommonComponents/ScrollableSelect'
 import StarRatingInput from './Components/StarRatingInput'
 import {
     ACADEMIC_YEAR_MONTHS,
@@ -10,8 +9,7 @@ import {
     RATING_CATEGORY,
     SOM_ROUTE,
     addSomRating,
-    getDefaultSomMonth,
-    loadStaffEmployeesByType,
+    getEmployeesByType,
 } from './starRatingsData'
 
 const inputClass =
@@ -24,29 +22,11 @@ const AddRatings = () => {
     const navigate = useNavigate()
     const [employeeType, setEmployeeType] = useState('teacher')
     const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
-    const [month, setMonth] = useState(() => getDefaultSomMonth())
+    const [month, setMonth] = useState(ACADEMIC_YEAR_MONTHS[0])
     const [rating, setRating] = useState(0)
     const [description, setDescription] = useState('')
-    const [employeeOptions, setEmployeeOptions] = useState([])
-    const [loadingEmployees, setLoadingEmployees] = useState(true)
 
-    useEffect(() => {
-        let cancelled = false
-        setLoadingEmployees(true)
-        setSelectedEmployeeId('')
-        loadStaffEmployeesByType(employeeType)
-            .then((rows) => {
-                if (!cancelled) setEmployeeOptions(rows)
-            })
-            .catch(() => {
-                if (!cancelled) setEmployeeOptions([])
-            })
-            .finally(() => {
-                if (!cancelled) setLoadingEmployees(false)
-            })
-        return () => { cancelled = true }
-    }, [employeeType])
-
+    const employeeOptions = getEmployeesByType(employeeType)
     const selectedEmployee = employeeOptions.find((emp) => emp.id === selectedEmployeeId)
 
     const handleEmployeeTypeChange = (type) => {
@@ -73,7 +53,7 @@ const AddRatings = () => {
             rating,
             description,
         })
-        toast.success('Star rating saved.')
+        toast.success('Star rating saved to shared browser SoT.')
         navigate(SOM_ROUTE)
     }
 
@@ -82,7 +62,7 @@ const AddRatings = () => {
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h2 className='text-xl font-semibold text-black'>Add Star of the Month Rating</h2>
                 <p className='text-sm text-[#667085] mt-1'>
-                    Rate Teachers and Co-ordinators from the campus staff directory using a 1–3 star scale ({RATING_CATEGORY}).
+                    Rate Teachers and Co-ordinators monthly using a 1–3 star scale ({RATING_CATEGORY}).
                 </p>
                 <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 lg:mt-8 mt-2'>
                     <div className='flex flex-col gap-y-2'>
@@ -104,14 +84,16 @@ const AddRatings = () => {
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='month' className='text-base font-medium text-[#1E1E1E]'>Month:</label>
-                        <ScrollableSelect
+                        <select
                             id='month'
                             value={month}
-                            onChange={setMonth}
-                            options={ACADEMIC_YEAR_MONTHS}
-                            placeholder='Select month'
-                            listClassName='max-h-48'
-                        />
+                            onChange={(e) => setMonth(e.target.value)}
+                            className={selectClass}
+                        >
+                            {ACADEMIC_YEAR_MONTHS.map((item) => (
+                                <option key={item} value={item}>{item}</option>
+                            ))}
+                        </select>
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='employee-select' className='text-base font-medium text-[#1E1E1E]'>Employee Name:</label>
@@ -120,20 +102,12 @@ const AddRatings = () => {
                             value={selectedEmployeeId}
                             onChange={(e) => setSelectedEmployeeId(e.target.value)}
                             className={selectClass}
-                            disabled={loadingEmployees}
                         >
-                            <option value=''>
-                                {loadingEmployees ? 'Loading staff…' : 'Select Employee'}
-                            </option>
+                            <option value=''>Select Employee</option>
                             {employeeOptions.map((emp) => (
                                 <option key={emp.id} value={emp.id}>{emp.name}</option>
                             ))}
                         </select>
-                        {!loadingEmployees && employeeOptions.length === 0 && (
-                            <p className='text-xs text-[#B54708]'>
-                                No {employeeType === 'coordinator' ? 'coordinators' : 'teachers'} found in HR / directory.
-                            </p>
-                        )}
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='employee-id' className='text-base font-medium text-[#1E1E1E]'>Employee ID:</label>

@@ -147,16 +147,6 @@ const FeeCollectionTab = () => {
                     />
                     <StudentFeeSummary summary={summary} />
 
-                    {activeStudent && installments.length === 0 && (
-                        <div className='bg-white rounded-2xl shadow-md p-5 text-sm text-[#667085]'>
-                            No fee installments for <span className='font-medium text-[#1E1E1E]'>{activeStudent.name}</span>
-                            {' '}({activeStudent.className || 'no class'} · {academicYear}).
-                            Define a fee structure for this class/year, then use Settings →{' '}
-                            <span className='font-medium text-[#1E1E1E]'>Apply fee structures to students</span>.
-                            Years like <code>2026-27</code> and <code>2026-2027</code> are treated as the same.
-                        </div>
-                    )}
-
                     <div className='flex flex-wrap gap-2'>
                         <button type='button' onClick={() => setHistoryOpen(true)} className='inline-flex items-center gap-2 text-sm border border-[#515DEF] text-[#515DEF] px-4 py-2 rounded-md cursor-pointer'>
                             <History size={16} /> Payment History

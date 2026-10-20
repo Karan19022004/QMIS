@@ -1,20 +1,44 @@
-import { useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import Dropdown from '../CommonComponents/Dropdown'
 import ExportModal from '../CommonComponents/ExportModal'
-import { getLeaveStatusLabel, LEAVE_STATUSES, leaveStatusBadgeClass, parseLeaveDate } from './leaveRequestData'
-import { getLeaveReceivedViewPath } from './leaveRequestConfigs'
-import { useLeaveRequests } from './useLeaveRequests'
+import { getReceivedLeaveRequestsForRole, hydrateLeaveRequestsFromApi, LEAVE_REQUESTS_UPDATED_EVENT, LEAVE_STATUSES, parseLeaveDate, statusBadgeColor } from './leaveRequestData'
+import { getLeaveReceivedViewPath, getLeaveRoutes, resolveRoleKey } from './leaveRequestConfigs'
 
 export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, description }) {
-    const { roleKey, requests, loading } = useLeaveRequests('received', roleKeyProp)
+    const location = useLocation()
+    const { role: authRole } = useAuth()
+    const roleKey = resolveRoleKey(authRole || roleKeyProp)
+    const routes = getLeaveRoutes(roleKey)
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
     const [fromDate, setFromDate] = useState(null)
     const [exportModal, setExportModal] = useState(false)
+    const [refreshKey, setRefreshKey] = useState(0)
+
+    useEffect(() => {
+        setRefreshKey((value) => value + 1)
+        hydrateLeaveRequestsFromApi() // no-op without an API session; emits the update event when done
+    }, [location.pathname])
+
+    useEffect(() => {
+        const refresh = () => setRefreshKey((value) => value + 1)
+        window.addEventListener(LEAVE_REQUESTS_UPDATED_EVENT, refresh)
+        window.addEventListener('storage', refresh)
+        return () => {
+            window.removeEventListener(LEAVE_REQUESTS_UPDATED_EVENT, refresh)
+            window.removeEventListener('storage', refresh)
+        }
+    }, [])
+
+    const requests = useMemo(() => {
+        void refreshKey
+        return getReceivedLeaveRequestsForRole(roleKey)
+    }, [roleKey, refreshKey, location.key])
 
     const filteredRequests = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -94,9 +118,7 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
                         <tbody>
                             {filteredRequests.length === 0 ? (
                                 <tr>
-                                    <td colSpan={10} className='px-2 py-8 text-center text-[#667085]'>
-                                        {loading ? 'Loading leave requests…' : 'No received leave requests found.'}
-                                    </td>
+                                    <td colSpan={10} className='px-2 py-8 text-center text-[#667085]'>No received leave requests found.</td>
                                 </tr>
                             ) : (
                                 filteredRequests.map((request) => (
@@ -110,7 +132,7 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
                                         <td className='px-2 py-4'>{request.totalDays}</td>
                                         <td className='px-2 py-4'>{request.appliedDate}</td>
                                         <td className='px-2 py-4'>
-                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${leaveStatusBadgeClass(request)}`}>{getLeaveStatusLabel(request)}</span>
+                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusBadgeColor[request.status]}`}>{request.status}</span>
                                         </td>
                                         <td className='px-2 py-4 text-center rounded-e-lg'>
                                             <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
@@ -145,7 +167,7 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
                     leaveType: r.leaveType,
                     fromDate: r.fromDate,
                     toDate: r.toDate,
-                    status: getLeaveStatusLabel(r),
+                    status: r.status,
                     appliedDate: r.appliedDate,
                 }))}
                 exportDescription={<>You are exporting {filteredRequests.length} record{filteredRequests.length === 1 ? '' : 's'}.</>}

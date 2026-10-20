@@ -95,12 +95,6 @@ Deferred outside closeout: RFID punches, production SMTP / WhatsApp / gateway ke
 
 ---
 
-### Academics collections (17 Oct 2026)
-
-| ID | Area | Key APIs | Status |
-|---|---|---|---|
-| Y-7 | Class timetables + teacher allocations + TT change requests | `GET/PUT /api/v1/academics/{class-timetables\|teacher-allocations\|class-timetable-change-requests}` · table `academics_records` · migration `0013` | DONE |
-
 ## Phase 3+ â€” Later
 
 Ops (stores, IT, transport, gate), Audit automation, MD cockpit, Paytm, WhatsApp, eSSL, GPS.

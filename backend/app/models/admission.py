@@ -98,10 +98,6 @@ class Admission(Base):
     parent_alt_mobile_number: Mapped[str | None] = mapped_column(String(20), nullable=True)
     parent_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     parent_account_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    student_account_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # Hashed temporary passwords collected on the admission form; cleared after enroll.
-    parent_pending_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    student_pending_password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
     fees_group: Mapped[str | None] = mapped_column(String(80), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="Active", nullable=False)
     enrolled_student_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -125,37 +121,10 @@ class Student(Base):
     admission_number: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(160), nullable=False)
     class_name: Mapped[str] = mapped_column(String(40), nullable=False)
-    academic_year_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("academic_years.id"), nullable=True
-    )
-    class_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("school_classes.id"), nullable=True
-    )
-    section_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("sections.id"), nullable=True, index=True
-    )
-    section: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    roll_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    placement_status: Mapped[str] = mapped_column(
-        String(20), default="pending", nullable=False, index=True
-    )
     parent_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     student_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id"), nullable=True, index=True
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
-
-
-class CoordinatorGradeBand(Base):
-    """Which grade range a coordinator login owns (e.g. 1–4, 5–8, 9–12)."""
-
-    __tablename__ = "coordinator_grade_bands"
-
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    campus_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("campuses.id"), nullable=False)
-    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    grade_from: Mapped[int] = mapped_column(Integer, nullable=False)
-    grade_to: Mapped[int] = mapped_column(Integer, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
 

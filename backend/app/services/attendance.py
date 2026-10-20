@@ -68,22 +68,21 @@ def roster_with_marks(
     section: str | None = None,
 ) -> list[dict]:
     """Enrolled students for a class, merged with any marks for the date."""
-    stmt = select(Student).where(
-        Student.campus_id == actor.campus_id,
-        Student.class_name == class_name,
-        Student.placement_status == "placed",
-    )
-    if section:
-        stmt = stmt.where(Student.section == section)
-    students = db.scalars(stmt.order_by(Student.roll_number.nulls_last(), Student.full_name)).all()
-    marks_stmt = select(StudentAttendance).where(
-        StudentAttendance.campus_id == actor.campus_id,
-        StudentAttendance.attendance_date == attendance_date,
-        StudentAttendance.class_name == class_name,
-    )
-    if section:
-        marks_stmt = marks_stmt.where(StudentAttendance.section == section)
-    marks = {r.student_id: r for r in db.scalars(marks_stmt).all()}
+    students = db.scalars(
+        select(Student)
+        .where(Student.campus_id == actor.campus_id, Student.class_name == class_name)
+        .order_by(Student.full_name)
+    ).all()
+    marks = {
+        r.student_id: r
+        for r in db.scalars(
+            select(StudentAttendance).where(
+                StudentAttendance.campus_id == actor.campus_id,
+                StudentAttendance.attendance_date == attendance_date,
+                StudentAttendance.class_name == class_name,
+            )
+        ).all()
+    }
     out: list[dict] = []
     for student in students:
         mark = marks.get(student.id)
@@ -97,8 +96,7 @@ def roster_with_marks(
                     "studentName": student.full_name,
                     "admissionNumber": student.admission_number,
                     "className": student.class_name,
-                    "section": student.section or section or "",
-                    "rollNumber": student.roll_number if student.roll_number is not None else "",
+                    "section": section or "",
                     "date": attendance_date.isoformat(),
                     "time": "",
                     "attendanceStatus": "",

@@ -43,11 +43,6 @@ class Settings(BaseSettings):
     teacher_seed_password: str = "teacher123"
     coordinator_seed_email: str = "coordinator@qmis.edu"
     coordinator_seed_password: str = "coord123"
-    # Grade-band coordinators (1–4 / 5–8 / 9–12). Primary email also maps to grades 1–4.
-    coordinator2_seed_email: str = "coordinator2@qmis.edu"
-    coordinator2_seed_password: str = "coord123"
-    coordinator3_seed_email: str = "coordinator3@qmis.edu"
-    coordinator3_seed_password: str = "coord123"
     principal_seed_email: str = "principal@qmis.edu"
     principal_seed_password: str = "principal123"
     prm_seed_email: str = "prm@qmis.edu"
@@ -94,14 +89,6 @@ class Settings(BaseSettings):
 
     # RFID / eSSL punch import — off until school confirms.
     rfid_import_enabled: bool = False
-
-    # ProTrack365 Open API (https://api.protrack365.com) — bus GPS.
-    # Admin panel account sees the full fleet; parent panel is the school parent login.
-    protrack_admin_account: str = ""
-    protrack_admin_password: str = ""
-    protrack_parent_account: str = ""
-    protrack_parent_password: str = ""
-
 
     @property
     def is_sqlite(self) -> bool:

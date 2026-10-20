@@ -131,28 +131,6 @@ export const COMMUNICATION_ROLE_CONFIG = {
             avatarColor: '#7C3AED',
         },
     },
-    processAuditor: {
-        roleLabel: 'Process Auditor',
-        routeBase: '/process-auditor/communication',
-        currentUser: {
-            id: 'EMP-PA-001',
-            name: 'Process Auditor',
-            role: 'Process Auditor',
-            department: 'Quality',
-            avatarColor: '#0F766E',
-        },
-    },
-    qualityAuditor: {
-        roleLabel: 'Quality Auditor',
-        routeBase: '/quality-auditor/communication',
-        currentUser: {
-            id: 'EMP-QA-001',
-            name: 'Quality Auditor',
-            role: 'Quality Auditor',
-            department: 'Quality',
-            avatarColor: '#0369A1',
-        },
-    },
 }
 
 export const getCommunicationRoleConfig = (roleKey) =>

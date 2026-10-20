@@ -10,9 +10,6 @@ export {
     EMPLOYEE_TYPE_OPTIONS,
     ACADEMIC_YEARS,
     ACADEMIC_YEAR_MONTHS,
-    getDefaultSomMonth,
-    buildAcademicYearMonths,
-    getAcademicYearStartYear,
     TEACHER_OPTIONS,
     COORDINATOR_OPTIONS,
     SEED_SOM_RATINGS,
@@ -28,7 +25,6 @@ export {
     getConsolidatedSoyRatings,
     getStarOfYear,
     getEmployeesByType,
-    loadStaffEmployeesByType,
 } from '../../Director/StarRatings/starRatingsData'
 
 export const ROUTE_BASE = '/principal/star-ratings'

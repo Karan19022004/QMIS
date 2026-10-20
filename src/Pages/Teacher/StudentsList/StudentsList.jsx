@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -7,9 +7,9 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import { hydrateEnrolledStudentsFromApi } from '../../../Common/StudentDatabase/enrolledStudentsData'
 import { getStudentsList } from '../../../Common/StudentDatabase/studentDatabaseData'
-import { useTeacherAssignments } from '../../../Common/Teacher/useTeacherAssignments'
 import noProfile from '../../../assets/images/no-profile.png'
 import { isApiStudentsEnabled } from '../../../services/apiClient'
+import { CLASSES, SECTIONS } from '../AssignedClass/assignedClassData'
 import { GENDERS } from './studentsListData'
 
 const ROUTE_BASE = '/teacher/user-management/students-list'
@@ -17,29 +17,23 @@ const ROUTE_BASE = '/teacher/user-management/students-list'
 const profileFor = (student) => student.profileImage || student.profile || noProfile
 
 const StudentsList = () => {
-    const assignments = useTeacherAssignments()
-    const apiMode = isApiStudentsEnabled()
-    const [fromDate, setFromDate] = useState(null)
-    const [toDate, setToDate] = useState(null)
+    const [fromDate, setFromDate] = useState(new Date())
+    const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
-    const [allRows, setAllRows] = useState(() => getStudentsList())
-    const [loading, setLoading] = useState(apiMode)
-    const [search, setSearch] = useState('')
-    const [classFilter, setClassFilter] = useState('')
-    const [sectionFilter, setSectionFilter] = useState('')
-    const [genderFilter, setGenderFilter] = useState('')
+    const [rows, setRows] = useState(() => getStudentsList())
+    const [loading, setLoading] = useState(isApiStudentsEnabled())
 
     useEffect(() => {
         let cancelled = false
-        if (!apiMode) {
-            setAllRows(getStudentsList())
+        if (!isApiStudentsEnabled()) {
+            setRows(getStudentsList())
             setLoading(false)
             return undefined
         }
         setLoading(true)
         hydrateEnrolledStudentsFromApi()
             .then(() => {
-                if (!cancelled) setAllRows(getStudentsList())
+                if (!cancelled) setRows(getStudentsList())
             })
             .finally(() => {
                 if (!cancelled) setLoading(false)
@@ -47,127 +41,45 @@ const StudentsList = () => {
         return () => {
             cancelled = true
         }
-    }, [apiMode])
-
-    // API /students is campus-scoped for the teacher, then tighten with FE allocations
-    // so empty-section teachingClasses wildcards cannot leak other sections (e.g. 6-B for 6-A).
-    const scopedRows = useMemo(() => {
-        if (!assignments.ready) return apiMode ? allRows : []
-        if (!assignments.assignments.length) return apiMode ? allRows : []
-        return allRows.filter((student) => assignments.studentInScope(student))
-    }, [allRows, assignments, apiMode])
-
-    const classOptions = useMemo(() => {
-        if (assignments.classes?.length) return assignments.classes
-        const fromRoster = [...new Set(scopedRows.map((row) => row.className || row.class).filter(Boolean))]
-        return fromRoster.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-    }, [scopedRows, assignments.classes])
-
-    const sectionOptions = useMemo(() => {
-        const fromAssignments = assignments.sectionsFor(classFilter)
-        if (fromAssignments.length) return fromAssignments
-        return [
-            ...new Set(
-                scopedRows
-                    .filter((row) => !classFilter || row.className === classFilter || row.class === classFilter)
-                    .map((row) => row.section)
-                    .filter(Boolean),
-            ),
-        ].sort()
-    }, [scopedRows, classFilter, assignments])
-
-    const filteredRows = useMemo(() => {
-        const query = search.trim().toLowerCase()
-        return scopedRows.filter((student) => {
-            if (classFilter && student.className !== classFilter && student.class !== classFilter) return false
-            if (sectionFilter) {
-                const studentSection = String(student.section || '').trim().toUpperCase()
-                if (studentSection !== String(sectionFilter).trim().toUpperCase()) return false
-            }
-            if (genderFilter && student.gender !== genderFilter) return false
-            if (!query) return true
-            const haystack = `${student.admissionNumber} ${student.name} ${student.email} ${student.mobileNumber}`.toLowerCase()
-            return haystack.includes(query)
-        })
-    }, [scopedRows, search, classFilter, sectionFilter, genderFilter])
-
-    const clearFilters = () => {
-        setSearch('')
-        setClassFilter('')
-        setSectionFilter('')
-        setGenderFilter('')
-        setFromDate(null)
-        setToDate(null)
-    }
+    }, [])
 
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
-                    <button
-                        type='button'
-                        onClick={clearFilters}
-                        className='bg-[#515DEF] text-white uppercase text-sm px-6 py-1.5 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'
-                    >
+                    <button type='button' className='bg-[#515DEF] text-white uppercase text-sm px-6 py-1.5 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>
                         Clear Filters
                     </button>
-                    <p className='text-sm text-[#667085]'>
-                        {assignments.emptyReason
-                            || 'Students in your assigned class & section only (class teacher / teacher allocation).'}
-                    </p>
+                    <select className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full md:max-w-xs sm:max-w-full'>
+                        <option value=''>From Beginning</option>
+                    </select>
                 </div>
                 <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='search' className='text-base font-medium text-[#808080]'>Search</label>
-                        <input
-                            type='text'
-                            id='search'
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            placeholder='Name, admission number...'
-                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
-                        />
+                        <input type='text' id='search' placeholder='Name, admission number...' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full' />
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='class-filter' className='text-base font-medium text-[#808080]'>Class</label>
-                        <select
-                            id='class-filter'
-                            value={classFilter}
-                            onChange={(e) => {
-                                setClassFilter(e.target.value)
-                                setSectionFilter('')
-                            }}
-                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
-                            disabled={!classOptions.length}
-                        >
-                            <option value=''>All assigned</option>
-                            {classOptions.map((item) => (
+                        <select id='class-filter' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
+                            <option value=''>All</option>
+                            {CLASSES.map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='section-filter' className='text-base font-medium text-[#808080]'>Section</label>
-                        <select
-                            id='section-filter'
-                            value={sectionFilter}
-                            onChange={(e) => setSectionFilter(e.target.value)}
-                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
-                        >
+                        <select id='section-filter' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
                             <option value=''>All</option>
-                            {sectionOptions.map((item) => (
+                            {SECTIONS.map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='gender-filter' className='text-base font-medium text-[#808080]'>Gender</label>
-                        <select
-                            id='gender-filter'
-                            value={genderFilter}
-                            onChange={(e) => setGenderFilter(e.target.value)}
-                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
-                        >
+                        <select id='gender-filter' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
                             <option value=''>All</option>
                             {GENDERS.map((gender) => (
                                 <option key={gender} value={gender}>{gender}</option>
@@ -217,6 +129,16 @@ const StudentsList = () => {
                         Export
                     </button>
                 </div>
+                <div className='flex gap-x-2 items-center my-2'>
+                    <select className='px-2 py-1.5 bg-white text-[#515DEF] border border-[#515DEF] rounded-md'>
+                        <option value='10'>10</option>
+                        <option value='20'>20</option>
+                        <option value='30'>30</option>
+                        <option value='40'>40</option>
+                        <option value='50'>50</option>
+                    </select>
+                    <span className='text-sm font-normal text-[#515DEF]'>Entries Per Page</span>
+                </div>
                 <div className='relative overflow-x-auto'>
                     <table className='w-full text-sm text-left rtl:text-right'>
                         <thead className='text-xs bg-[#EDEEF5] whitespace-nowrap rounded-lg'>
@@ -224,45 +146,45 @@ const StudentsList = () => {
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase text-center rounded-s-lg'>Profile</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Admission Number</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Name</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Section</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Gender</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Email</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Mobile Number</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Date Of Birth</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Country</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>State</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>City</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {(loading || (!apiMode && !assignments.ready)) && (
+                            {loading && (
                                 <tr>
-                                    <td colSpan={10} className='px-2 py-10 text-center text-[#667085]'>
+                                    <td colSpan={11} className='px-2 py-10 text-center text-[#667085]'>
                                         Loading students…
                                     </td>
                                 </tr>
                             )}
-                            {!loading && (apiMode || assignments.ready) && filteredRows.length === 0 && (
+                            {!loading && rows.length === 0 && (
                                 <tr>
-                                    <td colSpan={10} className='px-2 py-10 text-center text-[#667085]'>
-                                        {apiMode
-                                            ? 'No students in your class-teacher / allocated classes yet.'
-                                            : (assignments.emptyReason || 'No students in your assigned classes yet.')}
+                                    <td colSpan={11} className='px-2 py-10 text-center text-[#667085]'>
+                                        No enrolled students yet.
                                     </td>
                                 </tr>
                             )}
-                            {!loading && (apiMode || assignments.ready) && filteredRows.map((student) => (
+                            {!loading && rows.map((student) => (
                                 <tr key={student.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
                                     <td className='px-2 py-4 flex justify-center rounded-s-lg'>
                                         <img src={profileFor(student)} alt={student.name} className='w-9 h-9 rounded-full object-cover' />
                                     </td>
                                     <td className='px-2 py-4 font-medium text-[#1E1E1E]'>{student.admissionNumber}</td>
                                     <td className='px-2 py-4 font-medium text-[#1E1E1E]'>{student.name}</td>
-                                    <td className='px-2 py-4'>{student.className || student.class || '—'}</td>
-                                    <td className='px-2 py-4'>{student.section || student.classSection || '—'}</td>
                                     <td className='px-2 py-4'>{student.gender}</td>
                                     <td className='px-2 py-4'>{student.email}</td>
                                     <td className='px-2 py-4 whitespace-nowrap'>{student.mobileNumber}</td>
                                     <td className='px-2 py-4'>{student.dateOfBirth}</td>
+                                    <td className='px-2 py-4'>{student.country}</td>
+                                    <td className='px-2 py-4'>{student.state}</td>
+                                    <td className='px-2 py-4'>{student.city}</td>
                                     <td className='px-2 py-4 text-center rounded-e-lg'>
                                         <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
                                             <NavLink
@@ -282,7 +204,9 @@ const StudentsList = () => {
 
             <div className='flex justify-between items-center px-4 mt-4'>
                 <p className='text-sm font-medium text-[#515DEF]'>
-                    Showing {filteredRows.length} of {scopedRows.length} entries
+                    {loading || rows.length === 0
+                        ? 'Showing 0 entries'
+                        : `Showing 1 to ${rows.length} of ${rows.length} entries`}
                 </p>
                 <div className='flex justify-center gap-x-2 flex-wrap'>
                     <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'>
@@ -301,8 +225,8 @@ const StudentsList = () => {
                 exportModal={exportModal}
                 setExportModal={setExportModal}
                 filename='students-list'
-                rows={filteredRows}
-                exportDescription={<>You are exporting {filteredRows.length} record(s).</>}
+                rows={Array.isArray(rows) ? rows : []}
+                exportDescription={<>You are exporting {Array.isArray(rows) ? rows.length : 0} record(s).</>}
             />
         </section>
     )

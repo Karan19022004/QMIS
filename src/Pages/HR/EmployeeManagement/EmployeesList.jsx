@@ -1,14 +1,15 @@
 import React, { useMemo, useState } from 'react'
 import { NavLink, useSearchParams } from 'react-router-dom'
-import { Download, EllipsisIcon } from 'lucide-react'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+import { Calendar, Download, EllipsisIcon } from 'lucide-react'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import { toast } from 'react-toastify'
 import { ROLES } from '../../../constants/roles'
 import { DEPARTMENTS, EMPLOYEE_CATEGORIES, EMPLOYEE_STATUSES } from '../domain/hrStatus'
 import { getEmployees, nextId, saveEmployees } from '../domain/hrStore'
 import { createStaff } from '../../../services/hrApi'
-import { queueCommunication } from '../domain/hrStore'
-import { DateField, HrExport, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, Badge, formatFormDate, inputClass, parseFormDate, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
+import { HrExport, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, Badge, inputClass, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
 
 const STAFF_ROLES = Object.values(ROLES).filter((code) => !['superadmin', 'admin', 'student', 'parent'].includes(code))
 
@@ -26,12 +27,60 @@ const DESIGNATION_SUGGESTIONS = [
     'Security Guard',
 ]
 
+/** HR stores dates as DD-MM-YYYY; DatePicker uses Date objects. */
+const parseHrDate = (value) => {
+    if (!value) return null
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value
+    const text = String(value).trim()
+    const dmy = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (dmy) {
+        const parsed = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) {
+        const parsed = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+    const fallback = new Date(text)
+    return Number.isNaN(fallback.getTime()) ? null : fallback
+}
+
+const formatHrDate = (value) => {
+    const date = value instanceof Date ? value : parseHrDate(value)
+    if (!date) return ''
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    return `${day}-${month}-${date.getFullYear()}`
+}
+
 const emptyForm = {
     name: '', gender: 'Female', dateOfBirth: '', contact: '', email: '', address: '',
     department: 'Academic', designation: '', joiningDate: '', status: 'Active', reportingManager: '',
     role: '', qualification: '', experience: '', emergencyContact: '', employmentType: 'Full Time',
     category: 'Academics', grossSalary: '',
 }
+
+const DateField = ({ label, value, onChange, required = false }) => (
+    <label className='text-sm text-[#808080] flex flex-col gap-y-1'>
+        <span>{label}{required ? ' *' : ''}</span>
+        <div className='relative'>
+            <DatePicker
+                selected={parseHrDate(value)}
+                onChange={(date) => onChange(date ? formatHrDate(date) : '')}
+                dateFormat='dd-MM-yyyy'
+                placeholderText='DD-MM-YYYY'
+                showMonthDropdown
+                showYearDropdown
+                dropdownMode='select'
+                isClearable
+                className={`${inputClass} pr-10`}
+                wrapperClassName='w-full'
+            />
+            <Calendar size={16} className='absolute right-3 top-1/2 -translate-y-1/2 text-[#808080] pointer-events-none' />
+        </div>
+    </label>
+)
 
 const EmployeesList = () => {
     const tick = useHrTick()
@@ -55,15 +104,15 @@ const EmployeesList = () => {
         if (!form.name.trim() || !form.email.trim()) return toast.error('Name and email are required.')
         if (!form.role) return toast.error('Pick a role from the fixed list.')
         if (!String(form.designation || '').trim()) return toast.error('Enter a designation (for example: Teacher — Mathematics).')
-        if (!form.joiningDate || !parseFormDate(form.joiningDate)) {
+        if (!form.joiningDate || !parseHrDate(form.joiningDate)) {
             return toast.error('Pick a joining date from the calendar.')
         }
         const current = getEmployees()
         const payload = {
             ...form,
             designation: String(form.designation).trim(),
-            joiningDate: formatFormDate(form.joiningDate),
-            dateOfBirth: form.dateOfBirth ? formatFormDate(form.dateOfBirth) : '',
+            joiningDate: formatHrDate(form.joiningDate),
+            dateOfBirth: form.dateOfBirth ? formatHrDate(form.dateOfBirth) : '',
             grossSalary: Number(form.grossSalary) || 0,
             otherAllowance: 0,
             specialDeduction: 0,
@@ -81,20 +130,11 @@ const EmployeesList = () => {
         setSaving(true)
         try {
             const created = await createStaff(draft)
-            const { temporaryPassword, loginEmail, mustChangePassword: _mcp, ...row } = created
+            const { temporaryPassword, ...row } = created
             saveEmployees([row, ...current.filter((item) => item.id !== row.id)])
-            if (temporaryPassword) {
-                queueCommunication({
-                    channel: 'Email',
-                    subject: `QMIS login credentials — ${loginEmail || row.email}`,
-                    audience: loginEmail || row.email,
-                    body: `Dear ${row.name},\n\nYour QMIS ERP login is ready.\nEmail: ${loginEmail || row.email}\nTemporary password: ${temporaryPassword}\n\nChange this password on first login.\n\n— HR`,
-                    note: 'Queued locally — live SMTP is not connected in this campus demo.',
-                })
-            }
             toast.success(temporaryPassword
-                ? `Staff login created. Email: ${loginEmail || row.email} · Temp password: ${temporaryPassword} (queued to email demo; must change on first login).`
-                : 'Staff record saved to the server.', { autoClose: 12000 })
+                ? `Staff login created. Temporary password: ${temporaryPassword}. It must be changed on first login.`
+                : 'Staff record saved to the server.')
             setForm(null)
         } catch (error) {
             toast.error(error?.message || 'Could not save the employee to the server. Fix the form and try again.')
@@ -171,7 +211,6 @@ const EmployeesList = () => {
                                     label='Date of birth'
                                     value={form.dateOfBirth}
                                     onChange={(value) => setForm({ ...form, dateOfBirth: value })}
-                                    bound='past'
                                 />
                                 <label className='text-sm text-[#808080]'>Contact
                                     <input className={`${inputClass} mt-1`} value={form.contact || ''} onChange={(event) => setForm({ ...form, contact: event.target.value })} placeholder='Mobile number' />
@@ -202,7 +241,6 @@ const EmployeesList = () => {
                                     label='Joining date'
                                     value={form.joiningDate}
                                     onChange={(value) => setForm({ ...form, joiningDate: value })}
-                                    bound='future'
                                     required
                                 />
                                 <label className='text-sm text-[#808080]'>Gross salary

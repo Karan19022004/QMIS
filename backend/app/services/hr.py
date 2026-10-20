@@ -184,62 +184,8 @@ def create_staff(db: Session, actor: User, item: dict) -> dict:
     db.commit()
     db.refresh(row)
     portal = _to_portal(row)
-    # One-time reveal to authorized HR (same pattern as Admin user create/reset).
-    if temporary:
+    if temporary and settings.otp_debug:
         portal["temporaryPassword"] = temporary
-        portal["mustChangePassword"] = True
-        portal["loginEmail"] = row.email
-    return portal
-
-
-def reset_staff_password(db: Session, actor: User, employee_code: str) -> dict:
-    """HR resets an employee's portal login and returns a one-time temporary password."""
-    row = get_employee(db, actor, employee_code)
-    if not row.email:
-        fail(422, "email_required", "This employee has no email for a login.")
-    user = db.get(User, row.user_id) if row.user_id else None
-    if user is None:
-        user = db.scalar(select(User).where(User.email == (row.email or "").lower()))
-    locked = {
-        settings.admin_seed_email.lower(),
-        settings.hr_seed_email.lower(),
-        settings.director_seed_email.lower(),
-    }
-    if user is not None and (user.email or "").lower() in locked:
-        fail(403, "forbidden", "Seed campus logins cannot be reset from HR. Use Administrator user tools.")
-    if user is None:
-        if _role_code(row.role_title or "") is None:
-            # Offer-accepted rows may still say "Staff"; default academic hires to teacher login.
-            row.role_title = "teacher"
-        temporary = _provision_user(db, actor, row)
-        if not temporary:
-            fail(
-                422,
-                "role_required",
-                "Set a valid portal role on this employee before creating a login (for example: teacher).",
-            )
-    else:
-        temporary = generate_temporary_password()
-        user.password_hash = hash_password(temporary)
-        user.must_change_password = True
-        user.is_active = (row.status or "Active") not in _INACTIVE
-        row.user_id = user.id
-        _queue_temp_password_notice(db, actor, row, temporary)
-    write_audit(
-        db,
-        action="HR_STAFF_PASSWORD_RESET",
-        entity_type="hr_employee",
-        entity_id=str(row.id),
-        actor_id=actor.id,
-        campus_id=actor.campus_id,
-        details=row.employee_code,
-    )
-    db.commit()
-    db.refresh(row)
-    portal = _to_portal(row)
-    portal["temporaryPassword"] = temporary
-    portal["mustChangePassword"] = True
-    portal["loginEmail"] = row.email
     return portal
 
 
@@ -676,38 +622,24 @@ def _provision_user(db: Session, actor: User, row: HrEmployee) -> str | None:
     db.add(user)
     db.flush()
     row.user_id = user.id
-    _queue_temp_password_notice(db, actor, row, temporary)
-    return temporary
-
-
-def _queue_temp_password_notice(db: Session, actor: User, row: HrEmployee, temporary: str) -> None:
-    """Queue a local demo email with the temporary password (SMTP is not live in this stack)."""
-    notice_id = f"COM-PWD-{row.employee_code}-{date.today().isoformat()}"
-    if _find_record(db, actor, "comms", notice_id) is not None:
-        notice_id = f"{notice_id}-{str(row.id)[:8]}"
-    db.add(
-        HrRecord(
-            campus_id=actor.campus_id,
-            collection="comms",
-            public_id=notice_id,
-            body={
-                "id": notice_id,
-                "channel": "Email",
-                "subject": f"QMIS login credentials — {row.email}",
-                "audience": row.email,
-                "body": (
-                    f"Dear staff,\n\nYour QMIS ERP login is ready.\n"
-                    f"Email: {row.email}\n"
-                    f"Temporary password: {temporary}\n\n"
-                    f"You must change this password on first login.\n\n"
-                    f"— {settings.hr_seed_email or 'HR'}"
-                ),
-                "status": "QUEUED_LOCAL",
-                "note": "Demo queue — not a live SMTP send. HR can copy the temporary password from the create/reset response.",
-                "at": date.today().isoformat(),
-            },
+    notice_id = f"COM-{row.employee_code}"
+    if _find_record(db, actor, "comms", notice_id) is None:
+        db.add(
+            HrRecord(
+                campus_id=actor.campus_id,
+                collection="comms",
+                public_id=notice_id,
+                body={
+                    "id": notice_id,
+                    "channel": "Email",
+                    "subject": "Temporary password",
+                    "audience": row.email,
+                    "status": "DEMO_SENT",
+                    "at": date.today().isoformat(),
+                },
+            )
         )
-    )
+    return temporary
 
 
 def _sync_user_role(db: Session, row: HrEmployee) -> None:

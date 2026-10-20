@@ -92,32 +92,32 @@ export const LEAVE_APPROVER_CONFIG = {
     [ROLES.TEACHER]: {
         approverRole: ROLES.PRINCIPAL,
         requestedToLabel: 'Principal',
-        submitHint: 'This request will be sent to Principal, then HR for final confirmation.',
+        submitHint: 'This request will be sent to Principal for approval.',
     },
     [ROLES.COORDINATOR]: {
         approverRole: ROLES.PRINCIPAL,
         requestedToLabel: 'Principal',
-        submitHint: 'This request will be sent to Principal, then HR for final confirmation.',
+        submitHint: 'This request will be sent to Principal for approval.',
     },
     [ROLES.PRINCIPAL]: {
         approverRole: ROLES.DIRECTOR,
         requestedToLabel: 'Director of Academics',
-        submitHint: 'This request will be sent to Director of Academics, then HR for final confirmation.',
+        submitHint: 'This request will be sent to Director of Academics for approval.',
     },
     [ROLES.DIRECTOR]: {
         approverRole: ROLES.ADMIN,
         requestedToLabel: 'Admin',
-        submitHint: 'This request will be sent to Admin, then HR for final confirmation.',
+        submitHint: 'This request will be sent to Admin for approval.',
     },
     [ROLES.PRM]: {
         approverRole: ROLES.DIRECTOR,
         requestedToLabel: 'Director',
-        submitHint: 'This request will be sent to Director, then HR for final confirmation.',
+        submitHint: 'This request will be sent to Director for approval.',
     },
     [ROLES.DRIVER]: {
         approverRole: ROLES.TRANSPORT_MANAGER,
         requestedToLabel: 'Transport Manager',
-        submitHint: 'This request will be sent to Transport Manager, then HR for final confirmation.',
+        submitHint: 'This request will be sent to Transport Manager for approval.',
     },
 }
 
@@ -189,31 +189,10 @@ export const APPROVER_DECISION_TITLES = {
     [ROLES.HR]: 'HR Decision',
 }
 
-const ROLE_ALIASES = {
-    vandriver: ROLES.DRIVER,
-    'van driver': ROLES.DRIVER,
-    'super admin': ROLES.SUPER_ADMIN,
-    'gate keeper': ROLES.GATEKEEPER,
-    'gate keeper manager': ROLES.GATEKEEPER_MANAGER,
-    'transport manager': ROLES.TRANSPORT_MANAGER,
-    'director of academics': ROLES.DIRECTOR,
-    'joint director': ROLES.JOINT_DIRECTOR,
-}
-
-/** Normalize role codes / labels to the ROLES.* keys used across leave filters. */
 export const resolveRoleKey = (roleKey) => {
     if (!roleKey) return null
-    const raw = String(roleKey).trim()
-    if (!raw) return null
-    // Approval awaitingRole can be pipe-joined in mode=any; take the first token for matching.
-    const primary = raw.includes('|') ? raw.split('|')[0].trim() : raw
-    const compact = primary.toLowerCase().replace(/[\s_-]+/g, '')
-    if (compact === 'vandriver') return ROLES.DRIVER
-    const spaced = primary.toLowerCase().replace(/[_-]+/g, ' ').trim()
-    if (ROLE_ALIASES[spaced]) return ROLE_ALIASES[spaced]
-    const known = Object.values(ROLES).find((code) => code === compact)
-    if (known) return known
-    return compact
+    if (roleKey === 'vandriver') return ROLES.DRIVER
+    return roleKey
 }
 
 export const getLeaveRoutes = (roleKey) => {

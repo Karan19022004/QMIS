@@ -2,18 +2,14 @@ import { SECTIONS, SUBJECTS, getClasses } from '../../Pages/Teacher/AssignedClas
 import { liveArray } from '../RBAC/liveArray'
 import {
     canUseLessonPlansApi,
-    completeLessonPlanApi,
     createLessonPlanApi,
     listLessonPlansApi,
     mapLessonPlanFromApi,
-    submitLessonPlanApi,
 } from '../../services/lessonPlansApi'
-import { decideApprovalApi } from '../../services/approvalsApi'
 
 const STORAGE_KEY = 'school-erp-lesson-plan-approvals'
 let apiCache = null
 let apiHydratePromise = null
-let apiHydrateKey = null
 
 export const TEACHER_NAME = 'Mr. Anil Kumar'
 export const TEACHER_ROLE = 'Teacher'
@@ -21,13 +17,8 @@ export const COORDINATOR_NAME = 'Ms. Priya Nair'
 export const COORDINATOR_ROLE = 'Coordinator'
 
 export const SUBJECT_OPTIONS = SUBJECTS
-const formatClassOption = (item) => {
-    const value = String(item || '').trim()
-    if (!value) return ''
-    return /^grade\s+/i.test(value) ? value : value
-}
-export const getClassOptions = () => getClasses().map(formatClassOption).filter(Boolean)
-export const CLASS_OPTIONS = liveArray(() => getClasses().map(formatClassOption).filter(Boolean))
+export const getClassOptions = () => getClasses().map((item) => `Grade ${item}`)
+export const CLASS_OPTIONS = liveArray(() => getClasses().map((item) => `Grade ${item}`))
 export const SECTION_OPTIONS = SECTIONS
 
 export const ACADEMIC_YEAR_OPTIONS = ['2026-27', '2024-2025', '2025-2026', '2026-2027']
@@ -88,11 +79,7 @@ export const saveLessonPlans = (plans) => {
 /** Hydrate lesson plans from GET /lesson-plans (mine by default for teacher portal). */
 export async function hydrateLessonPlansFromApi({ mine = true, status } = {}) {
     if (!canUseLessonPlansApi()) return getLessonPlans()
-    const key = `${Boolean(mine)}|${status || ''}`
-    // Do not reuse an in-flight request that was started with different filters
-    // (Director list uses mine=false; Review must not overwrite that with mine=true).
-    if (apiHydratePromise && apiHydrateKey === key) return apiHydratePromise
-    apiHydrateKey = key
+    if (apiHydratePromise) return apiHydratePromise
     apiHydratePromise = listLessonPlansApi({ mine, status })
         .then((rows) => {
             apiCache = rows.map(mapLessonPlanFromApi)
@@ -104,7 +91,6 @@ export async function hydrateLessonPlansFromApi({ mine = true, status } = {}) {
         })
         .finally(() => {
             apiHydratePromise = null
-            apiHydrateKey = null
         })
     return apiHydratePromise
 }
@@ -186,15 +172,8 @@ export const addLessonPlan = async (payload) => {
             },
             fileId: payload.fileId || null,
         })
-        // Create leaves a draft — submit opens the campus approval chain.
-        let submitted = created
-        try {
-            submitted = await submitLessonPlanApi(created.id)
-        } catch {
-            submitted = created
-        }
-        const mapped = mapLessonPlanFromApi(submitted)
-        apiCache = [mapped, ...(apiCache || []).filter((row) => String(row.id) !== String(mapped.id))]
+        const mapped = mapLessonPlanFromApi(created)
+        apiCache = [mapped, ...(apiCache || [])]
         return mapped
     }
     const plans = getLessonPlans()
@@ -223,48 +202,7 @@ export const addLessonPlans = (payloads) => {
     return records
 }
 
-/**
- * Approve / Reject a lesson plan.
- * Campus API: submit draft if needed, then POST /approvals/{id}/decide.
- */
-export const updateLessonPlanStatus = async (id, approvalStatus, rejectionReason = '') => {
-    if (canUseLessonPlansApi()) {
-        let plan = (apiCache || []).find((item) => String(item.id) === String(id))
-        let approvalId = plan?.approvalId || null
-
-        // Stuck drafts (created without submit) — open the approval chain first.
-        if (!approvalId) {
-            const submitted = mapLessonPlanFromApi(await submitLessonPlanApi(id))
-            approvalId = submitted.approvalId
-            plan = submitted
-            apiCache = [submitted, ...(apiCache || []).filter((row) => String(row.id) !== String(id))]
-        }
-        if (!approvalId) {
-            throw new Error('This lesson plan has no approval request yet.')
-        }
-
-        const decision = approvalStatus === 'Approved' ? 'approve' : 'deny'
-        if (decision === 'deny' && !String(rejectionReason || '').trim()) {
-            throw new Error('A rejection reason is required.')
-        }
-        await decideApprovalApi(approvalId, {
-            decision,
-            comment: rejectionReason || undefined,
-        })
-
-        const nextStatus = approvalStatus === 'Approved' ? 'Approved' : 'Rejected'
-        apiCache = (apiCache || []).map((item) => {
-            if (String(item.id) !== String(id)) return item
-            return {
-                ...item,
-                approvalStatus: nextStatus,
-                trackStatus: nextStatus === 'Approved' ? 'Completed' : item.trackStatus,
-                campusStatus: nextStatus === 'Approved' ? 'approved' : 'denied',
-            }
-        })
-        return apiCache
-    }
-
+export const updateLessonPlanStatus = (id, approvalStatus) => {
     const plans = getLessonPlans()
     const updated = plans.map((item) => {
         if (item.id !== id) return item
@@ -292,19 +230,7 @@ export const getApprovedLessonPlansBySubmitter = (submitterName) =>
         (item) => item.submitterName === submitterName && item.approvalStatus === 'Approved'
     )
 
-export const markLessonPlanAsDone = async (id, completionRemarks = '') => {
-    const remarks = String(completionRemarks || '').trim()
-    if (canUseLessonPlansApi()) {
-        const row = await completeLessonPlanApi(id, remarks)
-        const mapped = mapLessonPlanFromApi(row)
-        apiCache = (apiCache || []).map((item) =>
-            String(item.id) === String(id) ? mapped : item
-        )
-        if (!(apiCache || []).some((item) => String(item.id) === String(id))) {
-            apiCache = [mapped, ...(apiCache || [])]
-        }
-        return apiCache
-    }
+export const markLessonPlanAsDone = (id, completionRemarks = '') => {
     const plans = getLessonPlans()
     const updated = plans.map((item) =>
         item.id === id
@@ -312,7 +238,7 @@ export const markLessonPlanAsDone = async (id, completionRemarks = '') => {
                 ...item,
                 markAsDone: true,
                 trackStatus: 'Completed',
-                completionRemarks: remarks,
+                completionRemarks: completionRemarks.trim(),
             }
             : item
     )

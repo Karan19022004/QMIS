@@ -8,10 +8,11 @@ import { isApiAttendanceEnabled } from '../../../services/apiClient'
 import {
     ATTENDANCE_LIST,
     ATTENDANCE_STATUSES,
+    CLASSES,
+    SECTIONS,
     statusBadgeColor,
     inOutStatusBadgeColor,
 } from './attendanceData'
-import { useTeacherAssignments } from '../../../Common/Teacher/useTeacherAssignments'
 
 const toIsoDate = (value) => {
     if (!value) return ''
@@ -23,52 +24,24 @@ const toIsoDate = (value) => {
 
 const ClassAttendance = () => {
     const api = isApiAttendanceEnabled()
-    const assignments = useTeacherAssignments()
-    const classOptions = assignments.classes
     const [selectedDate, setSelectedDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
     const [classFilter, setClassFilter] = useState('')
     const [sectionFilter, setSectionFilter] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
     const [search, setSearch] = useState('')
-    const [rows, setRows] = useState([])
+    const [rows, setRows] = useState(ATTENDANCE_LIST)
     const [loading, setLoading] = useState(false)
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState('')
     const [saveMessage, setSaveMessage] = useState('')
     const [dirty, setDirty] = useState(false)
 
-    const sectionOptions = assignments.sectionsFor(classFilter)
     const canEdit = api && Boolean(classFilter)
-
-    useEffect(() => {
-        if (!assignments.ready) return
-        if (classOptions.length === 1 && !classFilter) {
-            setClassFilter(classOptions[0])
-        }
-        if (classFilter && classOptions.length && !classOptions.includes(classFilter)) {
-            setClassFilter('')
-            setSectionFilter('')
-        }
-    }, [assignments.ready, classOptions, classFilter])
-
-    useEffect(() => {
-        if (!sectionFilter) return
-        if (sectionOptions.length && !sectionOptions.includes(sectionFilter)) {
-            setSectionFilter('')
-        }
-    }, [sectionFilter, sectionOptions])
 
     const reload = () => {
         if (!api) {
-            setRows(
-                ATTENDANCE_LIST.filter((row) => {
-                    if (!classFilter) return false
-                    if (row.className && row.className !== classFilter) return false
-                    if (sectionFilter && row.section && row.section !== sectionFilter) return false
-                    return true
-                }),
-            )
+            setRows(ATTENDANCE_LIST)
             setLoading(false)
             setError('')
             return Promise.resolve()
@@ -99,15 +72,7 @@ const ClassAttendance = () => {
         let cancelled = false
         setSaveMessage('')
         if (!api) {
-            setRows(
-                !classFilter
-                    ? []
-                    : ATTENDANCE_LIST.filter((row) => {
-                          if (row.className && row.className !== classFilter) return false
-                          if (sectionFilter && row.section && row.section !== sectionFilter) return false
-                          return true
-                      }),
-            )
+            setRows(ATTENDANCE_LIST)
             return undefined
         }
         setLoading(true)
@@ -217,10 +182,11 @@ const ClassAttendance = () => {
                     >
                         Clear Filters
                     </button>
-                    <p className='text-sm text-[#667085]'>
-                        {assignments.emptyReason ||
-                            'Only your assigned classes appear here. Select a class to load the roster, mark Present/Absent, then Save.'}
-                    </p>
+                    {api && (
+                        <p className='text-sm text-[#667085]'>
+                            Select a class to load the roster, mark Present/Absent, then Save.
+                        </p>
+                    )}
                 </div>
                 <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>
                     <div className='flex flex-col gap-y-2'>
@@ -239,21 +205,11 @@ const ClassAttendance = () => {
                         <select
                             id='class-filter'
                             value={classFilter}
-                            onChange={(e) => {
-                                setClassFilter(e.target.value)
-                                setSectionFilter('')
-                            }}
+                            onChange={(e) => setClassFilter(e.target.value)}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
-                            disabled={!assignments.ready || !classOptions.length}
                         >
-                            <option value=''>
-                                {!assignments.ready
-                                    ? 'Loading assignments…'
-                                    : classOptions.length
-                                      ? 'Select class'
-                                      : 'No assigned classes'}
-                            </option>
-                            {classOptions.map((item) => (
+                            <option value=''>All</option>
+                            {CLASSES.map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>
@@ -265,10 +221,9 @@ const ClassAttendance = () => {
                             value={sectionFilter}
                             onChange={(e) => setSectionFilter(e.target.value)}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
-                            disabled={!classFilter}
                         >
                             <option value=''>All</option>
-                            {sectionOptions.map((item) => (
+                            {SECTIONS.map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>

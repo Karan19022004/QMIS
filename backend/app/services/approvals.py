@@ -25,32 +25,12 @@ from app.services.errors import fail
 ACADEMIC_CHAIN = ["coordinator", "principal", "director"]
 
 # entity_type -> (roles allowed to submit, approver chain). chain None => caller supplies it.
-# mode "any": any role in `chain` may decide; one approve/deny ends the request (not sequential).
 WORKFLOWS: dict[str, dict] = {
-    # Coordinator / Principal / Director Lesson Plan Approval panels can each decide.
-    # Leadership may also submit a stuck draft so Approve can open the campus chain.
-    "lesson_plan": {
-        "submit": {"teacher", "coordinator", "principal", "director", "jointdirector", "admin", "superadmin"},
-        "chain": ACADEMIC_CHAIN,
-        "mode": "any",
-    },
-    # Mark Entry UI publishes via Director (Approve & Publish).
-    "marks_batch": {
-        "submit": {"teacher", "coordinator"},
-        "chain": ["director"],
-        "mode": "any",
-    },
+    "lesson_plan": {"submit": {"teacher", "coordinator"}, "chain": ACADEMIC_CHAIN},
+    "marks_batch": {"submit": {"teacher", "coordinator"}, "chain": ACADEMIC_CHAIN},
     "section_change": {"submit": {"teacher", "coordinator", "principal"}, "chain": ACADEMIC_CHAIN},
-    "timetable": {
-        "submit": {"principal", "coordinator"},
-        "chain": ["principal", "director"],
-        "mode": "any",
-    },
-    "exam_timetable": {
-        "submit": {"principal", "coordinator"},
-        "chain": ["principal", "director"],
-        "mode": "any",
-    },
+    "timetable": {"submit": {"principal", "coordinator"}, "chain": ["director"]},
+    "exam_timetable": {"submit": {"principal", "coordinator"}, "chain": ["director"]},
     "academic_calendar": {"submit": {"principal", "coordinator"}, "chain": ["director"]},
     "store_request": {
         "submit": {"teacher", "coordinator", "principal"},
@@ -68,27 +48,6 @@ DOMAIN_OWNED = {"lesson_plan", "marks_batch", "exam_timetable", "leave_request"}
 
 def _chain(row: ApprovalRequest) -> list[str]:
     return json.loads(row.chain_json)
-
-
-def _is_any_mode(entity_type: str) -> bool:
-    return WORKFLOWS.get(entity_type, {}).get("mode") == "any"
-
-
-def _awaiting_roles(row: ApprovalRequest) -> list[str]:
-    if row.status != "pending":
-        return []
-    chain = _chain(row)
-    if not chain:
-        return []
-    if _is_any_mode(row.entity_type):
-        # Prefer the current workflow chain so older rows submitted with a
-        # director-only chain still allow Principal or Director to decide.
-        wf_chain = WORKFLOWS.get(row.entity_type, {}).get("chain") or chain
-        return list(wf_chain) if wf_chain else list(chain)
-    level = row.current_level
-    if level < 0 or level >= len(chain):
-        return []
-    return [chain[level]]
 
 
 def _notify(
@@ -131,7 +90,6 @@ def _event(db: Session, row: ApprovalRequest, *, level: int, action: str, actor:
 
 def _out(row: ApprovalRequest, events: list[ApprovalEvent] | None = None) -> dict:
     chain = _chain(row)
-    awaiting = _awaiting_roles(row)
     data = {
         "id": str(row.id),
         "entityType": row.entity_type,
@@ -141,10 +99,7 @@ def _out(row: ApprovalRequest, events: list[ApprovalEvent] | None = None) -> dic
         "initiatorRole": row.initiator_role,
         "chain": chain,
         "currentLevel": row.current_level,
-        # Single role for sequential chains; pipe-joined when mode=any (principal|director).
-        "awaitingRole": ("|".join(awaiting) if len(awaiting) > 1 else (awaiting[0] if awaiting else None)),
-        "awaitingRoles": awaiting,
-        "decideMode": "any" if _is_any_mode(row.entity_type) else "sequential",
+        "awaitingRole": chain[row.current_level] if row.status == "pending" else None,
         "status": row.status,
         "createdAt": row.created_at.isoformat(),
         "updatedAt": row.updated_at.isoformat() if row.updated_at else None,
@@ -227,17 +182,15 @@ def submit(
     db.flush()
     _event(db, row, level=0, action="submit", actor=actor, role=role, comment=None)
     label = title or f"{entity_type} {entity_id}"
-    notify_roles = steps if wf.get("mode") == "any" else [steps[0]]
-    for notify_role in notify_roles:
-        _notify(
-            db,
-            campus_id=actor.campus_id,
-            role_code=notify_role,
-            title=f"Approval needed: {label}",
-            body=f"Submitted by {actor.email} ({role}).",
-            entity_type=entity_type,
-            entity_id=entity_id,
-        )
+    _notify(
+        db,
+        campus_id=actor.campus_id,
+        role_code=steps[0],
+        title=f"Approval needed: {label}",
+        body=f"Submitted by {actor.email} ({role}).",
+        entity_type=entity_type,
+        entity_id=entity_id,
+    )
     write_audit(
         db,
         action="APPROVAL_SUBMITTED",
@@ -261,14 +214,9 @@ def decide(db: Session, actor: User, approval_id: UUID, *, decision: str, commen
     role = role_code_for(db, actor)
     chain = _chain(row)
     level = row.current_level
-    any_mode = _is_any_mode(row.entity_type)
-    awaiting = _awaiting_roles(row)
-    if role not in awaiting:
-        expected = "|".join(awaiting) if awaiting else (chain[level] if chain else "?")
-        fail(403, "forbidden", f"Awaiting '{expected}' approval.")
-    # Sequential chains keep initiator lockout; any-mode (exam/class TT) allows Principal/Director
-    # to decide even when they created the submission.
-    if not any_mode and row.initiator_id == actor.id:
+    if role != chain[level]:
+        fail(403, "forbidden", f"Awaiting '{chain[level]}' approval.")
+    if row.initiator_id == actor.id:
         fail(403, "forbidden", "You cannot decide your own submission.")
     if decision == "deny" and not (comment or "").strip():
         fail(400, "validation_error", "A reason is required to deny.")
@@ -288,18 +236,7 @@ def decide(db: Session, actor: User, approval_id: UUID, *, decision: str, commen
             entity_type=row.entity_type,
             entity_id=row.entity_id,
         )
-    elif any_mode or level + 1 >= len(chain):
-        row.status = "approved"
-        _notify(
-            db,
-            campus_id=row.campus_id,
-            user_id=row.initiator_id,
-            title=f"Approved: {label}",
-            body=comment,
-            entity_type=row.entity_type,
-            entity_id=row.entity_id,
-        )
-    else:
+    elif level + 1 < len(chain):
         row.current_level = level + 1
         _notify(
             db,
@@ -307,6 +244,17 @@ def decide(db: Session, actor: User, approval_id: UUID, *, decision: str, commen
             role_code=chain[level + 1],
             title=f"Approval needed: {label}",
             body=f"Approved by {role}.",
+            entity_type=row.entity_type,
+            entity_id=row.entity_id,
+        )
+    else:
+        row.status = "approved"
+        _notify(
+            db,
+            campus_id=row.campus_id,
+            user_id=row.initiator_id,
+            title=f"Approved: {label}",
+            body=comment,
             entity_type=row.entity_type,
             entity_id=row.entity_id,
         )
@@ -332,16 +280,7 @@ def inbox(db: Session, actor: User) -> list[dict]:
         .where(ApprovalRequest.campus_id == actor.campus_id, ApprovalRequest.status == "pending")
         .order_by(ApprovalRequest.created_at)
     ).all()
-    out = []
-    for r in rows:
-        awaiting = _awaiting_roles(r)
-        if role not in awaiting:
-            continue
-        # Sequential: hide own submissions. Any-mode: show so Principal/Director can decide.
-        if not _is_any_mode(r.entity_type) and r.initiator_id == actor.id:
-            continue
-        out.append(_out(r))
-    return out
+    return [_out(r) for r in rows if _chain(r)[r.current_level] == role and r.initiator_id != actor.id]
 
 
 def mine(db: Session, actor: User) -> list[dict]:

@@ -5,9 +5,8 @@ import { useAuth } from '../../context/AuthContext'
 import {
     canSubmitterAccessRequest,
     getLeaveRequestById,
-    getLeaveStatusLabel,
     hydrateLeaveRequestsFromApi,
-    leaveStatusBadgeClass,
+    statusBadgeColor,
 } from './leaveRequestData'
 import { getLeaveRoutes, resolveRoleKey } from './leaveRequestConfigs'
 
@@ -52,7 +51,7 @@ export default function ViewMyLeaveRequestPage({ roleKey: roleKeyProp }) {
                     <div className='bg-white rounded-2xl shadow-md p-4'>
                         <div className='flex flex-wrap items-center gap-3'>
                             <h1 className='text-2xl font-semibold text-black'>{request.leaveRequestId}</h1>
-                            <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap ${leaveStatusBadgeClass(request)}`}>{getLeaveStatusLabel(request)}</span>
+                            <span className={`px-3 py-1.5 rounded-lg text-sm font-semibold whitespace-nowrap ${statusBadgeColor[request.status]}`}>{request.status}</span>
                         </div>
                         <p className='text-sm text-[#667085] mt-2'>Submitted to {request.requestedTo}</p>
                     </div>
@@ -66,7 +65,7 @@ export default function ViewMyLeaveRequestPage({ roleKey: roleKeyProp }) {
                             <Field label='Total Days' value={String(request.totalDays)} />
                             <Field label='Applied Date' value={request.appliedDate} />
                             <Field label='Requested To' value={request.requestedTo} />
-                            <Field label='Status' value={getLeaveStatusLabel(request)} />
+                            <Field label='Status' value={request.status} />
                             <div className='lg:col-span-3'><Field label='Reason' value={request.reason} /></div>
                         </div>
                     </Section>

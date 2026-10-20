@@ -265,12 +265,8 @@ export const adminSidebarLinks = [
     {
         id: 4,
         title: "Class Details",
-        to: "#0",
+        to: "/admin/class/class-details",
         icon: ClipboardList,
-        subLinks: [
-            { icon: ClipboardList, title: "Class Details List", to: "/admin/class/class-details" },
-            { icon: CalendarDays, title: "Academic Years", to: "/admin/class/academic-years" },
-        ],
     },
     {
         id: 5,
@@ -1319,8 +1315,7 @@ export const coordinatorSidebarLinks = [
         to: "#0",
         icon: School,
         subLinks: [
-            { icon: CalendarDays, title: "My Class Timetable", to: "/coordinator/class/class-routine" },
-            { icon: CalendarDays, title: "Create Class Timetable", to: "/coordinator/class/class-timetable" },
+            { icon: CalendarDays, title: "Class Timetable", to: "/coordinator/class/class-routine" },
             { icon: NotebookPen, title: "Lesson Plan", to: "/coordinator/lesson-plan/my-lesson-plan" },
             { icon: ClipboardCheck, title: "Lesson Plan Approval", to: "/coordinator/lesson-plan-approval" },
             { icon: UserPlus, title: "Extended Class", to: "/coordinator/class/extra-class" },
@@ -1340,10 +1335,9 @@ export const coordinatorSidebarLinks = [
         icon: GraduationCap,
         subLinks: [
             { icon: GraduationCap, title: "Students List", to: "/coordinator/user-management/students-list" },
-            { icon: UserPlus, title: "Section Assignment", to: "/coordinator/student-placement" },
             { icon: UsersRound, title: "Parents List", to: "/coordinator/user-management/parents-list" },
             { icon: FileText, title: "CA / RCT", to: "/coordinator/unit-tests" },
-            { icon: CalendarCheck, title: "Exam Timetable", to: "/coordinator/student-evaluation/exam" },
+            { icon: CalendarCheck, title: "Exam", to: "/coordinator/student-evaluation/exam" },
             { icon: CircleHelp, title: "Question Bank", to: "/coordinator/student-deliverables/sample-questions" },
             { icon: ClipboardPen, title: "Mark Entry", to: "/coordinator/student-evaluation/mark-entry" },
             { icon: BarChart3, title: "Performance Analytics", to: "/coordinator/student-evaluation/analytics" },
@@ -2072,7 +2066,6 @@ export const directorSidebarLinks = [
         icon: CalendarCheck,
         subLinks: [
             { icon: CalendarCheck, title: "Exam Timetable", to: "/director/examination-approvals" },
-            { icon: CalendarDays, title: "Class Timetable", to: "/director/class-timetable-approvals" },
         ],
     },
     {
@@ -2227,12 +2220,6 @@ export const principalSidebarLinks = [
         title: "Student Allocation",
         to: "/principal/student-allocation-approval",
         icon: UserPlus,
-    },
-    {
-        id: 17,
-        title: "Coordinator Grade Bands",
-        to: "/principal/coordinator-grade-bands",
-        icon: UserRoundCog,
     },
     {
         id: 16,

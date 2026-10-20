@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { toast } from 'react-toastify'
-import { Percent, RefreshCw, UserPlus, WalletCards } from 'lucide-react'
+import { Percent, RefreshCw, WalletCards } from 'lucide-react'
 import {
     ACADEMIC_YEARS,
     BOOKS_CLOSURE_TOGGLES,
@@ -31,14 +31,12 @@ const GeneralTab = () => {
         financeStatus,
         financeError,
         bootstrapDemoFeeLedger,
-        importEnrolledStudentsToFinance,
         installments,
         students,
     } = useFinance()
     const [applyingConcessions, setApplyingConcessions] = useState(false)
     const [reloading, setReloading] = useState(false)
     const [bootstrapping, setBootstrapping] = useState(false)
-    const [importingStudents, setImportingStudents] = useState(false)
 
     const updateGeneral = (key, value) => {
         setGeneral((prev) => ({ ...prev, [key]: value }))
@@ -76,39 +74,18 @@ const GeneralTab = () => {
         }
     }
 
-    const handleImportStudents = async () => {
-        setImportingStudents(true)
-        try {
-            const result = await importEnrolledStudentsToFinance()
-            if (!result?.success) {
-                toast.error(result?.message || 'Could not import enrolled students.')
-                return
-            }
-            const syncNote = result.syncedFromAdmissions
-                ? ` Auto-enrolled ${result.syncedFromAdmissions} from Active admissions.`
-                : ''
-            const instNote = result.installmentsGenerated
-                ? ` Applied your fee structures → ${result.installmentsGenerated} installment(s).`
-                : ' Define / match fee structures to student classes, then use Apply fee structures.'
-            toast.success(
-                `Imported ${result.imported} student(s) into finance (${result.added} new).${syncNote}${instNote}`,
-            )
-        } finally {
-            setImportingStudents(false)
-        }
-    }
-
     const handleBootstrapFeeLedger = () => {
         setBootstrapping(true)
         try {
             const result = bootstrapDemoFeeLedger({ force: false })
             if (!result?.success) {
-                toast.error(result?.message || 'Could not apply fee structures.')
+                toast.error(result?.message || 'Could not bootstrap fee ledger.')
                 return
             }
             toast.success(
-                `Applied your fee structures: ${result.generated ?? 0} new installment(s) for ${result.studentsMatched ?? 0} student(s)`
-                + ` (${result.structures} structure(s)). Your defined fee masters were not changed.`,
+                `Fee ledger ready: ${result.structures} structure(s), ${result.installments} unpaid installment(s)`
+                + (result.approvals ? `, ${result.approvals} pending approval(s)` : '')
+                + '. Snapshot will sync to the API.',
             )
         } finally {
             setBootstrapping(false)
@@ -223,30 +200,18 @@ const GeneralTab = () => {
             </SettingsPanel>
 
             <SettingsPanel
-                title='Campus fee ledger'
-                sub={`Finance students: ${students?.length ?? 0}. Installments: ${installments?.length ?? 0}. Import only adds students (and enrols Active admissions if needed). “Apply fee structures” creates unpaid installments from the fee structures you already defined — it never replaces them with sample data.`}
+                title='Demo fee ledger'
+                sub={`Enrolled finance students: ${students?.length ?? 0}. Installments on campus: ${installments?.length ?? 0}. Creates tuition demand rows (UNPAID) from student classes — does not invent paid collections.`}
             >
-                <div className='flex flex-wrap gap-3'>
-                    <button
-                        type='button'
-                        disabled={importingStudents}
-                        onClick={handleImportStudents}
-                        className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] border border-[#515DEF] px-4 py-2 rounded-md hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer disabled:opacity-60'
-                    >
-                        <UserPlus size={16} />
-                        {importingStudents ? 'Importing…' : 'Import enrolled students'}
-                    </button>
-                    <button
-                        type='button'
-                        disabled={bootstrapping || !students?.length}
-                        onClick={handleBootstrapFeeLedger}
-                        title={!students?.length ? 'Import enrolled students first' : undefined}
-                        className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] border border-[#515DEF] px-4 py-2 rounded-md hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed'
-                    >
-                        <WalletCards size={16} />
-                        {bootstrapping ? 'Applying…' : 'Apply fee structures to students'}
-                    </button>
-                </div>
+                <button
+                    type='button'
+                    disabled={bootstrapping || !students?.length}
+                    onClick={handleBootstrapFeeLedger}
+                    className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] border border-[#515DEF] px-4 py-2 rounded-md hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer disabled:opacity-60'
+                >
+                    <WalletCards size={16} />
+                    {bootstrapping ? 'Building…' : 'Bootstrap campus fee ledger'}
+                </button>
             </SettingsPanel>
 
             <SettingsPanel

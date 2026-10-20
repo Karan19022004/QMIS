@@ -1,126 +1,47 @@
 /**
  * Staff Star of the Month / Year — shared browser SoT (localStorage).
- * Employee pickers load from HR / communication directory (not demo lists).
- * Not a REST ratings domain yet; do not claim live multi-user persistence.
+ * Not a REST domain yet; do not claim live multi-user persistence.
  */
-
-import { getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
-import { canUseEmployeeDirectoryApi, loadEmployeeDirectory } from '../../../services/employeeDirectoryApi'
-import { listDirectoryApi } from '../../../services/communicationApi'
 
 export const MAX_STARS = 3
 
 export const RATING_CATEGORY = 'Overall Performance'
 
-/** Full academic year June → May (12 months). */
-export const SOY_MONTH_COUNT = 12
+export const SOY_MONTH_COUNT = 10
 
-/** Bumped so previous seed demos in localStorage are not reused. */
-export const STORAGE_KEY = 'director-staff-star-ratings-v2'
+export const STORAGE_KEY = 'director-staff-star-ratings'
 
 export const EMPLOYEE_TYPE_OPTIONS = [
     { value: 'teacher', label: 'Teacher' },
     { value: 'coordinator', label: 'Co-ordinator' },
 ]
 
-const MONTH_NAMES = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December',
-]
+export const ACADEMIC_YEARS = ['2025-2026']
 
-/** Academic year starts in June (0-indexed month 5). */
-export const getAcademicYearStartYear = (asOf = new Date()) => {
-    const year = asOf.getFullYear()
-    return asOf.getMonth() >= 5 ? year : year - 1
-}
-
-export const buildAcademicYearLabel = (startYear) => `${startYear}-${startYear + 1}`
-
-/** June (startYear) through May (startYear + 1). */
-export const buildAcademicYearMonths = (startYear) => {
-    const months = []
-    for (let offset = 0; offset < 12; offset += 1) {
-        const monthIndex = (5 + offset) % 12
-        const calendarYear = startYear + (5 + offset >= 12 ? 1 : 0)
-        months.push(`${MONTH_NAMES[monthIndex]} ${calendarYear}`)
-    }
-    return months
-}
-
-const currentAyStart = getAcademicYearStartYear()
-
-/** Current + previous academic years for filters. */
-export const ACADEMIC_YEARS = [
-    buildAcademicYearLabel(currentAyStart),
-    buildAcademicYearLabel(currentAyStart - 1),
-]
-
-/** Month picker: previous AY + current AY (24 months, June→May each). */
 export const ACADEMIC_YEAR_MONTHS = [
-    ...buildAcademicYearMonths(currentAyStart - 1),
-    ...buildAcademicYearMonths(currentAyStart),
+    'June 2025',
+    'July 2025',
+    'August 2025',
+    'September 2025',
+    'October 2025',
+    'November 2025',
+    'December 2025',
+    'January 2026',
+    'February 2026',
+    'March 2026',
 ]
 
-/** Prefer today's month in the Add form when it falls in the academic calendar. */
-export const getDefaultSomMonth = (asOf = new Date()) => {
-    const label = `${MONTH_NAMES[asOf.getMonth()]} ${asOf.getFullYear()}`
-    if (ACADEMIC_YEAR_MONTHS.includes(label)) return label
-    return ACADEMIC_YEAR_MONTHS[ACADEMIC_YEAR_MONTHS.length - 1] || label
-}
+export const TEACHER_OPTIONS = [
+    { id: 'TEA-1001', name: 'Mr. Ravi Kumar', department: 'Mathematics' },
+    { id: 'TEA-1002', name: 'Ms. Anitha Verma', department: 'English' },
+    { id: 'TEA-1003', name: 'Rajesh Kumar', department: 'Science' },
+]
 
-/** @deprecated Use loadStaffEmployeesByType() */
-export const TEACHER_OPTIONS = []
-/** @deprecated Use loadStaffEmployeesByType() */
-export const COORDINATOR_OPTIONS = []
-
-const roleMatchesType = (role, employeeType) => {
-    const text = String(role || '').toLowerCase()
-    if (employeeType === 'coordinator') {
-        return text.includes('coord')
-    }
-    return text.includes('teacher')
-}
-
-const mapStaffOption = (row) => ({
-    id: String(row.employeeId || row.id || row.email || ''),
-    name: row.name || row.email || 'Staff',
-    department: String(row.department || '').replace(/^—$/, '') || '',
-    email: row.email || '',
-    role: row.role || '',
-})
-
-/** Live Teacher / Co-ordinator options for Star of the Month Add form. */
-export async function loadStaffEmployeesByType(employeeType = 'teacher') {
-    const want = employeeType === 'coordinator' ? 'coordinator' : 'teacher'
-
-    if (canUseEmployeeDirectoryApi()) {
-        try {
-            const { records } = await loadEmployeeDirectory()
-            const rows = (records || [])
-                .map((item) => item.row)
-                .filter((row) => row && roleMatchesType(row.role, want))
-                .map(mapStaffOption)
-                .filter((row) => row.id && row.name)
-                .sort((a, b) => a.name.localeCompare(b.name))
-            if (rows.length) return rows
-        } catch {
-            /* fall through */
-        }
-    }
-
-    if (!(isApiAuthEnabled() && getAccessToken())) return []
-
-    try {
-        const people = await listDirectoryApi()
-        return (Array.isArray(people) ? people : [])
-            .filter((person) => roleMatchesType(person.role, want))
-            .map(mapStaffOption)
-            .filter((row) => row.id && row.name)
-            .sort((a, b) => a.name.localeCompare(b.name))
-    } catch {
-        return []
-    }
-}
+export const COORDINATOR_OPTIONS = [
+    { id: 'COO-1001', name: 'Sandy Selva', department: 'Science' },
+    { id: 'COO-1002', name: 'John Milton', department: 'Mathematics' },
+    { id: 'COO-1003', name: 'Priya Nair', department: 'English' },
+]
 
 const buildSomRating = ({
     ratingId,
@@ -181,8 +102,9 @@ export const getSomRatings = () => {
     } catch {
         /* ignore corrupt cache */
     }
-    // Do not auto-seed demo ratings — start empty until Principal/Director add real ones.
-    return []
+    const seed = SEED_SOM_RATINGS.map((row) => ({ ...row }))
+    saveSomRatings(seed)
+    return seed
 }
 
 export const nextSomRatingId = (items = getSomRatings()) => {
@@ -241,7 +163,7 @@ export const getStarOfMonth = (month) => {
     )
 }
 
-export const getConsolidatedSoyRatings = (academicYear = ACADEMIC_YEARS[0]) => {
+export const getConsolidatedSoyRatings = (academicYear = '2025-2026') => {
     const yearRatings = getSomRatings().filter((item) => item.academicYear === academicYear)
     const grouped = yearRatings.reduce((acc, item) => {
         if (!acc[item.employeeId]) {
@@ -273,11 +195,10 @@ export const getConsolidatedSoyRatings = (academicYear = ACADEMIC_YEARS[0]) => {
         .sort((a, b) => b.averageRating - a.averageRating)
 }
 
-export const getStarOfYear = (academicYear = ACADEMIC_YEARS[0]) => {
+export const getStarOfYear = (academicYear = '2025-2026') => {
     const consolidated = getConsolidatedSoyRatings(academicYear)
     return consolidated[0] ?? null
 }
 
-/** Offline / empty fallback — prefer loadStaffEmployeesByType in UI. */
 export const getEmployeesByType = (employeeType) =>
     employeeType === 'coordinator' ? COORDINATOR_OPTIONS : TEACHER_OPTIONS
