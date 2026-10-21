@@ -9,6 +9,18 @@ from app.models import AcademicYear, Campus, FinancialYear, HrEmployee, Permissi
 from app.permissions.matrix import ALL_ROLES, PERMISSIONS, ROLE_PERMISSIONS
 from app.services.audit import write_audit
 
+# Reuse one bcrypt hash per demo password so StaticPool test sessions can repair
+# polluted seed logins with a string compare instead of hashing on every startup.
+_SEED_PASSWORD_HASHES: dict[str, str] = {}
+
+
+def _seed_password_hash(password: str) -> str:
+    cached = _SEED_PASSWORD_HASHES.get(password)
+    if cached is None:
+        cached = hash_password(password)
+        _SEED_PASSWORD_HASHES[password] = cached
+    return cached
+
 
 def seed_reference_data(db: Session) -> None:
     campus = db.scalar(select(Campus).where(Campus.code == "QMIS-MDU"))
@@ -172,15 +184,29 @@ def _seed_current_financial_year(db: Session, campus: Campus) -> None:
 
 
 def _seed_user(db: Session, *, campus: Campus, role: Role, email: str, password: str) -> None:
+    password_hash = _seed_password_hash(password)
     existing = db.scalar(select(User).where(User.email == email.lower()))
     if existing is not None:
+        # Demo accounts share one StaticPool SQLite across TestClient sessions. Repair only
+        # when a prior test left the well-known login unusable.
+        needs_repair = (
+            existing.password_hash != password_hash
+            or not existing.is_active
+            or existing.must_change_password
+            or existing.role_id != role.id
+        )
+        if needs_repair:
+            existing.password_hash = password_hash
+            existing.role_id = role.id
+            existing.is_active = True
+            existing.must_change_password = False
         return
     db.add(
         User(
             campus_id=campus.id,
             role_id=role.id,
             email=email.lower(),
-            password_hash=hash_password(password),
+            password_hash=password_hash,
             is_active=True,
             must_change_password=False,
         )

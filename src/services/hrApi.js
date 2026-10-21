@@ -39,6 +39,15 @@ export async function createStaff(employee) {
     return apiRequest('/hr/staff', { method: 'POST', body: employee })
 }
 
+/** Reset linked portal login for an HR employee code / portal id. */
+export async function resetStaffPassword(employeeCode) {
+    const connected = await connectHrApi()
+    if (!connected) throw new Error('HR API is not available')
+    const code = encodeURIComponent(String(employeeCode || '').trim())
+    if (!code) throw new Error('Employee id is required')
+    return apiRequest(`/hr/employees/${code}/reset-password`, { method: 'POST', body: {} })
+}
+
 export const getJson = (path) => apiRequest(path)
 
 export const putJson = (path, value) => apiRequest(path, { method: 'PUT', body: value })

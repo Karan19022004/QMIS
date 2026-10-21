@@ -82,6 +82,31 @@ export const loadClassDirectory = async ({ academicYearId = '', includeInactive 
 /** Best-effort: keep the dropdowns on other screens in step after a save. Never throws. */
 export const refreshClassCatalog = () => loadClassDirectory().catch(() => null)
 
+/** List academic years (normalized for admin / star-ratings / fee campus pickers). */
+export const listAcademicYears = async () => {
+    const rows = await apiRequest('/masters/academic-years')
+    return (Array.isArray(rows) ? rows : []).map(normalizeYear)
+}
+
+export const createAcademicYear = async ({ name, startDate = '', endDate = '', isCurrent = false } = {}) => {
+    const body = {
+        name: String(name || '').trim(),
+        is_current: Boolean(isCurrent),
+    }
+    if (startDate) body.start_date = startDate
+    if (endDate) body.end_date = endDate
+    const created = await apiRequest('/masters/academic-years', { method: 'POST', body })
+    return normalizeYear(created)
+}
+
+export const setAcademicYearCurrent = async (yearId) => {
+    const updated = await apiRequest(`/masters/academic-years/${encodeURIComponent(yearId)}/set-current`, {
+        method: 'POST',
+        body: {},
+    })
+    return normalizeYear(updated)
+}
+
 /** Active teacher and coordinator logins that can be picked as a class teacher (needs masters.write). */
 export const loadClassTeacherOptions = async () => {
     const rows = await apiRequest('/masters/class-teacher-options')

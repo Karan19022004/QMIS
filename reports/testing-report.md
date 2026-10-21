@@ -1,22 +1,29 @@
 # Testing report
 
-Project: Queen Mira International School ERP  
-Last run: 16 October 2026 — **Fifty more modules (Coordinator / Principal / Director)**
+**Date:** 21 October 2026  
+**Branch:** `fix/integrations-ready-no-creds`  
+**Context:** Final pre-commit verification (integrations + honesty fixes)
 
-## Suite / build
+## Backend
+
+| Metric | Count |
+|---|---|
+| Passed | **451** |
+| Failed | **0** |
+| Skipped | 0 |
+| Warnings | 1 (Starlette TestClient / httpx deprecation) |
+| Duration | ~4.4 minutes |
+
+Command: `python -m pytest tests/ -q` from `backend/`.
+
+Coverage includes `tests/test_integrations_ready.py` (NOT_CONFIGURED notify, templates, webhook, invalid signature, duplicate webhook), demo MOCK_QUEUED honesty, admissions optional student password, finance stub confirm blocked.
+
+## Frontend
 
 | Check | Result |
 |---|---|
-| Backend smoke (`test_hr_my_attendance` + `test_finance`) | **8 passed** |
-| Frontend `npm run build` | **PASS** (~47s) |
-| Prior full suite same day | **426 passed** |
+| `npm run build` | **PASS** (~60s) |
 
-## Fifty-module pass
+## Live providers
 
-| Check | Result |
-|---|---|
-| Status sheet TOTAL | **307 Completed / 6 Partial / 165 Not Completed / 2 Gap** (of 480) |
-| Coordinator | **29 Completed / 1 Gap** |
-| Principal | **19 Completed / 2 Partial** |
-| Director | **24 Completed** |
-| Net new Completions | **+58** vs prior TOTAL 249 |
+Not exercised. Statuses under empty credentials: **NOT_CONFIGURED**. Demo mode: **MOCK_QUEUED**. See `ERP_COMPLETE_INTEGRATION_AUDIT.md`.

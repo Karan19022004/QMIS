@@ -19,7 +19,10 @@ const PaymentLinkModal = ({ isOpen, onClose, link, onSend }) => {
     const send = (channel) => {
         setSending(true)
         onSend?.(channel, link)
-        toast.success(`Mock ${channel === 'whatsapp' ? 'WhatsApp' : 'email'} sent with ${link.reference}.`)
+        const label = channel === 'whatsapp' ? 'WhatsApp' : 'email'
+        toast.info(
+            `${label} for link ${link.reference} is NOT_CONFIGURED until school ${channel === 'whatsapp' ? 'WhatsApp API' : 'SMTP'} credentials are connected.`,
+        )
         setSending(false)
     }
 

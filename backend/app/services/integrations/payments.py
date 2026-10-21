@@ -1,4 +1,8 @@
-"""Razorpay intents: demo HMAC, live API, or stub when unset."""
+"""Razorpay intents: demo HMAC, live API, or NOT_CONFIGURED when unset.
+
+Frontend checkout success is never treated as payment proof — only signature
+verify (gateway-confirm) or a verified webhook may mark a link PAID.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +15,7 @@ import httpx
 
 from app.core.config import settings
 from app.services.integrations import demo
+from app.services.integrations.statuses import FAILED, MOCK_QUEUED, NOT_CONFIGURED, OPEN, PAID
 
 log = logging.getLogger(__name__)
 
@@ -34,19 +39,21 @@ def create_payment_intent(*, amount: float, reference: str, student_id: str | No
     if not settings.razorpay_configured or settings.payment_provider.lower() != "razorpay":
         return {
             "gateway": "stub",
-            "status": "OPEN",
+            "status": NOT_CONFIGURED,
             "providerConfigured": False,
+            "liveVerified": False,
             "providerOrderId": None,
             "url": f"/student/payment/fees-payment?ref={reference}",
-            "message": "Stub intent — set INTEGRATIONS_MODE=demo or RAZORPAY_* keys",
+            "message": "NOT_CONFIGURED — set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (INTEGRATIONS_MODE=live for real orders)",
         }
 
     paise = int(round(float(amount) * 100))
     if paise < 100:
         return {
             "gateway": "razorpay",
-            "status": "FAILED",
+            "status": FAILED,
             "providerConfigured": True,
+            "liveVerified": False,
             "providerOrderId": None,
             "url": None,
             "message": "Amount too small for Razorpay (min ₹1)",
@@ -66,13 +73,15 @@ def create_payment_intent(*, amount: float, reference: str, student_id: str | No
         )
         return {
             "gateway": "razorpay",
-            "status": "OPEN",
+            "status": OPEN,
             "providerConfigured": True,
             "demo": True,
+            "liveVerified": False,
+            "mockStatus": MOCK_QUEUED,
             "providerOrderId": order_id,
             "razorpayKeyId": _key_id(),
             "url": f"/student/payment/fees-payment?ref={reference}&order={order_id}",
-            "message": "Demo Razorpay order (local outbox — not a live merchant charge)",
+            "message": "MOCK_QUEUED — demo Razorpay order (local outbox, not a live merchant charge)",
         }
 
     body = {
@@ -92,8 +101,9 @@ def create_payment_intent(*, amount: float, reference: str, student_id: str | No
             log.warning("razorpay_order_failed status=%s", response.status_code)
             return {
                 "gateway": "razorpay",
-                "status": "FAILED",
+                "status": FAILED,
                 "providerConfigured": True,
+                "liveVerified": False,
                 "providerOrderId": None,
                 "url": None,
                 "message": f"Razorpay HTTP {response.status_code}",
@@ -102,19 +112,21 @@ def create_payment_intent(*, amount: float, reference: str, student_id: str | No
         order_id = data.get("id")
         return {
             "gateway": "razorpay",
-            "status": "OPEN",
+            "status": OPEN,
             "providerConfigured": True,
+            "liveVerified": False,
             "providerOrderId": order_id,
             "razorpayKeyId": _key_id(),
             "url": f"/student/payment/fees-payment?ref={reference}&order={order_id}",
-            "message": "Razorpay order created (sandbox/live per key)",
+            "message": "Razorpay order created (sandbox/live per key) — await signature confirm or webhook",
         }
     except Exception as exc:  # noqa: BLE001
         log.warning("razorpay_order_error")
         return {
             "gateway": "razorpay",
-            "status": "FAILED",
+            "status": FAILED,
             "providerConfigured": True,
+            "liveVerified": False,
             "providerOrderId": None,
             "url": None,
             "message": f"Razorpay error: {type(exc).__name__}",
@@ -122,7 +134,9 @@ def create_payment_intent(*, amount: float, reference: str, student_id: str | No
 
 
 def verify_razorpay_signature(*, order_id: str, payment_id: str, signature: str) -> bool:
-    if not settings.razorpay_configured:
+    if not settings.razorpay_configured and not settings.demo_integrations:
+        return False
+    if not order_id or not payment_id or not signature:
         return False
     payload = f"{order_id}|{payment_id}".encode()
     expected = hmac.new(
@@ -133,6 +147,17 @@ def verify_razorpay_signature(*, order_id: str, payment_id: str, signature: str)
     return hmac.compare_digest(expected, signature or "")
 
 
+def verify_webhook_signature(*, body: bytes, signature: str) -> bool:
+    """Razorpay webhook HMAC (X-Razorpay-Signature) using RAZORPAY_WEBHOOK_SECRET."""
+    secret = (settings.razorpay_webhook_secret or "").strip()
+    if not secret:
+        return False
+    if not signature:
+        return False
+    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, signature.strip())
+
+
 def demo_payment_signature(*, order_id: str, payment_id: str) -> str:
     """Helper for smoke/browser demos — uses the effective demo secret."""
     payload = f"{order_id}|{payment_id}".encode()
@@ -141,3 +166,7 @@ def demo_payment_signature(*, order_id: str, payment_id: str) -> str:
 
 def stub_confirm_token() -> str:
     return f"stub-{uuid4().hex[:12]}"
+
+
+def paid_marker() -> str:
+    return PAID

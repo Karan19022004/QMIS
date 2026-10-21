@@ -21,6 +21,7 @@ from app.services.hr import (
     portal_employees,
     replace_items,
     replace_portal_employees,
+    reset_staff_password,
     save_leave_bundle,
     save_payroll_bundle,
 )
@@ -70,6 +71,15 @@ def employee_documents_route(
     user: User = Depends(require_any("hr.read", "hr.self")),
 ) -> list[dict]:
     return documents_for_employee(db, user, employee_code)
+
+
+@router.post("/employees/{employee_code}/reset-password")
+def reset_staff_password_route(
+    employee_code: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("hr.write")),
+) -> dict:
+    return reset_staff_password(db, user, employee_code)
 
 
 @router.get("/portal/employees")

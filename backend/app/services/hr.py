@@ -599,6 +599,63 @@ def _is_locked(collection: str, body: dict) -> bool:
     return False
 
 
+def reset_staff_password(db: Session, actor: User, employee_code: str) -> dict:
+    """Reset the portal login linked to an HR employee; returns a one-time temporary password."""
+    row = get_employee(db, actor, employee_code)
+    if not row.email:
+        fail(422, "email_required", "Add an email before resetting the login password.")
+    user = None
+    if row.user_id is not None:
+        user = db.get(User, row.user_id)
+    if user is None:
+        user = db.scalar(select(User).where(User.email == row.email.lower()))
+    if user is None:
+        temporary = _provision_user(db, actor, row)
+        if temporary is None:
+            fail(404, "not_found", "No portal login is linked to this employee.")
+        db.commit()
+        return {
+            "employeeCode": row.employee_code,
+            "loginEmail": row.email,
+            "email": row.email,
+            "temporaryPassword": temporary,
+            "mustChangePassword": True,
+            "deliveryStatus": "NOT_CONFIGURED",
+            "message": "Password reset locally. Connect SMTP to email the temporary password.",
+        }
+    locked = {
+        settings.admin_seed_email.lower(),
+        settings.hr_seed_email.lower(),
+        settings.director_seed_email.lower(),
+    }
+    if (user.email or "").lower() in locked:
+        fail(403, "forbidden", "Seed admin accounts cannot be reset from HR.")
+    temporary = generate_temporary_password()
+    user.password_hash = hash_password(temporary)
+    user.must_change_password = True
+    user.is_active = True
+    row.user_id = user.id
+    write_audit(
+        db,
+        action="HR_STAFF_PASSWORD_RESET",
+        entity_type="hr_employee",
+        entity_id=str(row.id),
+        actor_id=actor.id,
+        campus_id=actor.campus_id,
+        details=row.employee_code,
+    )
+    db.commit()
+    return {
+        "employeeCode": row.employee_code,
+        "loginEmail": user.email,
+        "email": user.email,
+        "temporaryPassword": temporary,
+        "mustChangePassword": True,
+        "deliveryStatus": "NOT_CONFIGURED",
+        "message": "Password reset locally. Connect SMTP to email the temporary password.",
+    }
+
+
 def _provision_user(db: Session, actor: User, row: HrEmployee) -> str | None:
     code = _role_code(row.role_title or "")
     if code is None:

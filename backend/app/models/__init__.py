@@ -1,5 +1,14 @@
 from app.models.academics import AcademicYear, FinancialYear, SchoolClass, Section, Subject
-from app.models.admission import Admission, AdmissionEnquiry, Guardian, Student
+from app.models.academics_record import AcademicsRecord
+from app.models.campus_audit_record import CampusAuditRecord
+from app.models.ops_record import OpsRecord
+from app.models.admission import (
+    Admission,
+    AdmissionEnquiry,
+    CoordinatorGradeBand,
+    Guardian,
+    Student,
+)
 from app.models.activities import Activity, ActivityPlayer
 from app.models.announcements import Announcement, AnnouncementReply, AnnouncementResponse
 from app.models.calendar import CalendarEvent
@@ -27,8 +36,11 @@ from app.models.user_profile import UserProfile
 
 __all__ = [
     "AcademicYear",
+    "AcademicsRecord",
     "Activity",
     "ActivityPlayer",
+    "CampusAuditRecord",
+    "OpsRecord",
     "FinancialYear",
     "Admission",
     "AdmissionEnquiry",
@@ -43,6 +55,7 @@ __all__ = [
     "Campus",
     "Conversation",
     "ConversationParticipant",
+    "CoordinatorGradeBand",
     "DocumentItem",
     "DocumentRecord",
     "FileAsset",

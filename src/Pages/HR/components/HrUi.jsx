@@ -19,6 +19,135 @@ export const Field = ({ label, children }) => (
 
 export const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
 
+/** camelCase / snake_case → "Human label" for dynamic KeyFields. */
+export const humanizeLabel = (key) =>
+    String(key || '')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^./, (ch) => ch.toUpperCase())
+
+/** Parse DD-MM-YYYY / YYYY-MM-DD / Date → Date | null (for attendance day keys). */
+export const parseFormDate = (value) => {
+    if (value == null || value === '') return null
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value
+    const text = String(value).trim()
+    const dmy = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (dmy) {
+        const parsed = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) {
+        const parsed = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+    const fallback = new Date(text)
+    return Number.isNaN(fallback.getTime()) ? null : fallback
+}
+
+/** Normalize dates for HTML date inputs and filters (YYYY-MM-DD). */
+export const formatFormDate = (value) => {
+    const date = value instanceof Date ? value : parseFormDate(value)
+    if (!date) return value == null || value === '' ? '' : String(value)
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+}
+
+export const FormField = ({ label, hint, className = '', children }) => (
+    <label className={`flex flex-col gap-y-2 text-base font-medium text-[#808080] ${className}`.trim()}>
+        {label ? <span>{label}</span> : null}
+        {children}
+        {hint ? <span className='text-xs font-normal text-[#667085]'>{hint}</span> : null}
+    </label>
+)
+
+export const TextField = ({
+    label,
+    value,
+    onChange,
+    type = 'text',
+    placeholder,
+    className = '',
+    min,
+    max,
+    required = false,
+    ...rest
+}) => (
+    <FormField label={label} className={className}>
+        <input
+            className={inputClass}
+            type={type}
+            value={value ?? ''}
+            onChange={onChange}
+            placeholder={placeholder}
+            min={min}
+            max={max}
+            required={required}
+            {...rest}
+        />
+    </FormField>
+)
+
+/**
+ * Date input for HR forms. `bound`: 'past' | 'future' | 'any' (default).
+ * `onChange` receives the YYYY-MM-DD string (or '' when cleared).
+ */
+export const DateField = ({ label, value, onChange, bound = 'any', required = false, className = '' }) => {
+    const today = formatFormDate(new Date())
+    const max = bound === 'past' ? today : undefined
+    const min = bound === 'future' ? today : undefined
+    return (
+        <FormField label={label} className={className}>
+            <input
+                className={inputClass}
+                type='date'
+                value={formatFormDate(value) || ''}
+                max={max}
+                min={min}
+                required={required}
+                onChange={(event) => onChange(event.target.value)}
+            />
+        </FormField>
+    )
+}
+
+/** Render a TextField for each key on a form object. Date-like keys use DateField. */
+export const KeyFields = ({ keys, form, setForm, className = '' }) => {
+    const dateKeys = /(date|dob|joining|posted|closing|start|end|validity|offer)/i
+    return (
+        <>
+            {(keys || []).map((key) => {
+                const label = humanizeLabel(key)
+                if (dateKeys.test(key)) {
+                    return (
+                        <DateField
+                            key={key}
+                            label={label}
+                            className={className}
+                            value={form?.[key] || ''}
+                            bound='any'
+                            onChange={(next) => setForm({ ...form, [key]: next })}
+                        />
+                    )
+                }
+                return (
+                    <TextField
+                        key={key}
+                        label={label}
+                        className={className}
+                        value={form?.[key] ?? ''}
+                        onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+                    />
+                )
+            })}
+        </>
+    )
+}
+
 export const Modal = ({ title, onClose, children, wide = false }) => (
     <div className='fixed inset-0 z-500 flex items-center justify-center p-4'>
         <button type='button' className='absolute inset-0 bg-black/40' onClick={onClose} aria-label='Close' />
@@ -76,7 +205,7 @@ export const matches = (value, query) => String(value || '').toLowerCase().inclu
 export const Select = ({ label, value, onChange, options, allLabel = 'All' }) => (
     <Field label={label}>
         <select className={inputClass} value={value} onChange={onChange}>
-            <option value=''>{allLabel}</option>
+            {allLabel != null ? <option value=''>{allLabel}</option> : null}
             {options.map((option) => <option key={option} value={option}>{option}</option>)}
         </select>
     </Field>

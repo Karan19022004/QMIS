@@ -670,11 +670,14 @@ export const FinanceProvider = ({ children }) => {
             try {
                 const result = await sendReceiptApi({ receiptId, channel })
                 if (result?.state?.data) applyFinanceData(result.state.data)
+                const status = result.delivery?.status
+                const notReallyDelivered = ['NOT_CONFIGURED', 'MOCK_QUEUED', 'queued_stub', 'FAILED'].includes(status)
+                    || result.delivery?.delivered === false
                 return {
                     success: true,
                     receiptNo: result.receipt?.receiptNo,
                     delivery: result.delivery,
-                    queuedStub: result.delivery?.status === 'queued_stub',
+                    queuedStub: notReallyDelivered,
                 }
             } catch (error) {
                 return { success: false, message: error.message || 'Send failed.' }

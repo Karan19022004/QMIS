@@ -441,16 +441,27 @@ def _ensure_portal_user(
     skip: bool,
     role_code: str,
     label: str,
+    require_password: bool = True,
 ) -> tuple[User | None, bool]:
+    """Create or resolve a campus portal login.
+
+    When ``require_password`` is False (student accounts are optional), a missing
+    password skips user creation instead of failing the whole enroll.
+    """
     if skip or not email:
         return None, False
     email = email.strip().lower()
-    if not password or not password.strip():
-        fail(400, "validation_error", f"{label} password is required.")
+    if not email:
+        return None, False
+    raw_password = password.strip() if isinstance(password, str) else ""
+    if not raw_password:
+        if require_password:
+            fail(400, "validation_error", f"{label} password is required.")
+        return None, False
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
         return existing, False
-    policy_message = password_policy_message(password.strip(), email=email)
+    policy_message = password_policy_message(raw_password, email=email)
     if policy_message:
         fail(400, "weak_password", policy_message)
     role = db.scalar(select(Role).where(Role.code == role_code))
@@ -460,7 +471,7 @@ def _ensure_portal_user(
         campus_id=actor.campus_id,
         role_id=role.id,
         email=email,
-        password_hash=hash_password(password.strip()),
+        password_hash=hash_password(raw_password),
         is_active=True,
         must_change_password=True,
     )
@@ -485,6 +496,7 @@ def _ensure_parent_user(
         skip=skip,
         role_code="parent",
         label="Parent",
+        require_password=True,
     )
 
 
@@ -504,6 +516,8 @@ def _ensure_student_user(
         skip=skip,
         role_code="student",
         label="Student",
+        # Student portal login is optional: email without password must not abort enroll.
+        require_password=False,
     )
 
 

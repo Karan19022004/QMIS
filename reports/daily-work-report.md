@@ -8,6 +8,76 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 21 October 2026 — Final verification before commit
+
+**Status:** Branch `fix/integrations-ready-no-creds` verified; commit/push left to manager.
+
+### Done
+- Re-ran full pytest (**451 passed**) and `npm run build` (**PASS**)
+- Confirmed email/WhatsApp **NOT_CONFIGURED** / demo **MOCK_QUEUED** never report real delivery
+- Razorpay mock coverage: intent, valid/invalid signatures, webhook verify, duplicate `already_paid`
+- Fixed FE honesty gaps (receipt drawer, payment-link modal, payslip already honest)
+- Optional student enroll password no longer crashes; webhook `liveVerified` false in demo
+- Updated `ERP_COMPLETE_INTEGRATION_AUDIT.md` with verified results + live credential checklist
+
+### Still open
+- LIVE_VERIFIED pending school SMTP / WhatsApp / Razorpay sandbox keys
+- Remaining localStorage portals (parent accounts, star ratings, etc.)
+
+---
+
+## 21 October 2026 — Integrations ready without credentials (P0/P1)
+
+**Status:** Branch `fix/integrations-ready-no-creds`. Build + pytest green. No live provider calls.
+
+### Done
+- Fixed FE build (HrUi exports, academic years API helpers, HR password reset API)
+- Email/WhatsApp/Razorpay: `NOT_CONFIGURED` / `MOCK_QUEUED` / webhook; templates; empty `.env.example` placeholders
+- Admissions FE defaults to API when auth on; removed false “sent” payslip toasts
+- Pytest **448 passed** (later verification: **451**); `npm run build` **PASS**
+- Audit updated: `ERP_COMPLETE_INTEGRATION_AUDIT.md`
+
+### Still open
+- LIVE_VERIFIED pending school SMTP / WhatsApp / Razorpay sandbox keys
+- Remaining localStorage portals (parent accounts, star ratings, etc.)
+
+---
+
+## 21 October 2026 — Complete integration audit (verification only)
+
+**Status:** Read-only audit; no application code changes.
+
+### Done
+- Full integration audit written: `ERP_COMPLETE_INTEGRATION_AUDIT.md`
+- Pytest re-run: **443 passed / 0 failed**
+- Frontend build checked: **FAIL** (HR `HrUi` missing exports)
+- WhatsApp / Email / Razorpay: code paths mapped; live delivery **not** claimed; Razorpay webhook **missing**
+
+### Still open
+- Awaiting authorization to fix P0 build + P1 sandbox integrations
+
+---
+
+## 21 October 2026 — ERP1 stabilize (HR 500, missing routes, pytest green)
+
+**Status:** Fixes on branch `fix/erp1-stabilize` (from `ERP1` @ `3eb38fa`). Not pushed.
+
+### Done
+- Fixed `GET /api/v1/hr/employees` 500 (`EmployeeOut.email` rejected `.local` demo addresses)
+- Restored ProTrack, placement, my-fees, academics/ops/campus-audit mounts from partner tip `9abaf75`
+- Repaired demo-user seed so shared test SQLite cannot leave leave/lesson/principal logins broken
+- Full pytest: **443 passed / 0 failed** (was 418 / 23)
+
+### Still open
+- Frontend `npm run build` still fails (HR `HrUi` missing `KeyFields` / `TextField` exports) — pre-existing
+- Broad UI CRUD across ~480 sidebar modules not fully exercised
+- Awaiting approval to commit/push/merge
+
+### Report
+- `C:\karan\ERP-verification-reports\ERP1-stabilize-fix-report-2026-10-21.md`
+
+---
+
 ## 16 October 2026 — Fifty more modules (Coordinator / Principal / Director)
 
 **Status:** Closed **61** open module rows (net **+58 Completed** on the sheet). TOTAL **307 / 6 / 165 / 2** of 480.

@@ -47,6 +47,8 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("hr.self", "View own staff profile, leave, attendance, and payslip"),
     ("admissions.write", "Create enquiries and enroll students"),
     ("students.read", "View students and guardians"),
+    ("students.place", "Assign students to class sections and roll numbers"),
+    ("students.promote", "Promote students to the next grade and section"),
     ("attendance.read", "View class attendance"),
     ("attendance.write", "Mark class attendance"),
     ("lessonplans.read", "View lesson plans (own, or all for approvers)"),
@@ -91,6 +93,12 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("tc.decide", "Approve or reject a transfer-certificate request"),
     ("frontoffice.read", "View Front Office gate passes, transfers and re-enrollment"),
     ("frontoffice.write", "Create and change Front Office campus records"),
+    ("academics.read", "View class timetables, teacher allocations and timetable change requests"),
+    ("academics.write", "Change academics campus collections (principals; teachers may file TT change requests)"),
+    ("ops.read", "View campus ops collections (library, gate, transport, stores, JD, biometric)"),
+    ("ops.write", "Change campus ops collections for your vertical"),
+    ("campus_audit.read", "View campus audit collections (JD Audit + Process/Quality)"),
+    ("campus_audit.write", "Change campus audit collections for your auditor role"),
     ("activities.read", "View cultural, sports and competition activities"),
     ("activities.write", "Add, change and remove activities"),
     ("activities.approve", "Approve or reject an activity"),
@@ -115,6 +123,8 @@ _FINANCE_HEAD = [
     "finance.approve",
     "students.read",
     "audit.read",
+    # Read transport routes/drivers/vehicles for Transport Finance dropdowns (write still denied).
+    "ops.read",
 ]
 # Operational collector — cannot change masters or approve
 _FINANCE_ASSISTANT = [
@@ -142,6 +152,8 @@ _STAFF_ACADEMIC = list(
             "marks.read",
             "marks.write",
             "results.read",
+            "academics.read",
+            "academics.write",
         ]
     )
 )
@@ -167,10 +179,31 @@ ROLE_PERMISSIONS.update(
         "finance_assistant": list(_FINANCE_ASSISTANT),
         # Staff UIS + class attendance (P1-5 / Y-1)
         "teacher": list(_STAFF_ACADEMIC),
-        "coordinator": [*_STAFF_ACADEMIC, "exams.write"],
+        # hr.employees.read: campus teacher directory for Class Timetable / allocations (read-only).
+        "coordinator": [
+            *_STAFF_ACADEMIC,
+            "exams.write",
+            "students.place",
+            "students.promote",
+            "hr.employees.read",
+        ],
         # Campus employee directory is read-only (hr.employees.read). Not hr.write / admin users.
-        "principal": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.write", "hr.employees.read"],
-        "director": [*_STAFF_ACADEMIC, "lessonplans.remind", "exams.configure", "hr.employees.read"],
+        "principal": [
+            *_STAFF_ACADEMIC,
+            "lessonplans.remind",
+            "exams.write",
+            "hr.employees.read",
+            "students.place",
+            "students.promote",
+        ],
+        "director": [
+            *_STAFF_ACADEMIC,
+            "lessonplans.remind",
+            "exams.configure",
+            "hr.employees.read",
+            "students.place",
+            "students.promote",
+        ],
         "parent": list(
             dict.fromkeys(
                 [
@@ -179,6 +212,9 @@ ROLE_PERMISSIONS.update(
                     "notifications.read",
                     "attendance.read",
                     "exams.read",
+                    "academics.read",
+                    # Parent Academic Payment — scoped via GET /finance/my-fees (not full ledger write).
+                    "finance.read",
                 ]
             )
         ),
@@ -190,6 +226,8 @@ ROLE_PERMISSIONS.update(
                     "notifications.read",
                     "attendance.read",
                     "exams.read",
+                    "academics.read",
+                    "finance.read",
                 ]
             )
         ),
@@ -295,10 +333,64 @@ for _code, _perms in ROLE_PERMISSIONS.items():
 # Front Office campus records:
 # - Admin + PRM write (shared campus office); Super Admin / Managing Director already hold all perms.
 # - Principal + Director read-only — matches front_office service _READERS.
+# - Gate Keeper / Manager may read+write gate-pass collections (service also gates by role).
 for _code, _perms in ROLE_PERMISSIONS.items():
     if _code in {"admin", "prm"}:
         for _p in ("frontoffice.read", "frontoffice.write"):
             if _p not in _perms:
                 _perms.append(_p)
+    if _code in {"gatekeeper", "gatekeepermanager"}:
+        for _p in ("frontoffice.read", "frontoffice.write"):
+            if _p not in _perms:
+                _perms.append(_p)
     if _code in {"principal", "director"} and "frontoffice.read" not in _perms:
         _perms.append("frontoffice.read")
+
+# Ops campus collections (library / gate / transport / stores / JD / biometric).
+_OPS_ROLES = {
+    "librarian",
+    "gatekeeper",
+    "gatekeepermanager",
+    "transportmanager",
+    "driver",
+    "canteenmanager",
+    "itsupportmanager",
+    "stationerystoremanager",
+    "housekeepingmanager",
+    "jointdirector",
+    "jointdirectorassistant",
+    "teacher",
+    "coordinator",
+    "principal",
+    "director",
+    "hr",
+    "admin",
+}
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code in _OPS_ROLES:
+        for _p in ("ops.read", "ops.write"):
+            if _p not in _perms:
+                _perms.append(_p)
+
+# Transport Manager assigns students to bus routes — needs campus student roster (read-only).
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code == "transportmanager" and "students.read" not in _perms:
+        _perms.append("students.read")
+
+# Campus audit collections (JD Audit + Process/Quality auditors).
+_CAMPUS_AUDIT_WRITERS = {
+    "jointdirectoraudit",
+    "processauditor",
+    "qualityauditor",
+    "admin",
+}
+_CAMPUS_AUDIT_READERS = _CAMPUS_AUDIT_WRITERS | {
+    "jointdirector",
+    "principal",
+    "director",
+}
+for _code, _perms in ROLE_PERMISSIONS.items():
+    if _code in _CAMPUS_AUDIT_READERS and "campus_audit.read" not in _perms:
+        _perms.append("campus_audit.read")
+    if _code in _CAMPUS_AUDIT_WRITERS and "campus_audit.write" not in _perms:
+        _perms.append("campus_audit.write")

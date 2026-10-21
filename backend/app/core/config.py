@@ -69,26 +69,35 @@ class Settings(BaseSettings):
     # demo = local outbox + demo Razorpay HMAC (not real merchant). live = real providers.
     integrations_mode: str = ""
 
-    # Payment (Razorpay sandbox/live). Empty + non-demo = stub gateway.
+    # Payment (Razorpay sandbox/live). Empty + non-demo = NOT_CONFIGURED (no fake paid).
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""  # webhook HMAC only — never put in frontend
     payment_provider: str = "razorpay"  # razorpay | stub
 
-    # SMTP. Empty host + non-demo = stub email.
+    # SMTP. Empty host + non-demo = NOT_CONFIGURED (no fake delivered).
+    # SMTP_FROM should be a non-reply address once the school configures mail.
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_use_tls: bool = True
+    school_display_name: str = "Queen Mira International School"
 
-    # WhatsApp provider HTTP API. Empty URL + non-demo = stub.
+    # WhatsApp provider HTTP API. Empty URL + non-demo = NOT_CONFIGURED.
     whatsapp_api_url: str = ""
     whatsapp_api_token: str = ""
     whatsapp_from: str = ""
-
     # RFID / eSSL punch import — off until school confirms.
     rfid_import_enabled: bool = False
+
+    # ProTrack365 Open API (https://api.protrack365.com) — bus GPS.
+    # Admin panel account sees the full fleet; parent panel is the school parent login.
+    protrack_admin_account: str = ""
+    protrack_admin_password: str = ""
+    protrack_parent_account: str = ""
+    protrack_parent_password: str = ""
 
     @property
     def is_sqlite(self) -> bool:
