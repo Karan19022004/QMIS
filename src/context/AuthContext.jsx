@@ -96,6 +96,7 @@ export const ROLE_HOME_PATHS = {
     [ROLES.QUALITY_AUDITOR]: '/quality-auditor/dashboard',
     [ROLES.HR]: '/hr/dashboard',
     [ROLES.ACCOUNT_HEAD]: '/account-head/dashboard',
+    [ROLES.FINANCE_ASSISTANT]: '/account-head/dashboard',
     [ROLES.DRIVER]: '/driver/vehicle-management/vehicle-details',
 }
 

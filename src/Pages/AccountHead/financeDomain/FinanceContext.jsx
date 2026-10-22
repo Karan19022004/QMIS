@@ -10,6 +10,7 @@ import React, {
 import {
     ACTOR_FINANCE_HEAD,
     CHEQUE_STATUSES,
+    DEFAULT_ACADEMIC_YEAR,
     DEFAULT_BANK_ACCOUNT_ID,
     PAYMENT_MODES,
     SOURCE_MODULES,
@@ -29,6 +30,8 @@ import {
     hydrateInstallment,
     isChequePostDated,
     resolveConcessionAmount,
+    normalizeAcademicYear,
+    sameAcademicYear,
     summarizeStudentFees,
     toIsoDate,
     validatePaymentInput,
@@ -78,6 +81,12 @@ import { FLEET_VEHICLES } from '../TransportFinance/transportFinanceData'
 import { RECHARGE_RECORDS, USER_WALLETS } from '../WalletManagement/walletManagementData'
 import { PENDING_REQUESTS } from '../Approvals/approvalsData'
 import { buildCampusFeeLedger } from './financeBootstrap'
+import {
+    buildPaymentSchedule,
+    scheduleToInstallments,
+} from '../FeesManagement/feePaymentSchedule'
+
+const classKey = (value) => String(value || '').trim().toLowerCase()
 
 const FinanceContext = createContext(null)
 
@@ -122,6 +131,7 @@ const apiMode = () => isApiFinanceEnabled()
 /** Roles that may call GET /finance/state. Others skip hydrate (avoids pre-login + cross-role 403 noise). */
 const FINANCE_API_ROLES = new Set([
     ROLES.ACCOUNT_HEAD,
+    ROLES.FINANCE_ASSISTANT,
     ROLES.ADMIN,
     ROLES.SUPER_ADMIN,
 ])
@@ -686,9 +696,231 @@ export const FinanceProvider = ({ children }) => {
         return { success: false, message: 'Finance API is required to queue receipt delivery.' }
     }, [applyFinanceData])
 
+    const addFeeCategory = useCallback((name) => {
+        const id = `CAT-${name.toUpperCase().replace(/\s+/g, '-')}`
+        setFeeCategories((prev) => {
+            if (prev.some((item) => item.id === id)) return prev
+            return [...prev, { id, name, code: id.replace('CAT-', ''), active: true }]
+        })
+        return id
+    }, [])
+
+    const buildSnapshotPayload = useCallback((overrides = {}) => ({
+        students,
+        feeCategories,
+        feeStructures,
+        fineRules,
+        bankAccounts,
+        posTerminals,
+        concessions,
+        installments,
+        annualBudget,
+        chartOfAccounts,
+        journalVouchers,
+        bookFeeBreakup,
+        transactions,
+        receipts,
+        cheques,
+        paymentLinks,
+        auditLog,
+        glEntries,
+        dayBookEntries,
+        cashBookEntries,
+        bankBookEntries,
+        onlineBookEntries,
+        reconciliationItems,
+        wallets,
+        walletRecharges,
+        transportFleet,
+        approvals,
+        sequence: { ...seq.current },
+        meta: { seeded: true },
+        ...overrides,
+    }), [
+        annualBudget,
+        approvals,
+        auditLog,
+        bankAccounts,
+        bankBookEntries,
+        bookFeeBreakup,
+        cashBookEntries,
+        chartOfAccounts,
+        cheques,
+        concessions,
+        dayBookEntries,
+        feeCategories,
+        feeStructures,
+        fineRules,
+        glEntries,
+        installments,
+        journalVouchers,
+        onlineBookEntries,
+        paymentLinks,
+        posTerminals,
+        receipts,
+        reconciliationItems,
+        students,
+        transactions,
+        transportFleet,
+        walletRecharges,
+        wallets,
+    ])
+
+    const flushFinanceToApi = useCallback(async (overrides = {}) => {
+        const data = buildSnapshotPayload(overrides)
+        if (isApiFinanceEnabled()) {
+            saveFinanceState(data)
+        } else {
+            const payload = saveFinanceState(data)
+            if (payload?.savedAt) setLastSavedAt(payload.savedAt)
+            return { success: true, api: false, savedAt: payload?.savedAt || null }
+        }
+        if (!apiHydratedRef.current) {
+            return {
+                success: true,
+                api: false,
+                pending: true,
+                message: 'Saved locally — finance API not hydrated yet; will sync when ready.',
+            }
+        }
+        if (pushTimerRef.current) {
+            window.clearTimeout(pushTimerRef.current)
+            pushTimerRef.current = null
+        }
+        try {
+            const result = await pushFinanceState(data)
+            if (result?.savedAt) setLastSavedAt(result.savedAt)
+            setFinanceError(null)
+            return { success: true, api: true, savedAt: result?.savedAt || null }
+        } catch (error) {
+            const message = error?.message || 'Finance API push failed'
+            setFinanceError(message)
+            return { success: false, api: true, message }
+        }
+    }, [buildSnapshotPayload])
+
+    const saveFeeCategories = useCallback(async (names = []) => {
+        const labels = [...new Set((names || []).map((name) => String(name || '').trim()).filter(Boolean))]
+        if (!labels.length) {
+            return { categoryIds: [], persist: { success: false, message: 'No categories selected.' } }
+        }
+        const nextCategories = [...feeCategories]
+        const categoryIds = labels.map((label) => {
+            const id = `CAT-${label.toUpperCase().replace(/\s+/g, '-')}`
+            if (!nextCategories.some((item) => item.id === id)) {
+                nextCategories.push({ id, name: label, code: id.replace('CAT-', ''), active: true })
+            }
+            return id
+        })
+        setFeeCategories(nextCategories)
+        const persist = await flushFinanceToApi({ feeCategories: nextCategories })
+        appendAudit({
+            action: 'FEE_CATEGORIES_SAVED',
+            entity: 'FeeCategory',
+            entityId: 'batch',
+            newValue: labels.join(', '),
+            reason: 'Configure / Define fee categories',
+        })
+        return { categoryIds, persist, feeCategories: nextCategories }
+    }, [appendAudit, feeCategories, flushFinanceToApi])
+
+    /**
+     * Define a fee structure with frequency split, generate parent/student installments, persist to API.
+     */
+    const defineFeeStructure = useCallback(async (structure = {}, options = {}) => {
+        const id = structure.id || `FS-${Date.now()}`
+        const schedule = buildPaymentSchedule({
+            amount: structure.amount,
+            frequency: structure.frequency || 'ONE_TIME',
+            academicYear: structure.academicYear || DEFAULT_ACADEMIC_YEAR,
+            startDate: options.startDate || structure.startDate || '',
+            dueDayOfMonth: structure.dueDayOfMonth || 10,
+        })
+        const nextStructure = {
+            ...structure,
+            id,
+            status: structure.status || 'ACTIVE',
+            paymentSchedule: schedule,
+        }
+        const baseStructures = options.feeStructures || feeStructures
+        const baseInstallments = options.installments || installments
+        const baseCategories = options.feeCategories || feeCategories
+        const nextStructures = [nextStructure, ...baseStructures.filter((row) => row.id !== id)]
+
+        const targetClass = classKey(structure.className)
+        const targetYear = String(structure.academicYear || '').trim()
+        const matchingStudents = students.filter((student) => {
+            if (classKey(student.className) !== targetClass) return false
+            if (!targetYear) return true
+            const studentYear = String(student.academicYear || '').trim()
+            return !studentYear || sameAcademicYear(studentYear, targetYear)
+        })
+
+        const generated = matchingStudents.flatMap((student) => scheduleToInstallments({
+            schedule,
+            studentId: student.id,
+            academicYear: normalizeAcademicYear(
+                student.academicYear || structure.academicYear || DEFAULT_ACADEMIC_YEAR,
+            ) || DEFAULT_ACADEMIC_YEAR,
+            structureId: id,
+            feeCategoryId: structure.feeCategoryId,
+            feeHead: structure.feeHead,
+        }))
+
+        const nextInstallments = (() => {
+            const keep = baseInstallments.filter((row) => {
+                if (row.feeStructureId !== id) return true
+                const paid = Number(row.paidAmount) || 0
+                return paid > 0 || ['PAID', 'PARTIALLY_PAID', 'WAIVED'].includes(row.status)
+            })
+            const protectedKeys = new Set(
+                keep
+                    .filter((row) => row.feeStructureId === id)
+                    .map((row) => `${row.studentId}:${row.scheduleIndex ?? row.dueDate}`),
+            )
+            const fresh = generated.filter(
+                (row) => !protectedKeys.has(`${row.studentId}:${row.scheduleIndex ?? row.dueDate}`),
+            )
+            return [...fresh, ...keep]
+        })()
+
+        setFeeStructures(nextStructures)
+        setInstallments(nextInstallments)
+        appendAudit({
+            action: 'FEE_STRUCTURE_CHANGED',
+            entity: 'FeeStructure',
+            entityId: id,
+            newValue: `${structure.feeHead} ${formatCurrency(structure.amount)} · ${schedule.planLabel} · ${generated.length} installment(s)`,
+            reason: 'Structure defined with payment schedule',
+        })
+
+        const persist = await flushFinanceToApi({
+            feeCategories: baseCategories,
+            feeStructures: nextStructures,
+            installments: nextInstallments,
+        })
+
+        return {
+            id,
+            schedule,
+            studentsMatched: matchingStudents.length,
+            installmentsCreated: generated.length,
+            persist,
+            feeStructures: nextStructures,
+            installments: nextInstallments,
+        }
+    }, [appendAudit, feeCategories, feeStructures, flushFinanceToApi, installments, students])
+
+    /** Legacy sync helper — prefer defineFeeStructure for schedule + API flush. */
     const addFeeStructure = useCallback((structure) => {
         const id = structure.id || `FS-${Date.now()}`
-        setFeeStructures((prev) => [{ ...structure, id, status: structure.status || 'ACTIVE' }, ...prev])
+        const schedule = structure.paymentSchedule || buildPaymentSchedule({
+            amount: structure.amount,
+            frequency: structure.frequency || 'ONE_TIME',
+            academicYear: structure.academicYear || DEFAULT_ACADEMIC_YEAR,
+            dueDayOfMonth: structure.dueDayOfMonth || 10,
+        })
+        setFeeStructures((prev) => [{ ...structure, id, status: structure.status || 'ACTIVE', paymentSchedule: schedule }, ...prev])
         appendAudit({
             action: 'FEE_STRUCTURE_CHANGED',
             entity: 'FeeStructure',
@@ -699,14 +931,57 @@ export const FinanceProvider = ({ children }) => {
         return id
     }, [appendAudit])
 
-    const addFeeCategory = useCallback((name) => {
-        const id = `CAT-${name.toUpperCase().replace(/\s+/g, '-')}`
-        setFeeCategories((prev) => {
-            if (prev.some((item) => item.id === id)) return prev
-            return [...prev, { id, name, code: id.replace('CAT-', ''), active: true }]
+    /**
+     * Remove a fee structure and its unpaid installments; keep paid/partial rows for audit.
+     */
+    const deleteFeeStructure = useCallback(async (structureId) => {
+        const id = String(structureId || '')
+        if (!id) return { success: false, message: 'Missing fee structure id.' }
+        const existing = feeStructures.find((row) => row.id === id)
+        if (!existing) return { success: false, message: 'Fee structure not found.' }
+
+        const nextStructures = feeStructures.filter((row) => row.id !== id)
+        let removedInstallments = 0
+        let keptPaid = 0
+        const nextInstallments = installments.filter((row) => {
+            if (row.feeStructureId !== id) return true
+            const paid = Number(row.paidAmount) || 0
+            if (paid > 0 || ['PAID', 'PARTIALLY_PAID', 'WAIVED'].includes(row.status)) {
+                keptPaid += 1
+                return true
+            }
+            removedInstallments += 1
+            return false
         })
-        return id
-    }, [])
+
+        setFeeStructures(nextStructures)
+        setInstallments(nextInstallments)
+        appendAudit({
+            action: 'FEE_STRUCTURE_DELETED',
+            entity: 'FeeStructure',
+            entityId: id,
+            oldValue: `${existing.feeHead} ${formatCurrency(existing.amount)} · ${existing.className}`,
+            reason: 'Structure deleted from Configured Fee Structures',
+        })
+
+        const persist = await flushFinanceToApi({
+            feeStructures: nextStructures,
+            installments: nextInstallments,
+        })
+
+        return {
+            success: Boolean(persist?.success),
+            persist,
+            removedInstallments,
+            keptPaidInstallments: keptPaid,
+            structure: existing,
+        }
+    }, [appendAudit, feeStructures, flushFinanceToApi, installments])
+
+    /**
+     * Apply existing fee structures onto finance students as unpaid installments.
+     * Never replaces Account Head–defined categories or structures with sample data.
+     */
 
     /**
      * Fill empty fee masters + unpaid installments for enrolled students.
@@ -1296,6 +1571,9 @@ export const FinanceProvider = ({ children }) => {
         setApprovals,
         addFeeStructure,
         addFeeCategory,
+        saveFeeCategories,
+        defineFeeStructure,
+        deleteFeeStructure,
         bootstrapDemoFeeLedger,
         setFeeStructures,
         setFineRules,
@@ -1324,6 +1602,9 @@ export const FinanceProvider = ({ children }) => {
     }), [
         annualBudget,
         addFeeCategory,
+        saveFeeCategories,
+        defineFeeStructure,
+        deleteFeeStructure,
         addFeeStructure,
         bootstrapDemoFeeLedger,
         addManualEntry,

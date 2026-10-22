@@ -60,7 +60,7 @@ const pendingFindings = getPendingFindings()
 const pendingApprovals = getPendingApprovalCount()
 const complianceScore = getComplianceScore()
 const fleetSummary = getFleetSummary()
-const departmentRows = getComplianceData().departments
+const departmentRows = getComplianceData()?.departments || []
 
 export const EXECUTIVE_KPI_CARDS = [
     {

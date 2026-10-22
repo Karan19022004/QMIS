@@ -32,10 +32,25 @@ export const saveComplianceData = (data) => {
     saveCampusJson(STORAGE_KEY, data)
 }
 
+/** Campus API / hydrate may store a bare department array; dashboard expects `{ summary, departments }`. */
+const normalizeComplianceData = (stored) => {
+    if (Array.isArray(stored)) {
+        return { summary: COMPLIANCE_SUMMARY, departments: stored }
+    }
+    if (stored && typeof stored === 'object') {
+        const departments = Array.isArray(stored.departments) ? stored.departments : DEFAULT_DEPARTMENT_ROWS
+        return {
+            summary: stored.summary && typeof stored.summary === 'object' ? stored.summary : COMPLIANCE_SUMMARY,
+            departments,
+        }
+    }
+    return { summary: COMPLIANCE_SUMMARY, departments: DEFAULT_DEPARTMENT_ROWS }
+}
+
 export const getComplianceData = () => {
     try {
         const stored = loadCampusJson(STORAGE_KEY, null)
-    if (stored) return stored
+        if (stored) return normalizeComplianceData(stored)
     } catch {
         /* ignore */
     }

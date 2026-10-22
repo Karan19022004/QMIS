@@ -17,15 +17,18 @@ const takeSessionNotice = () => {
     }
 }
 
-/** Local demo seed accounts only — not for production. Click fills the form. */
+/** Local demo seed accounts only — not for production. Click fills the form; edit here anytime. */
 const DEMO_TEST_LOGINS = [
     { role: 'Super Admin', email: 'superadmin@qmis.edu', password: 'superadmin123' },
     { role: 'Admin', email: 'admin@qmis.edu', password: 'admin123' },
-    { role: 'Account Head', email: 'accounthead@qmis.edu', password: 'accounts123' },
-    { role: 'HR', email: 'hr@qmis.edu', password: 'hr12345' },
+    { role: 'Director', email: 'director@qmis.edu', password: 'director123' },
+    { role: 'Principal', email: 'principal@qmis.edu', password: 'principal123' },
+    { role: 'Coordinator', email: 'coordinator@qmis.edu', password: 'coord123' },
     { role: 'Teacher', email: 'teacher@qmis.edu', password: 'teacher123' },
     { role: 'PRM', email: 'prm@qmis.edu', password: 'prm12345' },
-    { role: 'Principal', email: 'principal@qmis.edu', password: 'principal123' },
+    { role: 'HR', email: 'hr@qmis.edu', password: 'hr12345' },
+    { role: 'Account Head (Finance)', email: 'accounthead@qmis.edu', password: 'accounts123' },
+    { role: 'Finance Assistant (limited)', email: 'finance.assistant@qmis.edu', password: 'finance123' },
 ]
 
 const SignIn = () => {
@@ -198,7 +201,7 @@ const SignIn = () => {
                         {showDemoLogins && (
                             <div className="mt-3 space-y-2">
                                 <p className="text-xs leading-relaxed text-[#5C6B82]">
-                                    Local demo only. Click a role to fill email and password, then press Login.
+                                    Temporary local demo list (edit DEMO_TEST_LOGINS in SignIn.jsx). Click a role to fill, then press Login.
                                 </p>
                                 <ul className="space-y-1.5">
                                     {DEMO_TEST_LOGINS.map((account) => (
@@ -212,12 +215,15 @@ const SignIn = () => {
                                                     <span className="block text-sm font-semibold text-[#1B2B4B]">
                                                         {account.role}
                                                     </span>
-                                                    <span className="mt-0.5 block truncate text-xs text-[#5C6B82]">
+                                                    <span className="mt-0.5 block truncate font-mono text-[11px] text-[#5C6B82]">
                                                         {account.email}
                                                     </span>
+                                                    <span className="mt-0.5 block font-mono text-[11px] text-[#24324A]">
+                                                        pw: {account.password}
+                                                    </span>
                                                 </span>
-                                                <span className="shrink-0 rounded bg-white px-2 py-1 font-mono text-[11px] text-[#24324A] ring-1 ring-[#E8EEF4]">
-                                                    {account.password}
+                                                <span className="shrink-0 self-center rounded bg-white px-2 py-1 text-[11px] font-medium text-[#515DEF] ring-1 ring-[#E8EEF4]">
+                                                    Fill
                                                 </span>
                                             </button>
                                         </li>
