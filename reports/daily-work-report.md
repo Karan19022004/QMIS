@@ -8,6 +8,21 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 21 October 2026 — Restore partner portal APIs onto ERP1
+
+**Status:** Gaps from `main` / partner tip restored on `ERP1` and pushed to `origin/ERP1` only.
+
+### Done
+- Restored `GET /parents`, parent `/me/children` placement fields, `PUT /exams/{id}`, lesson-plan `/complete`
+- Restored `Exam.academic_year` model field required by partner exam service
+- Fixed teacher student-list test to create Grade 2 + class-teacher pin (seed has no classes)
+
+### Still open
+- Live provider verification; remaining localStorage PARTIAL portals
+- `main` untouched (ERP1 only)
+
+---
+
 ## 21 October 2026 — Final verification before commit
 
 **Status:** Branch `fix/integrations-ready-no-creds` verified; commit/push left to manager.

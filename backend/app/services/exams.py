@@ -24,6 +24,7 @@ from app.models import (
     Exam,
     ExamType,
     ExamWeightage,
+    HrEmployee,
     MarkEntry,
     MarksBatch,
     Student,
@@ -38,7 +39,14 @@ VIEW_ALL_ROLES = {"coordinator", "principal", "director", "jointdirector", "admi
 # Doc weightage pattern types first, then the exact list the frontend already offers
 # (src/Common/demoDomain/examTypes.js) so both sides use the same evaluation categories.
 DEFAULT_TYPES = (
-    [("CA", "CA / RCT"), ("MIDTERM", "Midterm"), ("FINAL", "Final / Annual")]
+    [
+        ("CA", "CA / RCT"),
+        ("MIDTERM", "MIDTERM"),
+        ("QUARTERLY", "Quarterly"),
+        ("HALF_YEARLY", "Half Yearly"),
+        ("ANNUAL", "Annual"),
+        ("FINAL", "Final / Annual"),
+    ]
     + [(f"MPT{i}", f"Monthly Progress Tracker {i}") for i in range(1, 7)]
     + [(f"SPLIT{i}", f"Split Test {i}") for i in range(1, 5)]
     + [("TERM1_PT", "Term 1 Progress Tracker"), ("TERM2_PT", "Term 2 Progress Tracker")]
@@ -120,31 +128,46 @@ def _get_type(db: Session, actor: User, type_id: UUID | None = None, code: str |
 def _exam_out(db: Session, exam: Exam) -> dict:
     appr = _approval(db, exam.approval_id)
     etype = db.get(ExamType, exam.exam_type_id)
+    appr_out = approvals._out(appr) if appr else None
     return {
         "id": str(exam.id),
         "name": exam.name,
         "examType": etype.code if etype else "",
         "examTypeName": etype.name if etype else "",
         "className": exam.class_name,
+        "academicYear": exam.academic_year or "",
         "startDate": exam.start_date.isoformat(),
         "endDate": exam.end_date.isoformat(),
         "status": _status(appr, final="approved"),
         "approvalId": str(appr.id) if appr else None,
-        "awaitingRole": approvals._out(appr)["awaitingRole"] if appr else None,
+        "awaitingRole": appr_out["awaitingRole"] if appr_out else None,
+        "awaitingRoles": appr_out.get("awaitingRoles") if appr_out else [],
     }
 
 
-def create_exam(db: Session, actor: User, *, name, exam_type, class_name, start_date, end_date) -> dict:
+def create_exam(
+    db: Session,
+    actor: User,
+    *,
+    name,
+    exam_type,
+    class_name,
+    start_date,
+    end_date,
+    academic_year: str | None = None,
+) -> dict:
     if end_date < start_date:
         fail(400, "validation_error", "endDate cannot be before startDate.")
     etype = _get_type(db, actor, code=exam_type)
     if not etype.active:
         fail(400, "validation_error", "Exam type is disabled.")
+    year_label = (academic_year or "").strip() or None
     exam = Exam(
         campus_id=actor.campus_id,
         exam_type_id=etype.id,
         name=name.strip(),
         class_name=class_name.strip(),
+        academic_year=year_label,
         start_date=start_date,
         end_date=end_date,
         created_by=actor.id,
@@ -164,19 +187,93 @@ def _load_exam(db: Session, actor: User, exam_id: UUID) -> Exam:
     return exam
 
 
-def submit_exam(db: Session, actor: User, exam_id: UUID) -> dict:
-    exam = _load_exam(db, actor, exam_id)
-    if exam.created_by != actor.id:
-        fail(403, "forbidden", "Only the creator can submit this exam.")
-    if exam.approval_id:
-        fail(409, "conflict", "Already submitted.")
+_EXAM_EDIT_ROLES = {
+    "principal",
+    "director",
+    "jointdirector",
+    "admin",
+    "superadmin",
+    "managing_director",
+}
+
+
+def _can_edit_exam(db: Session, actor: User, exam: Exam) -> bool:
+    role = role_code_for(db, actor)
+    if role in _EXAM_EDIT_ROLES:
+        return True
+    return exam.created_by == actor.id
+
+
+def _submit_exam_approval(db: Session, actor: User, exam: Exam) -> dict:
     appr = approvals.submit(
-        db, actor, entity_type="exam_timetable", entity_id=str(exam.id),
-        title=f"Exam {exam.name} {exam.class_name}", chain=None, internal=True,
+        db,
+        actor,
+        entity_type="exam_timetable",
+        entity_id=str(exam.id),
+        title=f"Exam {exam.name} {exam.class_name}",
+        chain=None,
+        internal=True,
     )
     exam.approval_id = UUID(appr["id"])
     db.commit()
     return _exam_out(db, exam)
+
+
+def submit_exam(db: Session, actor: User, exam_id: UUID) -> dict:
+    exam = _load_exam(db, actor, exam_id)
+    if not _can_edit_exam(db, actor, exam):
+        fail(403, "forbidden", "You are not allowed to submit this exam.")
+    if exam.approval_id:
+        existing = db.get(ApprovalRequest, exam.approval_id)
+        if existing is not None and existing.status == "pending":
+            fail(409, "conflict", "Already submitted.")
+        # Prior approve/deny — clear so a fresh chain can open after create/edit.
+        exam.approval_id = None
+        db.flush()
+    return _submit_exam_approval(db, actor, exam)
+
+
+def update_exam(
+    db: Session,
+    actor: User,
+    exam_id: UUID,
+    *,
+    name,
+    exam_type,
+    class_name,
+    start_date,
+    end_date,
+    academic_year: str | None = None,
+) -> dict:
+    """Update campus exam fields and reopen Principal/Director approval."""
+    if end_date < start_date:
+        fail(400, "validation_error", "endDate cannot be before startDate.")
+    exam = _load_exam(db, actor, exam_id)
+    if not _can_edit_exam(db, actor, exam):
+        fail(403, "forbidden", "You are not allowed to edit this exam.")
+    etype = _get_type(db, actor, code=exam_type)
+    if not etype.active:
+        fail(400, "validation_error", "Exam type is disabled.")
+
+    exam.exam_type_id = etype.id
+    exam.name = name.strip()
+    exam.class_name = class_name.strip()
+    exam.academic_year = (academic_year or "").strip() or None
+    exam.start_date = start_date
+    exam.end_date = end_date
+    # Drop prior approval so save returns the timetable to Pending.
+    exam.approval_id = None
+    db.flush()
+    write_audit(
+        db,
+        action="EXAM_UPDATED",
+        entity_type="exam",
+        entity_id=str(exam.id),
+        actor_id=actor.id,
+        campus_id=actor.campus_id,
+        details=f"{exam.class_name}/{etype.code}",
+    )
+    return _submit_exam_approval(db, actor, exam)
 
 
 def list_exams(db: Session, actor: User, *, class_name: str | None, status: str | None) -> list[dict]:
@@ -254,10 +351,24 @@ def set_weightage(db: Session, actor: User, class_name: str, weights: list[dict]
 # ------------------------------------------------------------------ marks batches
 
 
+def _teacher_display_name(db: Session, teacher: User | None) -> str:
+    if teacher is None:
+        return ""
+    employee = db.scalar(select(HrEmployee).where(HrEmployee.user_id == teacher.id))
+    if employee is not None:
+        label = f"{employee.first_name or ''} {employee.last_name or ''}".strip()
+        if label:
+            return label
+    if teacher.email:
+        return teacher.email.split("@")[0].replace(".", " ").title()
+    return ""
+
+
 def _batch_out(db: Session, batch: MarksBatch, *, entries: bool = False) -> dict:
     appr = _approval(db, batch.approval_id)
     exam = db.get(Exam, batch.exam_id)
     teacher = db.get(User, batch.teacher_id)
+    appr_out = approvals._out(appr) if appr else None
     data = {
         "id": str(batch.id),
         "examId": str(batch.exam_id),
@@ -268,9 +379,11 @@ def _batch_out(db: Session, batch: MarksBatch, *, entries: bool = False) -> dict
         "maxMarks": batch.max_marks,
         "version": batch.version,
         "teacherEmail": teacher.email if teacher else "",
+        "teacherName": _teacher_display_name(db, teacher),
         "status": _status(appr, final="published"),
         "approvalId": str(appr.id) if appr else None,
-        "awaitingRole": approvals._out(appr)["awaitingRole"] if appr else None,
+        "awaitingRole": appr_out["awaitingRole"] if appr_out else None,
+        "awaitingRoles": appr_out.get("awaitingRoles") if appr_out else [],
     }
     if entries:
         rows = db.scalars(select(MarkEntry).where(MarkEntry.batch_id == batch.id)).all()
