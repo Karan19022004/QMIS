@@ -23,11 +23,7 @@ import {
     isDemoLoginEnabled,
 } from '../services/apiClient'
 import { apiChangePassword, apiLogin, apiLogout, apiMe } from '../services/authApi'
-import { clearLeaveRequestMemory, hydrateLeaveRequestsFromApi } from '../Common/LeaveRequest/leaveRequestData'
-import { clearClassTimetableMemory } from '../Pages/Principal/ClassTimetable/classTimetableData'
-import { clearCampusJsonMemory } from '../services/campusJsonStore'
-import { clearTeacherAllocationMemory } from '../Pages/Principal/TeacherAllocation/teacherAllocationData'
-import { clearTeacherAssignmentCache } from '../Common/Teacher/teacherAssignedClasses'
+import { clearLeaveRequestMemory } from '../Common/LeaveRequest/leaveRequestData'
 import { clearEscalationMemory } from '../Common/EscalationManagement/escalationData'
 import { clearAnnouncementsMemory } from '../Common/Announcement/announcementData'
 import { clearCalendarMemory } from '../Common/AcademicCalendar/academicCalendarData'
@@ -49,30 +45,31 @@ const demoPassword = () => String(import.meta.env.VITE_DEMO_PASSWORD || '')
 /** Profile emails used to pre-fill the sign-in form and label menus. These are not credentials. */
 export const FAKE_CREDENTIALS = {
     [ROLES.SUPER_ADMIN]: { email: 'superadmin@qmis.edu' },
-    [ROLES.ADMIN]: { email: 'admin@school.com' },
-    [ROLES.STUDENT]: { email: 'student@school.com' },
-    [ROLES.PARENT]: { email: 'parent@school.com' },
-    [ROLES.LIBRARIAN]: { email: 'librarian@school.com' },
-    [ROLES.PRM]: { email: 'prm@school.com' },
-    [ROLES.GATEKEEPER]: { email: 'gatekeeper@school.com' },
-    [ROLES.GATEKEEPER_MANAGER]: { email: 'gatekeepermanager@school.com' },
-    [ROLES.DIRECTOR]: { email: 'director@school.com' },
-    [ROLES.PRINCIPAL]: { email: 'principal@school.com' },
-    [ROLES.CANTEEN_MANAGER]: { email: 'canteenmanager@school.com' },
-    [ROLES.IT_SUPPORT_MANAGER]: { email: 'itsupportmanager@school.com' },
-    [ROLES.STATIONERY_STORE_MANAGER]: { email: 'stationerystoremanager@school.com' },
-    [ROLES.HOUSEKEEPING_MANAGER]: { email: 'housekeepingmanager@school.com' },
-    [ROLES.TRANSPORT_MANAGER]: { email: 'transportmanager@school.com' },
-    [ROLES.TEACHER]: { email: 'teacher@school.com' },
-    [ROLES.COORDINATOR]: { email: 'coordinator@school.com' },
-    [ROLES.JOINT_DIRECTOR]: { email: 'jointdirector@school.com' },
-    [ROLES.JOINT_DIRECTOR_ASSISTANT]: { email: 'jointdirectorassistant@school.com' },
-    [ROLES.JOINT_DIRECTOR_AUDIT]: { email: 'jointdirectoraudit@school.com' },
-    [ROLES.PROCESS_AUDITOR]: { email: 'processauditor@school.com' },
-    [ROLES.QUALITY_AUDITOR]: { email: 'qualityauditor@school.com' },
-    [ROLES.HR]: { email: 'hr@school.com' },
+    [ROLES.ADMIN]: { email: 'admin@qmis.edu' },
+    [ROLES.STUDENT]: { email: 'student@qmis.edu' },
+    [ROLES.PARENT]: { email: 'parent@qmis.edu' },
+    [ROLES.LIBRARIAN]: { email: 'librarian@qmis.edu' },
+    [ROLES.PRM]: { email: 'prm@qmis.edu' },
+    [ROLES.GATEKEEPER]: { email: 'gatekeeper@qmis.edu' },
+    [ROLES.GATEKEEPER_MANAGER]: { email: 'gatekeepermanager@qmis.edu' },
+    [ROLES.DIRECTOR]: { email: 'director@qmis.edu' },
+    [ROLES.PRINCIPAL]: { email: 'principal@qmis.edu' },
+    [ROLES.CANTEEN_MANAGER]: { email: 'canteenmanager@qmis.edu' },
+    [ROLES.IT_SUPPORT_MANAGER]: { email: 'itsupportmanager@qmis.edu' },
+    [ROLES.STATIONERY_STORE_MANAGER]: { email: 'stationerystoremanager@qmis.edu' },
+    [ROLES.HOUSEKEEPING_MANAGER]: { email: 'housekeepingmanager@qmis.edu' },
+    [ROLES.TRANSPORT_MANAGER]: { email: 'transportmanager@qmis.edu' },
+    [ROLES.TEACHER]: { email: 'teacher@qmis.edu' },
+    [ROLES.COORDINATOR]: { email: 'coordinator@qmis.edu' },
+    [ROLES.JOINT_DIRECTOR]: { email: 'jointdirector@qmis.edu' },
+    [ROLES.JOINT_DIRECTOR_ASSISTANT]: { email: 'jointdirectorassistant@qmis.edu' },
+    [ROLES.JOINT_DIRECTOR_AUDIT]: { email: 'jointdirectoraudit@qmis.edu' },
+    [ROLES.PROCESS_AUDITOR]: { email: 'processauditor@qmis.edu' },
+    [ROLES.QUALITY_AUDITOR]: { email: 'qualityauditor@qmis.edu' },
+    [ROLES.HR]: { email: 'hr@qmis.edu' },
     [ROLES.ACCOUNT_HEAD]: { email: 'accounthead@qmis.edu' },
-    [ROLES.DRIVER]: { email: 'driver@school.com' },
+    [ROLES.FINANCE_ASSISTANT]: { email: 'finance.assistant@qmis.edu' },
+    [ROLES.DRIVER]: { email: 'driver@qmis.edu' },
 }
 
 export const ROLE_HOME_PATHS = {
@@ -100,6 +97,7 @@ export const ROLE_HOME_PATHS = {
     [ROLES.QUALITY_AUDITOR]: '/quality-auditor/dashboard',
     [ROLES.HR]: '/hr/dashboard',
     [ROLES.ACCOUNT_HEAD]: '/account-head/dashboard',
+    [ROLES.FINANCE_ASSISTANT]: '/account-head/dashboard',
     [ROLES.DRIVER]: '/driver/vehicle-management/vehicle-details',
 }
 
@@ -173,15 +171,6 @@ export const AuthProvider = ({ children }) => {
         window.addEventListener(SESSION_EXPIRED_EVENT, endLocalSession)
         return () => window.removeEventListener(SESSION_EXPIRED_EVENT, endLocalSession)
     }, [endLocalSession])
-
-    // Prefetch leave inboxes as soon as a backend session exists so leave pages are not empty
-    // on the first paint after a hard reload (lists only read the in-memory/session cache).
-    useEffect(() => {
-        if (!isApiAuthEnabled() || !isAuthenticated) return undefined
-        if (!getAccessToken()) return undefined
-        hydrateLeaveRequestsFromApi()
-        return undefined
-    }, [isAuthenticated, email])
 
     // On load, never trust the role kept in sessionStorage by itself: confirm it with the server
     // using the real token, so editing storage cannot grant a role in the UI.
@@ -374,10 +363,6 @@ export const AuthProvider = ({ children }) => {
         }
         sessionStorage.removeItem(STORAGE_KEY)
         clearLeaveRequestMemory() // server-sourced leave requests and escalations are held in memory; drop them with the session
-        clearClassTimetableMemory()
-        clearCampusJsonMemory()
-        clearTeacherAllocationMemory()
-        clearTeacherAssignmentCache()
         clearEscalationMemory()
         clearStudentDocumentsMemory() // uploaded-document lists are server data too
         clearEmployeeDocumentsMemory()

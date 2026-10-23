@@ -7,58 +7,41 @@ import EntryClosureGate from '../demoDomain/EntryClosureGate'
 import { entryBlocked } from '../demoDomain/governance'
 import IncompleteMarksModal from '../../Pages/Teacher/StudentEvaluation/MarkEntry/Components/IncompleteMarksModal'
 import SubmitMarksConfirmModal from '../../Pages/Teacher/StudentEvaluation/MarkEntry/Components/SubmitMarksConfirmModal'
-import { hydrateEnrolledStudentsFromApi } from '../StudentDatabase/enrolledStudentsData'
-import { useTeacherAssignments } from '../Teacher/useTeacherAssignments'
 import {
     ACADEMIC_YEARS,
+    CLASSES,
     EXAM_OPTIONS,
+    SECTIONS,
     STATUS_FILTERS,
+    SUBJECTS,
+    TERMS,
     buildContextKey,
-    classesForExamName,
     createEmptyEntries,
-    examMatchesAcademicYear,
     filterStudentsForTable,
-    findExamForNameAndClass,
     formatClassLabel,
     getEntryWithComputed,
     getExamMaxMarks,
     getMarkEntryStats,
     getSessionStatusColor,
     getSessionStatusLabel,
-    getStudentsForMarkEntry,
     isSessionLocked,
     loadMarkEntrySession,
     resultBadgeColor,
     saveMarkEntrySession,
     submitMarkEntrySession,
-    uniqueExamNames,
 } from './markEntryApprovalData'
 import {
     canUseExamsApi,
     createMarksBatchApi,
     getMarksBatchApi,
+    listExamsApi,
     listMarksBatchesApi,
+    mapExamFromApi,
     mapMarksBatchFromApi,
     submitMarksBatchApi,
     updateMarksBatchEntriesApi,
 } from '../../services/examsApi'
-import { isApiStudentsEnabled } from '../../services/apiClient'
 import { listStudentsApi, mapStudentListFromApi } from '../../services/studentsApi'
-import { loadAcademicYearOptions } from '../../Pages/Principal/ClassTimetable/classTimetableData'
-import {
-    DISTRIBUTION,
-    loadMergedExamRecords,
-} from '../ExamSchedule/examScheduleData'
-import { getTeacherSubjectOptions } from '../Teacher/teacherAssignedClasses'
-import { useAuth } from '../../context/AuthContext'
-
-const parseApiDate = (value) => {
-    if (!value) return null
-    const iso = String(value).slice(0, 10)
-    const [year, month, day] = iso.split('-').map(Number)
-    if (!year || !month || !day) return null
-    return new Date(year, month - 1, day)
-}
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-2.5 w-full bg-white'
@@ -69,6 +52,13 @@ const formatDate = (date) => {
     const month = String(date.getMonth() + 1).padStart(2, '0')
     const year = date.getFullYear()
     return `${day}/${month}/${year}`
+}
+
+const parseDisplayDate = (value) => {
+    if (!value) return new Date()
+    const [day, month, year] = value.split('/').map(Number)
+    if (!day || !month || !year) return new Date()
+    return new Date(year, month - 1, day)
 }
 
 const getSubmitMessage = (session) => {
@@ -117,75 +107,19 @@ const entriesPayloadFromSession = (session) =>
         })
         .filter(Boolean)
 
-const isApprovedExam = (row) => {
-    const approval = String(row?.approvalStatus || '').toLowerCase()
-    if (approval === 'approved') return true
-    const status = String(row?.status || '').toLowerCase()
-    return status === 'approved' || status === 'published'
-}
-
-/** Approved (+ forwarded when distribution is tracked) exams for mark entry. */
-const isMarkEntryExam = (row) => {
-    if (!isApprovedExam(row)) return false
-    const dist = row.distributionStatus || DISTRIBUTION.NONE
-    if (!dist) return true
-    return dist === DISTRIBUTION.FORWARDED
-}
-
 const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     const api = canUseExamsApi()
-    const { email, name } = useAuth()
-    const assignments = useTeacherAssignments()
-    const [academicYearOptions, setAcademicYearOptions] = useState(
-        () => ACADEMIC_YEARS.map((name) => ({ id: name, name, isCurrent: false })),
-    )
     const [academicYear, setAcademicYear] = useState(ACADEMIC_YEARS[0])
-    const [exam, setExam] = useState('')
+    const [term, setTerm] = useState(TERMS[0])
+    const [exam, setExam] = useState(EXAM_OPTIONS[0].name)
     const [examId, setExamId] = useState('')
     const [campusExams, setCampusExams] = useState([])
-    const [className, setClassName] = useState('')
-    const [section, setSection] = useState('')
-    const [subject, setSubject] = useState('')
-    const [examDate, setExamDate] = useState(null)
+    const [className, setClassName] = useState(() => CLASSES[0] || '')
+    const [section, setSection] = useState(() => SECTIONS[0] || '')
+    const [subject, setSubject] = useState(() => SUBJECTS[0] || '')
+    const [examDate, setExamDate] = useState(parseDisplayDate('15/07/2026'))
 
-    const yearExams = useMemo(
-        () => campusExams.filter((row) => (
-            isMarkEntryExam(row) && examMatchesAcademicYear(row, academicYear)
-        )),
-        [campusExams, academicYear],
-    )
-
-    const examNameOptions = useMemo(() => uniqueExamNames(yearExams), [yearExams])
-
-    const classOptions = useMemo(() => {
-        if (!api) return assignments.classes
-        if (!exam) return []
-        const examClasses = classesForExamName(yearExams, exam)
-        const teacherSet = new Set(
-            (assignments.classes || []).map((item) => String(item).trim().toLowerCase()),
-        )
-        // Prefer intersection with teacher allocations; if none assigned yet, show exam classes.
-        const scoped = teacherSet.size
-            ? examClasses.filter((item) => teacherSet.has(String(item).trim().toLowerCase()))
-            : examClasses
-        return scoped.length ? scoped : examClasses
-    }, [api, exam, yearExams, assignments.classes])
-
-    const sectionOptions = assignments.sectionsFor(className)
-    const subjectOptions = useMemo(() => {
-        if (!className) return []
-        const normalize = (value) => String(value || '').trim().toLowerCase().replace(/^grade\s+/, '')
-        const forClass = [...new Set(
-            (assignments.assignments || [])
-                .filter((row) => normalize(row.className) === normalize(className))
-                .map((row) => row.subject)
-                .filter(Boolean),
-        )].sort((a, b) => a.localeCompare(b))
-        if (forClass.length) return forClass
-        return getTeacherSubjectOptions(email)
-    }, [className, email, assignments.assignments])
-
-    const catalogEmpty = assignments.ready && !assignments.assignments.length
+    const catalogEmpty = !api && (CLASSES.length === 0 || SECTIONS.length === 0 || SUBJECTS.length === 0)
 
     const [session, setSession] = useState(null)
     const [loaded, setLoaded] = useState(false)
@@ -199,29 +133,18 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     const [submitMessage, setSubmitMessage] = useState('')
 
     useEffect(() => {
-        let cancelled = false
-        loadAcademicYearOptions()
-            .then((rows) => {
-                if (cancelled || !rows?.length) return
-                setAcademicYearOptions(rows)
-                setAcademicYear((current) => {
-                    const currentMatch = rows.find((row) => row.name === current)
-                    if (currentMatch) return currentMatch.name
-                    const preferred = rows.find((row) => row.isCurrent) || rows[0]
-                    return preferred?.name || current
-                })
-            })
-            .catch(() => {})
-        return () => { cancelled = true }
-    }, [])
-
-    useEffect(() => {
         if (!api) return undefined
         let cancelled = false
-        loadMergedExamRecords()
+        listExamsApi()
             .then((rows) => {
                 if (cancelled) return
-                setCampusExams(Array.isArray(rows) ? rows : [])
+                const mapped = rows.map(mapExamFromApi)
+                setCampusExams(mapped)
+                if (mapped.length > 0) {
+                    setExamId((current) => current || mapped[0].id)
+                    setExam((current) => (current === EXAM_OPTIONS[0].name ? mapped[0].name : current))
+                    if (mapped[0].className) setClassName(mapped[0].className)
+                }
             })
             .catch(() => {
                 if (!cancelled) setCampusExams([])
@@ -230,27 +153,6 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             cancelled = true
         }
     }, [api])
-
-    useEffect(() => {
-        if (!isApiStudentsEnabled()) return undefined
-        hydrateEnrolledStudentsFromApi().catch(() => {})
-        return undefined
-    }, [])
-
-    // Keep examId in sync with selected exam name + class (same name, many grade rows).
-    useEffect(() => {
-        if (!api) return
-        if (!exam || !className) {
-            setExamId('')
-            return
-        }
-        const match = findExamForNameAndClass(yearExams, exam, className)
-        setExamId(match ? String(match.id) : '')
-        if (match?.startDate) {
-            const nextDate = parseApiDate(match.startDate)
-            if (nextDate) setExamDate(nextDate)
-        }
-    }, [api, exam, className, yearExams])
 
     const stats = useMemo(() => {
         if (!session) return null
@@ -271,37 +173,25 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             setSession(null)
             return
         }
-        if (assignments.ready && !assignments.assignments.length) {
-            setSaveMessage(assignments.emptyReason || 'No classes assigned yet.')
-            return
-        }
 
         if (!api) {
-            if (isApiStudentsEnabled()) await hydrateEnrolledStudentsFromApi().catch(() => {})
-            let students = getStudentsForMarkEntry(className, section)
-            if (assignments.assignments.length) {
-                students = students.filter((student) => assignments.studentInScope(student))
-            }
-            const nextSession = {
-                ...loadMarkEntrySession({
-                    academicYear,
-                    exam: exam || EXAM_OPTIONS[0]?.name || 'Exam',
-                    className,
-                    section,
-                    subject,
-                    examDate: formatDate(examDate),
-                    maxMarks: getExamMaxMarks(exam),
-                }),
-                students,
-                entries: createEmptyEntries(students),
-            }
+            const nextSession = loadMarkEntrySession({
+                academicYear,
+                term,
+                exam,
+                className,
+                section,
+                subject,
+                examDate: formatDate(examDate),
+                maxMarks: getExamMaxMarks(exam),
+            })
             setSession(nextSession)
             setLoaded(true)
             setSearch('')
             setStatusFilter('All')
             setSaveMessage(
                 nextSession.students.length === 0
-                    ? 'No enrolled students in this class and section yet.'
+                    ? 'No students are assigned to this class and section yet.'
                     : '',
             )
             setSubmitMessage(getSubmitMessage(nextSession))
@@ -309,7 +199,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
         }
 
         if (!examId) {
-            setSaveMessage('Select a campus exam before entering marks.')
+            setSaveMessage('Select a campus exam (approved schedule) before entering marks.')
             return
         }
 
@@ -320,7 +210,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                 listStudentsApi({ className }),
                 listMarksBatchesApi({ examId, mine: true }),
             ])
-            let students = studentRows
+            const students = studentRows
                 .map(mapStudentListFromApi)
                 .filter((row) => !row.section || row.section === section || row.section === '—')
                 .map((row) => ({
@@ -328,9 +218,6 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     rollNumber: row.rollNumber || row.admissionNumber || '',
                     section: row.section || section,
                 }))
-            if (assignments.assignments.length) {
-                students = students.filter((student) => assignments.studentInScope(student))
-            }
             const match = batches
                 .map(mapMarksBatchFromApi)
                 .find((batch) => batch.subject === subject && (!batch.section || batch.section === section))
@@ -338,15 +225,15 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             if (match?.id) {
                 batchDetail = mapMarksBatchFromApi(await getMarksBatchApi(match.id))
             }
-            const selectedExam = campusExams.find((item) => String(item.id) === String(examId))
             const context = {
                 academicYear,
-                exam: exam || selectedExam?.examName || selectedExam?.name || 'Exam',
+                term,
+                exam,
                 examId,
                 className,
                 section,
                 subject,
-                examDate: formatDate(examDate || parseApiDate(selectedExam?.startDate)),
+                examDate: formatDate(examDate),
                 maxMarks: Number(batchDetail?.maxMarks) || getExamMaxMarks(exam) || 100,
             }
             const entries = createEmptyEntries(students)
@@ -373,7 +260,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             setLoaded(true)
             setSearch('')
             setStatusFilter('All')
-            setSaveMessage(students.length === 0 ? 'No students found for this class in your assigned scope.' : '')
+            setSaveMessage(students.length === 0 ? 'No students found for this class.' : '')
             setSubmitMessage(getSubmitMessage(nextSession))
         } catch (err) {
             setLoaded(false)
@@ -411,7 +298,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     }
 
     const handleSaveDraft = async () => {
-        if (!api && entryBlocked('Mark Entry', submittedByRole)) return
+        if (entryBlocked('Mark Entry', submittedByRole)) return
         if (!session || isLocked) return
         if (!api || session.source !== 'api') {
             const saved = saveMarkEntrySession({ ...session, status: 'draft', approvalStatus: null })
@@ -463,7 +350,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     }
 
     const handleConfirmSubmit = async () => {
-        if (!api && entryBlocked('Mark Entry', submittedByRole)) return
+        if (entryBlocked('Mark Entry', submittedByRole)) return
         if (!session) return
         if (!api || session.source !== 'api') {
             const submitted = submitMarkEntrySession(session, { submittedByRole })
@@ -495,11 +382,8 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             setSession((current) => ({
                 ...current,
                 batchId,
-                approvalId: submitted.approvalId || current.approvalId || null,
                 ...statusBits,
                 submittedByRole,
-                submittedByName: submitted.teacherName || name || email || submittedByRole,
-                teacherEmail: submitted.teacherEmail || email || '',
                 submittedAt: new Date().toISOString(),
             }))
             setSubmitModal(false)
@@ -513,32 +397,20 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
 
     return (
         <section className='space-y-6'>
-            {!api ? <EntryClosureGate moduleName='Mark Entry' actor={submittedByRole} /> : null}
+            <EntryClosureGate moduleName='Mark Entry' actor={submittedByRole} />
             <div>
                 <h1 className='text-2xl font-semibold text-black'>Mark Entry</h1>
                 <p className='text-sm text-[#667085] mt-1'>
-                    Enter examination marks for students in your assigned classes. Submitted marks go to the Director for approval before publishing.
+                    Enter examination marks for students. Submitted marks are sent to the Director for approval before publishing to students.
                 </p>
             </div>
 
             {catalogEmpty && (
                 <div className='bg-white rounded-2xl shadow-md p-6 border border-[#EDEEF5]'>
-                    <h2 className='text-lg font-semibold text-[#0C1E5B]'>No classes assigned yet</h2>
+                    <h2 className='text-lg font-semibold text-[#0C1E5B]'>No classes or subjects yet</h2>
                     <p className='text-sm text-[#667085] mt-2'>
-                        {assignments.emptyReason || 'Ask Principal to allocate you under Teacher Allocation before using Mark Entry.'}
+                        Ask an Administrator to create classes and sections under Class Details, subjects under RBAC, and students under User Creation before using Mark Entry.
                     </p>
-                </div>
-            )}
-
-            {api && campusExams.length === 0 && (
-                <div className='rounded-xl border border-[#FF980033] bg-[#FFF8E1] px-4 py-3 text-sm text-[#E65100]'>
-                    No campus exams are scheduled yet. Create an exam under Student Evaluation first, then return here to enter marks.
-                </div>
-            )}
-
-            {api && campusExams.length > 0 && yearExams.length === 0 && (
-                <div className='rounded-xl border border-[#FF980033] bg-[#FFF8E1] px-4 py-3 text-sm text-[#E65100]'>
-                    No approved exams for {academicYear} yet. Pick another academic year, or wait until the coordinator forwards the timetable.
                 </div>
             )}
 
@@ -552,24 +424,17 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                 <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='academic-year' className='text-base font-medium text-[#808080]'>Academic Year</label>
-                        <select
-                            id='academic-year'
-                            value={academicYear}
-                            onChange={(e) => {
-                                setAcademicYear(e.target.value)
-                                setExam('')
-                                setExamId('')
-                                setClassName('')
-                                setSection('')
-                                setSubject('')
-                                setExamDate(null)
-                                setLoaded(false)
-                                setSession(null)
-                            }}
-                            className={inputClass}
-                        >
-                            {academicYearOptions.map((item) => (
-                                <option key={item.id || item.name} value={item.name}>{item.name}</option>
+                        <select id='academic-year' value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} className={inputClass}>
+                            {ACADEMIC_YEARS.map((item) => (
+                                <option key={item} value={item}>{item}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className='flex flex-col gap-y-2'>
+                        <label htmlFor='term' className='text-base font-medium text-[#808080]'>Term</label>
+                        <select id='term' value={term} onChange={(e) => setTerm(e.target.value)} className={inputClass}>
+                            {TERMS.map((item) => (
+                                <option key={item} value={item}>{item}</option>
                             ))}
                         </select>
                     </div>
@@ -578,39 +443,26 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                         {api ? (
                             <select
                                 id='exam'
-                                value={exam}
+                                value={examId}
                                 onChange={(e) => {
-                                    const nextName = e.target.value
-                                    setExam(nextName)
-                                    setExamId('')
-                                    setClassName('')
-                                    setSection('')
-                                    setSubject('')
-                                    setExamDate(null)
-                                    setLoaded(false)
-                                    setSession(null)
-                                    if (nextName) {
-                                        const first = yearExams.find((row) => (
-                                            String(row.examName || row.name || '').trim().toLowerCase()
-                                            === nextName.trim().toLowerCase()
-                                        ))
-                                        const nextDate = parseApiDate(first?.startDate)
-                                        if (nextDate) setExamDate(nextDate)
+                                    const next = campusExams.find((item) => item.id === e.target.value)
+                                    setExamId(e.target.value)
+                                    if (next) {
+                                        setExam(next.name)
+                                        if (next.className) setClassName(next.className)
                                     }
                                 }}
                                 className={inputClass}
-                                disabled={!academicYear || examNameOptions.length === 0}
                             >
-                                <option value=''>
-                                    {examNameOptions.length ? 'Select exam' : 'No exams for this year'}
-                                </option>
-                                {examNameOptions.map((name) => (
-                                    <option key={name} value={name}>{name}</option>
+                                <option value=''>Select campus exam</option>
+                                {campusExams.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                        {item.name} — {item.className} ({item.status || 'scheduled'})
+                                    </option>
                                 ))}
                             </select>
                         ) : (
                             <select id='exam' value={exam} onChange={(e) => setExam(e.target.value)} className={inputClass}>
-                                <option value=''>Select exam</option>
                                 {EXAM_OPTIONS.map((item) => (
                                     <option key={item.name} value={item.name}>{item.name}</option>
                                 ))}
@@ -619,55 +471,27 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='class' className='text-base font-medium text-[#808080]'>Class</label>
-                        <select
-                            id='class'
-                            value={className}
-                            onChange={(e) => {
-                                setClassName(e.target.value)
-                                setSection('')
-                                setSubject('')
-                                setLoaded(false)
-                                setSession(null)
-                            }}
-                            className={inputClass}
-                            disabled={api && !exam}
-                        >
-                            <option value=''>
-                                {api && exam && classOptions.length === 0
-                                    ? 'No classes for this exam'
-                                    : 'Select class'}
-                            </option>
-                            {classOptions.map((item) => (
+                        <select id='class' value={className} onChange={(e) => setClassName(e.target.value)} className={inputClass}>
+                            <option value=''>Select class</option>
+                            {CLASSES.map((item) => (
                                 <option key={item} value={item}>{formatClassLabel(item)}</option>
                             ))}
                         </select>
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='section' className='text-base font-medium text-[#808080]'>Section</label>
-                        <select
-                            id='section'
-                            value={section}
-                            onChange={(e) => setSection(e.target.value)}
-                            className={inputClass}
-                            disabled={!className}
-                        >
+                        <select id='section' value={section} onChange={(e) => setSection(e.target.value)} className={inputClass}>
                             <option value=''>Select section</option>
-                            {sectionOptions.map((item) => (
+                            {SECTIONS.map((item) => (
                                 <option key={item} value={item}>{item}</option>
                             ))}
                         </select>
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='subject' className='text-base font-medium text-[#808080]'>Subject</label>
-                        <select
-                            id='subject'
-                            value={subject}
-                            onChange={(e) => setSubject(e.target.value)}
-                            className={inputClass}
-                            disabled={!className}
-                        >
+                        <select id='subject' value={subject} onChange={(e) => setSubject(e.target.value)} className={inputClass}>
                             <option value=''>Select subject</option>
-                            {subjectOptions.map((item) => (
+                            {SUBJECTS.map((item) => (
                                 <option key={item} value={item}>{item}</option>
                             ))}
                         </select>
@@ -679,8 +503,6 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                                 selected={examDate}
                                 onChange={(date) => setExamDate(date)}
                                 dateFormat='dd/MM/yyyy'
-                                placeholderText='From selected exam'
-                                isClearable
                                 disabled={isLocked}
                                 className='w-full text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-3 py-2.5 pr-10 focus:outline-none disabled:bg-[#F2F4F7]'
                             />
@@ -705,11 +527,10 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     <div className='bg-white rounded-2xl shadow-md p-4'>
                         <h2 className='text-xl font-semibold text-black mb-4'>Exam Information</h2>
                         <div className='rounded-xl border border-[#EEF0F6] bg-[#FAFBFD] p-4'>
-                            <h3 className='text-lg font-semibold text-[#0C1E5B]'>
-                                {/examination$/i.test(String(exam || '').trim()) ? exam : `${exam} Examination`}
-                            </h3>
+                            <h3 className='text-lg font-semibold text-[#0C1E5B]'>{exam} Examination</h3>
                             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-4 text-sm'>
                                 <p><span className='text-[#808080]'>Academic Year :</span> <span className='text-[#1E1E1E]'>{academicYear}</span></p>
+                                <p><span className='text-[#808080]'>Term :</span> <span className='text-[#1E1E1E]'>{term}</span></p>
                                 <p><span className='text-[#808080]'>Class :</span> <span className='text-[#1E1E1E]'>{formatClassLabel(className)}</span></p>
                                 <p><span className='text-[#808080]'>Section :</span> <span className='text-[#1E1E1E]'>{section}</span></p>
                                 <p><span className='text-[#808080]'>Subject :</span> <span className='text-[#1E1E1E]'>{subject}</span></p>
@@ -721,8 +542,8 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                                         {getSessionStatusLabel(session)}
                                     </span>
                                 </p>
-                                {(session.submittedByName || session.submittedByRole) ? (
-                                    <p><span className='text-[#808080]'>Submitted By :</span> <span className='text-[#1E1E1E]'>{session.submittedByName || session.submittedByRole}</span></p>
+                                {session.submittedByRole ? (
+                                    <p><span className='text-[#808080]'>Submitted By :</span> <span className='text-[#1E1E1E]'>{session.submittedByRole}</span></p>
                                 ) : null}
                             </div>
                         </div>

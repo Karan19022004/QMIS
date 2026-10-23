@@ -215,20 +215,58 @@ ROUTER_META = {
         "line": 10,
         "end_line": 116,
     },
+    "front_office_router": {
+        "id": "mod_front_office",
+        "label": "Front Office",
+        "sublabel": "visitors · gate passes",
+        "path": "backend/app/api/v1/endpoints/front_office.py",
+        "line": 1,
+        "end_line": 48,
+    },
+    "academics_collections_router": {
+        "id": "mod_workflows",
+        "label": "Workflows",
+        "sublabel": "leave · tasks · exams",
+        "path": "backend/app/api/v1/endpoints/academics_collections.py",
+        "line": 1,
+        "end_line": 23,
+    },
+    "ops_collections_router": {
+        "id": "mod_ops",
+        "label": "Campus ops",
+        "sublabel": "library · gate · transport",
+        "path": "backend/app/api/v1/endpoints/ops_collections.py",
+        "line": 11,
+        "end_line": 23,
+    },
+    "campus_audit_collections_router": {
+        "id": "mod_campus_audit",
+        "label": "Campus audit",
+        "sublabel": "assignments · findings",
+        "path": "backend/app/api/v1/endpoints/campus_audit_collections.py",
+        "line": 11,
+        "end_line": 23,
+    },
+    "protrack_router": {
+        "id": "mod_protrack",
+        "label": "ProTrack proxy",
+        "sublabel": "devices · track",
+        "path": "backend/app/api/v1/endpoints/protrack.py",
+        "line": 14,
+        "end_line": 82,
+    },
+    "webhooks_router": {
+        "id": "mod_webhooks",
+        "label": "Webhooks",
+        "sublabel": "inbound hooks",
+        "path": "backend/app/api/v1/endpoints/webhooks.py",
+        "line": 1,
+        "end_line": 28,
+    },
 }
 
 # Not mounted yet — shown dashed until include_router appears in main.py
-PLANNED = [
-    {
-        "id": "mod_ops",
-        "label": "Ops",
-        "sublabel": "Phase 3+",
-        "tag": "planned",
-        "path": "backend/app/main.py",
-        "line": 43,
-        "end_line": 48,
-    },
-]
+PLANNED: list[dict] = []
 
 
 def git_rev() -> str:
@@ -323,7 +361,7 @@ def place_grid(modules: list[dict], start_x: int, start_y: int, cols: int, gap_x
 def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> dict:
     live = list(modules)
     planned = list(PLANNED)
-    # Compact rack so showcase desktop scale keeps edge labels ≥6px (viewBox width ≲1200).
+    # Two-column rack (validated layout). Leave ≥30px top margin so the backend boundary fits.
     live_nodes = place_grid(live, 800, 40, cols=2, gap_x=160, gap_y=92)
     planned_y = 40 + 92 * ((len(live) + 1) // 2)
     planned_nodes = place_grid(planned, 800, planned_y + 20, cols=2, gap_x=160, gap_y=92)
@@ -338,7 +376,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "pos": [24, 200],
             "size": [120, 64],
             "icon": "person",
-            "sources": [{"path": "src/App.jsx", "line": 44, "end_line": 72}],
+            "sources": [{"path": "src/App.jsx", "line": 34, "end_line": 66}],
         },
         {
             "id": "web",
@@ -347,7 +385,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "sublabel": "lazy layouts",
             "pos": [220, 200],
             "size": [130, 64],
-            "sources": [{"path": "src/App.jsx", "line": 1, "end_line": 42}],
+            "sources": [{"path": "src/App.jsx", "line": 91, "end_line": 224}],
         },
         {
             "id": "client",
@@ -364,9 +402,9 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "label": "FastAPI",
             "sublabel": ":8000",
             "pos": [580, 120],
-            "size": [140, 180],
+            "size": [140, 220],
             "tag": "UUID stack",
-            "sources": [{"path": "backend/app/main.py", "line": 38, "end_line": 90}],
+            "sources": [{"path": "backend/app/main.py", "line": 74, "end_line": 102}],
         },
         {
             "id": "db",
@@ -381,7 +419,7 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
             "id": "alembic",
             "type": "backend",
             "label": "Alembic",
-            "sublabel": "0001–0012",
+            "sublabel": "0001–0018",
             "pos": [220, 360],
             "size": [130, 64],
             "tag": "by hand",
@@ -416,12 +454,43 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
     for nid in planned_ids:
         connections.append({"id": f"api-{nid}", "from": "api", "to": nid, "variant": "dashed"})
 
+    views = [
+        {"id": "live", "label": "Live API", "focus": ["api", *live_ids], "note": "Routers mounted in main.py"},
+        {"id": "path", "label": "User path", "focus": ["users", "web", "client", "api", "db"]},
+    ]
+    if planned_ids:
+        views.insert(
+            1,
+            {"id": "planned", "label": "Planned", "focus": ["api", *planned_ids], "note": "Not mounted yet"},
+        )
+
+    boundaries = [
+        {"kind": "region", "label": "Frontend (Vite + React)", "wraps": ["web", "client"]},
+        {"kind": "region", "label": "Backend (FastAPI)", "wraps": ["api", *live_ids]},
+        {"kind": "security-group", "label": "Authenticated API", "wraps": ["client", "api"]},
+    ]
+    if planned_ids:
+        boundaries.insert(
+            2,
+            {"kind": "region", "label": "Planned departments", "wraps": planned_ids},
+        )
+
+    legend_entries = {
+        "backend": {"label": "API module"},
+        "frontend": {"label": "Browser app"},
+        "database": {"label": "Store"},
+        "security": {"label": "Auth path"},
+        "external": {"label": "People"},
+    }
+    if planned_ids:
+        legend_entries["cloud"] = {"label": "Planned module"}
+
     return {
         "schema_version": 1,
         "diagram_type": "architecture",
         "meta": {
             "title": "QMIS School ERP — project overview",
-            "subtitle": "Single current overview · Archify 3.1.0 · Account Head 22/22 · Alembic 0012",
+            "subtitle": "Single current overview · Archify 3.1.0 · Alembic 0018 · ops + ProTrack proxy",
             "locale": "en",
             "quality_profile": "showcase",
             "repository": {
@@ -431,29 +500,11 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "revision": git_rev(),
             },
             "output": out_rel.replace("\\", "/"),
-            "legend": {
-                "entries": {
-                    "backend": {"label": "API module"},
-                    "cloud": {"label": "Planned module"},
-                    "frontend": {"label": "Browser app"},
-                    "database": {"label": "Store"},
-                    "security": {"label": "Auth path"},
-                    "external": {"label": "People"},
-                }
-            },
-            "views": [
-                {"id": "live", "label": "Live API", "focus": ["api", *live_ids], "note": "Routers mounted in main.py"},
-                {"id": "planned", "label": "Planned", "focus": ["api", *planned_ids], "note": "Phase 3+"},
-                {"id": "path", "label": "User path", "focus": ["users", "web", "client", "api", "db"]},
-            ],
+            "legend": {"entries": legend_entries},
+            "views": views,
         },
         "components": components,
-        "boundaries": [
-            {"kind": "region", "label": "Frontend (Vite + React)", "wraps": ["web", "client"]},
-            {"kind": "region", "label": "Backend (FastAPI)", "wraps": ["api", *live_ids]},
-            {"kind": "region", "label": "Planned departments", "wraps": planned_ids},
-            {"kind": "security-group", "label": "Authenticated API", "wraps": ["client", "api"]},
-        ],
+        "boundaries": boundaries,
         "connections": connections,
         "cards": [
             {
@@ -462,15 +513,11 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "items": [f"{m['label']} — {m['sublabel']}" for m in live]
                 + [
                     "VITE_USE_API_* flags default with auth (fail-closed hydrate; no stale localStorage when API on)",
-                    "Completed panels: Admin 26/26 · PRM 21/21 · Parent 23/23 · Student 23/23 · Teacher 29/1 Gap · Account Head 22/22",
-                    "Director 9/7/8 (Home Fun + Star Ratings shared FE SoT; My Attendance linked EMP-DIR-001)",
-                    "Finance snapshot SoT: GET/PUT /finance/state + collect-payment; COA/JV/recon/FS/Book Fee/MFP on snapshot",
-                    "Class Attendance Save → POST /attendance; Mark Entry → /marks-batches",
-                    "App.jsx lazy-loads role layouts (entry JS code-split)",
-                    "must_change_password gated in get_current_user; orphan file downloads ACL-hardened",
-                    "Alembic head 0012_students_student_user_id; 48 application tables",
-                    "HR + Finance API SoT; Gateway/SMTP/WA env-gated (demo/stub)",
-                    "16 Oct 2026 Account Head complete; pytest 426 passed",
+                    "Campus ops + campus audit collections mounted beside front office",
+                    "ProTrack proxy mounted (devices + track); credentials empty until school configures .env",
+                    "Fee receipts call email/WhatsApp helpers; empty SMTP/WA settings return NOT_CONFIGURED",
+                    "App.jsx lazy-loads role layouts; role URL mismatch returns that role home",
+                    "Alembic head 0018_exam_academic_year",
                     "Request path: User → lazy React → apiClient JWT → FastAPI deps/RBAC → service → PostgreSQL (+ uploads)",
                 ],
             },
@@ -499,12 +546,11 @@ def build_candidate(modules: list[dict], clients: list[str], out_rel: str) -> di
                 "dot": "rose",
                 "title": "Still open",
                 "items": [
-                    "Next focus: remaining Director Partials / Coordinator panel (many Not Completed)",
-                    "Teacher/Coordinator biometric remains Gap",
-                    "staff_ratings REST (Director Star Ratings still FE SoT)",
-                    "Further page-level lazy imports inside largest role route trees",
+                    "ProTrack365 admin/parent credentials not in backend/.env — tracking not live-verified",
+                    "Confirmed IMEI for TN58BB3769 not stored; do not enable live map until CONNECTED_AND_GPS_VERIFIED",
                     "Live SMTP/WhatsApp/payments when school configures providers",
                     "RFID / eSSL import still off unless enabled",
+                    "Payment gateway and live bus tracking stay out of scope until school approval",
                 ],
             },
         ],

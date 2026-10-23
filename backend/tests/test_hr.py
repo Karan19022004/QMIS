@@ -132,3 +132,30 @@ def test_hr_vertical_round_trip(client):
 def test_hr_routes_require_a_token(client):
     assert client.get("/api/v1/hr/jobs").status_code == 401
     assert client.post("/api/v1/hr/exits", json={"exitType": "Resignation"}).status_code == 401
+
+
+def test_hr_employees_lists_reserved_tld_emails(client):
+    """Regression: .local demo emails must not make GET /hr/employees return 500."""
+    token = _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    saved = client.put(
+        "/api/v1/hr/portal/employees",
+        headers=headers,
+        json=[
+            {
+                "id": "EMP-LOCAL-001",
+                "name": "Local Demo",
+                "email": "local.demo@demo.qmis.local",
+                "department": "Academic",
+                "designation": "Teacher",
+                "status": "Active",
+            }
+        ],
+    )
+    assert saved.status_code == 200, saved.text
+    listed = client.get("/api/v1/hr/employees", headers=headers)
+    assert listed.status_code == 200, listed.text
+    codes = {row["employee_code"] for row in listed.json()}
+    assert "EMP-LOCAL-001" in codes
+    row = next(item for item in listed.json() if item["employee_code"] == "EMP-LOCAL-001")
+    assert row["email"] == "local.demo@demo.qmis.local"

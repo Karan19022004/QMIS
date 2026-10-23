@@ -8,75 +8,344 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
-## 18 October 2026 — Full module-flow test guide
+## 23 October 2026 — Leave and approval API wiring
 
-**Status:** Added exhaustive sidebar module test document for campus-order testing.
+**Status:** Fixed broken leave/approval screens that showed demo data or “not found”. Not full go-live.
 
-### Docs
-- `reports/QMIS-ERP-Module-Flow-Test-Guide.md` (+ PDF) — every leaf: **Do → Stored in → Reflects to → Pass**
-- Builder: `reports/_build_module_flow_test_guide_pdf.py`
-- Linked from `QMIS-ERP-Full-Panel-Test-Guide.md`
-- Copies under `erp complete documentation/`
+### Done
+- Coordinator received leave view now uses the shared API approve/reject page
+- Director request approval detail loads live inbox items and can decide
+- Joint Director / Assistant / Audit request approvals use `/approvals/inbox` + detail decide
+- Confirmed leave create + principal received list on the API
 
----
-
-## 17 October 2026 — ProTrack365 bus tracking + ops SoT hardening
-
-**Status:** Sheet already **480 / 0 / 0 / 0**. Continued wiring so Ops/Audit screens hydrate for real browser testing; added **ProTrack365** GPS integration.
-
-### ProTrack365
-- Backend proxy: `GET /api/v1/protrack/status|devices|track` → `https://api.protrack365.com` (MD5 auth)
-- Env: `PROTRACK_ADMIN_ACCOUNT` / `PROTRACK_ADMIN_PASSWORD` / `PROTRACK_PARENT_ACCOUNT` / `PROTRACK_PARENT_PASSWORD`
-- FE: Transport Manager Route Data → Track Bus + Parent/Student Track Bus poll live GPS every 15s
-- Demo map geometry remains until credentials are set (API returns 503 `protrack_not_configured`)
-- pytest `test_protrack_proxy.py` — **2 passed**
-
-### Ops SoT
-- Additional `*Data.js` bound to `ops_records` / `campusJsonStore` (routes, drivers, canteen orders/requests, IT tickets, stationery/HK inventory, JD meetings, …)
+### Still open
+- Many other sidebar modules still demo/local-only (star ratings, some JD tasks/escalations, TM fuel, IT tickets)
+- School email/WhatsApp/GPS not connected
 
 ---
 
-## 17 October 2026 — Phase 3 Ops + Audit closeout (Biometric last)
+## 23 October 2026 — Top-to-bottom completion re-check
 
-**Status:** Closed all remaining Ops/Audit **Not Completed** rows and Teacher/Coordinator **Biometric Gap**. TOTAL **480 Completed / 0 Partial / 0 Not Completed / 0 Gap** of 480.
+**Status:** Re-audited current software. Not complete top-to-bottom. Updated plain-language doc + PDF. No commit/push/deploy.
 
-### Code
-- Backend `ops_records` + `audit_records` (Alembic **0014**); `GET/PUT /api/v1/ops/{collection}` and `/api/v1/campus-audit/{collection}` with role ACL by collection prefix
-- Permissions `ops.read` / `ops.write` / `campus_audit.read` / `campus_audit.write`; Gate roles also get Front Office gate-pass write
-- FE `opsApi.js`, `campusAuditApi.js`, `campusJsonStore.js` + registry mapping demo `localStorage` keys → campus collections (purge LS in API mode)
-- Wave 1 chrome: shared Notifications + My Attendance for Librarian/Gate/GKM; Process/Quality Communication wired; broadcast audience expanded for ops roles
-- Library books/issues/members SoT; Gate SimpleRegister + biometric → ops; Transport vehicles / Canteen menu / JD approvals / JD Audit templates·plans·findings bound; Process/Quality `*Data.js` stores on campus-audit
-- pytest `tests/test_ops_and_audit_collections.py` — **5 passed**
-- Local Mac: PostgreSQL **18 @ 5433**; migration applied through **0014**
+### Done
+- Confirmed canteen order save and bus wrong-vehicle safety are in the working copy
+- Confirmed still open: IT tickets wrong save path, bus fuel local-only, IT asset success without save check
+- School email / WhatsApp / GPS / payments still not connected
+- Rewrote `QMIS_ERP_FINAL_PENDING_REQUIREMENTS.md` as an inch-by-inch Done / Not done checklist; regenerated PDF
+- Targeted pytest: 19 passed
 
-### Status sheet
-- `QMIS-ERP-Role-Module-Status.updated.17oct-ops-audit.docx` (+ review/main/reports sync)
-- Script: `erp complete documentation/update_ops_audit_status_17oct.py`
-
-### Test guide
-- Full Panel Test Guide updated for Ops/Audit hierarchy + biometric smoke
+### Still open
+- Developer fixes F1–F4; school day-1 decisions; outside accounts; final click checks
 
 ---
 
-## 17 October 2026 — Core Partials closed (Principal academics + HR honesty)
+## 23 October 2026 — Final pending requirements audit
 
-**Status:** Closed remaining core **Partial** rows. TOTAL **313 Completed / 0 Partial / 165 Not Completed / 2 Gap** of 480.
+**Status:** Wrote `QMIS_ERP_FINAL_PENDING_REQUIREMENTS.md` from current code + reports. Not production-ready. No commit/push/deploy.
 
-### Code
-- Backend `academics_records` + `GET/PUT /api/v1/academics/{collection}` for `class-timetables`, `teacher-allocations`, `class-timetable-change-requests` (migration **0013**)
-- Permissions `academics.read` / `academics.write`; Principal write; Teacher/Coordinator change-requests only
-- FE `academicsApi.js` + Principal Class Timetable / Teacher Allocation hydrate (API memory, purge localStorage)
-- HR Dashboard: KPIs from live HR snapshot; removed illustrative calendar filler; Announcements/Notifications honesty banners
-- Leave Received (HR): confirmed API-mode memory-only (no `schoolerp-leave-requests` mirror)
-- pytest `tests/test_academics_collections.py` — **4 passed**
-- Local Mac: PostgreSQL **18.6 @ 5433** (`postgres`/`root`); Homebrew PG14 on 5432 unused for this project
+### Done
+- Re-verified canteen order path and ProTrack no-first-device against current source (WT)
+- Identified remaining code defects: IT tickets wrong storage key, TM fuel local key, IT AddAsset success without save check
+- Separated work into CODE_FIX / BROWSER_TEST / CLIENT_INPUT / EXTERNAL_CONFIG / OPTIONAL / VERIFIED_READY
+- Targeted pytest: 19 passed (remaining workflows, static readiness, protrack, integrations)
 
-### Status sheet
-- `QMIS-ERP-Role-Module-Status.updated.17oct-core-partials.docx` (+ review/main/reports sync)
-- Principal **21 / 0 / 0** · HR **35 / 0 / 0** · Biometric **Gap** kept (2)
+### Still open
+- Client go-live scope and credentials decisions
+- Code fixes C1–C3 before claiming IT/fuel/asset paths ready
+- Browser matrix for PARTIAL modules
 
-### Test guide
-- Regenerated `reports/QMIS-ERP-Full-Panel-Test-Guide.md` + PDF hierarchy walkthrough for PG18
+---
+
+## 23 October 2026 — Canteen order browser verification
+
+**Status:** Happy-path + controlled fail-save verified on localhost. Working tree left dirty; no commit/push/deploy.
+
+### Done
+- Created `ORD-73604359` (`BrowserOrder-Oct23-2210-unique`) as Canteen; API + UI confirmed
+- Confirmed success modal only after save; refresh and re-login keep a single row
+- Controlled write-block: error toast, no success modal, failed order not on API
+- Recorded evidence in `QMIS_ERP_PRODUCTION_READINESS_REPORT.md` §6
+
+### Still open
+- ProTrack / SMTP / WhatsApp configuration from the school
+- Other PARTIAL modules from the system audit
+
+---
+
+## 23 October 2026 — Production readiness fixes
+
+**Status:** Canteen order save and ProTrack first-device fallback fixed in code. Live GPS/email/WhatsApp still off. Not committed/pushed in this pass.
+
+### Done
+- Canteen Add Order now persists to `/ops/canteen-orders` before the success modal
+- Removed ProTrack silent first-device selection; demo map labelled not-live
+- Documented SMTP / WhatsApp / ProTrack placeholders in `backend/.env.example`
+- Wrote `QMIS_ERP_PRODUCTION_READINESS_REPORT.md`
+- Pytest 464 passed; frontend build passed
+
+### Still open
+- Browser re-login for canteen order save (done later same day — see section above)
+- ProTrack / SMTP / WhatsApp configuration from the school
+- Other PARTIAL modules from the system audit
+
+---
+
+## 23 October 2026 — Complete system-wide audit
+
+**Status:** Audit-only. Wrote `QMIS_ERP_COMPLETE_SYSTEM_AUDIT_REPORT.md`. No payment gateway, live tracking, or live messaging changes. Not pushed.
+
+### Done
+- Mapped all portal roles, `App.jsx` guards, mounted API routers, ops/campus-audit collections, and creatable Admin vs HR login paths
+- Built a requirements traceability matrix with PASS / PARTIAL / FAIL / BLOCKED / NOT IMPLEMENTED / NOT TESTED
+- Confirmed P0 issues: canteen orders success-without-save, ProTrack first-device fallback before live GPS
+- Re-ran backend tests (460 passed) and frontend production build (passed)
+
+### Still open
+- Browser matrix not re-walked in this audit; remaining modules stay PARTIAL
+- ProTrack and SMTP/WhatsApp still unconfigured
+- Super Admin / Admin / Director / Principal full panels still NOT TESTED
+
+---
+
+## 23 October 2026 — ProTrack365 recheck
+
+**Status:** Still not tested. `PROTRACK_ADMIN_*` and `PROTRACK_PARENT_*` are empty in `backend/.env` and in the shell. No provider login was attempted. No tracking code was changed.
+
+---
+
+## 23 October 2026 — ProTrack365 connectivity audit
+
+**Status:** Not tested. The two client accounts are not in the backend environment. No provider call was made. Live tracking was not enabled.
+
+### Done
+- Compared the existing QMIS proxy with the official ProTrack365 Open API
+- Confirmed `PROTRACK_ADMIN_*` and `PROTRACK_PARENT_*` are empty
+- Wrote `PROTRACK365_API_VERIFICATION_REPORT.md` with status `NOT_TESTED_MISSING_CONFIGURATION`
+
+### Still open
+- Client must place both account passwords in `backend/.env` and confirm the device IMEI for `TN58BB3769`
+
+No application code changed, so the backend suite was not re-run.
+
+---
+
+## 23 October 2026 — Gate pass reload, dropdowns, new logins
+
+**Status:** The stale API was the gate 403. Dropdowns now use saved campus rows. New sign-ins kept the recent vehicle, route, duty, pencil, menu item, and projector. Not pushed.
+
+### Done
+- Reloaded the local API that had been started without auto-reload. Gate staff can read saved passes and still cannot change them
+- Route and driver dropdowns list TN01BRW2222, Browser Driver, and Browser West Route
+- Stationery user stays on the inventory address. An IT user who opens that address returns to the IT dashboard
+- New sign-ins still showed the vehicle, route, duty, pencil, lemon rice, and projector
+
+### Still open
+- Canteen orders, stock issue click-through, expenses, student-transport save, tickets, audit, parent, student, driver duty screen, housekeeping
+- Live email, WhatsApp, and bus tracking
+
+---
+
+## 23 October 2026 — Browser verification of remaining portals
+
+**Status:** Transport, stores, canteen, IT, librarian, and gate were opened in the browser. No module is complete. Not pushed.
+
+### Done
+- Vehicle, route, and duty saves now persist. Browser saved TN01BRW2222, "Browser West Route", and a duty for TN01BRW1111; each survived refresh
+- Stationery item "Browser graphite pencil" and canteen item "Browser lemon rice" survived refresh. A blank canteen name was rejected
+- IT asset "Browser lab projector" survived refresh. An IT user was sent away from the stationery address
+- Librarian sign-in still showed "Browser Atlas". Gate sign-in still showed "Browser Guest Oct23"
+- Gate-pass list no longer shows the fixed sample pass. Gate staff can read saved passes in the automated test; the already-running API still returned 403
+
+### Still open
+- Maintenance, expenses, orders, tickets, and a second sign-in for the new saves
+- Restart of the running API so the gate-pass page can read PRM passes
+- Live email, WhatsApp, and bus tracking
+
+---
+
+## 23 October 2026 — Notifications and remaining screens
+
+**Status:** Email and WhatsApp hooks are connected but not live. Housekeeping schedule save survived refresh. Driver duty page no longer crashes. No module marked complete. Not pushed.
+
+### Done
+- Enrollment, leave submit, leave decision, password-reset notice, announcements, and selected operational updates now call the existing notifier after the save
+- Messages omit passwords, leave reasons, and audit evidence. WhatsApp is not sent from a phone number alone
+- `.env.example` keeps SMTP and WhatsApp values empty. No Reply-To address was invented
+- API mode no longer uploads sample rows into an empty collection
+- Driver My Duty opened (it had been a blank page) and showed zero duties instead of the sample bus
+- Housekeeping: "Browser corridor sweep" saved and was still listed after refresh (4 records)
+
+### Still open
+- Transport Manager, Stores, Canteen, and IT browser walks
+- Fresh sign-in after the housekeeping, librarian, gate, and audit saves
+- Live email and WhatsApp until the school supplies credentials
+- Live bus tracking
+
+---
+
+## 23 October 2026 — More browser checks
+
+**Status:** Gate visitor and audit assignment saved and survived refresh. Librarian add-book and driver vehicle screen failed. Other portals not opened. No code change.
+
+### Done
+- Gate: visitor "Browser Guest Oct23" saved and still listed after reload
+- Audit: "Browser term audit" saved and still listed after reload
+- Librarian Add Book opened a dead route and showed Librarian Dashboard
+- Driver Vehicle Details showed sample bus TN 33 AB 1234 / Suresh Kumar, not the assigned vehicle
+
+### Still open
+- Re-login for gate and audit; Transport Manager, Stores, Canteen, IT, Housekeeping screens; live bus tracking
+
+---
+
+## 23 October 2026 — Browser check of parent fees
+
+**Status:** Parent checkout was clicked in the browser. Other remaining portals were not opened. None marked complete.
+
+### Done
+- Parent signed in, paid the ₹500 browser installment, saw receipt REC-0003, and still saw it paid after refresh and a new login
+- Student signed in and saw the same paid fee and zero outstanding
+- Report updated. No code change, so the 455-pass suite and production build were not rerun
+
+### Still open
+- Browser walks for Librarian, Transport Manager, Driver, Gate, Stores, Canteen, IT, Housekeeping, and audit
+- Live bus tracking until the school tracking service is configured
+
+---
+
+## 23 October 2026 — Close remaining workflow gaps
+
+**Status:** Checkout waits for a ledger receipt. Driver vehicle scope, audit assignments, and vehicle health persist. Role saves verified by API. Not marked complete. Not pushed.
+
+### Done
+- Parent checkout shows success only after the server returns a receipt or transaction
+- Driver login via HR; server hides and rejects other vehicles
+- Audit assignment screens save owner, due date, and status
+- Vehicle health saves to campus operations instead of sample rows in API mode
+- Pytest **455 passed**; frontend production build passed
+
+### Still open
+- Browser click-through of parent checkout and each department screen
+- Track Bus until the school tracking service is configured
+
+---
+
+## 23 October 2026 — Parent and student fee scope
+
+**Status:** Family fee and route reads connected. Other remaining portals left PARTIAL where they already use campus collections. No module marked complete without a full browser pass.
+
+### Done
+- Parent and student load scoped fees; pay goes through the family payment action; they cannot read or write the campus ledger
+- Bus route screen reads only that family's assignment
+- Report: `REMAINING_MODULES_IMPLEMENTATION_REPORT.md`
+- Pytest **452 passed**; frontend production build passed
+
+### Still open
+- Driver limited to an assigned vehicle; audit assignment save; browser parent checkout; provisioned logins for librarian, transport, gate, stores, canteen, IT, housekeeping, and auditors
+
+---
+
+## 23 October 2026 — Role workflow & connectivity documentation
+
+**Status:** Client-facing role workflow documents generated (verification only; no app code changes).
+
+### Done
+- Produced `docs/QMIS_ERP_Role_Workflow_Document.docx` and `.pdf` — plain-language role workflows, module connections, diagrams, gaps/priorities
+- Produced deep follow-on `docs/QMIS_ERP_Deep_Role_Workflow.docx` and `.pdf` — full A–H chapters per role (Super Admin especially detailed), cross-dept flows, security, P0–P2
+- Produced shorter operational guide `docs/QMIS_ERP_Brief_InDepth_Workflow.docx` and `.pdf`
+- Corrected module completion sheet: **432 Completed / 31 Partial / 15 Not Completed / 2 Gap** (was 480/480). Updated `erp complete documentation/QMIS-ERP-Role-Module-Status.docx` and `reports/QMIS-ERP-Role-Module-Status.docx`
+- Confirmed shared login model; Transport Driver has workspace but no dedicated login page and no ready driver account
+- Reconfirmed earlier login/roles audit artefacts remain in `docs/` for technical readers
+
+### Still open
+- Provision Transport Manager / Driver (and other Partial-role) accounts for go-live UAT
+- Confirm Email/WhatsApp/gateway with school credentials before promising live delivery
+
+---
+
+## 21 October 2026 — Restore partner portal APIs onto ERP1
+
+**Status:** Gaps from `main` / partner tip restored on `ERP1` and pushed to `origin/ERP1` only.
+
+### Done
+- Restored `GET /parents`, parent `/me/children` placement fields, `PUT /exams/{id}`, lesson-plan `/complete`
+- Restored `Exam.academic_year` model field required by partner exam service
+- Fixed teacher student-list test to create Grade 2 + class-teacher pin (seed has no classes)
+
+### Still open
+- Live provider verification; remaining localStorage PARTIAL portals
+- `main` untouched (ERP1 only)
+
+---
+
+## 21 October 2026 — Final verification before commit
+
+**Status:** Branch `fix/integrations-ready-no-creds` verified; commit/push left to manager.
+
+### Done
+- Re-ran full pytest (**451 passed**) and `npm run build` (**PASS**)
+- Confirmed email/WhatsApp **NOT_CONFIGURED** / demo **MOCK_QUEUED** never report real delivery
+- Razorpay mock coverage: intent, valid/invalid signatures, webhook verify, duplicate `already_paid`
+- Fixed FE honesty gaps (receipt drawer, payment-link modal, payslip already honest)
+- Optional student enroll password no longer crashes; webhook `liveVerified` false in demo
+- Updated `ERP_COMPLETE_INTEGRATION_AUDIT.md` with verified results + live credential checklist
+
+### Still open
+- LIVE_VERIFIED pending school SMTP / WhatsApp / Razorpay sandbox keys
+- Remaining localStorage portals (parent accounts, star ratings, etc.)
+
+---
+
+## 21 October 2026 — Integrations ready without credentials (P0/P1)
+
+**Status:** Branch `fix/integrations-ready-no-creds`. Build + pytest green. No live provider calls.
+
+### Done
+- Fixed FE build (HrUi exports, academic years API helpers, HR password reset API)
+- Email/WhatsApp/Razorpay: `NOT_CONFIGURED` / `MOCK_QUEUED` / webhook; templates; empty `.env.example` placeholders
+- Admissions FE defaults to API when auth on; removed false “sent” payslip toasts
+- Pytest **448 passed** (later verification: **451**); `npm run build` **PASS**
+- Audit updated: `ERP_COMPLETE_INTEGRATION_AUDIT.md`
+
+### Still open
+- LIVE_VERIFIED pending school SMTP / WhatsApp / Razorpay sandbox keys
+- Remaining localStorage portals (parent accounts, star ratings, etc.)
+
+---
+
+## 21 October 2026 — Complete integration audit (verification only)
+
+**Status:** Read-only audit; no application code changes.
+
+### Done
+- Full integration audit written: `ERP_COMPLETE_INTEGRATION_AUDIT.md`
+- Pytest re-run: **443 passed / 0 failed**
+- Frontend build checked: **FAIL** (HR `HrUi` missing exports)
+- WhatsApp / Email / Razorpay: code paths mapped; live delivery **not** claimed; Razorpay webhook **missing**
+
+### Still open
+- Awaiting authorization to fix P0 build + P1 sandbox integrations
+
+---
+
+## 21 October 2026 — ERP1 stabilize (HR 500, missing routes, pytest green)
+
+**Status:** Fixes on branch `fix/erp1-stabilize` (from `ERP1` @ `3eb38fa`). Not pushed.
+
+### Done
+- Fixed `GET /api/v1/hr/employees` 500 (`EmployeeOut.email` rejected `.local` demo addresses)
+- Restored ProTrack, placement, my-fees, academics/ops/campus-audit mounts from partner tip `9abaf75`
+- Repaired demo-user seed so shared test SQLite cannot leave leave/lesson/principal logins broken
+- Full pytest: **443 passed / 0 failed** (was 418 / 23)
+
+### Still open
+- Frontend `npm run build` still fails (HR `HrUi` missing `KeyFields` / `TextField` exports) — pre-existing
+- Broad UI CRUD across ~480 sidebar modules not fully exercised
+- Awaiting approval to commit/push/merge
+
+### Report
+- `C:\karan\ERP-verification-reports\ERP1-stabilize-fix-report-2026-10-21.md`
 
 ---
 

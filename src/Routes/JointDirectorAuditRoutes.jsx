@@ -69,6 +69,7 @@ const JointDirectorAuditRoutes = () => {
             <Route path="/joint-director-audit/employee-management/:roleKey" element={<ViewEmployeeProfile />} />
             <Route path="/joint-director-audit/employee-management" element={<Navigate to="/joint-director-audit/employee-management/hr-manager" replace />} />
             <Route path="/joint-director-audit/request-approvals" element={<RequestApprovals />} />
+            <Route path="/joint-director-audit/request-approvals/view-request/:id" element={<ViewRequestApproval />} />
             <Route path="/joint-director-audit/request-approvals/view-request" element={<ViewRequestApproval />} />
             <Route path="/joint-director-audit/escalations" element={<Escalations />} />
             <Route path="/joint-director-audit/escalations/view-escalation/:id" element={<ViewEscalation />} />

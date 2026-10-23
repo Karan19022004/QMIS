@@ -39,10 +39,10 @@ export const getCampusMemory = (storageKey) => {
 export const setCampusMemory = (storageKey, rows, { push = true } = {}) => {
     const list = Array.isArray(rows) ? rows : []
     memoryByKey.set(storageKey, list)
-    if (!push) return
+    if (!push) return Promise.resolve(true)
     const meta = resolveCampusCollection(storageKey)
-    if (!meta || !canUse(meta.kind)) return
-    replaceApi(meta.kind, meta.collection, clean(meta.kind, list)).catch(() => {})
+    if (!meta || !canUse(meta.kind)) return Promise.resolve(true)
+    return replaceApi(meta.kind, meta.collection, clean(meta.kind, list)).then(() => true).catch(() => false)
 }
 
 export const clearCampusJsonMemory = () => {
@@ -51,6 +51,7 @@ export const clearCampusJsonMemory = () => {
 }
 
 export const hydrateCampusKey = async (storageKey, seed = []) => {
+    void seed
     const meta = resolveCampusCollection(storageKey)
     if (!meta || !canUse(meta.kind)) return false
     if (hydratePromises.has(storageKey)) return hydratePromises.get(storageKey)
@@ -58,13 +59,7 @@ export const hydrateCampusKey = async (storageKey, seed = []) => {
     const work = (async () => {
         try {
             const rows = await listApi(meta.kind, meta.collection)
-            const cleaned = clean(meta.kind, rows)
-            if (cleaned.length === 0 && Array.isArray(seed) && seed.length > 0) {
-                memoryByKey.set(storageKey, structuredClone(seed))
-                await replaceApi(meta.kind, meta.collection, clean(meta.kind, seed))
-            } else {
-                memoryByKey.set(storageKey, cleaned)
-            }
+            memoryByKey.set(storageKey, clean(meta.kind, rows))
             try {
                 localStorage.removeItem(storageKey)
             } catch {
@@ -72,7 +67,7 @@ export const hydrateCampusKey = async (storageKey, seed = []) => {
             }
             return true
         } catch {
-            memoryByKey.set(storageKey, Array.isArray(seed) ? structuredClone(seed) : [])
+            if (!memoryByKey.has(storageKey)) memoryByKey.set(storageKey, [])
             return false
         } finally {
             hydratePromises.delete(storageKey)
@@ -90,7 +85,7 @@ export const loadCampusJson = (storageKey, fallback) => {
     if (usesCampusApiForKey(storageKey)) {
         const mem = getCampusMemory(storageKey)
         if (mem != null) return mem
-        return Array.isArray(fallback) ? structuredClone(fallback) : fallback
+        return Array.isArray(fallback) ? [] : fallback
     }
     try {
         const raw = localStorage.getItem(storageKey)
@@ -103,13 +98,13 @@ export const loadCampusJson = (storageKey, fallback) => {
 
 export const saveCampusJson = (storageKey, value) => {
     if (usesCampusApiForKey(storageKey)) {
-        setCampusMemory(storageKey, value, { push: true })
+        const pending = setCampusMemory(storageKey, value, { push: true })
         try {
             localStorage.removeItem(storageKey)
         } catch {
             /* ignore */
         }
-        return true
+        return pending
     }
     try {
         localStorage.setItem(storageKey, JSON.stringify(value))
@@ -146,10 +141,9 @@ export const ensureCampusSeed = (storageKey, seed) => {
     if (usesCampusApiForKey(storageKey)) {
         const mem = getCampusMemory(storageKey)
         if (mem != null) return mem
-        const initial = structuredClone(seed)
-        memoryByKey.set(storageKey, initial)
-        hydrateCampusKey(storageKey, seed)
-        return structuredClone(initial)
+        memoryByKey.set(storageKey, [])
+        hydrateCampusKey(storageKey)
+        return []
     }
     try {
         const raw = localStorage.getItem(storageKey)

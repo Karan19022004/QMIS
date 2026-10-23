@@ -139,6 +139,7 @@ def replace_records(db: Session, actor: User, collection: str, items: list) -> l
     if not isinstance(items, list):
         fail(422, "invalid_body", "Body must be a JSON array.")
 
+    previous = list_records(db, actor, collection)
     db.execute(
         delete(CampusAuditRecord).where(
             CampusAuditRecord.campus_id == actor.campus_id,
@@ -173,4 +174,7 @@ def replace_records(db: Session, actor: User, collection: str, items: list) -> l
         )
 
     db.commit()
-    return list_records(db, actor, collection)
+    saved = list_records(db, actor, collection)
+    from app.services.integrations.events import notify_saved_audit
+    notify_saved_audit(db, actor, collection, previous, saved)
+    return saved

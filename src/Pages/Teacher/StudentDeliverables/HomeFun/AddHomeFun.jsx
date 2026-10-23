@@ -6,8 +6,8 @@ import { addHomeFunItem } from './homeFunData'
 const AddHomeFun = ({ routeBase = '/teacher/student-deliverables/home-fun' }) => {
     const navigate = useNavigate()
 
-    const handleSave = async (values) => {
-        await addHomeFunItem(values)
+    const handleSave = (values) => {
+        addHomeFunItem(values)
         navigate(routeBase)
     }
 

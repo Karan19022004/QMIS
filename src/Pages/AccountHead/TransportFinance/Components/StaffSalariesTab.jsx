@@ -165,8 +165,8 @@ const StaffSalariesTab = () => {
                                 <div className='flex gap-1'>
                                     <button type='button' onClick={() => toast.info(`Payslip preview for ${row.name} is mocked.`)} className='text-xs text-[#515DEF] cursor-pointer'>View</button>
                                     <button type='button' onClick={() => toast.info('PDF download mocked until payroll service is connected.')} className='text-[#515DEF] cursor-pointer' aria-label='Download'><Download size={14} /></button>
-                                    <button type='button' onClick={() => toast.success('Mock payslip email sent.')} className='text-[#515DEF] cursor-pointer' aria-label='Email'><Mail size={14} /></button>
-                                    <button type='button' onClick={() => toast.success('Mock WhatsApp payslip sent.')} className='text-[#515DEF] cursor-pointer' aria-label='WhatsApp'><MessageCircle size={14} /></button>
+                                    <button type='button' onClick={() => toast.info('Payslip email is NOT_CONFIGURED until school SMTP is connected.')} className='text-[#515DEF] cursor-pointer' aria-label='Email'><Mail size={14} /></button>
+                                    <button type='button' onClick={() => toast.info('Payslip WhatsApp is NOT_CONFIGURED until WhatsApp API credentials are connected.')} className='text-[#515DEF] cursor-pointer' aria-label='WhatsApp'><MessageCircle size={14} /></button>
                                 </div>
                             </td>
                         </tr>

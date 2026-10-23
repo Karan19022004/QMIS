@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { getDocuments, getEmployees, nextId, saveDocuments } from '../domain/hrStore'
 import { hrFileDownloadUrl, uploadHrFile } from '../../../services/hrApi'
-import { Badge, FormField, HrExport, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, TextField, inputClass, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
+import { Badge, HrExport, Modal, PageIntro, PrimaryButton, SearchBox, Select, TableWrap, inputClass, td, th, useFilters, useHrTick, matches } from '../components/HrUi'
 
 const empty = { employeeId: '', type: 'ID Proof', name: '', files: [], expiryDate: '', status: 'Pending' }
 const DOC_STATUSES = ['Pending', 'Verified', 'Expired']
@@ -193,12 +193,10 @@ const EmployeeDocuments = () => {
             {form && (
                 <Modal title='Document upload' onClose={() => !saving && setForm(null)}>
                     <form onSubmit={save} className='grid gap-3'>
-                        <Select label='Employee' value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: `${item.name} (${item.id})` }))} allLabel='Select employee' />
-                        <TextField label='Document type' value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} />
-                        <TextField label='Document name' value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                        <FormField label='Upload files'>
-                            <input type='file' multiple className={inputClass} onChange={onFile} />
-                        </FormField>
+                        <Select label='Employee' value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} options={employees.map((item) => item.id)} allLabel='Select' />
+                        <input className={inputClass} placeholder='Document type' value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} />
+                        <input className={inputClass} placeholder='Document name' value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+                        <input type='file' multiple onChange={onFile} />
                         <ul className='text-sm text-[#667085]'>
                             {(form.files || []).map((file) => (
                                 <li key={file.fileName} className='flex justify-between gap-2'>
@@ -207,8 +205,12 @@ const EmployeeDocuments = () => {
                                 </li>
                             ))}
                         </ul>
-                        <TextField label='Expiry date' type='date' value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} />
-                        <Select label='Status' value={form.status || 'Pending'} onChange={(e) => setForm({ ...form, status: e.target.value })} options={DOC_STATUSES} allLabel={null} />
+                        <input className={inputClass} type='date' value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} />
+                        <label className='text-base font-medium text-[#808080] flex flex-col gap-y-2'>Status
+                            <select className={inputClass} value={form.status || 'Pending'} onChange={(e) => setForm({ ...form, status: e.target.value })}>
+                                {DOC_STATUSES.map((status) => <option key={status} value={status}>{status}</option>)}
+                            </select>
+                        </label>
                         {preview && <img src={preview} alt='Preview' className='max-h-40 object-contain' />}
                         <PrimaryButton type='submit'>{saving ? 'Saving…' : 'Save document'}</PrimaryButton>
                     </form>

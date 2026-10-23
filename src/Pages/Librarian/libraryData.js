@@ -97,21 +97,67 @@ const DEFAULT_MEMBERS = [
     },
 ]
 
-export const getLibraryBooks = () => ensureCampusSeed(BOOKS_KEY, DEFAULT_BOOKS)
+const seedFor = (key, demo) => (usesCampusApiForKey(key) ? [] : demo)
+
+export const getLibraryBooks = () => ensureCampusSeed(BOOKS_KEY, seedFor(BOOKS_KEY, DEFAULT_BOOKS))
 export const saveLibraryBooks = (rows) => saveCampusJson(BOOKS_KEY, rows)
-export const getLibraryIssues = () => ensureCampusSeed(ISSUES_KEY, DEFAULT_ISSUES)
+export const getLibraryIssues = () => ensureCampusSeed(ISSUES_KEY, seedFor(ISSUES_KEY, DEFAULT_ISSUES))
 export const saveLibraryIssues = (rows) => saveCampusJson(ISSUES_KEY, rows)
-export const getLibraryMembers = () => ensureCampusSeed(MEMBERS_KEY, DEFAULT_MEMBERS)
+export const getLibraryMembers = () => ensureCampusSeed(MEMBERS_KEY, seedFor(MEMBERS_KEY, DEFAULT_MEMBERS))
 export const saveLibraryMembers = (rows) => saveCampusJson(MEMBERS_KEY, rows)
 
 export const hydrateLibraryFromApi = async () => {
     if (!usesCampusApiForKey(BOOKS_KEY)) return false
     await Promise.all([
-        hydrateCampusKey(BOOKS_KEY, DEFAULT_BOOKS),
-        hydrateCampusKey(ISSUES_KEY, DEFAULT_ISSUES),
-        hydrateCampusKey(MEMBERS_KEY, DEFAULT_MEMBERS),
+        hydrateCampusKey(BOOKS_KEY, []),
+        hydrateCampusKey(ISSUES_KEY, []),
+        hydrateCampusKey(MEMBERS_KEY, []),
     ])
     return true
+}
+
+export const issueLibraryBook = ({ bookId, memberName, issueDate, dueDate }) => {
+    const books = getLibraryBooks()
+    const book = books.find((row) => row.id === bookId)
+    if (!book) return { success: false, message: 'Choose a book from the catalogue.' }
+    if (Number(book.available) <= 0) return { success: false, message: 'No copies are available to issue.' }
+    const member = String(memberName || '').trim()
+    if (!member) return { success: false, message: 'Member name is required.' }
+    const issue = {
+        id: `LIS-${Date.now()}`,
+        bookId: book.id,
+        bookTitle: book.title,
+        memberName: member,
+        issueDate: issueDate || '',
+        dueDate: dueDate || '',
+        status: 'Issued',
+    }
+    const nextBooks = books.map((row) => {
+        if (row.id !== book.id) return row
+        const available = Math.max(0, Number(row.available || 0) - 1)
+        return { ...row, available, status: available > 0 ? 'Available' : 'Issued Out' }
+    })
+    saveLibraryBooks(nextBooks)
+    saveLibraryIssues([issue, ...getLibraryIssues()])
+    return { success: true, issue }
+}
+
+export const returnLibraryBook = (issueId) => {
+    const issues = getLibraryIssues()
+    const issue = issues.find((row) => row.id === issueId)
+    if (!issue || issue.status === 'Returned') return { success: false, message: 'That issue is already closed.' }
+    const nextIssues = issues.map((row) => (
+        row.id === issueId ? { ...row, status: 'Returned', returnDate: new Date().toISOString().slice(0, 10) } : row
+    ))
+    const nextBooks = getLibraryBooks().map((row) => {
+        if (row.id !== issue.bookId) return row
+        const available = Number(row.available || 0) + 1
+        const copies = Math.max(Number(row.copies || 0), available)
+        return { ...row, available, copies, status: 'Available' }
+    })
+    saveLibraryIssues(nextIssues)
+    saveLibraryBooks(nextBooks)
+    return { success: true }
 }
 
 export const statusBadgeColor = {

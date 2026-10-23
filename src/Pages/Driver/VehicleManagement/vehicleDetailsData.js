@@ -1,15 +1,3 @@
-export const VEHICLE_DETAILS = {
-    vehicleId: 'VH001',
-    vehicleNumber: 'TN 33 AB 1234',
-    vehicleType: 'School Bus',
-    vehicleModel: 'Ashok Leyland',
-    seatingCapacity: '50',
-    assignedDriver: 'Suresh Kumar',
-    driverContact: '+91 9944076993',
-    assignedRoute: 'Erode Central Route',
-    status: 'Active',
-}
-
 export const vehicleStatusBadgeColor = {
     Active: 'bg-[#4CAF501A] text-[#4CAF50]',
     Inactive: 'bg-[#6670851A] text-[#667085]',

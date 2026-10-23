@@ -1,37 +1,35 @@
 # Testing report
 
-Project: Queen Mira International School ERP  
-Last run: 17 October 2026 — **Phase 3 Ops + Audit closeout (Biometric last)**
+**Date:** 23 October 2026  
+**Branch:** `ERP1`  
+**Context:** Final pending-requirements audit (code re-check + targeted pytest)
 
-## Suite / build
+## Backend (this audit)
 
-| Check | Result |
+| Metric | Count |
 |---|---|
-| `pytest tests/test_ops_and_audit_collections.py` | **5 passed** |
-| `pytest tests/test_academics_collections.py` | **4 passed** |
-| Combined (this pass) | **9 passed** |
-| Prior full suite (16 Oct) | **426 passed** |
-| Frontend build | Not re-run this pass (data-layer + API) |
+| Passed | **19** |
+| Failed | **0** |
+| Skipped | 0 |
+| Warnings | 1 (Starlette TestClient / httpx deprecation) |
+| Duration | ~27 seconds |
 
-## Status sheet
+Command: `python -m pytest tests/test_remaining_workflows.py tests/test_frontend_production_readiness_static.py tests/test_protrack_proxy.py tests/test_integrations_ready.py -q` from `backend/`.
 
-| Check | Result |
+## Backend (earlier same day — full suite)
+
+| Metric | Count |
 |---|---|
-| TOTAL | **480 Completed / 0 Partial / 0 Not Completed / 0 Gap** (of 480) |
-| Ops + Audit | Closed via `/ops` + `/campus-audit` collections (Alembic **0014**) |
-| Biometric | Teacher/Coordinator → `ops/biometric-attendance` (simulated ESSL sync) |
+| Passed | **464** |
+| Failed | **0** |
+| Duration | 4 minutes 41 seconds |
 
-## Local stack (this Mac)
+Command: `python -m pytest tests/ -q` from `backend/`.
 
-| Item | Value |
-|---|---|
-| Postgres | **18.6** EnterpriseDB on **5433** (`qmis_erp`, user `postgres`) |
-| API | `./run-local.sh` → http://127.0.0.1:8000 |
-| Frontend | `npm run dev` → http://localhost:5173 |
-| Migration | `alembic upgrade head` → **0014_ops_and_audit_records** |
+## Frontend
 
-## Smoke notes
+`npm run build` passed earlier same day (~1 minute 7 seconds). Not re-run in the final audit pass.
 
-- Library / Gate registers / Transport vehicles / Canteen menu / JD Audit templates / Process observations hydrate from campus JSON SoT when API auth is on.
-- Demo `localStorage` keys mapped in `campusCollectionRegistry.js` are purged after hydrate.
-- Live RFID/eSSL device contact is still simulated; punches persist in Postgres.
+## Browser
+
+Canteen order create → API persist → refresh → re-login → controlled fail-save was verified on localhost (see `QMIS_ERP_PRODUCTION_READINESS_REPORT.md` §6). Live ProTrack, SMTP, WhatsApp, and Razorpay were not attempted (configuration empty / out of scope).

@@ -119,9 +119,10 @@ def test_demo_gateway_email_whatsapp_and_rfid_off(client):
         json={"receiptId": receipt_id, "channel": "email"},
     )
     assert email.status_code == 200, email.text
-    assert email.json()["delivery"]["status"] == "demo_sent"
-    assert email.json()["delivery"]["delivered"] is True
+    assert email.json()["delivery"]["status"] == "MOCK_QUEUED"
+    assert email.json()["delivery"]["delivered"] is False
     assert email.json()["delivery"].get("demo") is True
+    assert email.json()["delivery"].get("liveVerified") is False
 
     wa = client.post(
         "/api/v1/finance/actions/send-receipt",
@@ -129,7 +130,7 @@ def test_demo_gateway_email_whatsapp_and_rfid_off(client):
         json={"receiptId": receipt_id, "channel": "whatsapp"},
     )
     assert wa.status_code == 200, wa.text
-    assert wa.json()["delivery"]["status"] == "demo_sent"
+    assert wa.json()["delivery"]["status"] == "MOCK_QUEUED"
 
     outbox = demo_outbox_path()
     assert outbox.exists()

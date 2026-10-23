@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useActiveStudent } from '../../context/ActiveStudentContext'
 import { useFinance } from '../../Pages/AccountHead/financeDomain/FinanceContext'
 import { buildMfpFromInstallments } from '../../Pages/AccountHead/financeDomain/financeSnapshotAccounting'
 import ReactECharts from 'echarts-for-react'
 import { toast } from 'react-toastify'
-import { getBiometricRows, hydrateBiometricFromApi, overrideAttendance, syncBiometricDemo } from './biometric'
+import { getBiometricRows, overrideAttendance, syncBiometricDemo } from './biometric'
 import { StatusBadge } from './statusBadge'
 import { bookFeeRows, getFeeProjection, projectFee, saveFeeProjection } from './financeExtras'
 import EntryClosureGate from './EntryClosureGate'
@@ -41,28 +41,14 @@ export function DemoActivityPage() {
 }
 import { ensureSeed, saveJson } from './storage'
 import RegisterPage from './RegisterPage'
-import { DateField, TextField, SelectField, formInputClass } from '../CommonComponents/FormField'
 
-const inputClass = formInputClass
+const inputClass = 'text-sm border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
 
 export function BiometricAttendancePage({ canOverride = false }) {
     const actor = canOverride ? 'Teacher' : 'Coordinator'
     const [rows, setRows] = useState(() => getBiometricRows())
     const [lastSync, setLastSync] = useState(rows[0]?.lastSync || 'Not synced in this session')
     const [reason, setReason] = useState('Official duty')
-
-    useEffect(() => {
-        let active = true
-        hydrateBiometricFromApi().then(() => {
-            if (!active) return
-            const next = getBiometricRows()
-            setRows(next)
-            setLastSync(next[0]?.lastSync || 'Not synced in this session')
-        })
-        return () => {
-            active = false
-        }
-    }, [])
 
     const sync = () => {
         if (entryBlocked('Attendance', actor)) return
@@ -391,7 +377,7 @@ export function MfpPlaceholder() {
                         {rows.length === 0 ? (
                             <tr>
                                 <td colSpan={7} className='px-2 py-8 text-center text-[#667085]'>
-                                    No installment demand on the finance snapshot yet. Use Settings → Apply fee structures to students.
+                                    No installment demand on the finance snapshot yet. Use Settings → Bootstrap campus fee ledger.
                                 </td>
                             </tr>
                         ) : rows.map((row) => (
@@ -439,11 +425,11 @@ export function IssueStockPage() {
     return (
         <section className='space-y-4'>
             <EntryClosureGate moduleName='Inventory' actor='Stores Manager' />
-            <form onSubmit={submit} className='bg-white rounded-2xl shadow-md p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end'>
-                <SelectField label='Item' value={form.itemName} onChange={(event) => setForm({ ...form, itemName: event.target.value })} options={items.map((item) => item.name)} placeholder={null} />
-                <TextField label='Quantity' type='number' min='1' value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} />
-                <SelectField label='Issue to' value={form.to} onChange={(event) => setForm({ ...form, to: event.target.value })} options={['Housekeeping', 'Academics', 'Café', 'Laboratory']} placeholder={null} />
-                <button className='bg-[#515DEF] text-white rounded-md text-sm cursor-pointer py-2'>Issue stock</button>
+            <form onSubmit={submit} className='bg-white rounded-2xl shadow-md p-4 grid grid-cols-1 md:grid-cols-4 gap-3'>
+                <select value={form.itemName} onChange={(event) => setForm({ ...form, itemName: event.target.value })} className={inputClass}>{items.map((item) => <option key={item.id}>{item.name}</option>)}</select>
+                <input type='number' min='1' value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} className={inputClass} />
+                <select value={form.to} onChange={(event) => setForm({ ...form, to: event.target.value })} className={inputClass}>{['Housekeeping', 'Academics', 'Café', 'Laboratory'].map((item) => <option key={item}>{item}</option>)}</select>
+                <button className='bg-[#515DEF] text-white rounded-md text-sm cursor-pointer'>Issue stock</button>
             </form>
             <MovementTable rows={movements} />
         </section>
@@ -488,12 +474,12 @@ export function RequirementsPage({ department, requestedBy, lockDepartment = fal
     }
     return (
         <section className='space-y-4'>
-            <form onSubmit={submit} className='bg-white rounded-2xl shadow-md p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end'>
-                <SelectField label='Year' value={form.year} onChange={(event) => setForm({ ...form, year: event.target.value })} options={['2026-27', '2025-26']} placeholder={null} />
-                <TextField label='Item' value={form.item} onChange={(event) => setForm({ ...form, item: event.target.value })} placeholder='Item name' />
-                <TextField label='Quantity' type='number' value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} />
-                <DateField label='Required date' value={form.requiredDate} onChange={(value) => setForm({ ...form, requiredDate: value })} bound='future' />
-                <button className='bg-[#515DEF] text-white rounded-md text-sm cursor-pointer py-2 md:col-span-4'>Submit requirement</button>
+            <form onSubmit={submit} className='bg-white rounded-2xl shadow-md p-4 grid grid-cols-1 md:grid-cols-4 gap-3'>
+                <select value={form.year} onChange={(event) => setForm({ ...form, year: event.target.value })} className={inputClass}><option>2026-27</option><option>2025-26</option></select>
+                <input value={form.item} onChange={(event) => setForm({ ...form, item: event.target.value })} className={inputClass} placeholder='Item' />
+                <input type='number' value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} className={inputClass} />
+                <input type='date' value={form.requiredDate} onChange={(event) => setForm({ ...form, requiredDate: event.target.value })} className={inputClass} />
+                <button className='bg-[#515DEF] text-white rounded-md text-sm cursor-pointer'>Submit requirement</button>
             </form>
             <div className='bg-white rounded-2xl shadow-md p-4 overflow-x-auto'>
                 <table className='w-full text-sm'>

@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom'
 import { EllipsisIcon, ChevronLeft, ChevronRight, Plus, Download, Trophy, Star } from 'lucide-react'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
-import ScrollableSelect from '../../../Common/CommonComponents/ScrollableSelect'
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import StarRatingDisplay from './Components/StarRatingDisplay'
@@ -143,14 +142,16 @@ const StarRatings = ({ view = 'som' }) => {
                     {isSom ? (
                         <div className='flex flex-col gap-y-2'>
                             <label htmlFor='month' className='text-base font-medium text-[#808080]'>Month</label>
-                            <ScrollableSelect
+                            <select
                                 id='month'
                                 value={selectedMonth}
-                                onChange={setSelectedMonth}
-                                options={months}
-                                placeholder='Select month'
-                                listClassName='max-h-48'
-                            />
+                                onChange={(e) => setSelectedMonth(e.target.value)}
+                                className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full bg-white'
+                            >
+                                {months.map((month) => (
+                                    <option key={month} value={month}>{month}</option>
+                                ))}
+                            </select>
                         </div>
                     ) : (
                         <div className='flex flex-col gap-y-2'>

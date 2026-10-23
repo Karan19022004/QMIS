@@ -246,7 +246,9 @@ class EmployeeOut(BaseModel):
     employee_code: str
     first_name: str
     last_name: str
-    email: EmailStr
+    # Plain str: stored demo/audit addresses may use reserved TLDs (e.g. .local)
+    # that EmailStr rejects; create still validates with EmailStr where appropriate.
+    email: str
     phone: str | None = None
     department: str | None = None
     designation: str | None = None

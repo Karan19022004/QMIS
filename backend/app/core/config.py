@@ -43,11 +43,6 @@ class Settings(BaseSettings):
     teacher_seed_password: str = "teacher123"
     coordinator_seed_email: str = "coordinator@qmis.edu"
     coordinator_seed_password: str = "coord123"
-    # Grade-band coordinators (1–4 / 5–8 / 9–12). Primary email also maps to grades 1–4.
-    coordinator2_seed_email: str = "coordinator2@qmis.edu"
-    coordinator2_seed_password: str = "coord123"
-    coordinator3_seed_email: str = "coordinator3@qmis.edu"
-    coordinator3_seed_password: str = "coord123"
     principal_seed_email: str = "principal@qmis.edu"
     principal_seed_password: str = "principal123"
     prm_seed_email: str = "prm@qmis.edu"
@@ -74,24 +69,26 @@ class Settings(BaseSettings):
     # demo = local outbox + demo Razorpay HMAC (not real merchant). live = real providers.
     integrations_mode: str = ""
 
-    # Payment (Razorpay sandbox/live). Empty + non-demo = stub gateway.
+    # Payment (Razorpay sandbox/live). Empty + non-demo = NOT_CONFIGURED (no fake paid).
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""  # webhook HMAC only — never put in frontend
     payment_provider: str = "razorpay"  # razorpay | stub
 
-    # SMTP. Empty host + non-demo = stub email.
+    # SMTP. Empty host + non-demo = NOT_CONFIGURED (no fake delivered).
+    # SMTP_FROM should be a non-reply address once the school configures mail.
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_username: str = ""
     smtp_password: str = ""
     smtp_from: str = ""
     smtp_use_tls: bool = True
+    school_display_name: str = "Queen Mira International School"
 
-    # WhatsApp provider HTTP API. Empty URL + non-demo = stub.
+    # WhatsApp provider HTTP API. Empty URL + non-demo = NOT_CONFIGURED.
     whatsapp_api_url: str = ""
     whatsapp_api_token: str = ""
     whatsapp_from: str = ""
-
     # RFID / eSSL punch import — off until school confirms.
     rfid_import_enabled: bool = False
 
@@ -101,7 +98,6 @@ class Settings(BaseSettings):
     protrack_admin_password: str = ""
     protrack_parent_account: str = ""
     protrack_parent_password: str = ""
-
 
     @property
     def is_sqlite(self) -> bool:

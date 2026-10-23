@@ -5,21 +5,21 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import hash_password
-from app.models import (
-    AcademicYear,
-    Campus,
-    CoordinatorGradeBand,
-    FinancialYear,
-    HrEmployee,
-    Permission,
-    Role,
-    RolePermission,
-    SchoolClass,
-    Section,
-    User,
-)
+from app.models import AcademicYear, Campus, FinancialYear, HrEmployee, Permission, Role, RolePermission, Student, User
 from app.permissions.matrix import ALL_ROLES, PERMISSIONS, ROLE_PERMISSIONS
 from app.services.audit import write_audit
+
+# Reuse one bcrypt hash per demo password so StaticPool test sessions can repair
+# polluted seed logins with a string compare instead of hashing on every startup.
+_SEED_PASSWORD_HASHES: dict[str, str] = {}
+
+
+def _seed_password_hash(password: str) -> str:
+    cached = _SEED_PASSWORD_HASHES.get(password)
+    if cached is None:
+        cached = hash_password(password)
+        _SEED_PASSWORD_HASHES[password] = cached
+    return cached
 
 
 def seed_reference_data(db: Session) -> None:
@@ -70,9 +70,8 @@ def seed_reference_data(db: Session) -> None:
     # Demo logins have well-known passwords, so they exist only in explicit development mode.
     if settings.seed_demo_accounts:
         _seed_demo_users(db, campus, roles_by_code)
+        _seed_demo_parent_student_link(db, campus)
         _ensure_demo_staff_hr_links(db, campus)
-        _seed_coordinator_grade_bands(db, campus)
-        _seed_default_grade_classes(db, campus)
     if created_campus:
         write_audit(
             db,
@@ -122,15 +121,29 @@ def _seed_demo_users(db: Session, campus: Campus, roles_by_code: dict[str, Role]
         email=settings.finance_assistant_seed_email,
         password=settings.finance_assistant_seed_password,
     )
-    # Academics / approvals logins used by Full Panel Test Guide
+    # Academics / approvals + ops portal demo logins (match SignIn.jsx DEMO_TEST_LOGINS).
     for role_code, email, password in (
         ("teacher", settings.teacher_seed_email, settings.teacher_seed_password),
         ("coordinator", settings.coordinator_seed_email, settings.coordinator_seed_password),
-        ("coordinator", settings.coordinator2_seed_email, settings.coordinator2_seed_password),
-        ("coordinator", settings.coordinator3_seed_email, settings.coordinator3_seed_password),
         ("principal", settings.principal_seed_email, settings.principal_seed_password),
         ("prm", settings.prm_seed_email, settings.prm_seed_password),
         ("director", settings.director_seed_email, settings.director_seed_password),
+        ("jointdirector", "jointdirector@qmis.edu", "jd12345678"),
+        ("jointdirectorassistant", "jointdirectorassistant@qmis.edu", "jda1234567"),
+        ("jointdirectoraudit", "jointdirectoraudit@qmis.edu", "jdaudit123"),
+        ("processauditor", "processauditor@qmis.edu", "process123"),
+        ("qualityauditor", "qualityauditor@qmis.edu", "quality123"),
+        ("librarian", "librarian@qmis.edu", "librarian123"),
+        ("transportmanager", "transportmanager@qmis.edu", "transport123"),
+        ("driver", "driver@qmis.edu", "driver123"),
+        ("gatekeeper", "gatekeeper@qmis.edu", "gatekeeper123"),
+        ("gatekeepermanager", "gatekeepermanager@qmis.edu", "gkm1234567"),
+        ("canteenmanager", "canteenmanager@qmis.edu", "canteen123"),
+        ("itsupportmanager", "itsupportmanager@qmis.edu", "itsupport123"),
+        ("stationerystoremanager", "stationerystoremanager@qmis.edu", "stationery123"),
+        ("housekeepingmanager", "housekeepingmanager@qmis.edu", "housekeeping123"),
+        ("parent", "parent@qmis.edu", "parent123"),
+        ("student", "student@qmis.edu", "student123"),
     ):
         if role_code in roles_by_code:
             _seed_user(
@@ -140,6 +153,45 @@ def _seed_demo_users(db: Session, campus: Campus, roles_by_code: dict[str, Role]
                 email=email,
                 password=password,
             )
+
+
+def _seed_demo_parent_student_link(db: Session, campus: Campus) -> None:
+    """Link parent@qmis.edu + student@qmis.edu to one enrolled child so portals are not empty."""
+    parent = db.scalar(select(User).where(User.email == "parent@qmis.edu"))
+    student_user = db.scalar(select(User).where(User.email == "student@qmis.edu"))
+    if parent is None or student_user is None:
+        return
+
+    admission_number = "ADM-DEMO-001"
+    row = db.scalar(select(Student).where(Student.admission_number == admission_number))
+    if row is None:
+        row = Student(
+            campus_id=campus.id,
+            admission_number=admission_number,
+            full_name="Demo Child Sharma",
+            class_name="Class 10",
+            section="A",
+            roll_number=1,
+            placement_status="placed",
+            parent_user_id=parent.id,
+            student_user_id=student_user.id,
+        )
+        db.add(row)
+        db.flush()
+        return
+
+    changed = False
+    if row.parent_user_id != parent.id:
+        row.parent_user_id = parent.id
+        changed = True
+    if row.student_user_id != student_user.id:
+        row.student_user_id = student_user.id
+        changed = True
+    if row.campus_id != campus.id:
+        row.campus_id = campus.id
+        changed = True
+    if changed:
+        db.flush()
 
 
 def _seed_current_academic_year(db: Session, campus: Campus) -> None:
@@ -188,15 +240,29 @@ def _seed_current_financial_year(db: Session, campus: Campus) -> None:
 
 
 def _seed_user(db: Session, *, campus: Campus, role: Role, email: str, password: str) -> None:
+    password_hash = _seed_password_hash(password)
     existing = db.scalar(select(User).where(User.email == email.lower()))
     if existing is not None:
+        # Demo accounts share one StaticPool SQLite across TestClient sessions. Repair only
+        # when a prior test left the well-known login unusable.
+        needs_repair = (
+            existing.password_hash != password_hash
+            or not existing.is_active
+            or existing.must_change_password
+            or existing.role_id != role.id
+        )
+        if needs_repair:
+            existing.password_hash = password_hash
+            existing.role_id = role.id
+            existing.is_active = True
+            existing.must_change_password = False
         return
     db.add(
         User(
             campus_id=campus.id,
             role_id=role.id,
             email=email.lower(),
-            password_hash=hash_password(password),
+            password_hash=password_hash,
             is_active=True,
             must_change_password=False,
         )
@@ -237,15 +303,6 @@ def _ensure_demo_staff_hr_links(db: Session, campus: Campus) -> None:
             "designation": "Principal",
             "role_title": "Principal",
         },
-        {
-            "email": settings.teacher_seed_email.lower(),
-            "employee_code": "EMP-TEA-001",
-            "first_name": "Campus",
-            "last_name": "Teacher",
-            "department": "Academics",
-            "designation": "Teacher",
-            "role_title": "Teacher",
-        },
     )
     for profile in profiles:
         user = db.scalar(select(User).where(User.email == profile["email"]))
@@ -282,85 +339,4 @@ def _ensure_demo_staff_hr_links(db: Session, campus: Campus) -> None:
                 row.department = profile["department"]
             if not row.designation:
                 row.designation = profile["designation"]
-    db.flush()
-
-
-def _seed_default_grade_classes(db: Session, campus: Campus) -> None:
-    """Ensure Grade 1–12 with sections A/B/C exist for the current academic year."""
-    year = db.scalar(
-        select(AcademicYear).where(
-            AcademicYear.campus_id == campus.id,
-            AcademicYear.is_current.is_(True),
-        )
-    )
-    if year is None:
-        return
-    for grade in range(1, 13):
-        name = f"Grade {grade}"
-        school_class = db.scalar(
-            select(SchoolClass).where(
-                SchoolClass.campus_id == campus.id,
-                SchoolClass.academic_year_id == year.id,
-                SchoolClass.name == name,
-            )
-        )
-        if school_class is None:
-            school_class = SchoolClass(
-                campus_id=campus.id,
-                academic_year_id=year.id,
-                name=name,
-                is_active=True,
-            )
-            db.add(school_class)
-            db.flush()
-        existing = {
-            s.name.upper()
-            for s in db.scalars(select(Section).where(Section.class_id == school_class.id)).all()
-        }
-        for section_name in ("A", "B", "C"):
-            if section_name in existing:
-                continue
-            db.add(
-                Section(
-                    campus_id=campus.id,
-                    class_id=school_class.id,
-                    name=section_name,
-                    is_active=True,
-                )
-            )
-    db.flush()
-
-
-def _seed_coordinator_grade_bands(db: Session, campus: Campus) -> None:
-    """Map demo coordinator logins to grade bands 1–4 / 5–8 / 9–12."""
-    from datetime import datetime, timezone
-
-    mapping = (
-        (settings.coordinator_seed_email.lower(), 1, 4),
-        (settings.coordinator2_seed_email.lower(), 5, 8),
-        (settings.coordinator3_seed_email.lower(), 9, 12),
-    )
-    for email, grade_from, grade_to in mapping:
-        user = db.scalar(select(User).where(User.email == email))
-        if user is None:
-            continue
-        existing = db.scalar(
-            select(CoordinatorGradeBand).where(
-                CoordinatorGradeBand.campus_id == campus.id,
-                CoordinatorGradeBand.user_id == user.id,
-            )
-        )
-        if existing is not None:
-            existing.grade_from = grade_from
-            existing.grade_to = grade_to
-            continue
-        db.add(
-            CoordinatorGradeBand(
-                campus_id=campus.id,
-                user_id=user.id,
-                grade_from=grade_from,
-                grade_to=grade_to,
-                created_at=datetime.now(timezone.utc),
-            )
-        )
     db.flush()

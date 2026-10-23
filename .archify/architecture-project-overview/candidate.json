@@ -3,23 +3,20 @@
   "diagram_type": "architecture",
   "meta": {
     "title": "QMIS School ERP \u2014 project overview",
-    "subtitle": "Single current overview \u00b7 Archify 3.1.0 \u00b7 Account Head 22/22 \u00b7 Alembic 0012",
+    "subtitle": "Single current overview \u00b7 Archify 3.1.0 \u00b7 Alembic 0018 \u00b7 ops + ProTrack proxy",
     "locale": "en",
     "quality_profile": "showcase",
     "repository": {
       "url": "https://github.com/karan4533/ERP-dev.git",
       "provider": "github",
       "link_mode": "web",
-      "revision": "35d8816764bea6a858b0a9d53b2b2941306fcc14"
+      "revision": "26c0f0b9f36dd3d3be3cb5c549b54d43b3a50673"
     },
     "output": ".archify/architecture-project-overview/qmis-erp-overview.html",
     "legend": {
       "entries": {
         "backend": {
           "label": "API module"
-        },
-        "cloud": {
-          "label": "Planned module"
         },
         "frontend": {
           "label": "Browser app"
@@ -54,18 +51,13 @@
           "mod_hr",
           "mod_files",
           "mod_admin_campus",
-          "mod_front_office"
+          "mod_front_office",
+          "mod_ops",
+          "mod_campus_audit",
+          "mod_protrack",
+          "mod_webhooks"
         ],
         "note": "Routers mounted in main.py"
-      },
-      {
-        "id": "planned",
-        "label": "Planned",
-        "focus": [
-          "api",
-          "mod_ops"
-        ],
-        "note": "Phase 3+"
       },
       {
         "id": "path",
@@ -98,8 +90,8 @@
       "sources": [
         {
           "path": "src/App.jsx",
-          "line": 44,
-          "end_line": 72
+          "line": 34,
+          "end_line": 66
         }
       ]
     },
@@ -119,8 +111,8 @@
       "sources": [
         {
           "path": "src/App.jsx",
-          "line": 1,
-          "end_line": 42
+          "line": 91,
+          "end_line": 224
         }
       ]
     },
@@ -128,7 +120,7 @@
       "id": "client",
       "type": "frontend",
       "label": "API clients",
-      "sublabel": "30 *Api.js clients",
+      "sublabel": "36 *Api.js clients",
       "pos": [
         400,
         200
@@ -162,8 +154,8 @@
       "sources": [
         {
           "path": "backend/app/main.py",
-          "line": 38,
-          "end_line": 90
+          "line": 74,
+          "end_line": 102
         }
       ]
     },
@@ -192,7 +184,7 @@
       "id": "alembic",
       "type": "backend",
       "label": "Alembic",
-      "sublabel": "0001\u20130012",
+      "sublabel": "0001\u20130018",
       "pos": [
         220,
         360
@@ -508,7 +500,7 @@
       "id": "mod_front_office",
       "type": "backend",
       "label": "Front Office",
-      "sublabel": "auto from main.py",
+      "sublabel": "visitors \u00b7 gate passes",
       "pos": [
         960,
         592
@@ -519,21 +511,20 @@
       ],
       "sources": [
         {
-          "path": "backend/app/main.py",
-          "line": 90,
-          "end_line": 90
+          "path": "backend/app/api/v1/endpoints/front_office.py",
+          "line": 1,
+          "end_line": 48
         }
-      ],
-      "tag": "auto"
+      ]
     },
     {
       "id": "mod_ops",
-      "type": "cloud",
-      "label": "Ops",
-      "sublabel": "Phase 3+",
+      "type": "backend",
+      "label": "Campus ops",
+      "sublabel": "library \u00b7 gate \u00b7 transport",
       "pos": [
         800,
-        704
+        684
       ],
       "size": [
         148,
@@ -541,12 +532,74 @@
       ],
       "sources": [
         {
-          "path": "backend/app/main.py",
-          "line": 43,
-          "end_line": 48
+          "path": "backend/app/api/v1/endpoints/ops_collections.py",
+          "line": 11,
+          "end_line": 23
         }
+      ]
+    },
+    {
+      "id": "mod_campus_audit",
+      "type": "backend",
+      "label": "Campus audit",
+      "sublabel": "assignments \u00b7 findings",
+      "pos": [
+        960,
+        684
       ],
-      "tag": "planned"
+      "size": [
+        148,
+        60
+      ],
+      "sources": [
+        {
+          "path": "backend/app/api/v1/endpoints/campus_audit_collections.py",
+          "line": 11,
+          "end_line": 23
+        }
+      ]
+    },
+    {
+      "id": "mod_protrack",
+      "type": "backend",
+      "label": "ProTrack proxy",
+      "sublabel": "devices \u00b7 track",
+      "pos": [
+        800,
+        776
+      ],
+      "size": [
+        148,
+        60
+      ],
+      "sources": [
+        {
+          "path": "backend/app/api/v1/endpoints/protrack.py",
+          "line": 14,
+          "end_line": 82
+        }
+      ]
+    },
+    {
+      "id": "mod_webhooks",
+      "type": "backend",
+      "label": "Webhooks",
+      "sublabel": "inbound hooks",
+      "pos": [
+        960,
+        776
+      ],
+      "size": [
+        148,
+        60
+      ],
+      "sources": [
+        {
+          "path": "backend/app/api/v1/endpoints/webhooks.py",
+          "line": 1,
+          "end_line": 28
+        }
+      ]
     }
   ],
   "boundaries": [
@@ -576,14 +629,11 @@
         "mod_hr",
         "mod_files",
         "mod_admin_campus",
-        "mod_front_office"
-      ]
-    },
-    {
-      "kind": "region",
-      "label": "Planned departments",
-      "wraps": [
-        "mod_ops"
+        "mod_front_office",
+        "mod_ops",
+        "mod_campus_audit",
+        "mod_protrack",
+        "mod_webhooks"
       ]
     },
     {
@@ -708,8 +758,22 @@
     {
       "id": "api-mod_ops",
       "from": "api",
-      "to": "mod_ops",
-      "variant": "dashed"
+      "to": "mod_ops"
+    },
+    {
+      "id": "api-mod_campus_audit",
+      "from": "api",
+      "to": "mod_campus_audit"
+    },
+    {
+      "id": "api-mod_protrack",
+      "from": "api",
+      "to": "mod_protrack"
+    },
+    {
+      "id": "api-mod_webhooks",
+      "from": "api",
+      "to": "mod_webhooks"
     }
   ],
   "cards": [
@@ -730,17 +794,17 @@
         "HR \u2014 partner vertical",
         "Files \u2014 upload \u00b7 download",
         "Admin campus \u2014 docs \u00b7 TC \u00b7 activities",
-        "Front Office \u2014 auto from main.py",
+        "Front Office \u2014 visitors \u00b7 gate passes",
+        "Campus ops \u2014 library \u00b7 gate \u00b7 transport",
+        "Campus audit \u2014 assignments \u00b7 findings",
+        "ProTrack proxy \u2014 devices \u00b7 track",
+        "Webhooks \u2014 inbound hooks",
         "VITE_USE_API_* flags default with auth (fail-closed hydrate; no stale localStorage when API on)",
-        "Completed panels: Admin 26/26 \u00b7 PRM 21/21 \u00b7 Parent 23/23 \u00b7 Student 23/23 \u00b7 Teacher 29/1 Gap \u00b7 Account Head 22/22",
-        "Director 9/7/8 (Home Fun + Star Ratings shared FE SoT; My Attendance linked EMP-DIR-001)",
-        "Finance snapshot SoT: GET/PUT /finance/state + collect-payment; COA/JV/recon/FS/Book Fee/MFP on snapshot",
-        "Class Attendance Save \u2192 POST /attendance; Mark Entry \u2192 /marks-batches",
-        "App.jsx lazy-loads role layouts (entry JS code-split)",
-        "must_change_password gated in get_current_user; orphan file downloads ACL-hardened",
-        "Alembic head 0012_students_student_user_id; 48 application tables",
-        "HR + Finance API SoT; Gateway/SMTP/WA env-gated (demo/stub)",
-        "16 Oct 2026 Account Head complete; pytest 426 passed",
+        "Campus ops + campus audit collections mounted beside front office",
+        "ProTrack proxy mounted (devices + track); credentials empty until school configures .env",
+        "Fee receipts call email/WhatsApp helpers; empty SMTP/WA settings return NOT_CONFIGURED",
+        "App.jsx lazy-loads role layouts; role URL mismatch returns that role home",
+        "Alembic head 0018_exam_academic_year",
         "Request path: User \u2192 lazy React \u2192 apiClient JWT \u2192 FastAPI deps/RBAC \u2192 service \u2192 PostgreSQL (+ uploads)"
       ]
     },
@@ -762,19 +826,18 @@
         "Core types: architecture \u00b7 workflow \u00b7 sequence \u00b7 dataflow \u00b7 lifecycle",
         "New in 3.1: erd \u00b7 tree \u00b7 class \u00b7 timeline \u00b7 waterfall",
         "This project ships one current architecture overview file only",
-        "Clients: activitiesApi.js, adminAttendanceApi.js, adminUsersApi.js, admissionsApi.js, announcementsApi.js, approvalsApi.js, attendanceApi.js, authApi.js\u2026"
+        "Clients: academicsApi.js, activitiesApi.js, adminAttendanceApi.js, adminUsersApi.js, admissionsApi.js, announcementsApi.js, approvalsApi.js, attendanceApi.js\u2026"
       ]
     },
     {
       "dot": "rose",
       "title": "Still open",
       "items": [
-        "Next focus: remaining Director Partials / Coordinator panel (many Not Completed)",
-        "Teacher/Coordinator biometric remains Gap",
-        "staff_ratings REST (Director Star Ratings still FE SoT)",
-        "Further page-level lazy imports inside largest role route trees",
+        "ProTrack365 admin/parent credentials not in backend/.env \u2014 tracking not live-verified",
+        "Confirmed IMEI for TN58BB3769 not stored; do not enable live map until CONNECTED_AND_GPS_VERIFIED",
         "Live SMTP/WhatsApp/payments when school configures providers",
-        "RFID / eSSL import still off unless enabled"
+        "RFID / eSSL import still off unless enabled",
+        "Payment gateway and live bus tracking stay out of scope until school approval"
       ]
     }
   ]

@@ -19,6 +19,8 @@ const isAuthFailure = (err) => {
 
 /**
  * Poll ProTrack365 devices + live coordinates for Transport / Parent / Student maps.
+ * Never falls back to an arbitrary device (wrong-bus risk).
+ * Optional fallbackPanel only switches ProTrack *login* account on auth failure.
  * @param {{ panel?: 'admin'|'parent', preferredImei?: string, preferredPlate?: string, fallbackPanel?: 'admin'|'parent' }} opts
  */
 export default function useProtrackLive(opts = {}) {
@@ -47,7 +49,7 @@ export default function useProtrackLive(opts = {}) {
             const rows = await trackProtrackImeisApi([targetImei], panelToUse || undefined)
             const row = Array.isArray(rows) ? rows[0] : null
             setTrack(row || null)
-            setError((prev) => (prev.includes('Parent GPS') ? prev : ''))
+            setError((prev) => (String(prev || '').includes('Parent GPS') ? prev : ''))
         } catch (err) {
             if (fallbackPanel && panelToUse !== fallbackPanel && isAuthFailure(err)) {
                 try {
@@ -106,16 +108,32 @@ export default function useProtrackLive(opts = {}) {
                 setDevices(devicesList)
 
                 const plateNorm = String(preferredPlate || '').replace(/[\s-]/g, '').toUpperCase()
-                const byImei = preferredImei
-                    ? devicesList.find((d) => String(d.imei) === String(preferredImei))
+                const wantImei = String(preferredImei || '').trim()
+                const byImei = wantImei
+                    ? devicesList.find((d) => String(d.imei) === wantImei)
                     : null
                 const byPlate = plateNorm
                     ? devicesList.find(
                         (d) => String(d.platenumber || '').replace(/[\s-]/g, '').toUpperCase() === plateNorm,
                     )
                     : null
-                const chosen = byImei || byPlate || devicesList[0]
-                const nextImei = chosen?.imei || preferredImei || ''
+                // Never fall back to the first device — wrong-bus risk.
+                const chosen = byImei || byPlate || null
+                if (!chosen) {
+                    setImei('')
+                    setTrack(null)
+                    if (!wantImei && !plateNorm) {
+                        setError(
+                            'Live GPS needs a verified vehicle IMEI or plate mapped to a ProTrack device. Tracking stays off until that mapping exists.',
+                        )
+                    } else {
+                        setError(
+                            `No ProTrack device matches ${wantImei || preferredPlate}. Confirm the IMEI/plate on the vehicle record before enabling live tracking.`,
+                        )
+                    }
+                    return
+                }
+                const nextImei = String(chosen.imei || '')
                 setImei(nextImei)
                 if (nextImei) await refreshTrack(nextImei, panelUsed)
             } catch (err) {

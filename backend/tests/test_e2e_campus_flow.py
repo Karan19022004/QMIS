@@ -243,7 +243,7 @@ def test_phase0_through_finance_campus_journey(client):
         json={"receiptId": receipt_id, "channel": "email"},
     )
     assert sent.status_code == 200, sent.text
-    assert sent.json()["delivery"]["status"] == "queued_stub"
+    assert sent.json()["delivery"]["status"] == "NOT_CONFIGURED"
 
     approved = client.post(
         "/api/v1/finance/actions/decide-approval",

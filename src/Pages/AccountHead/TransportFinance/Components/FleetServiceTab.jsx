@@ -22,12 +22,9 @@ const FleetServiceTab = ({ onAddVehicle }) => {
         const active = vehicles.filter((row) => row.status === 'Active').length
         const service = vehicles.filter((row) => /service/i.test(row.status || '')).length
         return FLEET_SUMMARY.map((card) => {
-            if (card.label === 'Total Vehicles') return { ...card, value: String(total), sub: total ? 'Finance fleet register' : 'No vehicles on snapshot' }
+            if (card.label === 'Total Vehicles') return { ...card, value: String(total), sub: 'Live fleet register' }
             if (card.label === 'Active on Routes') return { ...card, value: String(active), sub: 'Active status' }
             if (card.label === 'Under Service') return { ...card, value: String(service), sub: 'In service / maintenance' }
-            if (card.label === 'Service Due (30 days)') {
-                return { ...card, value: String(total ? vehicles.filter((row) => /due|soon/i.test(row.nextServiceDue || row.status || '')).length : 0), sub: 'From fleet rows' }
-            }
             return card
         })
     }, [vehicles])

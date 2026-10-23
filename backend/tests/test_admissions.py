@@ -131,3 +131,39 @@ def test_create_admission_direct(client):
     rows = client.get("/api/v1/admissions", headers=headers)
     assert rows.status_code == 200
     assert any(row["first_name"] == "Diya" for row in rows.json())
+
+
+def test_enroll_with_student_email_but_no_password_skips_student_login(client):
+    """Student portal login is optional — missing password must not crash enroll."""
+    headers = _login(client)
+    created = client.post(
+        "/api/v1/admissions",
+        json={
+            "first_name": "Kabir",
+            "mobile_number": "9000000099",
+            "class_name": "Grade 1",
+            "parent_account_email": "parent.kabir@example.com",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    admission_id = created.json()["id"]
+
+    enrolled = client.post(
+        f"/api/v1/admissions/{admission_id}/enroll",
+        json={
+            "parent_account_email": "parent.kabir@example.com",
+            "parent_account_password": "Parent-Test-2026",
+            "skip_student_account": False,
+            "student_account_email": "student.kabir@example.com",
+            # student_account_password omitted on purpose
+        },
+        headers=headers,
+    )
+    assert enrolled.status_code == 200, enrolled.text
+    body = enrolled.json()
+    assert body["admission"]["status"] == "Enrolled"
+    assert body["student_id"]
+    assert body["student_created"] is False
+    assert body["student_user_id"] is None
+    assert body["parent_created"] is True

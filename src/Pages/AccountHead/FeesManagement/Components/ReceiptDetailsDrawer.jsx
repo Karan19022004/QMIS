@@ -75,10 +75,17 @@ const ReceiptDetailsDrawer = ({
                     </button>
                     <button type='button' onClick={async () => {
                         const result = await onSend({ receiptId: receipt.id, channel: 'email' })
-                        if (result?.queuedStub || result?.delivery?.status === 'queued_stub') {
-                            toast.info('Email queued_stub — not delivered until SMTP keys are configured.')
-                        } else if (result?.success === false) {
-                            toast.error(result.message || 'Email queue failed.')
+                        const status = result?.delivery?.status
+                        if (result?.success === false) {
+                            toast.error(result.message || 'Email send failed.')
+                        } else if (status === 'MOCK_QUEUED') {
+                            toast.info('Email MOCK_QUEUED to local outbox — not a real mailbox delivery.')
+                        } else if (status === 'NOT_CONFIGURED' || status === 'queued_stub') {
+                            toast.info(result?.delivery?.message || 'Email is NOT_CONFIGURED — not delivered until SMTP is connected.')
+                        } else if (status === 'sent' && result?.delivery?.delivered) {
+                            toast.success('Email accepted by SMTP.')
+                        } else {
+                            toast.info(result?.delivery?.message || `Email status: ${status || 'unknown'}`)
                         }
                     }} className='inline-flex items-center justify-center gap-2 text-sm border border-[#515DEF] text-[#515DEF] px-3 py-2 rounded-md cursor-pointer'>
                         <Mail size={14} /> Email
@@ -86,10 +93,17 @@ const ReceiptDetailsDrawer = ({
                     <button type='button' onClick={async () => {
                         const result = await onSend({ receiptId: receipt.id, channel: 'whatsapp' })
                         logWhatsAppDelivery(receipt.id)
-                        if (result?.queuedStub || result?.delivery?.status === 'queued_stub') {
-                            toast.info('WhatsApp queued_stub — not delivered until provider keys are configured.')
-                        } else if (result?.success === false) {
-                            toast.error(result.message || 'WhatsApp queue failed.')
+                        const status = result?.delivery?.status
+                        if (result?.success === false) {
+                            toast.error(result.message || 'WhatsApp send failed.')
+                        } else if (status === 'MOCK_QUEUED') {
+                            toast.info('WhatsApp MOCK_QUEUED to local outbox — not a real WhatsApp delivery.')
+                        } else if (status === 'NOT_CONFIGURED' || status === 'queued_stub') {
+                            toast.info(result?.delivery?.message || 'WhatsApp is NOT_CONFIGURED — not delivered until API credentials are connected.')
+                        } else if (status === 'sent' && result?.delivery?.delivered) {
+                            toast.success('WhatsApp accepted by provider.')
+                        } else {
+                            toast.info(result?.delivery?.message || `WhatsApp status: ${status || 'unknown'}`)
                         }
                     }} className='col-span-2 inline-flex items-center justify-center gap-2 text-sm bg-[#515DEF] text-white px-3 py-2 rounded-md cursor-pointer'>
                         <MessageCircle size={14} /> Send to WhatsApp

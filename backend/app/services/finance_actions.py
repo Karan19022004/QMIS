@@ -8,9 +8,10 @@ from uuid import uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.deps import role_code_for
-from app.models import HrRecord, User
+from app.models import FinanceRecord, HrRecord, User
 from app.services import finance as fin
 from app.services.audit import write_audit
 from app.services.errors import fail
@@ -736,7 +737,10 @@ def _find_finance_student(students: list, hr: dict):
 
 
 def send_receipt(db: Session, actor: User, payload: dict) -> dict:
-    """Deliver via SMTP/WhatsApp when configured; otherwise honest stub (not fake delivered)."""
+    """Deliver via SMTP/WhatsApp when configured; otherwise NOT_CONFIGURED (never fake delivered)."""
+    from app.core.config import settings
+    from app.services.integrations import templates as tpl
+
     state = fin.get_state(db, actor)
     data = dict(state["data"])
     receipts = list(data.get("receipts") or [])
@@ -753,16 +757,32 @@ def send_receipt(db: Session, actor: User, payload: dict) -> dict:
     student = next((s for s in students if str(s.get("id")) == str(receipt.get("studentId"))), None) or {}
     receipt_no = receipt.get("receiptNo") or receipt_id
     amount = receipt.get("amountPaid") or receipt.get("amount") or ""
-    text = f"QMIS fee receipt {receipt_no}. Amount: {amount}."
+    amount_label = str(amount)
+    student_name = str(student.get("name") or student.get("shortName") or "")
+    school = settings.school_display_name
+    from_addr = settings.smtp_from or "noreply@school.example"
 
     if channel == "email":
         to = payload.get("to") or student.get("guardianEmail") or student.get("email") or ""
-        delivery = notify.send_email(to=to, subject=f"Fee receipt {receipt_no}", body=text)
+        subject, text, html = tpl.fee_receipt_email(
+            school_name=school,
+            receipt_no=str(receipt_no),
+            amount_label=amount_label,
+            student_name=student_name,
+            from_address=from_addr,
+        )
+        delivery = notify.send_email(to=to, subject=subject, body=text, html_body=html)
     else:
         to_phone = payload.get("to") or student.get("guardianPhone") or student.get("phone") or ""
+        text = tpl.fee_receipt_whatsapp(
+            school_name=school,
+            receipt_no=str(receipt_no),
+            amount_label=amount_label,
+            student_name=student_name,
+        )
         delivery = notify.send_whatsapp(to_phone=to_phone, text=text)
 
-    status = delivery.get("status") or "queued_stub"
+    status = delivery.get("status") or "NOT_CONFIGURED"
     delivered = bool(delivery.get("delivered"))
     comm = dict(receipt.get("communication") or {})
     comm[channel] = delivered
@@ -837,7 +857,10 @@ def create_gateway_intent(db: Session, actor: User, payload: dict) -> dict:
 
 
 def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
-    """Verify provider payment (Razorpay signature) and mark link PAID once (idempotent)."""
+    """Verify provider payment (Razorpay signature) and mark link PAID once (idempotent).
+
+    Frontend success alone is never enough — signature must verify (or webhook path).
+    """
     state = fin.get_state(db, actor)
     data = dict(state["data"])
     links = list(data.get("paymentLinks") or [])
@@ -850,18 +873,23 @@ def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
         return {"success": True, "skipped": True, "reason": "already_paid", "intent": link, "state": state}
 
     gateway = str(link.get("gateway") or "stub").lower()
-    if gateway == "razorpay":
-        order_id = payload.get("razorpay_order_id") or link.get("providerOrderId")
-        payment_id = payload.get("razorpay_payment_id")
-        signature = payload.get("razorpay_signature")
-        if not order_id or not payment_id or not signature:
-            fail(400, "validation_error", "razorpay_order_id, razorpay_payment_id, and razorpay_signature are required.")
-        if not payments.verify_razorpay_signature(order_id=order_id, payment_id=payment_id, signature=signature):
-            fail(400, "invalid_signature", "Razorpay signature verification failed.")
-        link["providerPaymentId"] = payment_id
-    else:
-        # Stub confirm for local demos only — never invent a paid Razorpay result.
-        link["providerPaymentId"] = payload.get("providerPaymentId") or payments.stub_confirm_token()
+    if gateway in {"stub", ""} or str(link.get("status") or "") == "NOT_CONFIGURED":
+        fail(
+            503,
+            "NOT_CONFIGURED",
+            "Payment gateway is NOT_CONFIGURED. Set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET before confirming payment.",
+        )
+    if gateway != "razorpay":
+        fail(400, "validation_error", f"Unsupported gateway: {gateway}")
+    order_id = payload.get("razorpay_order_id") or link.get("providerOrderId")
+    payment_id = payload.get("razorpay_payment_id")
+    signature = payload.get("razorpay_signature")
+    if not order_id or not payment_id or not signature:
+        fail(400, "validation_error", "razorpay_order_id, razorpay_payment_id, and razorpay_signature are required.")
+    if not payments.verify_razorpay_signature(order_id=order_id, payment_id=payment_id, signature=signature):
+        fail(400, "invalid_signature", "Razorpay signature verification failed.")
+    link["providerPaymentId"] = payment_id
+    link["confirmedVia"] = "signature"
 
     link["status"] = "PAID"
     link["paidAt"] = _now()
@@ -891,6 +919,78 @@ def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
     )
     saved = _save(db, actor, data)
     return {"success": True, "intent": link, "state": saved}
+
+
+def apply_razorpay_webhook(db: Session, *, raw_body: bytes, signature: str, payload: dict) -> dict:
+    """Mark a payment link PAID from a verified Razorpay webhook (no JWT / no frontend trust)."""
+    from app.core.config import settings
+
+    if not (settings.razorpay_webhook_secret or "").strip():
+        fail(503, "NOT_CONFIGURED", "RAZORPAY_WEBHOOK_SECRET is not configured.")
+    if not payments.verify_webhook_signature(body=raw_body, signature=signature):
+        fail(400, "invalid_signature", "Webhook signature verification failed.")
+
+    event = str(payload.get("event") or "")
+    entity = ((payload.get("payload") or {}).get("payment") or {}).get("entity") or {}
+    if event not in {"payment.captured", "payment.authorized"}:
+        return {"success": True, "ignored": True, "event": event}
+
+    order_id = str(entity.get("order_id") or "")
+    payment_id = str(entity.get("id") or "")
+    if not order_id:
+        fail(400, "validation_error", "Webhook payment entity missing order_id.")
+
+    snapshots = db.scalars(select(FinanceRecord).where(FinanceRecord.collection == "snapshot")).all()
+
+    for row in snapshots:
+        body = dict(row.body or {})
+        links = list(body.get("paymentLinks") or [])
+        link = next((item for item in links if str(item.get("providerOrderId") or "") == order_id), None)
+        if link is None:
+            continue
+        if str(link.get("status") or "").upper() == "PAID":
+            return {"success": True, "skipped": True, "reason": "already_paid", "reference": link.get("reference")}
+        link["status"] = "PAID"
+        link["paidAt"] = _now()
+        link["providerPaymentId"] = payment_id or link.get("providerPaymentId")
+        link["confirmedVia"] = "webhook"
+        body["paymentLinks"] = links
+        audit = list(body.get("auditLog") or [])
+        audit.insert(
+            0,
+            {
+                "id": f"AUD-{uuid4().hex[:8]}",
+                "performedAt": _now(),
+                "performedBy": "razorpay-webhook",
+                "action": "PAYMENT_GATEWAY_WEBHOOK",
+                "entity": "PaymentLink",
+                "entityId": link.get("id"),
+                "newValue": payment_id,
+                "reason": event,
+            },
+        )
+        body["auditLog"] = audit
+        row.body = body
+        flag_modified(row, "body")
+        write_audit(
+            db,
+            action="PAYMENT_GATEWAY_WEBHOOK",
+            entity_type="payment_link",
+            entity_id=str(link.get("id")),
+            campus_id=row.campus_id,
+            details=link.get("reference"),
+        )
+        db.commit()
+        # Signature-verified webhook path — liveVerified only when not in demo outbox mode.
+        return {
+            "success": True,
+            "reference": link.get("reference"),
+            "event": event,
+            "liveVerified": not settings.demo_integrations,
+            "demo": bool(settings.demo_integrations),
+        }
+
+    fail(404, "not_found", "No payment link matches this Razorpay order.")
 
 
 def apply_hr_concessions(db: Session, actor: User) -> dict:

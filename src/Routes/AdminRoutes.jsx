@@ -16,7 +16,6 @@ import StudentsList from '../Pages/Admin/Attendance/Students/StudentsList'
 import EmployeesList from '../Pages/Admin/Attendance/Employees/EmployeesList'
 import ClassDetails from '../Pages/Admin/Class/ClassDetails/ClassDetails'
 import AddClassDetails from '../Pages/Admin/Class/ClassDetails/AddClassDetails'
-import AcademicYears from '../Pages/Admin/Class/AcademicYears/AcademicYears'
 import OnlineClass from '../Pages/Admin/Class/OnlineClass/OnlineClass'
 import AddOnlineClass from '../Pages/Admin/Class/OnlineClass/AddOnlineClass'
 import ExtendedClass from '../Pages/Admin/Class/ExtendedClass/ExtendedClass'
@@ -96,6 +95,7 @@ const AdminRoutes = () => {
 
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin/dashboard" element={<Dashboard />} />
+            <Route path="*" element={<div>Admin Home</div>} />
 
             {/* Front Office */}
 
@@ -127,7 +127,6 @@ const AdminRoutes = () => {
 
             <Route path="/admin/class/class-details" element={<ClassDetails />} />
             <Route path="/admin/class/add-class-details" element={<AddClassDetails />} />
-            <Route path="/admin/class/academic-years" element={<AcademicYears />} />
             <Route path="/admin/class/online-class" element={<OnlineClass />} />
             <Route path="/admin/class/add-online-class" element={<AddOnlineClass />} />
             <Route path="/admin/class/extended-class" element={<ExtendedClass />} />
@@ -251,9 +250,6 @@ const AdminRoutes = () => {
             <Route path='/admin/rbac/user-creation/add' element={<CreateUserPage />} />
             <Route path='/admin/rbac/user-creation/edit/:id' element={<EditUserPage />} />
             <Route path='/admin/rbac/roles' element={<RolesPage />} />
-
-            {/* Must be last — otherwise it can hide new admin pages like Academic Years */}
-            <Route path="*" element={<div>Admin Home</div>} />
         </ReactRoutes>
     )
 }

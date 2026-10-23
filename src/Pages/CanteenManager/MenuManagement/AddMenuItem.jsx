@@ -1,11 +1,42 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import MenuItemInfo from './Components/MenuItemInfo'
-import MenuItemModal from './Components/MenuItemModal'
+import { getMenuItems, hydrateMenuItemsFromApi, saveMenuItems } from './menuData'
+
+const read = (id) => String(document.getElementById(id)?.value ?? '').trim()
 
 const AddMenuItem = () => {
     const navigate = useNavigate()
-    const [menuItemModal, setMenuItemModal] = useState(false)
+
+    const save = async () => {
+        const itemName = read('item-name')
+        if (!itemName) {
+            toast.error('Item name is required.')
+            return
+        }
+        await hydrateMenuItemsFromApi()
+        const id = `MENU-${Date.now()}`
+        const existing = getMenuItems().filter((row) => row.itemName !== itemName)
+        const saved = await saveMenuItems([{
+            id,
+            menuId: id,
+            itemName,
+            category: read('category'),
+            itemCode: read('item-code'),
+            price: read('price'),
+            availability: read('availability') || 'Available',
+            isCombo: read('is-combo') || 'No',
+            status: read('status') || 'Active',
+            description: read('description'),
+        }, ...existing])
+        if (!saved) {
+            toast.error('The menu item could not be saved.')
+            return
+        }
+        toast.success('Menu item saved.')
+        navigate('/canteen-manager/menu-management')
+    }
 
     return (
         <section>
@@ -24,14 +55,12 @@ const AddMenuItem = () => {
                 </button>
                 <button
                     type='button'
-                    onClick={() => setMenuItemModal(true)}
+                    onClick={save}
                     className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'
                 >
                     Save Changes
                 </button>
             </div>
-
-            <MenuItemModal menuItemModal={menuItemModal} setMenuItemModal={setMenuItemModal} />
         </section>
     )
 }

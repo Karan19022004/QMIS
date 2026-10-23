@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
-import { getExtraClassById, hydrateExtraClassesFromApi } from './extraClassData'
+import { getExtraClassById } from './extraClassData'
 
 const Section = ({ title, children }) => (
     <div className='bg-white rounded-2xl shadow-md p-4'>
@@ -22,28 +22,7 @@ const Field = ({ label, value }) => (
 const ViewExtraClass = ({ listPath = '/teacher/class/extra-class' }) => {
     const { id } = useParams()
     const navigate = useNavigate()
-    const [ready, setReady] = useState(false)
-    const [record, setRecord] = useState(() => getExtraClassById(id))
-
-    useEffect(() => {
-        let cancelled = false
-        hydrateExtraClassesFromApi().finally(() => {
-            if (cancelled) return
-            setRecord(getExtraClassById(id))
-            setReady(true)
-        })
-        return () => {
-            cancelled = true
-        }
-    }, [id])
-
-    if (!ready) {
-        return (
-            <section className='bg-white rounded-2xl shadow-md p-6'>
-                <p className='text-sm text-[#667085]'>Loading extended class…</p>
-            </section>
-        )
-    }
+    const record = getExtraClassById(id)
 
     return (
         <section className='space-y-6'>

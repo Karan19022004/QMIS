@@ -7,6 +7,11 @@ import {
     markNotificationReadApi,
 } from '../../../services/notificationsApi'
 import { mapServerNotification, NOTIFICATION_TYPES, typeBadgeColor } from '../../Admin/Notification/notificationsData'
+import {
+    NOTIFICATION_TYPES as STUDENT_TYPES,
+    STUDENT_NOTIFICATIONS,
+    typeBadgeColor as studentTypeBadgeColor,
+} from './notificationsData'
 
 const messageFor = (error) =>
     error?.status === 403
@@ -37,9 +42,9 @@ const NotificationsList = () => {
     if (!api) {
         return (
             <NotificationsListView
-                notifications={[]}
-                notificationTypes={NOTIFICATION_TYPES}
-                typeBadgeColor={typeBadgeColor}
+                notifications={STUDENT_NOTIFICATIONS}
+                notificationTypes={STUDENT_TYPES}
+                typeBadgeColor={studentTypeBadgeColor}
             />
         )
     }

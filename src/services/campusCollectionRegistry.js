@@ -29,6 +29,7 @@ export const CAMPUS_COLLECTION_BY_STORAGE_KEY = {
     'schoolerp-library-members-v1': { kind: 'ops', collection: 'library-members' },
     // Transport
     'schoolerp-transport-vehicles-v1': { kind: 'ops', collection: 'transport-vehicles' },
+    'schoolerp-transport-vehicle-health-v1': { kind: 'ops', collection: 'transport-vehicle-health' },
     'schoolerp-transport-drivers-v1': { kind: 'ops', collection: 'transport-drivers' },
     'schoolerp-transport-routes-v1': { kind: 'ops', collection: 'transport-routes' },
     'schoolerp-transport-students-v1': { kind: 'ops', collection: 'transport-student-assignments' },
@@ -87,6 +88,7 @@ export const CAMPUS_COLLECTION_BY_STORAGE_KEY = {
     'schoolerp-jd-audit-templates-v1': { kind: 'audit', collection: 'audit-templates' },
     'schoolerp-jd-audit-plans-v1': { kind: 'audit', collection: 'audit-plans' },
     'schoolerp-jd-audit-findings-v1': { kind: 'audit', collection: 'audit-findings' },
+    'schoolerp-jd-audit-assignments-v1': { kind: 'audit', collection: 'audit-assignments' },
     'schoolerp-hk-inventory-v1': { kind: 'ops', collection: 'hk-inventory' },
     'schoolerp-hk-requests-v1': { kind: 'ops', collection: 'hk-requests' },
     'schoolerp-stationery-issue-returns-v1': { kind: 'ops', collection: 'stationery-issue-returns' },

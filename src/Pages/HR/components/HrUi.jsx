@@ -2,29 +2,7 @@ import React, { useMemo, useState, useSyncExternalStore } from 'react'
 import { getHrStoreVersion, subscribeHrStore } from '../domain/hrStorage'
 import { hrBadge } from '../domain/hrStatus'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
-import {
-    DateField,
-    FormField,
-    KeyFields,
-    SelectField,
-    TextField,
-    formInputClass,
-    formatFormDate,
-    humanizeLabel,
-    parseFormDate,
-} from '../../../Common/CommonComponents/FormField'
-import { X } from 'lucide-react'
-
-export {
-    DateField,
-    FormField,
-    KeyFields,
-    SelectField,
-    TextField,
-    formatFormDate,
-    humanizeLabel,
-    parseFormDate,
-}
+import { Download, X } from 'lucide-react'
 
 export const useHrTick = () => useSyncExternalStore(subscribeHrStore, getHrStoreVersion, getHrStoreVersion)
 
@@ -33,12 +11,142 @@ export const Badge = ({ value }) => (
 )
 
 export const Field = ({ label, children }) => (
-    <FormField label={label}>
+    <label className='flex flex-col gap-y-2 text-base font-medium text-[#808080]'>
+        {label}
         {children}
+    </label>
+)
+
+export const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+
+/** camelCase / snake_case → "Human label" for dynamic KeyFields. */
+export const humanizeLabel = (key) =>
+    String(key || '')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .replace(/^./, (ch) => ch.toUpperCase())
+
+/** Parse DD-MM-YYYY / YYYY-MM-DD / Date → Date | null (for attendance day keys). */
+export const parseFormDate = (value) => {
+    if (value == null || value === '') return null
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value
+    const text = String(value).trim()
+    const dmy = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (dmy) {
+        const parsed = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) {
+        const parsed = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+        return Number.isNaN(parsed.getTime()) ? null : parsed
+    }
+    const fallback = new Date(text)
+    return Number.isNaN(fallback.getTime()) ? null : fallback
+}
+
+/** Normalize dates for HTML date inputs and filters (YYYY-MM-DD). */
+export const formatFormDate = (value) => {
+    const date = value instanceof Date ? value : parseFormDate(value)
+    if (!date) return value == null || value === '' ? '' : String(value)
+    const y = date.getFullYear()
+    const m = String(date.getMonth() + 1).padStart(2, '0')
+    const d = String(date.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+}
+
+export const FormField = ({ label, hint, className = '', children }) => (
+    <label className={`flex flex-col gap-y-2 text-base font-medium text-[#808080] ${className}`.trim()}>
+        {label ? <span>{label}</span> : null}
+        {children}
+        {hint ? <span className='text-xs font-normal text-[#667085]'>{hint}</span> : null}
+    </label>
+)
+
+export const TextField = ({
+    label,
+    value,
+    onChange,
+    type = 'text',
+    placeholder,
+    className = '',
+    min,
+    max,
+    required = false,
+    ...rest
+}) => (
+    <FormField label={label} className={className}>
+        <input
+            className={inputClass}
+            type={type}
+            value={value ?? ''}
+            onChange={onChange}
+            placeholder={placeholder}
+            min={min}
+            max={max}
+            required={required}
+            {...rest}
+        />
     </FormField>
 )
 
-export const inputClass = formInputClass
+/**
+ * Date input for HR forms. `bound`: 'past' | 'future' | 'any' (default).
+ * `onChange` receives the YYYY-MM-DD string (or '' when cleared).
+ */
+export const DateField = ({ label, value, onChange, bound = 'any', required = false, className = '' }) => {
+    const today = formatFormDate(new Date())
+    const max = bound === 'past' ? today : undefined
+    const min = bound === 'future' ? today : undefined
+    return (
+        <FormField label={label} className={className}>
+            <input
+                className={inputClass}
+                type='date'
+                value={formatFormDate(value) || ''}
+                max={max}
+                min={min}
+                required={required}
+                onChange={(event) => onChange(event.target.value)}
+            />
+        </FormField>
+    )
+}
+
+/** Render a TextField for each key on a form object. Date-like keys use DateField. */
+export const KeyFields = ({ keys, form, setForm, className = '' }) => {
+    const dateKeys = /(date|dob|joining|posted|closing|start|end|validity|offer)/i
+    return (
+        <>
+            {(keys || []).map((key) => {
+                const label = humanizeLabel(key)
+                if (dateKeys.test(key)) {
+                    return (
+                        <DateField
+                            key={key}
+                            label={label}
+                            className={className}
+                            value={form?.[key] || ''}
+                            bound='any'
+                            onChange={(next) => setForm({ ...form, [key]: next })}
+                        />
+                    )
+                }
+                return (
+                    <TextField
+                        key={key}
+                        label={label}
+                        className={className}
+                        value={form?.[key] ?? ''}
+                        onChange={(event) => setForm({ ...form, [key]: event.target.value })}
+                    />
+                )
+            })}
+        </>
+    )
+}
 
 export const Modal = ({ title, onClose, children, wide = false }) => (
     <div className='fixed inset-0 z-500 flex items-center justify-center p-4'>
@@ -63,57 +171,16 @@ export const GhostButton = ({ children, onClick, type = 'button' }) => (
 
 export { downloadTableCsv as downloadCsv } from '../../../Common/exportDownload'
 
-/**
- * Open a print-friendly HTML document (offer letters, etc.).
- * Do not use noopener here — modern browsers then return null / a blank tab we cannot write into.
- */
-export const printHtml = (title, html, { autoPrint = false } = {}) => {
-    const frame = window.open('', '_blank', 'width=960,height=720')
-    if (!frame) {
-        window.alert('Pop-up blocked. Allow pop-ups for this site to preview or print the letter.')
-        return
-    }
-    const safeTitle = String(title || 'Preview')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-    frame.document.open()
-    frame.document.write(`<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${safeTitle}</title>
-  <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: Georgia, 'Times New Roman', Times, serif; color: #1e1e1e; background: #f2f4f7; }
-    .toolbar { position: sticky; top: 0; z-index: 2; display: flex; gap: 8px; justify-content: flex-end; padding: 12px 16px; background: #101828; }
-    .toolbar button { border: 0; border-radius: 6px; padding: 8px 14px; font: 600 13px Arial, sans-serif; cursor: pointer; }
-    .toolbar .print { background: #515DEF; color: #fff; }
-    .toolbar .close { background: #fff; color: #101828; }
-    .sheet { max-width: 820px; margin: 20px auto; background: #fff; padding: 36px 44px; box-shadow: 0 8px 24px rgba(16,24,40,.08); }
-    @media print {
-      body { background: #fff; }
-      .toolbar { display: none !important; }
-      .sheet { margin: 0; box-shadow: none; max-width: none; padding: 12mm; }
-    }
-  </style>
-</head>
-<body>
-  <div class="toolbar">
-    <button type="button" class="print" onclick="window.print()">Print</button>
-    <button type="button" class="close" onclick="window.close()">Close</button>
-  </div>
-  <div class="sheet">${html}</div>
-</body>
-</html>`)
+/** Open a print-friendly HTML document (offer letters, etc.). */
+export const printHtml = (title, html) => {
+    const frame = window.open('', '_blank', 'noopener,noreferrer,width=900,height=700')
+    if (!frame) return
+    frame.document.write(
+        `<!doctype html><html><head><meta charset="utf-8"><title>${String(title || 'Preview').replace(/</g, '&lt;')}</title><style>body{font-family:Arial,sans-serif;padding:24px;color:#1e1e1e}table{width:100%;border-collapse:collapse}td,th{border:1px solid #e5e7eb;padding:8px;text-align:left;font-size:13px}</style></head><body>${html}</body></html>`,
+    )
     frame.document.close()
     frame.focus()
-    if (autoPrint) {
-        window.setTimeout(() => {
-            try { frame.print() } catch { /* ignore */ }
-        }, 350)
-    }
+    frame.print()
 }
 
 export const HrExport = ({ open, setOpen, rows, filename }) => (
@@ -136,14 +203,12 @@ export const useFilters = (initial) => {
 export const matches = (value, query) => String(value || '').toLowerCase().includes(String(query || '').toLowerCase())
 
 export const Select = ({ label, value, onChange, options, allLabel = 'All' }) => (
-    <SelectField
-        label={label}
-        value={value}
-        onChange={onChange}
-        options={options}
-        placeholder={allLabel}
-        inputClassName={inputClass}
-    />
+    <Field label={label}>
+        <select className={inputClass} value={value} onChange={onChange}>
+            {allLabel != null ? <option value=''>{allLabel}</option> : null}
+            {options.map((option) => <option key={option} value={option}>{option}</option>)}
+        </select>
+    </Field>
 )
 
 export const SearchBox = ({ value, onChange, placeholder }) => (

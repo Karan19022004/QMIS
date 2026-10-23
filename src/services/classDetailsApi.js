@@ -9,41 +9,9 @@ const sortByNumberedName = (a, b) => a.localeCompare(b, undefined, { numeric: tr
 const normalizeYear = (year) => ({
     id: year.id,
     name: year.name,
-    startDate: year.start_date || '',
-    endDate: year.end_date || '',
     isCurrent: Boolean(year.is_current),
     isActive: year.is_active !== false,
 })
-
-/** Active academic years for the campus (newest first from the API). */
-export const listAcademicYears = async () => {
-    const years = await apiRequest('/masters/academic-years')
-    return (Array.isArray(years) ? years : []).map(normalizeYear)
-}
-
-/**
- * Creates an academic year. Next years must be added here; they are not created automatically.
- * When `isCurrent` is true, the server makes this the only current year.
- */
-export const createAcademicYear = async ({ name, startDate = '', endDate = '', isCurrent = false }) => {
-    const body = {
-        name: String(name || '').trim(),
-        is_current: Boolean(isCurrent),
-    }
-    if (!body.name) throw new Error('Academic year name is required.')
-    if (startDate) body.start_date = startDate
-    if (endDate) body.end_date = endDate
-    const created = await apiRequest('/masters/academic-years', { method: 'POST', body })
-    await refreshClassCatalog()
-    return normalizeYear(created)
-}
-
-/** Makes this year the campus current year (default for new classes and catalog mirror). */
-export const setAcademicYearCurrent = async (yearId) => {
-    const updated = await apiRequest(`/masters/academic-years/${yearId}/set-current`, { method: 'POST' })
-    await refreshClassCatalog()
-    return normalizeYear(updated)
-}
 
 const normalizeSection = (section) => ({
     id: section.id,
@@ -113,6 +81,31 @@ export const loadClassDirectory = async ({ academicYearId = '', includeInactive 
 
 /** Best-effort: keep the dropdowns on other screens in step after a save. Never throws. */
 export const refreshClassCatalog = () => loadClassDirectory().catch(() => null)
+
+/** List academic years (normalized for admin / star-ratings / fee campus pickers). */
+export const listAcademicYears = async () => {
+    const rows = await apiRequest('/masters/academic-years')
+    return (Array.isArray(rows) ? rows : []).map(normalizeYear)
+}
+
+export const createAcademicYear = async ({ name, startDate = '', endDate = '', isCurrent = false } = {}) => {
+    const body = {
+        name: String(name || '').trim(),
+        is_current: Boolean(isCurrent),
+    }
+    if (startDate) body.start_date = startDate
+    if (endDate) body.end_date = endDate
+    const created = await apiRequest('/masters/academic-years', { method: 'POST', body })
+    return normalizeYear(created)
+}
+
+export const setAcademicYearCurrent = async (yearId) => {
+    const updated = await apiRequest(`/masters/academic-years/${encodeURIComponent(yearId)}/set-current`, {
+        method: 'POST',
+        body: {},
+    })
+    return normalizeYear(updated)
+}
 
 /** Active teacher and coordinator logins that can be picked as a class teacher (needs masters.write). */
 export const loadClassTeacherOptions = async () => {

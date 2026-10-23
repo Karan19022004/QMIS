@@ -32,12 +32,9 @@ import AddSampleQuestion from '../Pages/Teacher/StudentDeliverables/SampleQuesti
 import ViewSampleQuestion from '../Pages/Teacher/StudentDeliverables/SampleQuestions/ViewSampleQuestion'
 import UnitTests from '../Pages/Teacher/UnitTests/UnitTests'
 import AddUnitTest from '../Pages/Teacher/UnitTests/AddUnitTest'
-import EditUnitTest from '../Pages/Teacher/UnitTests/EditUnitTest'
 import ViewUnitTest from '../Pages/Teacher/UnitTests/ViewUnitTest'
-import { BiometricAttendancePage } from '../Common/demoDomain/DemoScreens'
-import MyProfilePage from '../Common/MyProfile/MyProfilePage'
+import { BiometricAttendancePage, MyProfilePage, StudentAnalyticsPage } from '../Common/demoDomain/DemoScreens'
 import ExamSchedule from '../Pages/Teacher/StudentEvaluation/ExamSchedule/ExamSchedule'
-import PerformanceAnalytics from '../Pages/Teacher/StudentEvaluation/PerformanceAnalytics'
 import EscalationList from '../Pages/Teacher/EscalationManagement/EscalationList'
 import AddEscalation from '../Pages/Teacher/EscalationManagement/AddEscalation'
 import ViewEscalation from '../Pages/Teacher/EscalationManagement/ViewEscalation'
@@ -65,32 +62,12 @@ const TeacherRoutes = () => {
             <Route path="/teacher/attendance/my-attendance" element={<MyAttendance />} />
             <Route path="/teacher/attendance/class-attendance" element={<ClassAttendance />} />
             <Route path="/teacher/class/class-routine" element={<ClassRoutine />} />
-            <Route
-                path="/teacher/class/extra-class"
-                element={(
-                    <ExtraClass
-                        canCreate
-                        listPath="/teacher/class/extra-class"
-                        addPath="/teacher/class/extra-class/add"
-                        viewPath="/teacher/class/extra-class/view"
-                    />
-                )}
-            />
-            <Route path="/teacher/class/extra-class/add" element={<AddExtraClass listPath="/teacher/class/extra-class" />} />
-            <Route path="/teacher/class/extra-class/view/:id" element={<ViewExtraClass listPath="/teacher/class/extra-class" />} />
-            <Route
-                path="/teacher/class/online-class"
-                element={(
-                    <OnlineClass
-                        canCreate
-                        listPath="/teacher/class/online-class"
-                        addPath="/teacher/class/online-class/add"
-                        viewPath="/teacher/class/online-class/view"
-                    />
-                )}
-            />
-            <Route path="/teacher/class/online-class/add" element={<AddOnlineClass listPath="/teacher/class/online-class" />} />
-            <Route path="/teacher/class/online-class/view/:id" element={<ViewOnlineClass listPath="/teacher/class/online-class" />} />
+            <Route path="/teacher/class/extra-class" element={<ExtraClass />} />
+            <Route path="/teacher/class/extra-class/add" element={<AddExtraClass />} />
+            <Route path="/teacher/class/extra-class/view/:id" element={<ViewExtraClass />} />
+            <Route path="/teacher/class/online-class" element={<OnlineClass />} />
+            <Route path="/teacher/class/online-class/add" element={<AddOnlineClass />} />
+            <Route path="/teacher/class/online-class/view/:id" element={<ViewOnlineClass />} />
             <Route path="/teacher/class/leave-request" element={<Navigate to="/teacher/leave-request/received" replace />} />
             <Route path="/teacher/leave-request/my-requests" element={<MyLeaveRequests />} />
             <Route path="/teacher/leave-request/my-requests/add" element={<AddLeaveRequest />} />
@@ -108,7 +85,6 @@ const TeacherRoutes = () => {
             <Route path="/teacher/student-deliverables/sample-questions/view/:id" element={<ViewSampleQuestion />} />
             <Route path="/teacher/unit-tests" element={<UnitTests />} />
             <Route path="/teacher/unit-tests/add" element={<AddUnitTest />} />
-            <Route path="/teacher/unit-tests/edit/:id" element={<EditUnitTest />} />
             <Route path="/teacher/unit-tests/view/:id" element={<ViewUnitTest />} />
             <Route path="/teacher/student-evaluation/mark-entry" element={<MarkEntry />} />
             <Route path="/teacher/user-management/students-list" element={<StudentsList />} />
@@ -138,18 +114,9 @@ const TeacherRoutes = () => {
             <Route path="/teacher/escalation-management/add-escalation" element={<AddEscalation />} />
             <Route path="/teacher/escalation-management/view/:id" element={<ViewEscalation />} />
             <Route path="/teacher/student-evaluation/exam" element={<ExamSchedule />} />
-            <Route path="/teacher/student-evaluation/analytics" element={<PerformanceAnalytics />} />
+            <Route path="/teacher/student-evaluation/analytics" element={<StudentAnalyticsPage />} />
             <Route path="/teacher/attendance/biometric" element={<BiometricAttendancePage canOverride />} />
-            <Route
-                path="/teacher/my-profile"
-                element={(
-                    <MyProfilePage
-                        roleLabel="Teacher"
-                        attendancePath="/teacher/attendance/my-attendance"
-                        leavePath="/teacher/leave-request/my-requests"
-                    />
-                )}
-            />
+            <Route path="/teacher/my-profile" element={<MyProfilePage roleLabel="Teacher" />} />
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />
         </ReactRoutes>
     )

@@ -1,14 +1,11 @@
 import { ROLES } from '../../constants/roles'
 import { getLeaveApproverConfig, getSubmitterProfile, resolveRoleKey } from './leaveRequestConfigs'
 import { canUseLeaveApi, createLeaveApi, decideLeaveApi, listLeaveApi } from '../../services/leaveApi'
-import { getAccessToken } from '../../services/apiClient'
 
 export const STORAGE_KEY = 'schoolerp-leave-requests'
 export const LEAVE_REQUESTS_UPDATED_EVENT = 'schoolerp-leave-requests-updated'
 const MIGRATION_FLAG = 'schoolerp-leave-requests-migrated-v2'
 const SESSION_MIGRATION_FLAG = 'schoolerp-leave-requests-session-migrated-v1'
-/** Tab-scoped cache so a hard refresh / HMR reset still shows the last hydrated leave lists. */
-const API_SESSION_CACHE_KEY = 'schoolerp-leave-api-cache-v1'
 
 const LEGACY_KEYS = {
     admin: 'schoolerp-admin-leave-requests',
@@ -32,7 +29,6 @@ export const statusBadgeColor = {
     Pending: 'bg-[#FF980033] text-[#FF9800]',
     Approved: 'bg-[#4CAF5033] text-[#4CAF50]',
     Rejected: 'bg-[#FF000033] text-[#FF0000]',
-    'In Progress': 'bg-[#2196F333] text-[#2196F3]',
 }
 
 const REQUESTED_TO_APPROVER = {
@@ -85,15 +81,15 @@ const readStorage = (storage) => {
     }
 }
 
-// With a real backend session the server is the source of truth. Rows are kept in memory and
-// mirrored to a token-scoped sessionStorage cache so a full page reload still has data while
-// the next hydrate runs. localStorage is never used for API sessions (avoids cross-user leaks).
+// With a real backend session the server is the source of truth, so what it returned is held in
+// memory only: nothing is written to localStorage or sessionStorage, and a reload or another
+// person signing in on the same browser never sees the previous person's leave requests.
 let apiMemoryRequests = []
-let leaveStoreVersion = 0
 const usesApiMemory = () => canUseLeaveApi()
 
-const bumpLeaveStore = () => {
-    leaveStoreVersion += 1
+/** Drop the in-memory copy (call on sign-out). */
+export const clearLeaveRequestMemory = () => {
+    apiMemoryRequests = []
     try {
         window.dispatchEvent(new CustomEvent(LEAVE_REQUESTS_UPDATED_EVENT))
     } catch {
@@ -101,75 +97,8 @@ const bumpLeaveStore = () => {
     }
 }
 
-/** For useSyncExternalStore — increments whenever the leave cache changes. */
-export const getLeaveStoreVersion = () => {
-    if (usesApiMemory()) seedApiMemoryFromSession()
-    return leaveStoreVersion
-}
-
-export const subscribeLeaveRequests = (onStoreChange) => {
-    const handler = () => onStoreChange()
-    window.addEventListener(LEAVE_REQUESTS_UPDATED_EVENT, handler)
-    return () => window.removeEventListener(LEAVE_REQUESTS_UPDATED_EVENT, handler)
-}
-
-const readApiSessionCache = () => {
-    try {
-        if (typeof sessionStorage === 'undefined') return null
-        const token = getAccessToken()
-        if (!token) return null
-        const raw = sessionStorage.getItem(API_SESSION_CACHE_KEY)
-        if (!raw) return null
-        const parsed = JSON.parse(raw)
-        if (!parsed?.tokenSuffix || !token.endsWith(parsed.tokenSuffix)) return null
-        return Array.isArray(parsed.items) ? parsed.items : null
-    } catch {
-        return null
-    }
-}
-
-const writeApiSessionCache = (items) => {
-    try {
-        if (typeof sessionStorage === 'undefined') return
-        const token = getAccessToken()
-        if (!token) {
-            sessionStorage.removeItem(API_SESSION_CACHE_KEY)
-            return
-        }
-        sessionStorage.setItem(
-            API_SESSION_CACHE_KEY,
-            JSON.stringify({ tokenSuffix: token.slice(-24), items: Array.isArray(items) ? items : [] }),
-        )
-    } catch {
-        /* ignore */
-    }
-}
-
-const seedApiMemoryFromSession = () => {
-    if (apiMemoryRequests.length > 0) return
-    const cached = readApiSessionCache()
-    if (cached?.length) {
-        apiMemoryRequests = cached
-        if (leaveStoreVersion === 0) leaveStoreVersion = 1
-    }
-}
-
-/** Drop the in-memory copy (call on sign-out). */
-export const clearLeaveRequestMemory = () => {
-    apiMemoryRequests = []
-    try {
-        sessionStorage?.removeItem(API_SESSION_CACHE_KEY)
-    } catch {
-        /* ignore */
-    }
-    bumpLeaveStore()
-}
-
 const loadRawFromStorage = () => {
-    if (usesApiMemory()) {
-        seedApiMemoryFromSession()
-        return apiMemoryRequests
-    }
+    if (usesApiMemory()) return apiMemoryRequests
     if (typeof localStorage !== 'undefined') {
         const localItems = readStorage(localStorage)
         if (localItems.length > 0) return localItems
@@ -183,15 +112,18 @@ const loadRawFromStorage = () => {
 const saveRawToStorage = (requests) => {
     if (usesApiMemory()) {
         apiMemoryRequests = Array.isArray(requests) ? requests : []
-        writeApiSessionCache(apiMemoryRequests)
-        bumpLeaveStore()
+        try {
+            window.dispatchEvent(new CustomEvent(LEAVE_REQUESTS_UPDATED_EVENT))
+        } catch {
+            /* ignore */
+        }
         return
     }
     try {
         const payload = JSON.stringify(requests)
         localStorage.setItem(STORAGE_KEY, payload)
         sessionStorage.setItem(STORAGE_KEY, payload)
-        bumpLeaveStore()
+        window.dispatchEvent(new CustomEvent(LEAVE_REQUESTS_UPDATED_EVENT))
     } catch {
         /* ignore */
     }
@@ -235,36 +167,6 @@ const API_ROLE_LABELS = {
     hr: 'HR',
     gatekeepermanager: 'Gate Keeper Manager',
     transportmanager: 'Transport Manager',
-    coordinator: 'Coordinator',
-    teacher: 'Teacher',
-}
-
-/** Human status for multi-step leave (dept head → HR). Raw API status stays Pending until final. */
-export const getLeaveStatusLabel = (request) => {
-    if (!request) return ''
-    if (request.status === 'Approved' || request.status === 'Rejected') return request.status
-    const awaiting = resolveRoleKey(request.approverRole)
-    const chain = Array.isArray(request.chain) ? request.chain.map(resolveRoleKey).filter(Boolean) : []
-    const level = Math.max(0, Number(request.currentLevel ?? 0) || 0)
-    if (request.status === 'Pending' && awaiting && (level > 0 || (chain.length > 1 && chain[0] !== awaiting))) {
-        const label = API_ROLE_LABELS[awaiting] || awaiting
-        return `Awaiting ${label}`
-    }
-    return request.status || 'Pending'
-}
-
-export const leaveStatusBadgeClass = (request) => {
-    const label = getLeaveStatusLabel(request)
-    if (request?.status === 'Approved') return statusBadgeColor.Approved
-    if (request?.status === 'Rejected') return statusBadgeColor.Rejected
-    if (label.startsWith('Awaiting')) return statusBadgeColor['In Progress']
-    return statusBadgeColor.Pending
-}
-
-export const getAwaitingRoleLabel = (request) => {
-    const awaiting = resolveRoleKey(request?.approverRole)
-    if (!awaiting) return ''
-    return API_ROLE_LABELS[awaiting] || awaiting
 }
 
 const isoToDmy = (iso) => {
@@ -280,22 +182,10 @@ const toIso = (value) => {
     return `${date.getFullYear()}-${month}-${day}`
 }
 
-const asLeaveList = (payload) => {
-    if (Array.isArray(payload)) return payload
-    if (Array.isArray(payload?.items)) return payload.items
-    if (Array.isArray(payload?.data)) return payload.data
-    return []
-}
-
-const mapApiLeave = (item, inbox = null) => {
+const mapApiLeave = (item) => {
     const submitterRole = resolveRoleKey(item.submitterRole)
     const profile = getSubmitterProfile(submitterRole, {})
-    const chain = (Array.isArray(item.chain) ? item.chain : []).map(resolveRoleKey).filter(Boolean)
-    const level = Math.max(0, Number(item.currentLevel ?? 0) || 0)
-    const awaiting = resolveRoleKey(item.approverRole)
-    const reachedRoles = chain.length > 0
-        ? chain.slice(0, Math.min(level + 1, chain.length))
-        : (awaiting ? [awaiting] : [])
+    const chain = Array.isArray(item.chain) ? item.chain : []
     return {
         id: item.id,
         leaveRequestId: item.leaveRequestId,
@@ -311,16 +201,13 @@ const mapApiLeave = (item, inbox = null) => {
         hours: item.hours ?? null,
         appliedDate: isoToDmy(item.appliedDate),
         reason: item.reason,
-        requestedTo: API_ROLE_LABELS[resolveRoleKey(item.requestedTo)] || API_ROLE_LABELS[item.requestedTo] || item.requestedTo,
-        // Prefer who is awaiting action now; fall back to the dept-head step, not HR.
-        approverRole: awaiting || chain[0] || null,
-        reachedRoles,
+        requestedTo: API_ROLE_LABELS[item.requestedTo] || item.requestedTo,
+        approverRole: item.approverRole || chain[chain.length - 1] || null,
+        reachedRoles: chain.slice(0, (item.currentLevel ?? 0) + 1),
         chain,
-        currentLevel: level,
         status: item.status,
         approverRemarks: item.approverRemarks || '',
         fromApi: true,
-        inbox: inbox || null,
     }
 }
 
@@ -334,46 +221,19 @@ const purgeBrowserLeaveCopies = () => {
     }
 }
 
-let hydrateInFlight = null
-
 /** Replace the cache with the signed-in user's server data (kept in memory). Returns true when the API was used. */
 export const hydrateLeaveRequestsFromApi = async () => {
     if (!canUseLeaveApi()) return false
-    // Coalesce overlapping loads (Strict Mode double-mount, list + view both hydrating).
-    if (hydrateInFlight) return hydrateInFlight
-    hydrateInFlight = (async () => {
-        try {
-            seedApiMemoryFromSession()
-            const [minePayload, receivedPayload] = await Promise.all([
-                listLeaveApi('mine'),
-                listLeaveApi('received'),
-            ])
-            const mine = asLeaveList(minePayload)
-            const received = asLeaveList(receivedPayload)
-            const merged = new Map()
-            mine.forEach((item) => {
-                if (!item?.id) return
-                merged.set(item.id, mapApiLeave(item, 'mine'))
-            })
-            received.forEach((item) => {
-                if (!item?.id) return
-                const existing = merged.get(item.id)
-                if (existing) {
-                    merged.set(item.id, { ...existing, ...mapApiLeave(item, 'received'), inbox: 'both' })
-                } else {
-                    merged.set(item.id, mapApiLeave(item, 'received'))
-                }
-            })
-            saveRawToStorage([...merged.values()])
-            purgeBrowserLeaveCopies()
-            return true
-        } catch {
-            return false
-        } finally {
-            hydrateInFlight = null
-        }
-    })()
-    return hydrateInFlight
+    try {
+        const [mine, received] = await Promise.all([listLeaveApi('mine'), listLeaveApi('received')])
+        const merged = new Map()
+        ;[...mine, ...received].forEach((item) => merged.set(item.id, mapApiLeave(item)))
+        saveRawToStorage([...merged.values()])
+        purgeBrowserLeaveCopies()
+        return true
+    } catch {
+        return false
+    }
 }
 
 /** Create through the API. `payload.fromDate/toDate` are Date objects; `payload.hours` for Permission. */
@@ -397,42 +257,20 @@ export const decideLeaveRequestViaApi = async (id, status, remarks) => {
             request.leaveRequestId === id ||
             (decided?.id && request.id === decided.id),
     )
-    if (fromCache) return fromCache
-    if (!decided) return null
-    // Keep inbox so the detail page still treats this as a received request after decide.
-    return mapApiLeave(decided, 'received')
+    return fromCache ?? (decided ? mapApiLeave(decided) : null)
 }
 
 /** Approver can act now: pending and the request is waiting on this role. */
-export const isAwaitingApprover = (request, approverRole) => {
-    if (!request || request.status !== 'Pending') return false
-    const wanted = resolveRoleKey(approverRole)
-    if (!wanted) return false
-    const awaiting = String(request.approverRole || '')
-        .split('|')
-        .map(resolveRoleKey)
-        .filter(Boolean)
-    if (awaiting.length > 0) return awaiting.includes(wanted)
-    return resolveRoleKey(request.approverRole) === wanted
-}
+export const isAwaitingApprover = (request, approverRole) =>
+    Boolean(request) &&
+    request.status === 'Pending' &&
+    resolveRoleKey(request.approverRole) === resolveRoleKey(approverRole)
 
 const roleReachedRequest = (request, role) => {
-    const wanted = resolveRoleKey(role)
-    if (!wanted) return false
-    if (Array.isArray(request.reachedRoles) && request.reachedRoles.length > 0) {
-        return request.reachedRoles.map(resolveRoleKey).includes(wanted)
+    if (Array.isArray(request.reachedRoles)) {
+        return request.reachedRoles.map(resolveRoleKey).includes(resolveRoleKey(role))
     }
-    if (Array.isArray(request.chain) && request.chain.length > 0) {
-        const level = Math.max(0, Number(request.currentLevel ?? 0) || 0)
-        return request.chain
-            .slice(0, Math.min(level + 1, request.chain.length))
-            .map(resolveRoleKey)
-            .includes(wanted)
-    }
-    return String(request.approverRole || '')
-        .split('|')
-        .map(resolveRoleKey)
-        .includes(wanted)
+    return resolveRoleKey(request.approverRole) === resolveRoleKey(role)
 }
 
 const readLegacyArray = (key) => {
@@ -586,11 +424,7 @@ export const getLeaveRequestById = (id) =>
 
 export const getMyLeaveRequestsForRole = (submitterRole) => {
     const resolvedRole = resolveRoleKey(submitterRole)
-    return loadFromStorage().filter((request) => {
-        // Server already scoped box=mine to the signed-in user — do not drop rows on role mismatch.
-        if (request.fromApi && (request.inbox === 'mine' || request.inbox === 'both')) return true
-        return resolveRoleKey(request.submitterRole) === resolvedRole
-    })
+    return loadFromStorage().filter((request) => resolveRoleKey(request.submitterRole) === resolvedRole)
 }
 
 export const ensureTeacherStudentLeaveSeed = () => {
@@ -621,22 +455,16 @@ export const ensureTeacherStudentLeaveSeed = () => {
 
 export const getReceivedLeaveRequestsForRole = (approverRole) => {
     const resolvedRole = resolveRoleKey(approverRole)
-    return loadFromStorage().filter((request) => {
-        // Server already scoped box=received to roles that have reached this request.
-        if (request.fromApi && (request.inbox === 'received' || request.inbox === 'both')) return true
-        return roleReachedRequest(request, resolvedRole)
-    })
+    return loadFromStorage().filter((request) => roleReachedRequest(request, resolvedRole))
 }
 
 export const canApproverAccessRequest = (request, approverRole) => {
     if (!request) return false
-    if (request.fromApi && (request.inbox === 'received' || request.inbox === 'both')) return true
     return roleReachedRequest(request, approverRole)
 }
 
 export const canSubmitterAccessRequest = (request, submitterRole) => {
     if (!request) return false
-    if (request.fromApi && (request.inbox === 'mine' || request.inbox === 'both')) return true
     return resolveRoleKey(request.submitterRole) === resolveRoleKey(submitterRole)
 }
 

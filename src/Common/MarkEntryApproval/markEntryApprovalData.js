@@ -1,5 +1,5 @@
 import { CLASSES, SECTIONS, SUBJECTS } from '../../Pages/Teacher/AssignedClass/assignedClassData'
-import { getStudentsList } from '../StudentDatabase/studentDatabaseData'
+import { getStudentsList } from '../../Pages/Teacher/StudentsList/studentsListData'
 import { PARENT_CHILD_PROFILES } from '../../Pages/Parent/parentStudentProfiles'
 import { decideApprovalApi } from '../../services/approvalsApi'
 import {
@@ -21,61 +21,6 @@ export const EXAM_OPTIONS = [
     { name: 'Annual Examination', maxMarks: 100 },
     { name: 'Pre-Board Examination', maxMarks: 100 },
 ]
-
-/** Match exam academic year label (preferred) or start-date years like "2026 - 2027". */
-export const examMatchesAcademicYear = (exam, academicYear) => {
-    const wanted = String(academicYear || '').trim().toLowerCase()
-    if (!wanted) return true
-    const labeled = String(exam?.academicYear || exam?.academic_year || '').trim().toLowerCase()
-    if (labeled) return labeled === wanted
-    const years = wanted.match(/\d{4}/g)?.map(Number) || []
-    if (!years.length) return true
-    const startYear = Number(String(exam?.startDate || exam?.start_date || '').slice(0, 4))
-    if (!Number.isFinite(startYear) || !startYear) return true
-    return years.includes(startYear)
-}
-
-/** Unique exam display names (Grade 1 / Grade 2 entries share one name). */
-export const uniqueExamNames = (exams = []) => {
-    const seen = new Set()
-    const names = []
-    exams.forEach((row) => {
-        const name = String(row.examName || row.name || '').trim()
-        if (!name) return
-        const key = name.toLowerCase()
-        if (seen.has(key)) return
-        seen.add(key)
-        names.push(name)
-    })
-    return names.sort((a, b) => a.localeCompare(b))
-}
-
-/** Classes that have a campus exam row for the selected exam name. */
-export const classesForExamName = (exams = [], examName = '') => {
-    const wanted = String(examName || '').trim().toLowerCase()
-    if (!wanted) return []
-    const classes = new Set()
-    exams.forEach((row) => {
-        const name = String(row.examName || row.name || '').trim().toLowerCase()
-        if (name !== wanted) return
-        const className = String(row.className || '').trim()
-        if (className) classes.add(className)
-    })
-    return [...classes].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-}
-
-/** Resolve the campus exam id for a name + class pair. */
-export const findExamForNameAndClass = (exams = [], examName = '', className = '') => {
-    const wantedName = String(examName || '').trim().toLowerCase()
-    const wantedClass = String(className || '').trim().toLowerCase().replace(/^grade\s+/, '')
-    if (!wantedName || !wantedClass) return null
-    return exams.find((row) => {
-        const name = String(row.examName || row.name || '').trim().toLowerCase()
-        if (name !== wantedName) return false
-        const cls = String(row.className || '').trim().toLowerCase().replace(/^grade\s+/, '')
-        return cls === wantedClass
-    }) || null
-}
 
 export const STATUS_FILTERS = ['All', 'Pending', 'Entered', 'Absent']
 export const APPROVAL_STATUSES = ['Pending', 'Approved', 'Rejected']
@@ -99,11 +44,7 @@ const getEncouragementName = (studentId) => {
     return student?.name?.split(' ')[0] ?? 'Student'
 }
 
-export const formatClassLabel = (className) => {
-    const value = String(className || '').trim()
-    if (!value) return ''
-    return /^grade\s+/i.test(value) ? value : value
-}
+export const formatClassLabel = (className) => `Grade ${className}`
 
 export const approvalStatusColor = {
     Pending: 'bg-[#FF980033] text-[#FF9800]',
@@ -146,6 +87,7 @@ export const computeMarkEntry = ({ obtainedMarks, maxMarks, absent }) => {
 export const buildContextKey = (context) =>
     [
         context.academicYear,
+        context.term,
         context.exam,
         context.className,
         context.section,
@@ -160,19 +102,13 @@ export const getExamMaxMarks = (examName) =>
     EXAM_OPTIONS.find((item) => item.name === examName)?.maxMarks ?? 100
 
 export const getStudentsForMarkEntry = (className, section) => {
-    const students = getStudentsList().filter((student) => {
-        const studentClass = student.className || student.class || ''
-        if (studentClass !== className) return false
-        if (!section) return true
-        const studentSection = student.section || ''
-        // Campus student rows often omit section — still include them for the selected class.
-        if (!studentSection || studentSection === '—' || studentSection === 'All') return true
-        return studentSection === section
-    })
+    const students = getStudentsList().filter(
+        (student) => student.className === className && student.section === section,
+    )
 
     return [...students].sort((a, b) => {
-        const rollA = parseInt(String(a.rollNumber || a.admissionNumber || '').replace(/\D/g, ''), 10) || 0
-        const rollB = parseInt(String(b.rollNumber || b.admissionNumber || '').replace(/\D/g, ''), 10) || 0
+        const rollA = parseInt(String(a.rollNumber).replace(/\D/g, ''), 10) || 0
+        const rollB = parseInt(String(b.rollNumber).replace(/\D/g, ''), 10) || 0
         return rollA - rollB
     })
 }
@@ -234,10 +170,6 @@ export const mapMarksBatchToApprovalSession = (batch) => {
         }
     }
 
-    const teacherLabel = batch.teacherName
-        || (batch.teacherEmail ? String(batch.teacherEmail).split('@')[0].replace(/\./g, ' ') : '')
-        || 'Teacher'
-
     return {
         contextKey: batch.id,
         batchId: batch.id,
@@ -246,18 +178,15 @@ export const mapMarksBatchToApprovalSession = (batch) => {
         className: batch.className || '',
         section: batch.section || '',
         subject: batch.subject || '',
-        term: '',
-        academicYear: batch.academicYear || '',
-        examDate: batch.examDate || '',
+        term: '—',
+        academicYear: '—',
+        examDate: '—',
         maxMarks: batch.maxMarks ?? 100,
         status: 'submitted',
         approvalStatus,
         students,
         entries,
-        submittedByName: teacherLabel,
-        submittedByRole: 'Teacher',
-        teacherEmail: batch.teacherEmail || '',
-        awaitingRole: batch.awaitingRole || null,
+        submittedByRole: batch.teacherEmail || 'Teacher',
         submittedAt: batch.submittedAt || null,
         source: 'api',
     }
@@ -292,37 +221,20 @@ export async function getMarkApprovalSessionFromApi(batchId) {
     return mapMarksBatchToApprovalSession(batch)
 }
 
-/** Resolve campus approval id from session or by re-fetching the marks batch. */
-async function resolveMarksBatchApprovalId(session) {
-    if (session?.approvalId) return String(session.approvalId)
-    const batchId = session?.batchId || session?.contextKey
-    if (!batchId || !canUseExamsApi()) return null
-    try {
-        const fresh = mapMarksBatchFromApi(await getMarksBatchApi(batchId))
-        return fresh.approvalId ? String(fresh.approvalId) : null
-    } catch {
-        return null
-    }
-}
-
-/** Approve or reject a marks batch via POST /approvals/{id}/decide. */
+/** Approve or reject a marks batch via the shared approvals decide endpoint. */
 export async function decideMarkApprovalViaApi(session, approvalStatus, rejectionReason = '') {
+    if (!session?.approvalId) {
+        return { success: false, message: 'This submission has no approval request yet.' }
+    }
     const decision = approvalStatus === 'Approved' ? 'approve' : 'deny'
     if (decision === 'deny' && !String(rejectionReason || '').trim()) {
         return { success: false, message: 'A rejection reason is required.' }
     }
-    const approvalId = await resolveMarksBatchApprovalId(session)
-    if (!approvalId) {
-        return {
-            success: false,
-            message: 'This submission has no approval request yet. Ask the teacher to re-submit marks.',
-        }
-    }
-    await decideApprovalApi(approvalId, {
+    await decideApprovalApi(session.approvalId, {
         decision,
         comment: rejectionReason || undefined,
     })
-    return { success: true, approvalId }
+    return { success: true }
 }
 
 export const getPendingMarkSessions = () =>
@@ -397,12 +309,9 @@ export const updateMarkSessionApproval = (contextKey, approvalStatus, rejectionR
     return updated
 }
 
-/**
- * Director Approve & Publish / Reject.
- * When campus API auth is on, always hits POST /approvals/{id}/decide (never local-only).
- */
+/** LocalStorage path when API is off; API path when session.source === 'api'. */
 export async function resolveMarkSessionApproval(session, approvalStatus, rejectionReason = '') {
-    if (canUseExamsApi()) {
+    if (session?.source === 'api' || (canUseExamsApi() && session?.approvalId)) {
         return decideMarkApprovalViaApi(session, approvalStatus, rejectionReason)
     }
     const updated = updateMarkSessionApproval(session.contextKey, approvalStatus, rejectionReason)

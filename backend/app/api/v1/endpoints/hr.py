@@ -55,15 +55,6 @@ def create_staff_route(
     return create_staff(db, user, body)
 
 
-@router.post("/staff/{employee_code}/reset-password")
-def reset_staff_password_route(
-    employee_code: str,
-    db: Session = Depends(get_db),
-    user: User = Depends(require_permission("hr.write")),
-) -> dict:
-    return reset_staff_password(db, user, employee_code)
-
-
 @router.get("/employees/{employee_code}", response_model=EmployeeOut)
 def get_employee_route(
     employee_code: str,
@@ -82,10 +73,19 @@ def employee_documents_route(
     return documents_for_employee(db, user, employee_code)
 
 
+@router.post("/employees/{employee_code}/reset-password")
+def reset_staff_password_route(
+    employee_code: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("hr.write")),
+) -> dict:
+    return reset_staff_password(db, user, employee_code)
+
+
 @router.get("/portal/employees")
 def list_portal_employees_route(
     db: Session = Depends(get_db),
-    user: User = Depends(require_any("hr.read", "hr.employees.read", "hr.self")),
+    user: User = Depends(require_any("hr.read", "hr.self")),
 ) -> list[dict]:
     return portal_employees(db, user)
 

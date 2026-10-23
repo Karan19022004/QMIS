@@ -69,34 +69,32 @@ const AdminssionList = () => {
             toast.error('Set Parent Username / Email on the admission before enrolling.')
             return
         }
-        if (!record.hasParentAccountPassword) {
-            toast.error('Save a parent password under Account Information on the admission, then enroll.')
-            return
-        }
-        const studentEmail = String(record.studentAccountEmail || '').trim().toLowerCase()
-        if (studentEmail && !record.hasStudentAccountPassword) {
-            toast.error('Save a student password under Account Information on the admission, then enroll.')
+        const entered = window.prompt(
+            `Create parent login for ${email}.\nEnter a temporary parent password (min 10 characters, with a letter and a number). The parent must change it at first login:`,
+            '',
+        )
+        if (entered == null) return
+        const password = String(entered).trim()
+        if (password.length < 10 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+            toast.error('Parent password must be at least 10 characters and contain a letter and a number.')
             return
         }
 
         const result = await enrollAdmissionAsStudent(record.id, {
             parentAccountEmail: email,
-            studentAccountEmail: studentEmail || undefined,
+            parentAccountPassword: password,
         })
         if (!result.success) {
             toast.error(result.message)
             return
         }
         await refresh()
-        const name = getStudentDisplayName(record)
-        if (result.studentUserCreated) {
-            toast.success(`${name} enrolled. Parent: ${email}. Student login: ${studentEmail}`)
-        } else if (result.parentCreated) {
-            toast.success(`${name} enrolled. Parent: ${email}`)
+        if (result.parentCreated) {
+            toast.success(`${getStudentDisplayName(record)} enrolled. Parent: ${email}`)
         } else if (result.parentMapped) {
-            toast.success(`${name} enrolled and linked to existing parent account.`)
+            toast.success(`${getStudentDisplayName(record)} enrolled and linked to existing parent account.`)
         } else {
-            toast.success(`${name} enrolled as student.`)
+            toast.success(`${getStudentDisplayName(record)} enrolled as student.`)
         }
     }
 

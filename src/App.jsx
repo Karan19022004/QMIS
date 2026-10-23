@@ -212,9 +212,9 @@ const App = () => {
     return withSuspense(<HRLayout />);
   }
 
-  if (role === ROLES.ACCOUNT_HEAD) {
+  if (role === ROLES.ACCOUNT_HEAD || role === ROLES.FINANCE_ASSISTANT) {
     if (!pathname.startsWith("/account-head")) {
-      return <Navigate to={ROLE_HOME_PATHS[ROLES.ACCOUNT_HEAD]} replace />;
+      return <Navigate to={ROLE_HOME_PATHS[role] ?? ROLE_HOME_PATHS[ROLES.ACCOUNT_HEAD]} replace />;
     }
     return withSuspense(<AccountHeadLayout />);
   }

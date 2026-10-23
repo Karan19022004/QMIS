@@ -1,64 +1,356 @@
 {
   "schemaVersion": 1,
-  "ok": false,
+  "ok": true,
   "command": "finalize",
-  "status": "fail",
+  "status": "pass",
   "type": "architecture",
   "quality": "showcase",
   "specification": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\candidate.json",
-    "sha256": "e38c7f99d54475c62905b0c6ecadca315e0b1c2e2e56d8fed893fd6150eeb5f5",
-    "bytes": 17386
+    "sha256": "2fd0bec4d65f24995efffabe22ab4a8d893988cb829e1da7cb0dbfebaccbf81e",
+    "bytes": 18643
   },
   "artifact": {
     "path": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html",
-    "sha256": "eb4fc0c46e1597da5884ce3af0e1b76318475a043d9cd96afd519d25e2dc5db2",
-    "bytes": 856805
+    "sha256": "cbff911a91fcc2b9203d555b9174eac6ba2552687d0135eaa884b86c3e8c1f2d",
+    "bytes": 862497
   },
   "gates": {
     "validate": "pass",
     "deliver": "pass",
     "check": "pass",
-    "browser-check": "fail"
+    "browser-check": "pass"
   },
-  "failedStage": "browser-check",
-  "diagnostics": [
-    {
-      "code": "viewer/temp-cleanup-incomplete",
-      "severity": "error",
-      "message": "Browser cleanup could not safely finish; inspect the reported retained path.",
-      "subject": {
-        "artifact": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.html"
-      },
-      "evidence": {
-        "reason": "Chrome did not exit; retained temporary profile \"C:\\Users\\vikas\\AppData\\Local\\Temp\\archify-visual-check-profile-aFQGQj\".",
-        "retainedDirectory": "C:\\Users\\vikas\\AppData\\Local\\Temp\\archify-visual-check-profile-aFQGQj"
-      },
-      "supportedFixes": [
-        "resolve the reported process or filesystem failure; verify directory ownership before manual cleanup"
-      ]
-    }
-  ],
+  "diagnostics": [],
   "diagnosticSummary": {
-    "total": 1,
-    "shown": 1,
+    "total": 0,
+    "shown": 0,
     "truncated": false
   },
   "evidence": {
-    "receipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.finalize.json",
-    "summaryReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.finalize-summary.json",
-    "browserCheckReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\qmis-erp-overview.browser-check.json"
+    "receipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\review-7\\qmis-erp-overview.finalize.json",
+    "summaryReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\review-7\\qmis-erp-overview.finalize-summary.json",
+    "browserCheckReceipt": "C:\\karan\\ERP dev\\.archify\\architecture-project-overview\\review-7\\qmis-erp-overview.browser-check.json"
   },
   "update": {
-    "status": "current",
+    "status": "update_available",
     "installedVersion": "3.1.0",
-    "availableVersion": "3.1.0",
-    "releaseNotes": null,
-    "checkedAt": "2026-10-16T16:21:05.427Z",
-    "source": "network",
-    "noticeRequired": false,
-    "noticeText": null
+    "availableVersion": "3.2.0",
+    "releaseNotes": "https://github.com/tt-a1i/archify/releases/tag/v3.2.0",
+    "severity": "normal",
+    "checkedAt": "2026-10-23T14:44:09.429Z",
+    "source": "cache",
+    "noticeRequired": true,
+    "noticeText": "Archify update: 3.1.0 → 3.2.0. A previous check at 2026-10-23T14:44:09.429Z found a newer release. Release notes: https://github.com/tt-a1i/archify/releases/tag/v3.2.0. The installed Skill has not changed; ask to snooze or ignore this reminder.",
+    "eventKey": "archify@sha256:70e210265c59f24dcbdf2a502ff671104b5454e7ee7d3554aecd86bad32384f5"
   },
   "visualReview": "not-requested",
-  "durationMs": 14201
+  "durationMs": 5976,
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "resolvedCrossovers": 16,
+      "routesOverSuggestedBends": 9,
+      "routesOverSuggestedStretch": 2
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [
+        {
+          "left": {
+            "id": "api-uploads",
+            "from": "api",
+            "to": "uploads",
+            "label": "files",
+            "collectionIndex": 4,
+            "artifactIndex": 5
+          },
+          "right": {
+            "id": "api-mod_webhooks",
+            "from": "api",
+            "to": "mod_webhooks",
+            "label": "",
+            "collectionIndex": 23,
+            "artifactIndex": 24
+          },
+          "point": [
+            556,
+            234.4
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_audit",
+            "from": "api",
+            "to": "mod_audit",
+            "label": "",
+            "collectionIndex": 7,
+            "artifactIndex": 8
+          },
+          "right": {
+            "id": "api-mod_finance",
+            "from": "api",
+            "to": "mod_finance",
+            "label": "",
+            "collectionIndex": 15,
+            "artifactIndex": 16
+          },
+          "point": [
+            650,
+            16
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_admin_users",
+            "from": "api",
+            "to": "mod_admin_users",
+            "label": "",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "right": {
+            "id": "api-mod_hr",
+            "from": "api",
+            "to": "mod_hr",
+            "label": "",
+            "collectionIndex": 16,
+            "artifactIndex": 17
+          },
+          "point": [
+            781,
+            176
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_masters",
+            "from": "api",
+            "to": "mod_masters",
+            "label": "",
+            "collectionIndex": 9,
+            "artifactIndex": 10
+          },
+          "right": {
+            "id": "api-mod_parents",
+            "from": "api",
+            "to": "mod_parents",
+            "label": "",
+            "collectionIndex": 11,
+            "artifactIndex": 12
+          },
+          "point": [
+            798.2222222222222,
+            203
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_masters",
+            "from": "api",
+            "to": "mod_masters",
+            "label": "",
+            "collectionIndex": 9,
+            "artifactIndex": 10
+          },
+          "right": {
+            "id": "api-mod_hr",
+            "from": "api",
+            "to": "mod_hr",
+            "label": "",
+            "collectionIndex": 16,
+            "artifactIndex": 17
+          },
+          "point": [
+            781,
+            203
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_admissions",
+            "from": "api",
+            "to": "mod_admissions",
+            "label": "",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "right": {
+            "id": "api-mod_parents",
+            "from": "api",
+            "to": "mod_parents",
+            "label": "",
+            "collectionIndex": 11,
+            "artifactIndex": 12
+          },
+          "point": [
+            760,
+            231
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_admissions",
+            "from": "api",
+            "to": "mod_admissions",
+            "label": "",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "right": {
+            "id": "api-mod_attendance",
+            "from": "api",
+            "to": "mod_attendance",
+            "label": "",
+            "collectionIndex": 13,
+            "artifactIndex": 14
+          },
+          "point": [
+            760,
+            245
+          ],
+          "sharedNode": "api"
+        },
+        {
+          "left": {
+            "id": "api-mod_admissions",
+            "from": "api",
+            "to": "mod_admissions",
+            "label": "",
+            "collectionIndex": 10,
+            "artifactIndex": 11
+          },
+          "right": {
+            "id": "api-mod_hr",
+            "from": "api",
+            "to": "mod_hr",
+            "label": "",
+            "collectionIndex": 16,
+            "artifactIndex": 17
+          },
+          "point": [
+            781,
+            254
+          ],
+          "sharedNode": "api"
+        }
+      ],
+      "detours": [
+        {
+          "relationship": {
+            "id": "api-mod_parents",
+            "from": "api",
+            "to": "mod_parents",
+            "label": "",
+            "collectionIndex": 11,
+            "artifactIndex": 12
+          },
+          "bends": 3,
+          "stretch": 1.15
+        },
+        {
+          "relationship": {
+            "id": "api-mod_attendance",
+            "from": "api",
+            "to": "mod_attendance",
+            "label": "",
+            "collectionIndex": 13,
+            "artifactIndex": 14
+          },
+          "bends": 3,
+          "stretch": 1
+        },
+        {
+          "relationship": {
+            "id": "api-mod_workflows",
+            "from": "api",
+            "to": "mod_workflows",
+            "label": "",
+            "collectionIndex": 14,
+            "artifactIndex": 15
+          },
+          "bends": 3,
+          "stretch": 1
+        },
+        {
+          "relationship": {
+            "id": "api-mod_finance",
+            "from": "api",
+            "to": "mod_finance",
+            "label": "",
+            "collectionIndex": 15,
+            "artifactIndex": 16
+          },
+          "bends": 4,
+          "stretch": 1.58
+        },
+        {
+          "relationship": {
+            "id": "api-mod_hr",
+            "from": "api",
+            "to": "mod_hr",
+            "label": "",
+            "collectionIndex": 16,
+            "artifactIndex": 17
+          },
+          "bends": 3,
+          "stretch": 1
+        },
+        {
+          "relationship": {
+            "id": "api-mod_files",
+            "from": "api",
+            "to": "mod_files",
+            "label": "",
+            "collectionIndex": 17,
+            "artifactIndex": 18
+          },
+          "bends": 4,
+          "stretch": 2.041
+        },
+        {
+          "relationship": {
+            "id": "api-mod_front_office",
+            "from": "api",
+            "to": "mod_front_office",
+            "label": "",
+            "collectionIndex": 19,
+            "artifactIndex": 20
+          },
+          "bends": 4,
+          "stretch": 1.066
+        },
+        {
+          "relationship": {
+            "id": "api-mod_campus_audit",
+            "from": "api",
+            "to": "mod_campus_audit",
+            "label": "",
+            "collectionIndex": 21,
+            "artifactIndex": 22
+          },
+          "bends": 4,
+          "stretch": 1.055
+        }
+      ],
+      "truncated": true
+    },
+    "hints": [
+      "api has 9 relationships facing its bottom side, which fits 8 ports: make that side at least 144px, or move some of those neighbours so they face another side of api.",
+      "api → uploads and api → mod_webhooks cross next to api: move node uploads or mod_webhooks so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_audit and api → mod_finance cross next to api: move node mod_audit or mod_finance so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_admin_users and api → mod_hr cross next to api: move node mod_admin_users or mod_hr so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_masters and api → mod_parents cross next to api: move node mod_masters or mod_parents so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_masters and api → mod_hr cross next to api: move node mod_masters or mod_hr so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_admissions and api → mod_parents cross next to api: move node mod_admissions or mod_parents so the two reach api from different sides (for example one level with it, one directly above or below it).",
+      "api → mod_admissions and api → mod_attendance cross next to api: move node mod_admissions or mod_attendance so the two reach api from different sides (for example one level with it, one directly above or below it)."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
 }

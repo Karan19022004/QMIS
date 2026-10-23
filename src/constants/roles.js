@@ -23,5 +23,6 @@ export const ROLES = {
     QUALITY_AUDITOR: 'qualityauditor',
     HR: 'hr',
     ACCOUNT_HEAD: 'accounthead',
+    FINANCE_ASSISTANT: 'finance_assistant',
     DRIVER: 'driver',
 }

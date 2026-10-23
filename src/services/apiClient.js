@@ -4,8 +4,17 @@ export const getApiBaseUrl = () =>
     (import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api/v1').replace(/\/$/, '')
 
 export const isApiAuthEnabled = () => String(import.meta.env.VITE_USE_API_AUTH || 'true') === 'true'
-export const isApiAdmissionsEnabled = () =>
-    String(import.meta.env.VITE_USE_API_ADMISSIONS || 'false') === 'true'
+/**
+ * Admissions enquiry/list SoT. Defaults on whenever API sign-in is on (matches other campus modules).
+ * Set VITE_USE_API_ADMISSIONS=false only for the browser-only demo path.
+ */
+export const isApiAdmissionsEnabled = () => {
+    const explicit = import.meta.env.VITE_USE_API_ADMISSIONS
+    if (explicit !== undefined && explicit !== '') {
+        return String(explicit) === 'true'
+    }
+    return isApiAuthEnabled()
+}
 export const isApiFinanceEnabled = () =>
     String(import.meta.env.VITE_USE_API_FINANCE || 'true') === 'true'
 /**
@@ -146,8 +155,6 @@ export const isApiTcEnabled = () => flagOrAuth('VITE_USE_API_TC')
 export const isApiActivitiesEnabled = () => flagOrAuth('VITE_USE_API_ACTIVITIES')
 export const isApiCommunicationEnabled = () => flagOrAuth('VITE_USE_API_COMMUNICATION')
 export const isApiDashboardEnabled = () => flagOrAuth('VITE_USE_API_DASHBOARD')
-/** Principal class timetables + teacher allocations SoT. Defaults on with API auth. */
-export const isApiAcademicsEnabled = () => flagOrAuth('VITE_USE_API_ACADEMICS')
 
 export const getAccessToken = () => sessionStorage.getItem(TOKEN_KEY)
 export const setAccessToken = (token) => {

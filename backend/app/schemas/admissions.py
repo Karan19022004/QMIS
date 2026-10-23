@@ -104,8 +104,6 @@ class AdmissionCreate(BaseModel):
     parent_email: str | None = None
     parent_account_email: str | None = None
     parent_account_password: str | None = None
-    student_account_email: str | None = None
-    student_account_password: str | None = None
     fees_group: str | None = None
     profile_image_file_id: UUID | None = None
     status: str | None = "Active"
@@ -161,9 +159,6 @@ class AdmissionOut(BaseModel):
     parent_alt_mobile_number: str | None = None
     parent_email: str | None = None
     parent_account_email: str | None = None
-    student_account_email: str | None = None
-    has_parent_account_password: bool = False
-    has_student_account_password: bool = False
     fees_group: str | None = None
     status: str
     enrolled_student_id: UUID | None = None

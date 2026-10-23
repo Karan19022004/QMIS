@@ -12,12 +12,9 @@ import { canUseEmployeeDirectoryApi, loadEmployeeDirectory } from '../../service
 const EmployeeDatabaseListView = ({
     routeBase,
     title = 'Employee Database',
-    subtitle = 'Employees come from HR. Staff logins created through User Creation are included when your role can read them.',
+    subtitle = 'Employees created through User Creation appear here automatically.',
     fixedDepartmentFilter = '',
-    /** Optional predicate — e.g. Teacher Database matches role Teacher even when HR department is Academic. */
-    recordFilter = null,
     showDepartmentFilter = true,
-    emptyMessage = '',
 }) => {
     const location = useLocation()
     const api = canUseEmployeeDirectoryApi()
@@ -27,40 +24,24 @@ const EmployeeDatabaseListView = ({
     const [search, setSearch] = useState('')
     const [departmentFilter, setDepartmentFilter] = useState(fixedDepartmentFilter)
     const [employees, setEmployees] = useState(() => (api ? [] : [...EMPLOYEES_LIST]))
-    const [warnings, setWarnings] = useState([])
     const [loadError, setLoadError] = useState('')
-    const [loading, setLoading] = useState(api)
 
     useEffect(() => {
         if (!api) {
             setEmployees([...EMPLOYEES_LIST])
-            setWarnings([])
-            setLoadError('')
-            setLoading(false)
             return undefined
         }
         let active = true
-        setLoading(true)
         loadEmployeeDirectory()
-            .then(({ records, warnings: nextWarnings }) => {
+            .then(({ records }) => {
                 if (!active) return
-                // Directory returns { row, detail }; the table needs the flat row shape.
-                setEmployees(records.map((record) => record.row))
-                setWarnings(Array.isArray(nextWarnings) ? nextWarnings : [])
+                setEmployees(records)
                 setLoadError('')
             })
             .catch((error) => {
                 if (!active) return
                 setEmployees([])
-                setWarnings([])
-                setLoadError(
-                    error?.status === 403
-                        ? 'You do not have access to the employee records.'
-                        : error?.message || 'Employees could not be loaded.',
-                )
-            })
-            .finally(() => {
-                if (active) setLoading(false)
+                setLoadError(error?.message || 'Employees could not be loaded.')
             })
         return () => {
             active = false
@@ -71,21 +52,15 @@ const EmployeeDatabaseListView = ({
         setDepartmentFilter(fixedDepartmentFilter)
     }, [fixedDepartmentFilter])
 
-    const departmentOptions = useMemo(() => {
-        if (!api) return DEPARTMENTS
-        return [...new Set(employees.map((employee) => employee.department).filter((value) => value && value !== '—'))].sort()
-    }, [api, employees])
-
     const filteredEmployees = useMemo(() => {
         const query = search.trim().toLowerCase()
         return employees.filter((employee) => {
-            if (typeof recordFilter === 'function' && !recordFilter(employee)) return false
             if (departmentFilter && employee.department !== departmentFilter) return false
             if (!query) return true
             const haystack = `${employee.employeeId} ${employee.name} ${employee.department} ${employee.role} ${employee.email}`.toLowerCase()
             return haystack.includes(query)
         })
-    }, [employees, search, departmentFilter, recordFilter])
+    }, [employees, search, departmentFilter])
 
     const clearFilters = () => {
         setSearch('')
@@ -97,13 +72,6 @@ const EmployeeDatabaseListView = ({
     return (
         <section>
             {loadError ? <p className='text-sm text-[#B42318] mb-3'>{loadError}</p> : null}
-            {warnings.length > 0 ? (
-                <div role='status' className='mb-3 rounded-lg border border-[#F5C242] bg-[#FFF8E1] p-3 text-sm text-[#7A5B00]'>
-                    {warnings.map((warning) => (
-                        <p key={warning}>{warning}</p>
-                    ))}
-                </div>
-            ) : null}
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
                     <button type='button' onClick={clearFilters} className='bg-[#515DEF] text-white uppercase text-sm px-6 py-2 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>Clear Filters</button>
@@ -121,7 +89,7 @@ const EmployeeDatabaseListView = ({
                             <label className='text-base font-medium text-[#808080]'>Department</label>
                             <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} disabled={Boolean(fixedDepartmentFilter)} className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
                                 <option value=''>All</option>
-                                {departmentOptions.map((department) => (
+                                {DEPARTMENTS.map((department) => (
                                     <option key={department} value={department}>{department}</option>
                                 ))}
                             </select>
@@ -177,20 +145,9 @@ const EmployeeDatabaseListView = ({
                             </tr>
                         </thead>
                         <tbody>
-                            {loading ? (
+                            {filteredEmployees.length === 0 ? (
                                 <tr>
-                                    <td colSpan={15} className='px-2 py-8 text-center text-[#667085]'>Loading employees from HR…</td>
-                                </tr>
-                            ) : filteredEmployees.length === 0 ? (
-                                <tr>
-                                    <td colSpan={15} className='px-2 py-8 text-center text-[#667085]'>
-                                        {emptyMessage
-                                            || (api
-                                                ? (employees.length
-                                                    ? 'No matching employees for this filter.'
-                                                    : 'No employees found in HR yet. Accept an offer in HR (or create staff) and refresh this page.')
-                                                : 'No employees found.')}
-                                    </td>
+                                    <td colSpan={15} className='px-2 py-8 text-center text-[#667085]'>No employees found.</td>
                                 </tr>
                             ) : (
                                 filteredEmployees.map((employee) => (

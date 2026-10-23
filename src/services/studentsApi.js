@@ -9,14 +9,6 @@ export async function listStudentsApi(params = {}) {
     return Array.isArray(rows) ? rows : []
 }
 
-/**
- * Promote Active admissions into the students table (Account Head / finance.write).
- * Use before importing students into the finance snapshot when /students is empty.
- */
-export async function syncStudentsFromAdmissionsApi() {
-    return apiRequest('/students/sync-from-admissions', { method: 'POST' })
-}
-
 /** @returns {Promise<object>} */
 export async function getStudentApi(studentId) {
     return apiRequest(`/students/${studentId}`)
@@ -32,28 +24,22 @@ export function mapMyStudentProfile(row) {
     if (!row) return null
     const className = row.className || ''
     const section = row.section || ''
-    const placementStatus = row.placementStatus || 'pending'
     return {
         id: String(row.id),
         name: row.name || [row.firstName, row.lastName].filter(Boolean).join(' ') || '',
         className,
-        section: section || (placementStatus === 'placed' ? '—' : ''),
+        section: section || '—',
         classSection: row.classSection || (section ? `${className}-${section}` : className),
-        rollNumber: row.rollNumber ?? '',
+        rollNumber: row.rollNumber || '',
         admissionNumber: row.admissionNumber || '',
         admissionId: row.admissionId || null,
         studentUserId: row.studentUserId || null,
         parentUserId: row.parentUserId || null,
-        placementStatus,
-        classTeacherEmail: row.classTeacherEmail || '',
-        sectionId: row.sectionId || null,
     }
 }
 
 /** Map API list row → enrolled-students localStorage shape. */
 export function mapStudentListFromApi(row) {
-    const className = row.className || ''
-    const section = row.section || ''
     return {
         id: String(row.id),
         admissionId: row.admissionId || null,
@@ -61,11 +47,7 @@ export function mapStudentListFromApi(row) {
         firstName: row.firstName || (row.name || '').split(' ')[0] || '',
         middleName: row.middleName || '',
         lastName: row.lastName || '',
-        className,
-        section,
-        classSection: row.classSection || (section ? `${className}-${section}` : className),
-        rollNumber: row.rollNumber ?? '',
-        placementStatus: row.placementStatus || '',
+        className: row.className || '',
         admissionNumber: row.admissionNumber || '',
         gender: row.gender || '',
         mobileNumber: row.mobileNumber || '',
@@ -88,8 +70,6 @@ export function mapStudentDetailFromApi(row) {
         firstName: row.firstName || list.firstName,
         middleName: row.middleName || '',
         lastName: row.lastName || '',
-        section: row.section || list.section || '',
-        rollNumber: row.rollNumber ?? list.rollNumber ?? '',
         admissionSnapshot: {
             admissionNumber: row.admissionNumber,
             firstName: row.firstName,
@@ -97,7 +77,6 @@ export function mapStudentDetailFromApi(row) {
             lastName: row.lastName,
             admissionDate: row.admissionDate,
             className: row.className,
-            section: row.section || '',
             registrationFees: row.registrationFees,
             batchStartYear: row.batchStartYear,
             batchEndYear: row.batchEndYear,

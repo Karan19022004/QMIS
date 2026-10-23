@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import { employeeName, getConcessions, getEmployees, nextId, saveConcessions } from '../domain/hrStore'
 import { formatInr } from '../domain/payrollCalculations'
-import { Badge, KeyFields, Modal, PageIntro, PrimaryButton, Select, TableWrap, TextField, td, th, useHrTick } from '../components/HrUi'
+import { Badge, Modal, PageIntro, PrimaryButton, TableWrap, inputClass, td, th, useHrTick } from '../components/HrUi'
 import { apiRequest, getAccessToken } from '../../../services/apiClient'
 import { connectHrApi } from '../../../services/hrApi'
 
@@ -105,16 +105,19 @@ const ChildConcession = () => {
             {form && (
                 <Modal title='Concession' onClose={() => setForm(null)}>
                     <form onSubmit={save} className='grid gap-3'>
-                        <Select label='Employee (parent / staff)' value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} options={employees.map((item) => ({ value: item.id, label: item.name }))} allLabel='Select employee' />
-                        <Select
-                            label='Enrolled student'
-                            value={form.studentId || ''}
-                            onChange={(e) => setForm({ ...form, studentId: e.target.value })}
-                            options={students.map((item) => ({ value: item.id, label: `${item.name} · ${item.admissionNumber}` }))}
-                            allLabel='No enrolled student selected'
-                        />
-                        <TextField label='Student name (if not enrolled)' value={form.studentName || ''} onChange={(e) => setForm({ ...form, studentName: e.target.value })} />
-                        <KeyFields keys={['relationship', 'className', 'type', 'percent', 'amount', 'from', 'to']} form={form} setForm={setForm} types={{ percent: 'number', amount: 'number' }} />
+                        <select className={inputClass} value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })}>
+                            {employees.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                        </select>
+                        <select className={inputClass} value={form.studentId || ''} onChange={(e) => setForm({ ...form, studentId: e.target.value })}>
+                            <option value=''>No enrolled student selected</option>
+                            {students.map((item) => (
+                                <option key={item.id} value={item.id}>{item.name} · {item.admissionNumber}</option>
+                            ))}
+                        </select>
+                        <input className={inputClass} placeholder='Student name if not enrolled' value={form.studentName || ''} onChange={(e) => setForm({ ...form, studentName: e.target.value })} />
+                        {['relationship', 'className', 'type', 'percent', 'amount', 'from', 'to'].map((key) => (
+                            <input key={key} className={inputClass} placeholder={key} value={form[key]} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
+                        ))}
                         <PrimaryButton type='submit'>Save</PrimaryButton>
                     </form>
                 </Modal>
