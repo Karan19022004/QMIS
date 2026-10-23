@@ -8,6 +8,24 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 23 October 2026 — Role workflow & connectivity documentation
+
+**Status:** Client-facing role workflow documents generated (verification only; no app code changes).
+
+### Done
+- Produced `docs/QMIS_ERP_Role_Workflow_Document.docx` and `.pdf` — plain-language role workflows, module connections, diagrams, gaps/priorities
+- Produced deep follow-on `docs/QMIS_ERP_Deep_Role_Workflow.docx` and `.pdf` — full A–H chapters per role (Super Admin especially detailed), cross-dept flows, security, P0–P2
+- Produced shorter operational guide `docs/QMIS_ERP_Brief_InDepth_Workflow.docx` and `.pdf`
+- Corrected module completion sheet: **432 Completed / 31 Partial / 15 Not Completed / 2 Gap** (was 480/480). Updated `erp complete documentation/QMIS-ERP-Role-Module-Status.docx` and `reports/QMIS-ERP-Role-Module-Status.docx`
+- Confirmed shared login model; Transport Driver has workspace but no dedicated login page and no ready driver account
+- Reconfirmed earlier login/roles audit artefacts remain in `docs/` for technical readers
+
+### Still open
+- Provision Transport Manager / Driver (and other Partial-role) accounts for go-live UAT
+- Confirm Email/WhatsApp/gateway with school credentials before promising live delivery
+
+---
+
 ## 21 October 2026 — Restore partner portal APIs onto ERP1
 
 **Status:** Gaps from `main` / partner tip restored on `ERP1` and pushed to `origin/ERP1` only.

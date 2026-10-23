@@ -1,8 +1,8 @@
 # Testing report
 
-**Date:** 21 October 2026  
-**Branch:** `ERP1`  
-**Context:** Partner portal API restore (parents / exams / lesson-plans)
+**Date:** 23 October 2026  
+**Branch:** current local workspace  
+**Context:** Documentation day — full backend suite re-check (no product code changes)
 
 ## Backend
 
@@ -12,8 +12,8 @@
 | Failed | **0** |
 | Skipped | 0 |
 | Warnings | 1 (Starlette TestClient / httpx deprecation) |
-| Duration | ~4.3 minutes |
+| Duration | ~4.6 minutes |
 
 Command: `python -m pytest tests/ -q` from `backend/`.
 
-Restored paths: parents list + children placement, exam update (+ `academic_year`), lesson-plan complete; teacher roster list test handles empty/inactive masters seed.
+No application code was modified for the role-workflow documentation deliverable.
