@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
-import { VEHICLE_OPTIONS, FUEL_STATIONS, PAYMENT_MODES } from '../transportExpensesData'
+import { FUEL_STATIONS, PAYMENT_MODES } from '../transportExpensesData'
+import { loadTransportChoices } from '../../liveTransportOptions'
 import { addFuelEntry } from '../../../../Common/demoDomain/financeExtras'
 import { toast } from 'react-toastify'
 
@@ -23,6 +24,19 @@ const FuelExpenseForm = ({ expense }) => {
     const [fuelDate, setFuelDate] = useState(() => parseDate(expense?.fuelDate))
     const [vehicleNumber, setVehicleNumber] = useState(expense?.vehicleNumber ?? '')
     const [driverName, setDriverName] = useState(expense?.driverName ?? '')
+    const [vehicles, setVehicles] = useState([])
+
+    useEffect(() => {
+        let active = true
+        loadTransportChoices().then((choices) => {
+            if (!active) return
+            setVehicles(choices.vehicles)
+        }).catch(() => {
+            if (!active) return
+            setVehicles([])
+        })
+        return () => { active = false }
+    }, [])
 
     const [entryType, setEntryType] = useState('Inside')
     const [quantity, setQuantity] = useState('')
@@ -50,7 +64,7 @@ const FuelExpenseForm = ({ expense }) => {
     }
 
     const handleVehicleChange = (e) => {
-        const selected = VEHICLE_OPTIONS.find((vehicle) => vehicle.label === e.target.value)
+        const selected = vehicles.find((vehicle) => vehicle.label === e.target.value)
         setVehicleNumber(e.target.value)
         if (selected) {
             setDriverName(selected.driverName)
@@ -63,7 +77,8 @@ const FuelExpenseForm = ({ expense }) => {
                 <label htmlFor='vehicle-number' className='text-base font-medium text-[#1E1E1E]'>Vehicle Number:</label>
                 <select id='vehicle-number' value={vehicleNumber} onChange={handleVehicleChange} className={selectClass}>
                     <option value=''>--Select--</option>
-                    {VEHICLE_OPTIONS.map((vehicle) => (
+                    {vehicles.length === 0 && <option value='' disabled>No saved vehicles</option>}
+                    {vehicles.map((vehicle) => (
                         <option key={vehicle.id} value={vehicle.label}>{vehicle.label}</option>
                     ))}
                 </select>

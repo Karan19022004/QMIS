@@ -186,6 +186,19 @@ def create(
     write_audit(db, action="LEAVE_REQUESTED", entity_type="leave_request", entity_id=str(row.id),
                 actor_id=actor.id, campus_id=actor.campus_id, details=f"{leave_type} {row.total_days}d")
     db.commit()
+    head = chain_for(role)[0]
+    from app.services.integrations.events import notify_roles
+    notify_roles(
+        db,
+        campus_id=actor.campus_id,
+        role_codes=[head],
+        event_key=f"leave-submit:{row.id}",
+        subject="QMIS ERP leave request waiting",
+        body=(
+            f"Leave request {row.request_no} is waiting for a decision. "
+            "Open QMIS ERP to review the dates. The reason is not included in this message."
+        ),
+    )
     return _out(db, row)
 
 
@@ -219,6 +232,18 @@ def decide(db: Session, actor: User, request_id: UUID, *, decision: str, comment
     write_audit(db, action=f"LEAVE_{decision.upper()}", entity_type="leave_request", entity_id=str(row.id),
                 actor_id=actor.id, campus_id=actor.campus_id)
     db.commit()
+    requester = db.get(User, row.requester_id)
+    if requester and requester.email:
+        from app.services.integrations.notify import notify_event
+        notify_event(
+            event_key=f"leave-decision:{row.id}:{decision}",
+            email=requester.email,
+            subject=f"QMIS ERP leave request {decision}",
+            body=(
+                f"Your leave request {row.request_no} was {decision}. "
+                "Open QMIS ERP for the dates and remarks. This message does not include other staff records."
+            ),
+        )
     return _out(db, row, events=True)
 
 

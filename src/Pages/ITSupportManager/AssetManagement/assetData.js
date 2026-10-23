@@ -182,10 +182,12 @@ export function hydrateAssetsFromApi() {
 }
 export const getAssetById = (id) => getAssets().find((entry) => entry.assetId === id) ?? null
 
-export const addAsset = (asset) => {
-    const rows = getAssets()
-    const record = { ...asset, assetId: asset.assetId || `AST-${Date.now()}` }
-    saveAssets([record, ...rows])
+export const addAsset = async (asset) => {
+    await hydrateAssetsFromApi()
+    const rows = getAssets().filter((item) => item.assetName !== asset.assetName)
+    const record = { ...asset, id: asset.assetId || `AST-${Date.now()}`, assetId: asset.assetId || `AST-${Date.now()}` }
+    record.assetId = record.id
+    await saveAssets([record, ...rows])
     return record
 }
 

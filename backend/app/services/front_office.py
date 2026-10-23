@@ -23,6 +23,7 @@ COLLECTIONS: dict[str, str] = {
 
 _WRITERS = {"prm", "admin", "superadmin", "managing_director"}
 _READERS = _WRITERS | {"principal", "director"}
+_GATE_PASS_READERS = {"gatekeeper", "gatekeepermanager"}
 
 
 def _code(db: Session, actor: User) -> str:
@@ -34,8 +35,11 @@ def _ensure_collection(collection: str) -> None:
         fail(404, "not_found", "That front-office collection does not exist.")
 
 
-def _can_read(db: Session, actor: User) -> bool:
-    return _code(db, actor) in _READERS
+def _can_read(db: Session, actor: User, collection: str | None = None) -> bool:
+    code = _code(db, actor)
+    if code in _READERS:
+        return True
+    return bool(collection and collection.endswith("gate-passes") and code in _GATE_PASS_READERS)
 
 
 def _can_write(db: Session, actor: User) -> bool:
@@ -70,7 +74,7 @@ def _next_public_id(db: Session, actor: User, collection: str) -> str:
 
 def list_records(db: Session, actor: User, collection: str) -> list[dict]:
     _ensure_collection(collection)
-    if not _can_read(db, actor):
+    if not _can_read(db, actor, collection):
         fail(403, "forbidden", "You are not allowed to view front-office records.")
     rows = db.scalars(
         select(FrontOfficeRecord)
@@ -85,7 +89,7 @@ def list_records(db: Session, actor: User, collection: str) -> list[dict]:
 
 def get_record(db: Session, actor: User, collection: str, public_id: str) -> dict:
     _ensure_collection(collection)
-    if not _can_read(db, actor):
+    if not _can_read(db, actor, collection):
         fail(403, "forbidden", "You are not allowed to view front-office records.")
     row = db.scalar(
         select(FrontOfficeRecord).where(

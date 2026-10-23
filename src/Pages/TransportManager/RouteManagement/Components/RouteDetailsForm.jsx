@@ -1,5 +1,5 @@
-import React from 'react'
-import { DRIVER_OPTIONS, VEHICLE_OPTIONS } from '../routeManagementData'
+import React, { useEffect, useState } from 'react'
+import { loadTransportChoices } from '../../liveTransportOptions'
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
@@ -7,7 +7,25 @@ const inputClass =
 const selectClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full bg-white'
 
-const RouteDetailsForm = ({ route }) => (
+const RouteDetailsForm = ({ route }) => {
+    const [vehicles, setVehicles] = useState([])
+    const [drivers, setDrivers] = useState([])
+
+    useEffect(() => {
+        let active = true
+        loadTransportChoices().then((choices) => {
+            if (!active) return
+            setVehicles(choices.vehicles)
+            setDrivers(choices.drivers)
+        }).catch(() => {
+            if (!active) return
+            setVehicles([])
+            setDrivers([])
+        })
+        return () => { active = false }
+    }, [])
+
+    return (
     <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 lg:mt-8 mt-2'>
         <div className='flex flex-col gap-y-2'>
             <label htmlFor='route-name' className='text-base font-medium text-[#1E1E1E]'>Route Name:</label>
@@ -17,7 +35,8 @@ const RouteDetailsForm = ({ route }) => (
             <label htmlFor='vehicle-number' className='text-base font-medium text-[#1E1E1E]'>Vehicle Number:</label>
             <select id='vehicle-number' defaultValue={route?.vehicleNumber ?? ''} className={selectClass}>
                 <option value=''>--Select--</option>
-                {VEHICLE_OPTIONS.map((vehicle) => (
+                {vehicles.length === 0 && <option value='' disabled>No saved vehicles</option>}
+                {vehicles.map((vehicle) => (
                     <option key={vehicle.id} value={vehicle.vehicleNumber}>{vehicle.vehicleNumber}</option>
                 ))}
             </select>
@@ -26,7 +45,8 @@ const RouteDetailsForm = ({ route }) => (
             <label htmlFor='select-driver' className='text-base font-medium text-[#1E1E1E]'>Select Driver:</label>
             <select id='select-driver' defaultValue={route?.driverName ?? ''} className={selectClass}>
                 <option value=''>--Select--</option>
-                {DRIVER_OPTIONS.map((driver) => (
+                {drivers.length === 0 && <option value='' disabled>No saved drivers</option>}
+                {drivers.map((driver) => (
                     <option key={driver.id} value={driver.label}>{driver.label}</option>
                 ))}
             </select>
@@ -39,8 +59,8 @@ const RouteDetailsForm = ({ route }) => (
             <label htmlFor='vehicle-id' className='text-base font-medium text-[#1E1E1E]'>Vehicle ID:</label>
             <select id='vehicle-id' defaultValue={route?.vehicleId ?? ''} className={selectClass}>
                 <option value=''>--Select--</option>
-                {VEHICLE_OPTIONS.map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>{vehicle.id}</option>
+                {vehicles.map((vehicle) => (
+                    <option key={`${vehicle.id}-id`} value={vehicle.id}>{vehicle.id}</option>
                 ))}
             </select>
         </div>
@@ -93,6 +113,7 @@ const RouteDetailsForm = ({ route }) => (
             <input type='text' id='estimated-time' defaultValue={route?.estimatedTime ?? ''} placeholder='e.g. 45 mins' className={inputClass} />
         </div>
     </div>
-)
+    )
+}
 
 export default RouteDetailsForm

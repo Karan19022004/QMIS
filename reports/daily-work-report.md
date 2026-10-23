@@ -8,6 +8,144 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 23 October 2026 — ProTrack365 recheck
+
+**Status:** Still not tested. `PROTRACK_ADMIN_*` and `PROTRACK_PARENT_*` are empty in `backend/.env` and in the shell. No provider login was attempted. No tracking code was changed.
+
+---
+
+## 23 October 2026 — ProTrack365 connectivity audit
+
+**Status:** Not tested. The two client accounts are not in the backend environment. No provider call was made. Live tracking was not enabled.
+
+### Done
+- Compared the existing QMIS proxy with the official ProTrack365 Open API
+- Confirmed `PROTRACK_ADMIN_*` and `PROTRACK_PARENT_*` are empty
+- Wrote `PROTRACK365_API_VERIFICATION_REPORT.md` with status `NOT_TESTED_MISSING_CONFIGURATION`
+
+### Still open
+- Client must place both account passwords in `backend/.env` and confirm the device IMEI for `TN58BB3769`
+
+No application code changed, so the backend suite was not re-run.
+
+---
+
+## 23 October 2026 — Gate pass reload, dropdowns, new logins
+
+**Status:** The stale API was the gate 403. Dropdowns now use saved campus rows. New sign-ins kept the recent vehicle, route, duty, pencil, menu item, and projector. Not pushed.
+
+### Done
+- Reloaded the local API that had been started without auto-reload. Gate staff can read saved passes and still cannot change them
+- Route and driver dropdowns list TN01BRW2222, Browser Driver, and Browser West Route
+- Stationery user stays on the inventory address. An IT user who opens that address returns to the IT dashboard
+- New sign-ins still showed the vehicle, route, duty, pencil, lemon rice, and projector
+
+### Still open
+- Canteen orders, stock issue click-through, expenses, student-transport save, tickets, audit, parent, student, driver duty screen, housekeeping
+- Live email, WhatsApp, and bus tracking
+
+---
+
+## 23 October 2026 — Browser verification of remaining portals
+
+**Status:** Transport, stores, canteen, IT, librarian, and gate were opened in the browser. No module is complete. Not pushed.
+
+### Done
+- Vehicle, route, and duty saves now persist. Browser saved TN01BRW2222, "Browser West Route", and a duty for TN01BRW1111; each survived refresh
+- Stationery item "Browser graphite pencil" and canteen item "Browser lemon rice" survived refresh. A blank canteen name was rejected
+- IT asset "Browser lab projector" survived refresh. An IT user was sent away from the stationery address
+- Librarian sign-in still showed "Browser Atlas". Gate sign-in still showed "Browser Guest Oct23"
+- Gate-pass list no longer shows the fixed sample pass. Gate staff can read saved passes in the automated test; the already-running API still returned 403
+
+### Still open
+- Maintenance, expenses, orders, tickets, and a second sign-in for the new saves
+- Restart of the running API so the gate-pass page can read PRM passes
+- Live email, WhatsApp, and bus tracking
+
+---
+
+## 23 October 2026 — Notifications and remaining screens
+
+**Status:** Email and WhatsApp hooks are connected but not live. Housekeeping schedule save survived refresh. Driver duty page no longer crashes. No module marked complete. Not pushed.
+
+### Done
+- Enrollment, leave submit, leave decision, password-reset notice, announcements, and selected operational updates now call the existing notifier after the save
+- Messages omit passwords, leave reasons, and audit evidence. WhatsApp is not sent from a phone number alone
+- `.env.example` keeps SMTP and WhatsApp values empty. No Reply-To address was invented
+- API mode no longer uploads sample rows into an empty collection
+- Driver My Duty opened (it had been a blank page) and showed zero duties instead of the sample bus
+- Housekeeping: "Browser corridor sweep" saved and was still listed after refresh (4 records)
+
+### Still open
+- Transport Manager, Stores, Canteen, and IT browser walks
+- Fresh sign-in after the housekeeping, librarian, gate, and audit saves
+- Live email and WhatsApp until the school supplies credentials
+- Live bus tracking
+
+---
+
+## 23 October 2026 — More browser checks
+
+**Status:** Gate visitor and audit assignment saved and survived refresh. Librarian add-book and driver vehicle screen failed. Other portals not opened. No code change.
+
+### Done
+- Gate: visitor "Browser Guest Oct23" saved and still listed after reload
+- Audit: "Browser term audit" saved and still listed after reload
+- Librarian Add Book opened a dead route and showed Librarian Dashboard
+- Driver Vehicle Details showed sample bus TN 33 AB 1234 / Suresh Kumar, not the assigned vehicle
+
+### Still open
+- Re-login for gate and audit; Transport Manager, Stores, Canteen, IT, Housekeeping screens; live bus tracking
+
+---
+
+## 23 October 2026 — Browser check of parent fees
+
+**Status:** Parent checkout was clicked in the browser. Other remaining portals were not opened. None marked complete.
+
+### Done
+- Parent signed in, paid the ₹500 browser installment, saw receipt REC-0003, and still saw it paid after refresh and a new login
+- Student signed in and saw the same paid fee and zero outstanding
+- Report updated. No code change, so the 455-pass suite and production build were not rerun
+
+### Still open
+- Browser walks for Librarian, Transport Manager, Driver, Gate, Stores, Canteen, IT, Housekeeping, and audit
+- Live bus tracking until the school tracking service is configured
+
+---
+
+## 23 October 2026 — Close remaining workflow gaps
+
+**Status:** Checkout waits for a ledger receipt. Driver vehicle scope, audit assignments, and vehicle health persist. Role saves verified by API. Not marked complete. Not pushed.
+
+### Done
+- Parent checkout shows success only after the server returns a receipt or transaction
+- Driver login via HR; server hides and rejects other vehicles
+- Audit assignment screens save owner, due date, and status
+- Vehicle health saves to campus operations instead of sample rows in API mode
+- Pytest **455 passed**; frontend production build passed
+
+### Still open
+- Browser click-through of parent checkout and each department screen
+- Track Bus until the school tracking service is configured
+
+---
+
+## 23 October 2026 — Parent and student fee scope
+
+**Status:** Family fee and route reads connected. Other remaining portals left PARTIAL where they already use campus collections. No module marked complete without a full browser pass.
+
+### Done
+- Parent and student load scoped fees; pay goes through the family payment action; they cannot read or write the campus ledger
+- Bus route screen reads only that family's assignment
+- Report: `REMAINING_MODULES_IMPLEMENTATION_REPORT.md`
+- Pytest **452 passed**; frontend production build passed
+
+### Still open
+- Driver limited to an assigned vehicle; audit assignment save; browser parent checkout; provisioned logins for librarian, transport, gate, stores, canteen, IT, housekeeping, and auditors
+
+---
+
 ## 23 October 2026 — Role workflow & connectivity documentation
 
 **Status:** Client-facing role workflow documents generated (verification only; no app code changes).

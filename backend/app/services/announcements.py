@@ -259,6 +259,15 @@ def create(
         if stored is not None:
             file_service.discard_stored_bytes(stored)
         raise
+    from app.services.integrations.events import notify_roles
+    notify_roles(
+        db,
+        campus_id=actor.campus_id,
+        role_codes=[code for code in row.audience if code != role],
+        event_key=f"announcement:{row.id}",
+        subject=f"QMIS ERP announcement: {row.title[:80]}",
+        body=f"{row.category}. Open QMIS ERP to read the full announcement.",
+    )
     return _out(db, row, replies=[])
 
 

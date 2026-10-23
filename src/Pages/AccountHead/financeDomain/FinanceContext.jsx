@@ -70,7 +70,9 @@ import {
     collectPaymentApi,
     decideApprovalApi,
     gatewayIntentApi,
+    payMyFeesApi,
     pullFinanceState,
+    pullMyFees,
     pushFinanceState,
     sendReceiptApi,
     settleChequeApi,
@@ -134,6 +136,12 @@ const FINANCE_API_ROLES = new Set([
     ROLES.FINANCE_ASSISTANT,
     ROLES.ADMIN,
     ROLES.SUPER_ADMIN,
+])
+
+/** Family portals load a scoped ledger and must never write the campus snapshot. */
+const PORTAL_FEE_ROLES = new Set([
+    ROLES.PARENT,
+    ROLES.STUDENT,
 ])
 
 export const FinanceProvider = ({ children }) => {
@@ -293,7 +301,9 @@ export const FinanceProvider = ({ children }) => {
         if (isApiFinanceEnabled() && apiHydratedRef.current) {
             try {
                 submittingRef.current = true
-                const result = await collectPaymentApi(payload)
+                const result = PORTAL_FEE_ROLES.has(role)
+                    ? await payMyFeesApi(payload)
+                    : await collectPaymentApi(payload)
                 if (result?.state?.data) applyFinanceData(result.state.data)
                 return {
                     success: true,
@@ -479,7 +489,7 @@ export const FinanceProvider = ({ children }) => {
         } finally {
             submittingRef.current = false
         }
-    }, [appendAudit, bankAccounts, getInstallmentsForStudent, getStudentById, postAccounting])
+    }, [appendAudit, applyFinanceData, bankAccounts, getInstallmentsForStudent, getStudentById, postAccounting, role])
 
     const settleCheque = useCallback(async (chequeId, nextStatus, reason = '') => {
         if (isApiFinanceEnabled() && apiHydratedRef.current) {
@@ -1249,8 +1259,10 @@ export const FinanceProvider = ({ children }) => {
             return undefined
         }
 
-        // Non-finance roles must not pull — FinanceProvider is app-wide and would 403 otherwise.
-        if (!FINANCE_API_ROLES.has(role)) {
+        const portalFees = PORTAL_FEE_ROLES.has(role)
+
+        // Other roles must not pull the campus ledger — FinanceProvider is app-wide.
+        if (!FINANCE_API_ROLES.has(role) && !portalFees) {
             apiHydratedRef.current = false
             setFinanceError(null)
             setFinanceStatus('ready')
@@ -1261,18 +1273,21 @@ export const FinanceProvider = ({ children }) => {
 
         let cancelled = false
         setFinanceStatus('loading')
-        pullFinanceState()
+        const load = portalFees ? pullMyFees() : pullFinanceState()
+        load
             .then(async (remote) => {
                 if (cancelled) return
                 apiHydratedRef.current = true
-                if (remote?.seeded && remote?.data) {
+                if (remote?.data && (remote.seeded || portalFees)) {
                     applyFinanceData(remote.data)
                     if (remote.savedAt) setLastSavedAt(remote.savedAt)
-                } else {
+                } else if (!portalFees) {
                     const empty = createEmptyFinanceState()
                     applyFinanceData(empty)
                     const savedRemote = await pushFinanceState(empty)
                     if (!cancelled && savedRemote?.savedAt) setLastSavedAt(savedRemote.savedAt)
+                } else {
+                    applyFinanceData(createEmptyFinanceState())
                 }
                 if (!cancelled) {
                     setFinanceStatus('ready')
@@ -1353,6 +1368,7 @@ export const FinanceProvider = ({ children }) => {
     }, [approvals, cheques, hydratedInstallments, postedInflow, transactions])
 
     useEffect(() => {
+        if (PORTAL_FEE_ROLES.has(role)) return
         if (skipPersistRef.current) {
             skipPersistRef.current = false
             return
@@ -1438,6 +1454,7 @@ export const FinanceProvider = ({ children }) => {
         posTerminals,
         receipts,
         reconciliationItems,
+        role,
         transactions,
     ])
 

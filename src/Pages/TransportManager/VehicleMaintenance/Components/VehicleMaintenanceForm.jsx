@@ -1,14 +1,14 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
 import {
-    VEHICLE_OPTIONS,
     VEHICLE_TYPES,
     SERVICE_TYPES,
     SERVICE_CENTERS,
     MAINTENANCE_STATUSES,
 } from '../vehicleMaintenanceData'
+import { loadTransportChoices } from '../../liveTransportOptions'
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
@@ -28,9 +28,22 @@ const VehicleMaintenanceForm = ({ record }) => {
     const [nextServiceDate, setNextServiceDate] = useState(() => parseDate(record?.nextServiceDate))
     const [vehicleNumber, setVehicleNumber] = useState(record?.vehicleNumber ?? '')
     const [vehicleType, setVehicleType] = useState(record?.vehicleType ?? '')
+    const [vehicles, setVehicles] = useState([])
+
+    useEffect(() => {
+        let active = true
+        loadTransportChoices().then((choices) => {
+            if (!active) return
+            setVehicles(choices.vehicles)
+        }).catch(() => {
+            if (!active) return
+            setVehicles([])
+        })
+        return () => { active = false }
+    }, [])
 
     const handleVehicleChange = (e) => {
-        const selected = VEHICLE_OPTIONS.find((vehicle) => vehicle.label === e.target.value)
+        const selected = vehicles.find((vehicle) => vehicle.label === e.target.value)
         setVehicleNumber(e.target.value)
         if (selected) {
             setVehicleType(selected.vehicleType)
@@ -43,7 +56,8 @@ const VehicleMaintenanceForm = ({ record }) => {
                 <label htmlFor='vehicle-number' className='text-base font-medium text-[#1E1E1E]'>Vehicle Number:</label>
                 <select id='vehicle-number' value={vehicleNumber} onChange={handleVehicleChange} className={selectClass}>
                     <option value=''>--Select--</option>
-                    {VEHICLE_OPTIONS.map((vehicle) => (
+                    {vehicles.length === 0 && <option value='' disabled>No saved vehicles</option>}
+                    {vehicles.map((vehicle) => (
                         <option key={vehicle.id} value={vehicle.label}>{vehicle.label}</option>
                     ))}
                 </select>

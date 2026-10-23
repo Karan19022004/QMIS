@@ -30,6 +30,7 @@ COLLECTIONS: dict[str, str] = {
     # Transport + Driver
     "transport-drivers": "TDR",
     "transport-vehicles": "TVH",
+    "transport-vehicle-health": "VHS",
     "transport-routes": "TRT",
     "transport-route-stops": "TRS",
     "transport-student-assignments": "TSA",
@@ -196,6 +197,48 @@ def _public_id_for(collection: str, body: dict, fallback: str) -> str:
     return fallback
 
 
+def _norm_token(value: str) -> str:
+    return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+
+
+def _driver_scope(db: Session, actor: User) -> dict | None:
+    """None means no driver filter. A driver only sees rows tied to their driver profile."""
+    if _code(db, actor) != "driver":
+        return None
+    email = (actor.email or "").lower()
+    profiles = [
+        row for row in _rows(db, actor, "transport-drivers")
+        if str(row.get("email") or "").lower() == email
+    ]
+    return {
+        "email": email,
+        "vehicles": {_norm_token(row.get("vehicleNumber")) for row in profiles if row.get("vehicleNumber")},
+        "routes": {
+            str(row.get("routeAssigned") or row.get("routeName") or "").strip().lower()
+            for row in profiles
+            if row.get("routeAssigned") or row.get("routeName")
+        },
+        "ids": {str(row.get("id")) for row in profiles if row.get("id")},
+    }
+
+
+def _in_driver_scope(item: dict, scope: dict | None, collection: str) -> bool:
+    if scope is None:
+        return True
+    email = str(item.get("email") or item.get("driverEmail") or "").lower()
+    if email and email == scope["email"]:
+        return True
+    if collection == "transport-drivers" and str(item.get("id") or "") in scope["ids"]:
+        return True
+    vehicle = _norm_token(item.get("vehicleNumber") or item.get("vehicle") or "")
+    if vehicle and vehicle in scope["vehicles"]:
+        return True
+    route = str(item.get("routeName") or item.get("route") or item.get("routeAssigned") or "").strip().lower()
+    if route and route in scope["routes"]:
+        return True
+    return False
+
+
 def list_records(db: Session, actor: User, collection: str) -> list[dict]:
     _ensure_collection(collection)
     if not _can_read(db, actor, collection):
@@ -208,7 +251,11 @@ def list_records(db: Session, actor: User, collection: str) -> list[dict]:
         )
         .order_by(OpsRecord.created_at.desc())
     ).all()
-    return [_as_item(row) for row in rows]
+    items = [_as_item(row) for row in rows]
+    scope = _driver_scope(db, actor) if collection.startswith("transport-") else None
+    if scope is None:
+        return items
+    return [item for item in items if _in_driver_scope(item, scope, collection)]
 
 
 def replace_records(db: Session, actor: User, collection: str, items: list) -> list[dict]:
@@ -217,6 +264,18 @@ def replace_records(db: Session, actor: User, collection: str, items: list) -> l
         fail(403, "forbidden", "You are not allowed to change ops records.")
     if not isinstance(items, list):
         fail(422, "invalid_body", "Body must be a JSON array.")
+
+    previous = _rows(db, actor, collection)
+    scope = _driver_scope(db, actor) if collection.startswith("transport-") else None
+    if scope is not None:
+        for raw in items:
+            if not isinstance(raw, dict) or not _in_driver_scope(raw, scope, collection):
+                fail(403, "forbidden", "You can only change your assigned vehicle, route, or duty.")
+        kept = [
+            row for row in _rows(db, actor, collection)
+            if not _in_driver_scope(row, scope, collection)
+        ]
+        items = [*kept, *items]
 
     db.execute(
         delete(OpsRecord).where(
@@ -252,4 +311,52 @@ def replace_records(db: Session, actor: User, collection: str, items: list) -> l
         )
 
     db.commit()
-    return list_records(db, actor, collection)
+    saved = list_records(db, actor, collection)
+    from app.services.integrations.events import notify_saved_ops
+    notify_saved_ops(db, actor, collection, previous, saved)
+    return saved
+
+
+def _rows(db: Session, actor: User, collection: str) -> list[dict]:
+    rows = db.scalars(
+        select(OpsRecord).where(
+            OpsRecord.campus_id == actor.campus_id,
+            OpsRecord.collection == collection,
+        )
+    ).all()
+    return [_as_item(row) for row in rows]
+
+
+def my_transport(db: Session, actor: User) -> dict:
+    """Assignments for the signed-in parent or student only."""
+    from app.models import Student
+    from app.services.finance import _child_student_ids_for_actor
+
+    code = role_code_for(db, actor)
+    if code not in {"parent", "student"}:
+        fail(403, "forbidden", "Parent or student role required.")
+
+    allowed_ids = _child_student_ids_for_actor(db, actor)
+    students = []
+    if allowed_ids:
+        students = db.scalars(select(Student).where(Student.campus_id == actor.campus_id)).all()
+        students = [row for row in students if str(row.id) in allowed_ids]
+    keys = set(allowed_ids)
+    for row in students:
+        if row.admission_number:
+            keys.add(str(row.admission_number))
+
+    assignments = [
+        row for row in _rows(db, actor, "transport-student-assignments")
+        if str(row.get("studentId") or row.get("student_id") or "") in keys
+    ]
+    route_ids = {str(row.get("routeId") or row.get("route") or "") for row in assignments}
+    routes = [
+        row for row in _rows(db, actor, "transport-routes")
+        if str(row.get("id") or "") in route_ids or str(row.get("routeName") or row.get("name") or "") in route_ids
+    ]
+    return {
+        "assignments": assignments,
+        "routes": routes,
+        "studentCount": len(students),
+    }

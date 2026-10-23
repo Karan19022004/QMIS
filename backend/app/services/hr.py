@@ -614,14 +614,15 @@ def reset_staff_password(db: Session, actor: User, employee_code: str) -> dict:
         if temporary is None:
             fail(404, "not_found", "No portal login is linked to this employee.")
         db.commit()
+        delivery = _password_notice(row.email, row.employee_code)
         return {
             "employeeCode": row.employee_code,
             "loginEmail": row.email,
             "email": row.email,
             "temporaryPassword": temporary,
             "mustChangePassword": True,
-            "deliveryStatus": "NOT_CONFIGURED",
-            "message": "Password reset locally. Connect SMTP to email the temporary password.",
+            "deliveryStatus": delivery["status"],
+            "message": delivery["message"],
         }
     locked = {
         settings.admin_seed_email.lower(),
@@ -645,15 +646,42 @@ def reset_staff_password(db: Session, actor: User, employee_code: str) -> dict:
         details=row.employee_code,
     )
     db.commit()
+    delivery = _password_notice(user.email, row.employee_code)
     return {
         "employeeCode": row.employee_code,
         "loginEmail": user.email,
         "email": user.email,
         "temporaryPassword": temporary,
         "mustChangePassword": True,
-        "deliveryStatus": "NOT_CONFIGURED",
-        "message": "Password reset locally. Connect SMTP to email the temporary password.",
+        "deliveryStatus": delivery["status"],
+        "message": delivery["message"],
     }
+
+
+def _password_notice(email: str, employee_code: str) -> dict:
+    """Tell the staff member that HR reset the login. The temporary password stays on the HR screen."""
+    from uuid import uuid4
+
+    from app.services.integrations.notify import notify_event
+
+    result = notify_event(
+        event_key=f"password-reset:{employee_code}:{uuid4()}",
+        email=email,
+        subject="QMIS ERP password reset",
+        body=(
+            "HR reset your QMIS ERP sign-in. Collect the temporary password from HR and change it after sign-in. "
+            "This message does not contain the password."
+        ),
+    )
+    email_result = result.get("email") or {}
+    status = email_result.get("status") or "NOT_CONFIGURED"
+    if status == "NOT_CONFIGURED":
+        message = "Password reset locally. Connect SMTP before this notice can be emailed. The password was not put in the message."
+    elif email_result.get("delivered"):
+        message = "Password reset notice emailed. The temporary password was not included."
+    else:
+        message = "Password reset saved. The notice was not delivered."
+    return {"status": status, "message": message}
 
 
 def _provision_user(db: Session, actor: User, row: HrEmployee) -> str | None:

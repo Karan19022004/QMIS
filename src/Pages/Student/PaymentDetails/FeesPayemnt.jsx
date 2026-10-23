@@ -1,6 +1,5 @@
 import React, { useState } from 'react'
 import { History, Smartphone } from 'lucide-react'
-import { toast } from 'react-toastify'
 import { useFinance } from '../../AccountHead/financeDomain/FinanceContext'
 import { DEFAULT_ACADEMIC_YEAR } from '../../AccountHead/financeDomain/financeConstants'
 import { formatCurrency, groupInstallmentsByMonth } from '../../AccountHead/financeDomain/financeHelpers'
@@ -54,14 +53,15 @@ const FeesPayemnt = () => {
         const result = await collectFeePayment({
             studentId: student.id,
             allocations,
-            ...payload,
+            paymentMode: payload.paymentMode,
+            paymentDate: payload.details?.paymentDate,
+            narration: payload.details?.narration,
+            details: payload.details || {},
             collectedBy: student.name,
         })
-        if (result?.success) {
+        if (result?.success && (result.receipt || result.transaction)) {
             setSelectedIds([])
             if (result.receipt) setReceipt(result.receipt)
-        } else {
-            toast.error(result?.errors?.[0] || 'Payment failed.')
         }
         return result
     }

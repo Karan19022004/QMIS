@@ -13,6 +13,7 @@ from app.services.integrations import demo
 from app.services.integrations.statuses import DEMO_SENT, FAILED, MOCK_QUEUED, NOT_CONFIGURED, SENT
 
 log = logging.getLogger(__name__)
+_delivered_event_keys: set[str] = set()
 
 
 def _not_configured(channel: str, hint: str) -> dict:
@@ -76,7 +77,6 @@ def send_email(
         msg["Subject"] = subject
         msg["From"] = settings.smtp_from
         msg["To"] = to
-        msg["Reply-To"] = settings.smtp_from
         msg.set_content(body)
         if html_body:
             msg.add_alternative(html_body, subtype="html")
@@ -184,3 +184,36 @@ def send_whatsapp(*, to_phone: str, text: str) -> dict:
             "liveVerified": False,
             "message": f"WhatsApp error: {type(exc).__name__}",
         }
+
+
+def notify_event(
+    *,
+    event_key: str,
+    subject: str,
+    body: str,
+    email: str | None = None,
+    phone: str | None = None,
+) -> dict:
+    """Notify after a saved business event. Never raises. Does not retry a send that already queued."""
+    key = str(event_key or "").strip()
+    if not key:
+        return {"eventKey": "", "status": "skipped", "email": None, "whatsapp": None}
+    if key in _delivered_event_keys:
+        return {"eventKey": key, "status": "skipped_duplicate", "email": None, "whatsapp": None}
+    email_result = None
+    whatsapp_result = None
+    if email:
+        email_result = send_email(to=email, subject=subject, body=body)
+    if phone:
+        whatsapp_result = send_whatsapp(to_phone=phone, text=f"{subject}\n\n{body}")
+    queued = {MOCK_QUEUED, SENT}
+    email_ok = email_result and email_result.get("status") in queued
+    whatsapp_ok = whatsapp_result and whatsapp_result.get("status") in queued
+    if email_ok or whatsapp_ok:
+        _delivered_event_keys.add(key)
+    return {
+        "eventKey": key,
+        "status": "recorded",
+        "email": email_result,
+        "whatsapp": whatsapp_result,
+    }

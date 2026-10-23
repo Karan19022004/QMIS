@@ -594,6 +594,18 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
     db.commit()
     db.refresh(row)
     db.refresh(student)
+    if parent_email:
+        from app.services.integrations.notify import notify_event
+        notify_event(
+            event_key=f"enrollment:{student.id}",
+            email=parent_email.strip().lower(),
+            subject="QMIS ERP enrollment recorded",
+            body=(
+                f"Enrollment for admission {row.admission_code} is recorded. "
+                "Sign in to QMIS ERP with the account issued by the school. "
+                "This message does not include a password."
+            ),
+        )
     return {
         "admission": admission_to_out(row),
         "student_id": student.id,

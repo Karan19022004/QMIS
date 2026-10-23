@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services.integrations import payments, templates
-from app.services.integrations.notify import send_email, send_whatsapp
+from app.services.integrations.notify import notify_event, send_email, send_whatsapp
 
 
 @pytest.fixture()
@@ -39,6 +39,59 @@ def test_notify_not_configured_without_credentials():
     wa = send_whatsapp(to_phone="+919999999999", text="hello")
     assert wa["status"] == "NOT_CONFIGURED"
     assert wa["delivered"] is False
+
+
+def test_notify_event_records_without_claiming_delivery():
+    first = notify_event(
+        event_key="unit-enroll-1",
+        email="parent@example.com",
+        subject="QMIS ERP enrollment recorded",
+        body="Enrollment is recorded.",
+    )
+    assert first["status"] == "recorded"
+    assert first["email"]["status"] == "NOT_CONFIGURED"
+    assert first["email"]["delivered"] is False
+    again = notify_event(
+        event_key="unit-enroll-1",
+        email="parent@example.com",
+        subject="QMIS ERP enrollment recorded",
+        body="Enrollment is recorded.",
+    )
+    assert again["status"] == "recorded"
+
+
+def test_library_notice_needs_a_stored_email():
+    from app.services.integrations.events import _borrower_email
+
+    assert _borrower_email({"memberName": "Aarav", "status": "Issued"}, {}) == ""
+    assert _borrower_email({"memberId": "LMB-1"}, {"LMB-1": "student@example.com"}) == "student@example.com"
+
+
+def test_only_a_real_status_change_is_notified():
+    from app.services.integrations.events import changed_public_ids
+
+    previous = [{"id": "GVS-1", "status": "Inside", "phone": "999"}]
+    same_status = [{"id": "GVS-1", "status": "Inside", "phone": "888"}]
+    assert changed_public_ids(previous, same_status, ("status",)) == []
+    updated = [{"id": "GVS-1", "status": "Exited"}]
+    assert changed_public_ids(previous, updated, ("status",)) == ["GVS-1"]
+
+
+def test_queued_notice_is_not_sent_twice(monkeypatch):
+    from app.services.integrations import notify as notify_mod
+
+    calls = []
+
+    def fake_send(**kwargs):
+        calls.append(kwargs["to"])
+        return {"status": "MOCK_QUEUED", "delivered": False}
+
+    monkeypatch.setattr(notify_mod, "send_email", fake_send)
+    notify_mod._delivered_event_keys.discard("unit-dup")
+    notify_mod.notify_event(event_key="unit-dup", email="a@example.com", subject="s", body="b")
+    second = notify_mod.notify_event(event_key="unit-dup", email="a@example.com", subject="s", body="b")
+    assert calls == ["a@example.com"]
+    assert second["status"] == "skipped_duplicate"
 
 
 def test_fee_receipt_templates_include_noreply_guidance():

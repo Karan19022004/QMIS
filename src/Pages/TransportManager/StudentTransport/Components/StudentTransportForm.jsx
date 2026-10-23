@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
-import { CLASS_SECTIONS, FEES_STRUCTURES, ROUTE_OPTIONS } from '../studentTransportData'
+import { CLASS_SECTIONS, FEES_STRUCTURES } from '../studentTransportData'
+import { loadTransportChoices } from '../../liveTransportOptions'
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
@@ -28,9 +29,22 @@ const StudentTransportForm = ({ record }) => {
     const [driverContact, setDriverContact] = useState(record?.driverContact ?? '')
     const [pickUpTime, setPickUpTime] = useState(record?.pickUpTime ?? '')
     const [dropTime, setDropTime] = useState(record?.dropTime ?? '')
+    const [routes, setRoutes] = useState([])
+
+    useEffect(() => {
+        let active = true
+        loadTransportChoices().then((choices) => {
+            if (!active) return
+            setRoutes(choices.routes)
+        }).catch(() => {
+            if (!active) return
+            setRoutes([])
+        })
+        return () => { active = false }
+    }, [])
 
     const handleRouteChange = (e) => {
-        const selected = ROUTE_OPTIONS.find((route) => route.label === e.target.value)
+        const selected = routes.find((route) => route.label === e.target.value)
         setRouteName(e.target.value)
         if (selected) {
             setStartLocation(selected.startLocation)
@@ -71,7 +85,8 @@ const StudentTransportForm = ({ record }) => {
                 <label htmlFor='route-name' className='text-base font-medium text-[#1E1E1E]'>Route Name:</label>
                 <select id='route-name' value={routeName} onChange={handleRouteChange} className={selectClass}>
                     <option value=''>--Select--</option>
-                    {ROUTE_OPTIONS.map((route) => (
+                    {routes.length === 0 && <option value='' disabled>No saved routes</option>}
+                    {routes.map((route) => (
                         <option key={route.id} value={route.label}>{route.label}</option>
                     ))}
                 </select>

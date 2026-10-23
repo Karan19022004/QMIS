@@ -1,9 +1,44 @@
 import React from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import VehicleDetailsForm from './Components/VehicleDetailsForm'
+import { getVehicles, hydrateVehiclesFromApi, saveVehicles } from './vehicleManagementData'
+
+const read = (id) => String(document.getElementById(id)?.value ?? '').trim()
 
 const AddVehicle = () => {
     const navigate = useNavigate()
+
+    const save = async () => {
+        const vehicleNumber = read('vehicle-number')
+        const vehicleType = read('vehicle-type')
+        if (!vehicleNumber || !vehicleType) {
+            toast.error('Vehicle number and type are required.')
+            return
+        }
+        await hydrateVehiclesFromApi()
+        const id = `VEH-${Date.now()}`
+        const existing = getVehicles().filter((row) => row.vehicleNumber !== vehicleNumber)
+        const saved = await saveVehicles([{
+            id,
+            vehicleNumber,
+            vehicleType,
+            capacity: Number(read('capacity') || 0),
+            driverName: read('driver-name'),
+            driverContact: read('driver-contact'),
+            category: read('vehicle-category') || 'Bus',
+            conductorName: read('conductor-name'),
+            studentStrength: Number(read('student-strength') || 0),
+            staffStrength: Number(read('staff-strength') || 0),
+            currentOdometer: Number(read('odometer') || 0),
+        }, ...existing])
+        if (!saved) {
+            toast.error('The vehicle could not be saved.')
+            return
+        }
+        toast.success('Vehicle saved.')
+        navigate('/transport-manager/vehicle-management')
+    }
 
     return (
         <section>
@@ -22,6 +57,7 @@ const AddVehicle = () => {
                 </button>
                 <button
                     type='button'
+                    onClick={save}
                     className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'
                 >
                     Save Changes

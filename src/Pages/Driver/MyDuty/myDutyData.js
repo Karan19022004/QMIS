@@ -1,4 +1,4 @@
-import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
+import { hydrateCampusKey, loadCampusJson, saveCampusJson, usesCampusApiForKey } from '../../../services/campusJsonStore'
 
 export const SHIFTS = ['Morning', 'Afternoon', 'Evening']
 
@@ -92,15 +92,38 @@ const DEFAULT_MY_DUTIES = [
 ]
 
 export const MY_DUTIES_STORAGE_KEY = 'schoolerp-transport-driver-my-duties-v1'
+const ASSIGNED_DUTIES_KEY = 'schoolerp-transport-duties-v1'
+
+const asDuty = (row) => ({
+    ...row,
+    dutyId: row.dutyId || row.id,
+    dutyStatus: row.dutyStatus || row.status || 'Assigned',
+    routeName: row.routeName || '',
+    vehicleNumber: row.vehicleNumber || '',
+    assignedBy: row.assignedBy || 'Transport Manager',
+})
+
 export function getMyDuties() {
-    return ensureCampusSeed('schoolerp-transport-driver-my-duties-v1', DEFAULT_MY_DUTIES)
+    const ownFallback = usesCampusApiForKey(MY_DUTIES_STORAGE_KEY) ? [] : DEFAULT_MY_DUTIES
+    const own = loadCampusJson(MY_DUTIES_STORAGE_KEY, ownFallback).map(asDuty)
+    const assigned = loadCampusJson(ASSIGNED_DUTIES_KEY, []).map(asDuty)
+    const seen = new Set()
+    return [...assigned, ...own].filter((row) => {
+        const key = String(row.dutyId || row.id || '')
+        if (!key || seen.has(key)) return false
+        seen.add(key)
+        return true
+    })
 }
 export function saveMyDuties(rows) {
     return saveCampusJson('schoolerp-transport-driver-my-duties-v1', rows)
 }
 export function hydrateMyDutiesFromApi() {
-    if (!usesCampusApiForKey('schoolerp-transport-driver-my-duties-v1')) return Promise.resolve(false)
-    return hydrateCampusKey('schoolerp-transport-driver-my-duties-v1', DEFAULT_MY_DUTIES)
+    if (!usesCampusApiForKey(MY_DUTIES_STORAGE_KEY)) return Promise.resolve(false)
+    return Promise.all([
+        hydrateCampusKey(MY_DUTIES_STORAGE_KEY, []),
+        hydrateCampusKey(ASSIGNED_DUTIES_KEY, []),
+    ]).then(() => true)
 }
 export const MY_DUTIES = DEFAULT_MY_DUTIES
 
@@ -131,7 +154,7 @@ export const filterMyDuties = ({
         duty.routeName,
         duty.vehicleNumber,
         duty.assignedBy,
-    ].some((field) => field.toLowerCase().includes(query))
+    ].some((field) => String(field || '').toLowerCase().includes(query))
 
     const matchesShift = !shift || duty.shift === shift
     const matchesStatus = !status || duty.dutyStatus === status

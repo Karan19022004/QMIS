@@ -1,12 +1,12 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
 import {
-    VEHICLE_OPTIONS,
     SERVICE_TYPES,
     SERVICE_CENTERS,
 } from '../transportExpensesData'
+import { loadTransportChoices } from '../../liveTransportOptions'
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
@@ -27,6 +27,19 @@ const parseDate = (value) => {
 const ServiceExpenseForm = ({ expense }) => {
     const [serviceDate, setServiceDate] = useState(() => parseDate(expense?.serviceDate))
     const [vehicleNumber, setVehicleNumber] = useState(expense?.vehicleNumber ?? '')
+    const [vehicles, setVehicles] = useState([])
+
+    useEffect(() => {
+        let active = true
+        loadTransportChoices().then((choices) => {
+            if (!active) return
+            setVehicles(choices.vehicles)
+        }).catch(() => {
+            if (!active) return
+            setVehicles([])
+        })
+        return () => { active = false }
+    }, [])
 
     return (
         <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 lg:mt-8 mt-2'>
@@ -34,7 +47,8 @@ const ServiceExpenseForm = ({ expense }) => {
                 <label htmlFor='vehicle-number' className='text-base font-medium text-[#1E1E1E]'>Vehicle Number:</label>
                 <select id='vehicle-number' value={vehicleNumber} onChange={(e) => setVehicleNumber(e.target.value)} className={selectClass}>
                     <option value=''>--Select--</option>
-                    {VEHICLE_OPTIONS.map((vehicle) => (
+                    {vehicles.length === 0 && <option value='' disabled>No saved vehicles</option>}
+                    {vehicles.map((vehicle) => (
                         <option key={vehicle.id} value={vehicle.label}>{vehicle.label}</option>
                     ))}
                 </select>

@@ -25,10 +25,12 @@ const LibrarianRoutes = () => {
             {/* Book Management */}
             <Route path="/librarian/book-management/book-list" element={<BookList />} />
             <Route path="/librarian/book-management/add-book" element={<AddBooks />} />
+            <Route path="/librarian/book-management/add-books" element={<AddBooks />} />
 
             {/* Issued Books */}
             <Route path="/librarian/issued-books/issued-book-list" element={<IssuedBooks />} />
             <Route path="/librarian/issued-books/add-issued-book" element={<AddIssueBook />} />
+            <Route path="/librarian/issued-books/add-issue-book" element={<AddIssueBook />} />
 
             {/* Members */}
             <Route path="/librarian/members/member-list" element={<MembersList />} />

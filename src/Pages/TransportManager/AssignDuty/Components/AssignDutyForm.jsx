@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
-import { DRIVER_OPTIONS, ROUTE_OPTIONS, SHIFTS } from '../assignDutyData'
+import { SHIFTS } from '../assignDutyData'
+import { loadTransportChoices } from '../../liveTransportOptions'
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
@@ -23,9 +24,25 @@ const AssignDutyForm = ({ duty }) => {
     const [driverId, setDriverId] = useState(duty?.driverId ?? '')
     const [vehicleNumber, setVehicleNumber] = useState(duty?.vehicleNumber ?? '')
     const [routeName, setRouteName] = useState(duty?.routeName ?? '')
+    const [drivers, setDrivers] = useState([])
+    const [routes, setRoutes] = useState([])
+
+    useEffect(() => {
+        let active = true
+        loadTransportChoices().then((choices) => {
+            if (!active) return
+            setDrivers(choices.drivers)
+            setRoutes(choices.routes)
+        }).catch(() => {
+            if (!active) return
+            setDrivers([])
+            setRoutes([])
+        })
+        return () => { active = false }
+    }, [])
 
     const handleDriverChange = (e) => {
-        const selected = DRIVER_OPTIONS.find((driver) => driver.label === e.target.value)
+        const selected = drivers.find((driver) => driver.label === e.target.value)
         setDriverName(e.target.value)
         if (selected) {
             setDriverId(selected.id)
@@ -35,7 +52,7 @@ const AssignDutyForm = ({ duty }) => {
     }
 
     const handleRouteChange = (e) => {
-        const selected = ROUTE_OPTIONS.find((route) => route.label === e.target.value)
+        const selected = routes.find((route) => route.label === e.target.value)
         setRouteName(e.target.value)
         if (selected) {
             setVehicleNumber(selected.vehicleNumber)
@@ -62,7 +79,8 @@ const AssignDutyForm = ({ duty }) => {
                 <label htmlFor='driver-name' className='text-base font-medium text-[#1E1E1E]'>Driver Name:</label>
                 <select id='driver-name' value={driverName} onChange={handleDriverChange} className={selectClass}>
                     <option value=''>--Select--</option>
-                    {DRIVER_OPTIONS.map((driver) => (
+                    {drivers.length === 0 && <option value='' disabled>No saved drivers</option>}
+                    {drivers.map((driver) => (
                         <option key={driver.id} value={driver.label}>{driver.label}</option>
                     ))}
                 </select>
@@ -79,7 +97,8 @@ const AssignDutyForm = ({ duty }) => {
                 <label htmlFor='route-name' className='text-base font-medium text-[#1E1E1E]'>Route Name:</label>
                 <select id='route-name' value={routeName} onChange={handleRouteChange} className={selectClass}>
                     <option value=''>--Select--</option>
-                    {ROUTE_OPTIONS.map((route) => (
+                    {routes.length === 0 && <option value='' disabled>No saved routes</option>}
+                    {routes.map((route) => (
                         <option key={route.id} value={route.label}>{route.label}</option>
                     ))}
                 </select>
@@ -88,6 +107,7 @@ const AssignDutyForm = ({ duty }) => {
                 <label className='text-base font-medium text-[#1E1E1E]'>Duty Date:</label>
                 <div className='relative'>
                     <DatePicker
+                        id='duty-date'
                         selected={dutyDate}
                         onChange={(date) => setDutyDate(date)}
                         dateFormat='dd/MM/yyyy'

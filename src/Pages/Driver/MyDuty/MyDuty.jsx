@@ -29,13 +29,13 @@ const MyDuty = () => {
     const [exportModal, setExportModal] = useState(false)
 
     const filteredDuties = useMemo(() => filterMyDuties({
-        duties: MY_DUTIES,
+        duties: myDuties,
         search,
         shift,
         status,
         fromDate,
         toDate,
-    }), [search, shift, status, fromDate, toDate])
+    }), [myDuties, search, shift, status, fromDate, toDate])
 
     const clearFilters = () => {
         setSearch('')

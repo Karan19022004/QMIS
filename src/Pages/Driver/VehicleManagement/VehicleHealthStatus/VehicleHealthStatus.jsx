@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from 'react'
+﻿import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -8,9 +8,9 @@ import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteReques
 import ExportModal from '../../../../Common/CommonComponents/ExportModal'
 import {
     CONDITION_OPTIONS,
-    HEALTH_STATUS_RECORDS,
-    VEHICLE_NUMBERS,
     filterHealthStatusRecords,
+    getHealthRecords,
+    hydrateHealthRecords,
 } from './vehicleHealthStatusData'
 
 const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
@@ -26,16 +26,25 @@ const VehicleHealthStatus = () => {
     const [period, setPeriod] = useState('')
     const [fromDate, setFromDate] = useState(null)
     const [toDate, setToDate] = useState(null)
+    const [records, setRecords] = useState(() => getHealthRecords())
+
+    useEffect(() => {
+        let cancelled = false
+        hydrateHealthRecords().then(() => {
+            if (!cancelled) setRecords(getHealthRecords())
+        })
+        return () => { cancelled = true }
+    }, [])
 
     const filteredRecords = useMemo(() => filterHealthStatusRecords({
-        records: HEALTH_STATUS_RECORDS,
+        records,
         search,
         vehicleNumber,
         engineStatus,
         tyreCondition,
         fromDate,
         toDate,
-    }), [search, vehicleNumber, engineStatus, tyreCondition, fromDate, toDate])
+    }), [records, search, vehicleNumber, engineStatus, tyreCondition, fromDate, toDate])
 
     const clearFilters = () => {
         setSearch('')
@@ -90,7 +99,7 @@ const VehicleHealthStatus = () => {
                             className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {VEHICLE_NUMBERS.map((number) => (
+                            {[...new Set(records.map((row) => row.vehicleNumber).filter(Boolean))].map((number) => (
                                 <option key={number} value={number}>{number}</option>
                             ))}
                         </select>

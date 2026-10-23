@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1/finance", tags=["finance"])
 @router.get("/state")
 def get_finance_state(
     db: Session = Depends(get_db),
-    user: User = Depends(require_any("finance.read", "finance.write", "finance.collect")),
+    user: User = Depends(require_any("finance.write", "finance.collect")),
 ) -> dict:
     return svc.get_state(db, user)
 

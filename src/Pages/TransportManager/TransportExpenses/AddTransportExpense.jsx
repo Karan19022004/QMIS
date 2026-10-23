@@ -1,8 +1,12 @@
 import React from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import FuelExpenseForm from './Components/FuelExpenseForm'
 import ServiceExpenseForm from './Components/ServiceExpenseForm'
 import OtherExpenseForm from './Components/OtherExpenseForm'
+import { getTransportExpenses, hydrateTransportExpensesFromApi, saveTransportExpenses } from './transportExpensesData'
+
+const read = (id) => String(document.getElementById(id)?.value ?? '').trim()
 
 const ADD_CONFIG = {
     fuel: {
@@ -24,6 +28,30 @@ const AddTransportExpense = () => {
     const navigate = useNavigate()
     const config = ADD_CONFIG[type]
     const FormComponent = config?.Form
+
+    const save = async () => {
+        const vehicleNumber = read('vehicle-number')
+        const amount = read('amount')
+        if (!vehicleNumber || !amount) {
+            toast.error('Vehicle and amount are required.')
+            return
+        }
+        await hydrateTransportExpensesFromApi()
+        const prefix = type === 'fuel' ? 'FE' : type === 'service' ? 'SE' : 'OE'
+        const id = `${prefix}-${Date.now()}`
+        const record = type === 'fuel'
+            ? { id, expenseId: id, vehicleNumber, driverName: read('driver-name'), fuelStation: read('fuel-station'), amount, paymentMode: read('payment-mode') }
+            : type === 'service'
+                ? { id, expenseId: id, vehicleNumber, serviceType: read('service-type'), serviceCenter: read('service-center'), amount, invoiceNumber: read('invoice-number'), remarks: read('remarks') }
+                : { id, expenseId: id, vehicleNumber, expenseType: read('expense-type'), amount, paidTo: read('paid-to'), description: read('description'), paymentMode: read('payment-mode') }
+        const saved = await saveTransportExpenses([record, ...getTransportExpenses()])
+        if (!saved) {
+            toast.error('The expense could not be saved.')
+            return
+        }
+        toast.success('Expense saved.')
+        navigate('/transport-manager/transport-expenses')
+    }
 
     return (
         <section>
@@ -49,6 +77,7 @@ const AddTransportExpense = () => {
                 {config && (
                     <button
                         type='button'
+                        onClick={save}
                         className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full'
                     >
                         Save Changes

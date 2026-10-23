@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Plus } from 'lucide-react'
+import { toast } from 'react-toastify'
 import {
     getLibraryIssues,
     hydrateLibraryFromApi,
+    returnLibraryBook,
     statusBadgeColor,
 } from '../libraryData'
 
@@ -30,7 +32,7 @@ const IssuedBooks = () => {
                 <table className='w-full text-sm'>
                     <thead className='text-xs bg-[#EDEEF5]'>
                         <tr>
-                            {['Issue ID', 'Book', 'Member', 'Issue Date', 'Due Date', 'Status'].map((label) => (
+                            {['Issue ID', 'Book', 'Member', 'Issue Date', 'Due Date', 'Status', ''].map((label) => (
                                 <th key={label} className='px-2 py-3 text-left'>{label}</th>
                             ))}
                         </tr>
@@ -47,6 +49,25 @@ const IssuedBooks = () => {
                                     <span className={`px-2 py-1 rounded text-xs ${statusBadgeColor[row.status] || ''}`}>
                                         {row.status}
                                     </span>
+                                </td>
+                                <td className='px-2 py-3'>
+                                    {row.status !== 'Returned' && (
+                                        <button
+                                            type='button'
+                                            className='text-[#515DEF] text-sm cursor-pointer'
+                                            onClick={() => {
+                                                const result = returnLibraryBook(row.id)
+                                                if (!result.success) {
+                                                    toast.error(result.message)
+                                                    return
+                                                }
+                                                toast.success('Book returned.')
+                                                setRows(getLibraryIssues())
+                                            }}
+                                        >
+                                            Return
+                                        </button>
+                                    )}
                                 </td>
                             </tr>
                         ))}

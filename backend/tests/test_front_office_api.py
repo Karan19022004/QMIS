@@ -60,6 +60,53 @@ def test_teacher_denied_front_office_collection(client):
     assert response.status_code == 403
 
 
+def test_gatekeeper_can_read_gate_passes_but_not_change_them(client):
+    prm = _login(client, (settings.prm_seed_email, settings.prm_seed_password))
+    created = client.post(
+        "/api/v1/front-office/student-gate-passes",
+        headers=prm,
+        json={
+            "studentId": "STU-GATE",
+            "studentName": "Gate Visible Student",
+            "classSection": "4-A",
+            "reason": "Appointment",
+            "date": "23-10-2026",
+            "outTime": "15:00",
+            "status": "Approved",
+        },
+    )
+    assert created.status_code == 201, created.text
+    hr = _login(client, (settings.hr_seed_email, settings.hr_seed_password))
+    hired = client.post(
+        "/api/v1/hr/staff",
+        headers=hr,
+        json={"id": "EMP-GATE-READ", "name": "Gate Reader", "email": "gate.read@example.com", "role": "gatekeeper", "department": "Campus"},
+    )
+    assert hired.status_code == 201, hired.text
+    temporary = hired.json()["temporaryPassword"]
+    first = client.post("/api/v1/auth/login", json={"email": "gate.read@example.com", "password": temporary})
+    assert first.status_code == 200, first.text
+    token = first.json()["access_token"]
+    changed = client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"current_password": temporary, "new_password": "Secure-Pass-99"},
+    )
+    assert changed.status_code == 200, changed.text
+    gate = _login(client, ("gate.read@example.com", "Secure-Pass-99"))
+    listed = client.get("/api/v1/front-office/student-gate-passes", headers=gate)
+    assert listed.status_code == 200, listed.text
+    assert any(row["studentName"] == "Gate Visible Student" for row in listed.json())
+    denied = client.get("/api/v1/front-office/student-transfers", headers=gate)
+    assert denied.status_code == 403
+    write = client.post(
+        "/api/v1/front-office/student-gate-passes",
+        headers=gate,
+        json={"studentName": "Should Fail", "reason": "No", "date": "23-10-2026", "status": "Pending"},
+    )
+    assert write.status_code == 403
+
+
 def test_admin_can_create_update_and_list_hostel_gate_pass(client):
     headers = _login(client, ADMIN)
     created = client.post(
