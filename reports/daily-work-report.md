@@ -8,6 +8,23 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 23 October 2026 — Complete system-wide audit
+
+**Status:** Audit-only. Wrote `QMIS_ERP_COMPLETE_SYSTEM_AUDIT_REPORT.md`. No payment gateway, live tracking, or live messaging changes. Not pushed.
+
+### Done
+- Mapped all portal roles, `App.jsx` guards, mounted API routers, ops/campus-audit collections, and creatable Admin vs HR login paths
+- Built a requirements traceability matrix with PASS / PARTIAL / FAIL / BLOCKED / NOT IMPLEMENTED / NOT TESTED
+- Confirmed P0 issues: canteen orders success-without-save, ProTrack first-device fallback before live GPS
+- Re-ran backend tests (460 passed) and frontend production build (passed)
+
+### Still open
+- Browser matrix not re-walked in this audit; remaining modules stay PARTIAL
+- ProTrack and SMTP/WhatsApp still unconfigured
+- Super Admin / Admin / Director / Principal full panels still NOT TESTED
+
+---
+
 ## 23 October 2026 — ProTrack365 recheck
 
 **Status:** Still not tested. `PROTRACK_ADMIN_*` and `PROTRACK_PARENT_*` are empty in `backend/.env` and in the shell. No provider login was attempted. No tracking code was changed.
