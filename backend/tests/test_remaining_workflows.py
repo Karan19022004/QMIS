@@ -111,3 +111,32 @@ def test_department_roles_persist_their_own_records():
             assert listed.json()[0]["id"] == row["id"]
             denied = client.put(path, headers=teacher, json=[row])
             assert denied.status_code == 403, (role, denied.text)
+
+
+def test_canteen_orders_persist_after_new_login():
+    """Regression: canteen orders must survive replace + re-login (UI must not toast before this)."""
+    with _client() as client:
+        hr = _login(client, "hr@qmis.edu", "hr12345")
+        headers = _hire(client, hr, "canteenmanager", "canteen.orders@example.com", "EMP-CAN-ORD")
+        order = {
+            "id": "ORD-REG-1",
+            "orderId": "ORD-REG-1",
+            "customerName": "Regression Student",
+            "customerType": "Student",
+            "customerId": "STU-REG-1",
+            "items": ["Idli"],
+            "itemsCount": 1,
+            "totalAmount": "₹30",
+            "paymentMethod": "Cash",
+            "paymentStatus": "Paid",
+            "orderStatus": "Preparing",
+        }
+        saved = client.put("/api/v1/ops/canteen-orders", headers=headers, json=[order])
+        assert saved.status_code == 200, saved.text
+        fresh = _login(client, "canteen.orders@example.com", "Secure-Pass-99")
+        listed = client.get("/api/v1/ops/canteen-orders", headers=fresh)
+        assert listed.status_code == 200, listed.text
+        assert listed.json()[0]["orderId"] == "ORD-REG-1"
+        teacher = _login(client, "teacher@qmis.edu", "teacher123")
+        denied = client.put("/api/v1/ops/canteen-orders", headers=teacher, json=[order])
+        assert denied.status_code == 403, denied.text

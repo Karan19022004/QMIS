@@ -198,17 +198,17 @@ export default function BusTrackingMap({
     /** Live ProTrack GPS [lat, lng] — when set, bus marker follows the device */
     livePosition = null,
     liveStatusLabel = '',
+    /** 'live' only when a verified ProTrack fix is shown; otherwise demo geometry */
+    trackingMode = 'demo',
 }) {
+    const isLive = trackingMode === 'live' && Array.isArray(livePosition) && livePosition.length === 2
     const startPoint = routeCoords[0]
     const endPoint = routeCoords[routeCoords.length - 1]
     const simulatedBus = routeCoords[busIndex] ?? endPoint
-    const busPosition =
-        Array.isArray(livePosition) && livePosition.length === 2
-            ? livePosition
-            : simulatedBus
+    const busPosition = isLive ? livePosition : simulatedBus
     const completedCoords = routeCoords.slice(0, busIndex + 1)
     const remainingCoords = routeCoords.slice(busIndex)
-    const progressWidth = livePosition
+    const progressWidth = isLive
         ? '100%'
         : `${Math.min(100, Math.round((busIndex / Math.max(routeCoords.length - 1, 1)) * 100))}%`
 
@@ -244,12 +244,16 @@ export default function BusTrackingMap({
                         <span className='text-emerald-700 text-xs font-semibold'>Call Driver</span>
                     </a>
 
-                    <div className='flex items-center gap-2 bg-[#EDEEF5] rounded-full px-3 py-1.5'>
-                        <span className='relative flex h-2.5 w-2.5'>
-                            <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75' />
-                            <span className='relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500' />
+                    <div className={`flex items-center gap-2 rounded-full px-3 py-1.5 ${isLive ? 'bg-[#EDEEF5]' : 'bg-[#FFF7ED] border border-[#FDBA74]'}`}>
+                        {isLive ? (
+                            <span className='relative flex h-2.5 w-2.5'>
+                                <span className='animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75' />
+                                <span className='relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500' />
+                            </span>
+                        ) : null}
+                        <span className='text-[#0C1E5B] text-xs font-semibold tracking-wide'>
+                            {isLive ? (liveStatusLabel || 'LIVE GPS') : 'DEMO ROUTE — NOT LIVE GPS'}
                         </span>
-                        <span className='text-[#0C1E5B] text-xs font-semibold tracking-wide'>LIVE</span>
                     </div>
                 </div>
             </div>
@@ -268,13 +272,13 @@ export default function BusTrackingMap({
 
                     <FitBounds
                         coords={
-                            livePosition
+                            isLive
                                 ? [startPoint, endPoint, busPosition].filter(Boolean)
                                 : routeCoords
                         }
                     />
 
-                    {!livePosition && (
+                    {!isLive && (
                         <>
                             <Polyline
                                 positions={completedCoords}
@@ -286,7 +290,7 @@ export default function BusTrackingMap({
                             />
                         </>
                     )}
-                    {livePosition && (
+                    {isLive && (
                         <Polyline
                             positions={[startPoint, busPosition, endPoint]}
                             pathOptions={{ color: '#515DEF', weight: 4, opacity: 0.55, dashArray: '6 8' }}
@@ -309,14 +313,18 @@ export default function BusTrackingMap({
 
                     <Marker position={busPosition} icon={busIcon}>
                         <Popup>
-                            <div className='text-sm font-semibold'>🚌 {busLabel} (Current Location)</div>
+                            <div className='text-sm font-semibold'>
+                                🚌 {busLabel} ({isLive ? 'Live GPS' : 'Demo route position'})
+                            </div>
                             <div className='text-xs text-gray-500 mt-1'>
-                                {liveStatusLabel || `En route to ${endLocation}`}
+                                {isLive
+                                    ? (liveStatusLabel || `En route to ${endLocation}`)
+                                    : 'Demo geometry only — not a live GPS fix'}
                             </div>
                             <div className='text-xs text-emerald-600 font-medium mt-1'>
-                                {livePosition
+                                {isLive
                                     ? `${stats.speed} · ${livePosition[0].toFixed(5)}, ${livePosition[1].toFixed(5)}`
-                                    : `ETA: ${stats.eta} · ${stats.distanceLeft} away`}
+                                    : `Demo layout · ${stats.distanceLeft}`}
                             </div>
                         </Popup>
                     </Marker>

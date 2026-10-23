@@ -8,6 +8,73 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 23 October 2026 — Top-to-bottom completion re-check
+
+**Status:** Re-audited current software. Not complete top-to-bottom. Updated plain-language doc + PDF. No commit/push/deploy.
+
+### Done
+- Confirmed canteen order save and bus wrong-vehicle safety are in the working copy
+- Confirmed still open: IT tickets wrong save path, bus fuel local-only, IT asset success without save check
+- School email / WhatsApp / GPS / payments still not connected
+- Rewrote `QMIS_ERP_FINAL_PENDING_REQUIREMENTS.md` as an inch-by-inch Done / Not done checklist; regenerated PDF
+- Targeted pytest: 19 passed
+
+### Still open
+- Developer fixes F1–F4; school day-1 decisions; outside accounts; final click checks
+
+---
+
+## 23 October 2026 — Final pending requirements audit
+
+**Status:** Wrote `QMIS_ERP_FINAL_PENDING_REQUIREMENTS.md` from current code + reports. Not production-ready. No commit/push/deploy.
+
+### Done
+- Re-verified canteen order path and ProTrack no-first-device against current source (WT)
+- Identified remaining code defects: IT tickets wrong storage key, TM fuel local key, IT AddAsset success without save check
+- Separated work into CODE_FIX / BROWSER_TEST / CLIENT_INPUT / EXTERNAL_CONFIG / OPTIONAL / VERIFIED_READY
+- Targeted pytest: 19 passed (remaining workflows, static readiness, protrack, integrations)
+
+### Still open
+- Client go-live scope and credentials decisions
+- Code fixes C1–C3 before claiming IT/fuel/asset paths ready
+- Browser matrix for PARTIAL modules
+
+---
+
+## 23 October 2026 — Canteen order browser verification
+
+**Status:** Happy-path + controlled fail-save verified on localhost. Working tree left dirty; no commit/push/deploy.
+
+### Done
+- Created `ORD-73604359` (`BrowserOrder-Oct23-2210-unique`) as Canteen; API + UI confirmed
+- Confirmed success modal only after save; refresh and re-login keep a single row
+- Controlled write-block: error toast, no success modal, failed order not on API
+- Recorded evidence in `QMIS_ERP_PRODUCTION_READINESS_REPORT.md` §6
+
+### Still open
+- ProTrack / SMTP / WhatsApp configuration from the school
+- Other PARTIAL modules from the system audit
+
+---
+
+## 23 October 2026 — Production readiness fixes
+
+**Status:** Canteen order save and ProTrack first-device fallback fixed in code. Live GPS/email/WhatsApp still off. Not committed/pushed in this pass.
+
+### Done
+- Canteen Add Order now persists to `/ops/canteen-orders` before the success modal
+- Removed ProTrack silent first-device selection; demo map labelled not-live
+- Documented SMTP / WhatsApp / ProTrack placeholders in `backend/.env.example`
+- Wrote `QMIS_ERP_PRODUCTION_READINESS_REPORT.md`
+- Pytest 464 passed; frontend build passed
+
+### Still open
+- Browser re-login for canteen order save (done later same day — see section above)
+- ProTrack / SMTP / WhatsApp configuration from the school
+- Other PARTIAL modules from the system audit
+
+---
+
 ## 23 October 2026 — Complete system-wide audit
 
 **Status:** Audit-only. Wrote `QMIS_ERP_COMPLETE_SYSTEM_AUDIT_REPORT.md`. No payment gateway, live tracking, or live messaging changes. Not pushed.

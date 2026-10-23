@@ -35,10 +35,16 @@ dist-ssr
 !backend/docs/**/*.md
 !reports/daily-work-report.md
 !reports/testing-report.md
+!QMIS_ERP_FINAL_PENDING_REQUIREMENTS.md
+!QMIS_ERP_PRODUCTION_READINESS_REPORT.md
+!QMIS_ERP_COMPLETE_SYSTEM_AUDIT_REPORT.md
+!REMAINING_MODULES_IMPLEMENTATION_REPORT.md
 
 # Local credential / seed dumps must never be committed
 cred.txt
 **/cred.txt
+backend/login.json
+**/login.json
 
 # Python / FastAPI backend
 backend/.venv/

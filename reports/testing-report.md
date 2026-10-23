@@ -2,24 +2,34 @@
 
 **Date:** 23 October 2026  
 **Branch:** `ERP1`  
-**Context:** Complete system-wide audit (`QMIS_ERP_COMPLETE_SYSTEM_AUDIT_REPORT.md`)
+**Context:** Final pending-requirements audit (code re-check + targeted pytest)
 
-## Backend
+## Backend (this audit)
 
 | Metric | Count |
 |---|---|
-| Passed | **460** |
+| Passed | **19** |
 | Failed | **0** |
 | Skipped | 0 |
 | Warnings | 1 (Starlette TestClient / httpx deprecation) |
-| Duration | 3 minutes 47 seconds |
+| Duration | ~27 seconds |
+
+Command: `python -m pytest tests/test_remaining_workflows.py tests/test_frontend_production_readiness_static.py tests/test_protrack_proxy.py tests/test_integrations_ready.py -q` from `backend/`.
+
+## Backend (earlier same day — full suite)
+
+| Metric | Count |
+|---|---|
+| Passed | **464** |
+| Failed | **0** |
+| Duration | 4 minutes 41 seconds |
 
 Command: `python -m pytest tests/ -q` from `backend/`.
 
 ## Frontend
 
-`npm run build` passed (about 45 seconds).
+`npm run build` passed earlier same day (~1 minute 7 seconds). Not re-run in the final audit pass.
 
 ## Browser
 
-No new full-role browser matrix in this audit pass. Prior 23 October portal checks remain documented in `REMAINING_MODULES_IMPLEMENTATION_REPORT.md` and are cited as PARTIAL / BLOCKED in the system audit — not re-claimed as PASS.
+Canteen order create → API persist → refresh → re-login → controlled fail-save was verified on localhost (see `QMIS_ERP_PRODUCTION_READINESS_REPORT.md` §6). Live ProTrack, SMTP, WhatsApp, and Razorpay were not attempted (configuration empty / out of scope).

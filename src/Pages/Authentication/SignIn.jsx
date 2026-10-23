@@ -23,12 +23,28 @@ const DEMO_TEST_LOGINS = [
     { role: 'Admin', email: 'admin@qmis.edu', password: 'admin123' },
     { role: 'Director', email: 'director@qmis.edu', password: 'director123' },
     { role: 'Principal', email: 'principal@qmis.edu', password: 'principal123' },
+    { role: 'Joint Director', email: 'jointdirector@qmis.edu', password: 'jd12345678' },
+    { role: 'Joint Director Assistant', email: 'jointdirectorassistant@qmis.edu', password: 'jda1234567' },
+    { role: 'Joint Director Audit', email: 'jointdirectoraudit@qmis.edu', password: 'jdaudit123' },
+    { role: 'Process Auditor', email: 'processauditor@qmis.edu', password: 'process123' },
+    { role: 'Quality Auditor', email: 'qualityauditor@qmis.edu', password: 'quality123' },
     { role: 'Coordinator', email: 'coordinator@qmis.edu', password: 'coord123' },
     { role: 'Teacher', email: 'teacher@qmis.edu', password: 'teacher123' },
-    { role: 'PRM', email: 'prm@qmis.edu', password: 'prm12345' },
+    { role: 'PRM (Admissions)', email: 'prm@qmis.edu', password: 'prm12345' },
     { role: 'HR', email: 'hr@qmis.edu', password: 'hr12345' },
     { role: 'Account Head (Finance)', email: 'accounthead@qmis.edu', password: 'accounts123' },
     { role: 'Finance Assistant (limited)', email: 'finance.assistant@qmis.edu', password: 'finance123' },
+    { role: 'Librarian', email: 'librarian@qmis.edu', password: 'librarian123' },
+    { role: 'Transport Manager', email: 'transportmanager@qmis.edu', password: 'transport123' },
+    { role: 'Driver', email: 'driver@qmis.edu', password: 'driver123' },
+    { role: 'Gate Keeper', email: 'gatekeeper@qmis.edu', password: 'gatekeeper123' },
+    { role: 'Gate Keeper Manager', email: 'gatekeepermanager@qmis.edu', password: 'gkm1234567' },
+    { role: 'Canteen Manager', email: 'canteenmanager@qmis.edu', password: 'canteen123' },
+    { role: 'IT Support Manager', email: 'itsupportmanager@qmis.edu', password: 'itsupport123' },
+    { role: 'Stationery Store Manager', email: 'stationerystoremanager@qmis.edu', password: 'stationery123' },
+    { role: 'Housekeeping Manager', email: 'housekeepingmanager@qmis.edu', password: 'housekeeping123' },
+    { role: 'Parent', email: 'parent@qmis.edu', password: 'parent123' },
+    { role: 'Student', email: 'student@qmis.edu', password: 'student123' },
 ]
 
 const SignIn = () => {
@@ -201,9 +217,9 @@ const SignIn = () => {
                         {showDemoLogins && (
                             <div className="mt-3 space-y-2">
                                 <p className="text-xs leading-relaxed text-[#5C6B82]">
-                                    Temporary local demo list (edit DEMO_TEST_LOGINS in SignIn.jsx). Click a role to fill, then press Login.
+                                    Demo accounts for local testing only. Click a role to fill email and password, then press Login.
                                 </p>
-                                <ul className="space-y-1.5">
+                                <ul className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
                                     {DEMO_TEST_LOGINS.map((account) => (
                                         <li key={account.email}>
                                             <button

@@ -1,12 +1,64 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import BusRouteCard from './Components/BusRouteCard'
 import BusTrackingMap from '../../TransportManager/RouteData/Components/BusTrackingMap'
 import useProtrackLive from '../../../Common/Transport/useProtrackLive'
+import { useActiveStudent } from '../../../context/ActiveStudentContext'
+import { apiRequest, getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
 
+/**
+ * Parent/student track view. Live GPS only when the assigned vehicle plate or IMEI
+ * matches a ProTrack device. Demo route geometry is never labelled as live GPS.
+ */
 const TrackBus = ({ showRouteDetails = false }) => {
-    const live = useProtrackLive({ panel: 'parent' })
-    const device = live.devices.find((row) => row.imei === live.imei) || live.devices[0]
+    const { activeStudent } = useActiveStudent()
+    const [preferredImei, setPreferredImei] = useState('')
+    const [preferredPlate, setPreferredPlate] = useState('')
+
+    useEffect(() => {
+        if (!isApiAuthEnabled() || !getAccessToken()) {
+            setPreferredImei('')
+            setPreferredPlate('')
+            return undefined
+        }
+        let cancelled = false
+        apiRequest('/ops/my-transport')
+            .then((payload) => {
+                if (cancelled) return
+                const keys = new Set([
+                    String(activeStudent?.id || ''),
+                    String(activeStudent?.admissionNumber || activeStudent?.admissionNo || ''),
+                ].filter(Boolean))
+                const rows = payload?.assignments || []
+                const match = rows.find((row) => keys.has(String(row.studentId || row.student_id || ''))) || null
+                const routeId = String(match?.routeId || match?.route || '')
+                const foundRoute = (payload?.routes || []).find((row) => (
+                    String(row.id || '') === routeId
+                    || String(row.routeName || row.name || '') === routeId
+                )) || null
+                setPreferredImei(String(match?.imei || match?.gpsImei || foundRoute?.imei || foundRoute?.gpsImei || ''))
+                setPreferredPlate(String(
+                    match?.vehicleNumber || match?.vehicle || foundRoute?.vehicleNumber || '',
+                ))
+            })
+            .catch(() => {
+                if (!cancelled) {
+                    setPreferredImei('')
+                    setPreferredPlate('')
+                }
+            })
+        return () => { cancelled = true }
+    }, [activeStudent?.id, activeStudent?.admissionNumber, activeStudent?.admissionNo])
+
+    const live = useProtrackLive({
+        panel: 'parent',
+        preferredImei,
+        preferredPlate,
+    })
+    const device = live.imei
+        ? live.devices.find((row) => String(row.imei) === String(live.imei))
+        : null
+    const hasLiveGps = Boolean(live.livePosition)
 
     return (
         <section>
@@ -17,13 +69,16 @@ const TrackBus = ({ showRouteDetails = false }) => {
                     <div>
                         <h2 className='text-xl font-medium text-black'>Track Bus Location</h2>
                         <p className='text-sm text-[#667085] mt-1'>
-                            Live GPS from ProTrack365 parent panel (polls every 15s).
+                            {hasLiveGps
+                                ? 'Live GPS from ProTrack365 (polls every 15s).'
+                                : 'Live GPS is off until a verified vehicle–IMEI mapping and a current fix are available. Demo route geometry is not a live position.'}
                         </p>
                     </div>
                     <button
                         type='button'
                         onClick={() => live.refresh()}
-                        className='inline-flex items-center gap-2 text-sm text-[#515DEF] border border-[#515DEF] rounded-md px-4 py-2 cursor-pointer'
+                        disabled={!live.imei}
+                        className='inline-flex items-center gap-2 text-sm text-[#515DEF] border border-[#515DEF] rounded-md px-4 py-2 cursor-pointer disabled:opacity-50'
                     >
                         <RefreshCw size={16} /> Refresh
                     </button>
@@ -33,36 +88,36 @@ const TrackBus = ({ showRouteDetails = false }) => {
                         {live.error}
                     </p>
                 )}
-                {live.devices.length > 0 && (
-                    <label className='block mt-3 text-sm text-[#667085] max-w-md'>
-                        Bus / device
-                        <select
-                            className='mt-1 w-full border border-[#D9D9D9] rounded-md px-2 py-2 text-[#1E1E1E]'
-                            value={live.imei}
-                            onChange={(event) => live.setImei(event.target.value)}
-                        >
-                            {live.devices.map((row) => (
-                                <option key={row.imei} value={row.imei}>
-                                    {row.platenumber || row.devicename || row.imei}
-                                </option>
-                            ))}
-                        </select>
-                    </label>
+                {live.imei && device && (
+                    <p className='text-sm text-[#667085] mt-3'>
+                        Mapped device: {device.platenumber || device.devicename || device.imei}
+                        {device.imei ? ` · IMEI ${device.imei}` : ''}
+                    </p>
                 )}
             </div>
 
             <div className='bg-white rounded-2xl shadow-md mt-8 overflow-hidden'>
                 <BusTrackingMap
                     routeName={device?.devicename || 'School Bus'}
-                    vehicleNumber={device?.platenumber || '—'}
+                    vehicleNumber={device?.platenumber || preferredPlate || '—'}
                     driverName='Assigned driver'
                     driverContact=''
                     startLocation='Pickup'
                     endLocation='Queen Mira School'
-                    busLabel={device?.platenumber || device?.imei?.slice(-4) || 'BUS'}
-                    stats={live.stats}
+                    busLabel={device?.platenumber || 'BUS'}
+                    stats={
+                        hasLiveGps
+                            ? live.stats
+                            : {
+                                progress: '—',
+                                distanceLeft: 'Demo route only — not live GPS',
+                                eta: '—',
+                                speed: '—',
+                            }
+                    }
                     livePosition={live.livePosition}
                     liveStatusLabel={live.liveStatusLabel}
+                    trackingMode={hasLiveGps ? 'live' : 'demo'}
                 />
             </div>
         </section>

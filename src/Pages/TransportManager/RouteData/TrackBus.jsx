@@ -33,7 +33,16 @@ const TrackBus = () => {
     })
 
     const trackingPreset = TRACKING_PRESETS[(parseInt(route?.id?.split('-')[1] ?? '1', 10) - 1) % TRACKING_PRESETS.length]
-    const stats = live.livePosition ? live.stats : trackingPreset.stats
+    const hasLiveGps = Boolean(live.livePosition)
+    // Demo geometry/stats must never be presented as a live GPS fix.
+    const stats = hasLiveGps
+        ? live.stats
+        : {
+            progress: '—',
+            distanceLeft: 'Demo route only — not live GPS',
+            eta: '—',
+            speed: '—',
+        }
 
     return (
         <section className='space-y-6'>
@@ -70,25 +79,18 @@ const TrackBus = () => {
                         </p>
                         {live.error && (
                             <p className='text-sm text-[#B45309] mt-3 bg-[#FFF7ED] border border-[#FDBA74] rounded-md px-3 py-2'>
-                                {live.error} Demo route geometry still shows until ProTrack credentials are set.
+                                {live.error} Demo route geometry may still draw for layout only — it is not a live GPS position.
                             </p>
                         )}
-                        {live.devices.length > 0 && (
-                            <label className='block mt-3 text-sm text-[#667085] max-w-md'>
-                                ProTrack device
-                                <select
-                                    className='mt-1 w-full border border-[#D9D9D9] rounded-md px-2 py-2 text-[#1E1E1E]'
-                                    value={live.imei}
-                                    onChange={(event) => live.setImei(event.target.value)}
-                                >
-                                    {live.devices.map((device) => (
-                                        <option key={device.imei} value={device.imei}>
-                                            {(device.platenumber || device.devicename || device.imei)}
-                                            {device.platenumber ? ` · ${device.imei}` : ''}
-                                        </option>
-                                    ))}
-                                </select>
-                            </label>
+                        {live.imei ? (
+                            <p className='text-sm text-[#667085] mt-3'>
+                                Mapped ProTrack IMEI: {live.imei}
+                                {route.vehicleNumber ? ` · plate ${route.vehicleNumber}` : ''}
+                            </p>
+                        ) : (
+                            <p className='text-sm text-[#667085] mt-3'>
+                                Store a verified IMEI (or matching plate) on this route/vehicle before live tracking can poll.
+                            </p>
                         )}
                     </div>
 
@@ -101,8 +103,17 @@ const TrackBus = () => {
                             <Field label='Driver Contact' value={route.driverContact} />
                             <Field label='Start Location' value={route.startLocation} />
                             <Field label='End Location' value={route.endLocation} />
-                            <Field label='IMEI' value={live.imei || route.imei || '—'} />
-                            <Field label='GPS Status' value={live.liveStatusLabel || (live.loading ? 'Loading…' : 'Demo')} />
+                            <Field label='IMEI' value={live.imei || route.imei || route.gpsImei || '—'} />
+                            <Field
+                                label='GPS Status'
+                                value={
+                                    hasLiveGps
+                                        ? live.liveStatusLabel || 'Live fix'
+                                        : live.loading
+                                            ? 'Loading…'
+                                            : 'Demo route only (not live GPS)'
+                                }
+                            />
                         </div>
                     </div>
 
@@ -121,6 +132,7 @@ const TrackBus = () => {
                             busIndex={trackingPreset.busIndex}
                             livePosition={live.livePosition}
                             liveStatusLabel={live.liveStatusLabel}
+                            trackingMode={hasLiveGps ? 'live' : 'demo'}
                         />
                     </div>
                 </>

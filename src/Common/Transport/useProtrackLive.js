@@ -56,16 +56,32 @@ export default function useProtrackLive(opts = {}) {
                     return
                 }
                 const plateNorm = String(preferredPlate || '').replace(/\s+/g, '').toUpperCase()
-                const byImei = preferredImei
-                    ? devicesList.find((d) => String(d.imei) === String(preferredImei))
+                const wantImei = String(preferredImei || '').trim()
+                const byImei = wantImei
+                    ? devicesList.find((d) => String(d.imei) === wantImei)
                     : null
                 const byPlate = plateNorm
                     ? devicesList.find(
                         (d) => String(d.platenumber || '').replace(/\s+/g, '').toUpperCase() === plateNorm,
                     )
                     : null
-                const chosen = byImei || byPlate || devicesList[0]
-                const nextImei = chosen?.imei || preferredImei || ''
+                // Never fall back to the first device — wrong-bus risk.
+                const chosen = byImei || byPlate || null
+                if (!chosen) {
+                    setImei('')
+                    setTrack(null)
+                    if (!wantImei && !plateNorm) {
+                        setError(
+                            'Live GPS needs a verified vehicle IMEI or plate mapped to a ProTrack device. Tracking stays off until that mapping exists.',
+                        )
+                    } else {
+                        setError(
+                            `No ProTrack device matches ${wantImei || preferredPlate}. Confirm the IMEI/plate on the vehicle record before enabling live tracking.`,
+                        )
+                    }
+                    return
+                }
+                const nextImei = String(chosen.imei || '')
                 setImei(nextImei)
                 if (nextImei) await refreshTrack(nextImei)
             } catch (err) {

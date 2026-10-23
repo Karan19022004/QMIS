@@ -120,13 +120,29 @@ def _seed_demo_users(db: Session, campus: Campus, roles_by_code: dict[str, Role]
         email=settings.finance_assistant_seed_email,
         password=settings.finance_assistant_seed_password,
     )
-    # Academics / approvals logins used by Full Panel Test Guide
+    # Academics / approvals + ops portal demo logins (match SignIn.jsx DEMO_TEST_LOGINS).
     for role_code, email, password in (
         ("teacher", settings.teacher_seed_email, settings.teacher_seed_password),
         ("coordinator", settings.coordinator_seed_email, settings.coordinator_seed_password),
         ("principal", settings.principal_seed_email, settings.principal_seed_password),
         ("prm", settings.prm_seed_email, settings.prm_seed_password),
         ("director", settings.director_seed_email, settings.director_seed_password),
+        ("jointdirector", "jointdirector@qmis.edu", "jd12345678"),
+        ("jointdirectorassistant", "jointdirectorassistant@qmis.edu", "jda1234567"),
+        ("jointdirectoraudit", "jointdirectoraudit@qmis.edu", "jdaudit123"),
+        ("processauditor", "processauditor@qmis.edu", "process123"),
+        ("qualityauditor", "qualityauditor@qmis.edu", "quality123"),
+        ("librarian", "librarian@qmis.edu", "librarian123"),
+        ("transportmanager", "transportmanager@qmis.edu", "transport123"),
+        ("driver", "driver@qmis.edu", "driver123"),
+        ("gatekeeper", "gatekeeper@qmis.edu", "gatekeeper123"),
+        ("gatekeepermanager", "gatekeepermanager@qmis.edu", "gkm1234567"),
+        ("canteenmanager", "canteenmanager@qmis.edu", "canteen123"),
+        ("itsupportmanager", "itsupportmanager@qmis.edu", "itsupport123"),
+        ("stationerystoremanager", "stationerystoremanager@qmis.edu", "stationery123"),
+        ("housekeepingmanager", "housekeepingmanager@qmis.edu", "housekeeping123"),
+        ("parent", "parent@qmis.edu", "parent123"),
+        ("student", "student@qmis.edu", "student123"),
     ):
         if role_code in roles_by_code:
             _seed_user(
