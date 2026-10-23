@@ -26,6 +26,7 @@ const JointDirectorAssistantRoutes = () => {
             <Route path="/joint-director-assistant/employee-management/:roleKey" element={<ViewEmployeeProfile />} />
             <Route path="/joint-director-assistant/employee-management" element={<Navigate to="/joint-director-assistant/employee-management/canteen-manager" replace />} />
             <Route path="/joint-director-assistant/request-approvals" element={<RequestApprovals />} />
+            <Route path="/joint-director-assistant/request-approvals/view-request/:id" element={<ViewRequestApproval />} />
             <Route path="/joint-director-assistant/request-approvals/view-request" element={<ViewRequestApproval />} />
             <Route path="/joint-director-assistant/escalations" element={<Escalations />} />
             <Route path="/joint-director-assistant/escalations/view-escalation/:id" element={<ViewEscalation />} />

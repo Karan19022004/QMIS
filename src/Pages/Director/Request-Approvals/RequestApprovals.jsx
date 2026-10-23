@@ -234,6 +234,12 @@ const RequestApprovals = () => {
                                         </td>
                                         <td className='px-2 py-4 text-center rounded-e-lg'>
                                             <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
+                                                <NavLink
+                                                    to={`/director/request-approvals/view-request/${request.id}`}
+                                                    className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer block'
+                                                >
+                                                    View / Decide
+                                                </NavLink>
                                                 {request.rawStatus === 'pending' && (
                                                     <>
                                                         <button

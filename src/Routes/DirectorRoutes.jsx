@@ -91,6 +91,7 @@ const DirectorRoutes = () => {
             <Route path="/director/lms/teacher-lms/view/:id" element={<ViewTeacherLMS />} />
             <Route path="/director/lms/view-teacher-lms" element={<ViewTeacherLMS />} />
             <Route path="/director/request-approvals" element={<RequestApprovals />} />
+            <Route path="/director/request-approvals/view-request/:id" element={<ViewRequestApproval />} />
             <Route path="/director/request-approvals/view-request" element={<ViewRequestApproval />} />
             <Route path="/director/academic-calendar" element={<AcademicCalendar />} />
             <Route path="/director/notifications" element={<Notifications />} />

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import hash_password
-from app.models import AcademicYear, Campus, FinancialYear, HrEmployee, Permission, Role, RolePermission, User
+from app.models import AcademicYear, Campus, FinancialYear, HrEmployee, Permission, Role, RolePermission, Student, User
 from app.permissions.matrix import ALL_ROLES, PERMISSIONS, ROLE_PERMISSIONS
 from app.services.audit import write_audit
 
@@ -70,6 +70,7 @@ def seed_reference_data(db: Session) -> None:
     # Demo logins have well-known passwords, so they exist only in explicit development mode.
     if settings.seed_demo_accounts:
         _seed_demo_users(db, campus, roles_by_code)
+        _seed_demo_parent_student_link(db, campus)
         _ensure_demo_staff_hr_links(db, campus)
     if created_campus:
         write_audit(
@@ -152,6 +153,45 @@ def _seed_demo_users(db: Session, campus: Campus, roles_by_code: dict[str, Role]
                 email=email,
                 password=password,
             )
+
+
+def _seed_demo_parent_student_link(db: Session, campus: Campus) -> None:
+    """Link parent@qmis.edu + student@qmis.edu to one enrolled child so portals are not empty."""
+    parent = db.scalar(select(User).where(User.email == "parent@qmis.edu"))
+    student_user = db.scalar(select(User).where(User.email == "student@qmis.edu"))
+    if parent is None or student_user is None:
+        return
+
+    admission_number = "ADM-DEMO-001"
+    row = db.scalar(select(Student).where(Student.admission_number == admission_number))
+    if row is None:
+        row = Student(
+            campus_id=campus.id,
+            admission_number=admission_number,
+            full_name="Demo Child Sharma",
+            class_name="Class 10",
+            section="A",
+            roll_number=1,
+            placement_status="placed",
+            parent_user_id=parent.id,
+            student_user_id=student_user.id,
+        )
+        db.add(row)
+        db.flush()
+        return
+
+    changed = False
+    if row.parent_user_id != parent.id:
+        row.parent_user_id = parent.id
+        changed = True
+    if row.student_user_id != student_user.id:
+        row.student_user_id = student_user.id
+        changed = True
+    if row.campus_id != campus.id:
+        row.campus_id = campus.id
+        changed = True
+    if changed:
+        db.flush()
 
 
 def _seed_current_academic_year(db: Session, campus: Campus) -> None:

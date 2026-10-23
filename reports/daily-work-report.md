@@ -8,6 +8,22 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 23 October 2026 — Leave and approval API wiring
+
+**Status:** Fixed broken leave/approval screens that showed demo data or “not found”. Not full go-live.
+
+### Done
+- Coordinator received leave view now uses the shared API approve/reject page
+- Director request approval detail loads live inbox items and can decide
+- Joint Director / Assistant / Audit request approvals use `/approvals/inbox` + detail decide
+- Confirmed leave create + principal received list on the API
+
+### Still open
+- Many other sidebar modules still demo/local-only (star ratings, some JD tasks/escalations, TM fuel, IT tickets)
+- School email/WhatsApp/GPS not connected
+
+---
+
 ## 23 October 2026 — Top-to-bottom completion re-check
 
 **Status:** Re-audited current software. Not complete top-to-bottom. Updated plain-language doc + PDF. No commit/push/deploy.
