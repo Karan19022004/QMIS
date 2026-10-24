@@ -28,6 +28,8 @@ def test_protrack_live_does_not_fall_back_to_first_device():
     assert "devicesList[0]" not in source
     assert "Never fall back to the first device" in source
     assert "byImei || byPlate || null" in source
+    # Configured IMEI may still be polled even when not yet listed on /device/list.
+    assert "chosen?.imei || wantImei" in source
 
 
 def test_track_bus_map_labels_demo_as_not_live():

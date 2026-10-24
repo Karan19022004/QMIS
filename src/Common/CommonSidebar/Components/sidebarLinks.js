@@ -61,6 +61,8 @@
     Landmark,
     Receipt,
     HeartPulse,
+    Fuel,
+    Wrench,
 } from "lucide-react";
 
 export const superAdminSidebarLinks = [
@@ -2001,12 +2003,6 @@ export const accountHeadSidebarLinks = [
         icon: Receipt,
     },
     {
-        id: 15,
-        title: "Book Fee",
-        to: "/account-head/book-fee",
-        icon: BookOpen,
-    },
-    {
         id: 12,
         title: "Annual Budget",
         to: "/account-head/annual-budget",
@@ -2023,6 +2019,18 @@ export const accountHeadSidebarLinks = [
 export const driverSidebarLinks = [
     {
         id: 1,
+        title: "Dashboard",
+        to: "/driver/dashboard",
+        icon: LayoutDashboard,
+    },
+    {
+        id: 2,
+        title: "My Duty",
+        to: "/driver/my-duty",
+        icon: ClipboardList,
+    },
+    {
+        id: 3,
         title: "Vehicle Management",
         to: "#0",
         icon: Bus,
@@ -2033,7 +2041,17 @@ export const driverSidebarLinks = [
         ],
     },
     {
-        id: 2,
+        id: 4,
+        title: "My Route",
+        to: "#0",
+        icon: Route,
+        subLinks: [
+            { icon: MapPin, title: "Route Details", to: "/driver/my-route/route-details" },
+            { icon: ListChecks, title: "Route Stops", to: "/driver/my-route/route-stops" },
+        ],
+    },
+    {
+        id: 5,
         title: "Attendance Management",
         to: "#0",
         icon: ClipboardCheck,
@@ -2041,6 +2059,24 @@ export const driverSidebarLinks = [
             { icon: ClipboardCheck, title: "Student Attendance", to: "/driver/attendance-management/student-attendance" },
             { icon: History, title: "Attendance History", to: "/driver/attendance-management/attendance-history" },
         ],
+    },
+    {
+        id: 6,
+        title: "Fuel Request",
+        to: "/driver/fuel-request",
+        icon: Fuel,
+    },
+    {
+        id: 7,
+        title: "Maintenance Request",
+        to: "/driver/maintenance-request",
+        icon: Wrench,
+    },
+    {
+        id: 8,
+        title: "Leave Request",
+        to: "/driver/leave-request",
+        icon: CalendarOff,
     },
 ];
 

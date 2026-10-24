@@ -3,7 +3,8 @@ import { hydrateCampusKey, usesCampusApiForKey } from '../../services/campusJson
 import { ensureSeed, loadJson, nextSerial, saveJson } from './storage'
 import { logActivity } from './activityLog'
 
-export const IT_TICKETS_KEY = 'schoolerp-it-support-tickets-v1'
+/** Must match campusCollectionRegistry → it-support-tickets */
+export const IT_TICKETS_KEY = 'schoolerp-it-tickets-v1'
 export const TICKETS_UPDATED_EVENT = 'schoolerp-it-tickets-updated'
 
 const notify = () => {
@@ -24,13 +25,15 @@ function seedTickets() {
     }))
 }
 
+const seedForApi = () => (usesCampusApiForKey(IT_TICKETS_KEY) ? [] : seedTickets())
+
 export function getTickets() {
-    return ensureSeed(IT_TICKETS_KEY, seedTickets())
+    return ensureSeed(IT_TICKETS_KEY, seedForApi())
 }
 
 export function hydrateTicketsFromApi() {
     if (!usesCampusApiForKey(IT_TICKETS_KEY)) return Promise.resolve(false)
-    return hydrateCampusKey(IT_TICKETS_KEY, seedTickets())
+    return hydrateCampusKey(IT_TICKETS_KEY, [])
 }
 
 export function getTicketById(id) {

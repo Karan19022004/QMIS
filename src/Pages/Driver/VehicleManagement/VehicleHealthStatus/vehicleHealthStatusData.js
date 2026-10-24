@@ -80,6 +80,8 @@ const parseServiceDate = (value) => {
     return new Date(year, month - 1, day)
 }
 
+const plateKey = (value) => String(value || '').replace(/[\s-]/g, '').toUpperCase()
+
 export const filterHealthStatusRecords = ({
     records,
     search = '',
@@ -88,16 +90,16 @@ export const filterHealthStatusRecords = ({
     tyreCondition = '',
     fromDate = null,
     toDate = null,
-}) => records.filter((record) => {
+}) => (Array.isArray(records) ? records : []).filter((record) => {
     const query = search.trim().toLowerCase()
     const matchesSearch = !query || [
         record.vehicleNumber,
         record.remarks,
         record.odometerReading,
         record.fuelLevel,
-    ].some((field) => field.toLowerCase().includes(query))
+    ].some((field) => String(field || '').toLowerCase().includes(query))
 
-    const matchesVehicle = !vehicleNumber || record.vehicleNumber === vehicleNumber
+    const matchesVehicle = !vehicleNumber || plateKey(record.vehicleNumber) === plateKey(vehicleNumber)
     const matchesEngine = !engineStatus || record.engineStatus === engineStatus
     const matchesTyre = !tyreCondition || record.tyreCondition === tyreCondition
 

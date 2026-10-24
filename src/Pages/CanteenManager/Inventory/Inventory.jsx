@@ -1,27 +1,57 @@
-import React, { useState } from 'react'
-import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus } from 'lucide-react'
+import React, { useEffect, useState } from 'react'
+import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus, X } from 'lucide-react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
+import { toast } from 'react-toastify'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
+import {
+    CATEGORIES,
+    UNITS,
+    getInventoryItems,
+    hydrateInventoryItemsFromApi,
+    statusColor,
+    upsertInventoryItem,
+} from './inventoryData'
 
-const INVENTORY_ITEMS = [
-    { id: 'INV-001', name: 'Basmati Rice', category: 'Grains', quantity: '25', unit: 'kg', reorderLevel: '10', status: 'In Stock' },
-    { id: 'INV-002', name: 'Cooking Oil', category: 'Essentials', quantity: '8', unit: 'L', reorderLevel: '15', status: 'Low Stock' },
-    { id: 'INV-003', name: 'Fresh Vegetables', category: 'Produce', quantity: '40', unit: 'kg', reorderLevel: '20', status: 'In Stock' },
-    { id: 'INV-004', name: 'Chicken (Fresh)', category: 'Meat', quantity: '5', unit: 'kg', reorderLevel: '12', status: 'Critical' },
-]
-
-const statusColor = {
-    'In Stock': 'bg-[#4CAF5033] text-[#4CAF50]',
-    'Low Stock': 'bg-[#FF980033] text-[#FF9800]',
-    'Critical': 'bg-[#FF000033] text-[#FF0000]',
-}
+const EMPTY_FORM = { name: '', category: 'Grains', quantity: '', unit: 'kg', reorderLevel: '' }
 
 const Inventory = () => {
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
+    const [items, setItems] = useState(() => getInventoryItems())
+    const [addOpen, setAddOpen] = useState(false)
+    const [saving, setSaving] = useState(false)
+    const [form, setForm] = useState(EMPTY_FORM)
+
+    useEffect(() => {
+        hydrateInventoryItemsFromApi().finally(() => setItems(getInventoryItems()))
+    }, [])
+
+    const setField = (key, value) => setForm((prev) => ({ ...prev, [key]: value }))
+
+    const handleAdd = async (event) => {
+        event.preventDefault()
+        if (!form.name.trim()) {
+            toast.error('Item name is required.')
+            return
+        }
+        setSaving(true)
+        try {
+            const result = await upsertInventoryItem(form)
+            if (result?.success === false) {
+                toast.error(result.message || 'Could not save inventory item.')
+                return
+            }
+            setItems(getInventoryItems())
+            setForm(EMPTY_FORM)
+            setAddOpen(false)
+            toast.success('Inventory item saved.')
+        } finally {
+            setSaving(false)
+        }
+    }
 
     return (
         <section>
@@ -67,7 +97,11 @@ const Inventory = () => {
                 <div className='flex justify-between items-center sm:flex-row flex-col gap-y-2 mb-4'>
                     <h2 className='text-xl font-medium text-black'>Inventory</h2>
                     <div className='flex gap-x-2'>
-                        <button className='bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center gap-x-2'>
+                        <button
+                            type='button'
+                            onClick={() => setAddOpen(true)}
+                            className='bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center gap-x-2'
+                        >
                             <Plus size={16} />
                             Add Inventory
                         </button>
@@ -92,7 +126,14 @@ const Inventory = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {INVENTORY_ITEMS.map((item) => (
+                            {items.length === 0 && (
+                                <tr>
+                                    <td colSpan={8} className="px-2 py-6 text-center text-[#667085]">
+                                        No inventory items yet.
+                                    </td>
+                                </tr>
+                            )}
+                            {items.map((item) => (
                                 <tr key={item.id} className="border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className="px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg">{item.id}</td>
                                     <td className="px-2 py-4">{item.name}</td>
@@ -101,7 +142,7 @@ const Inventory = () => {
                                     <td className="px-2 py-4">{item.unit}</td>
                                     <td className="px-2 py-4">{item.reorderLevel}</td>
                                     <td className="px-2 py-4">
-                                        <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${statusColor[item.status]}`}>
+                                        <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${statusColor[item.status] || ''}`}>
                                             {item.status}
                                         </span>
                                     </td>
@@ -120,13 +161,83 @@ const Inventory = () => {
             </div>
 
             <div className='flex justify-between items-center px-4 mt-4'>
-                <p className='text-sm font-medium text-[#515DEF]'>Showing 1 to {INVENTORY_ITEMS.length} of {INVENTORY_ITEMS.length} entries</p>
+                <p className='text-sm font-medium text-[#515DEF]'>
+                    Showing {items.length === 0 ? 0 : 1} to {items.length} of {items.length} entries
+                </p>
                 <div className="flex justify-center gap-x-2">
                     <button className="size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer"><ChevronLeft size={16} /></button>
                     <button className="size-8 flex justify-center items-center p-2 bg-[#EDEDF5] text-[#515DEF] border border-[#E2E8F0] rounded-full cursor-pointer">1</button>
                     <button className="size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer"><ChevronRight size={16} /></button>
                 </div>
             </div>
+
+            {addOpen && (
+                <div className='fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4'>
+                    <div className='bg-white rounded-2xl shadow-lg w-full max-w-lg p-4'>
+                        <div className='flex justify-between items-center mb-4'>
+                            <h3 className='text-lg font-medium text-black'>Add Inventory</h3>
+                            <button type='button' onClick={() => setAddOpen(false)} className='text-[#667085] hover:text-black cursor-pointer'>
+                                <X size={18} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAdd} className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                            <div className='flex flex-col gap-y-1 sm:col-span-2'>
+                                <label className='text-sm text-[#667085]'>Item name</label>
+                                <input
+                                    value={form.name}
+                                    onChange={(e) => setField('name', e.target.value)}
+                                    className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2'
+                                    placeholder='Basmati Rice'
+                                />
+                            </div>
+                            <div className='flex flex-col gap-y-1'>
+                                <label className='text-sm text-[#667085]'>Category</label>
+                                <select value={form.category} onChange={(e) => setField('category', e.target.value)} className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2'>
+                                    {CATEGORIES.map((category) => (
+                                        <option key={category} value={category}>{category}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className='flex flex-col gap-y-1'>
+                                <label className='text-sm text-[#667085]'>Unit</label>
+                                <select value={form.unit} onChange={(e) => setField('unit', e.target.value)} className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2'>
+                                    {UNITS.map((unit) => (
+                                        <option key={unit} value={unit}>{unit}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className='flex flex-col gap-y-1'>
+                                <label className='text-sm text-[#667085]'>Quantity</label>
+                                <input
+                                    type='number'
+                                    min='0'
+                                    value={form.quantity}
+                                    onChange={(e) => setField('quantity', e.target.value)}
+                                    className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2'
+                                />
+                            </div>
+                            <div className='flex flex-col gap-y-1'>
+                                <label className='text-sm text-[#667085]'>Reorder level</label>
+                                <input
+                                    type='number'
+                                    min='0'
+                                    value={form.reorderLevel}
+                                    onChange={(e) => setField('reorderLevel', e.target.value)}
+                                    className='text-sm border border-[#D9D9D9] rounded-md px-2 py-2'
+                                />
+                            </div>
+                            <div className='sm:col-span-2 flex justify-end gap-2 mt-2'>
+                                <button type='button' onClick={() => setAddOpen(false)} className='px-4 py-2 text-sm border border-[#D9D9D9] rounded-md cursor-pointer'>
+                                    Cancel
+                                </button>
+                                <button type='submit' disabled={saving} className='px-4 py-2 text-sm bg-[#515DEF] text-white rounded-md cursor-pointer disabled:opacity-60'>
+                                    {saving ? 'Saving…' : 'Save item'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
         </section>

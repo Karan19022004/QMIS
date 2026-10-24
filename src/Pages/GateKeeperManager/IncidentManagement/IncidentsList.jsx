@@ -1,15 +1,19 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
-import { getIncidents } from '../../../Common/demoDomain/securityIncidents'
+import { getIncidents, hydrateIncidentsFromApi } from '../../../Common/demoDomain/securityIncidents'
 
 const IncidentsList = () => {
-
-    const [fromDate, setFromDate] = useState(new Date())
-    const [toDate, setToDate] = useState(new Date())
+    const [incidents, setIncidents] = useState(() => getIncidents())
+    const [fromDate, setFromDate] = useState(null)
+    const [toDate, setToDate] = useState(null)
     const [exportModal, setExportModal] = useState(false)
+
+    useEffect(() => {
+        hydrateIncidentsFromApi().finally(() => setIncidents(getIncidents()))
+    }, [])
 
     return (
         <section>
@@ -110,7 +114,13 @@ const IncidentsList = () => {
                         </thead>
 
                         <tbody>
-                            {getIncidents().map((incident) => (
+                            {incidents.length === 0 ? (
+                                <tr>
+                                    <td colSpan={8} className="px-2 py-8 text-center text-[#667085]">
+                                        No incidents reported yet. Gate Keeper Add Incident writes to `gate-incidents`.
+                                    </td>
+                                </tr>
+                            ) : incidents.map((incident) => (
                                 <tr key={incident.id} className="border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg">
                                     <td className="px-2 py-4 rounded-s-lg">{incident.id}</td>
                                     <td className="px-2 py-4">{incident.incidentType}</td>

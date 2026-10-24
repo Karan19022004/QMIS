@@ -79,10 +79,19 @@ export async function postApprovedMaintenanceToFinance(approval) {
 
     const requestId = approval.requestId || approval.id
     const isFuel = String(requestId || '').startsWith('FR-')
-    const amountLabel = toAmountLabel(
-        approval.estimatedCost || approval.amount || (isFuel ? approval.requestedQuantity : '')
+    let amount = parseRupeeAmount(
+        approval.estimatedCost || approval.amount || '',
     )
-    const amount = parseRupeeAmount(amountLabel)
+    if (amount <= 0 && isFuel) {
+        const qty = String(approval.requestedQuantity || approval.fuelQuantity || '').trim()
+        const litres = Number(String(qty).replace(/[^\d.]/g, '')) || 0
+        if (litres > 0 && /l/i.test(qty) && !/%/.test(qty)) {
+            amount = Math.round(litres * 90)
+        }
+    }
+    const amountLabel = amount > 0
+        ? formatCurrency(amount)
+        : toAmountLabel(approval.estimatedCost || approval.amount || (isFuel ? approval.requestedQuantity : ''))
 
     const expenseResult = await upsertTransportExpense(
         isFuel
@@ -94,6 +103,7 @@ export async function postApprovedMaintenanceToFinance(approval) {
                 fuelStation: approval.fuelStation || '—',
                 fuelQuantity: approval.requestedQuantity || '',
                 amount: amountLabel,
+                amountValue: amount,
                 paymentMode: approval.paymentMode || 'UPI',
                 linkedRequestId: requestId,
                 source: 'principal-approved-fuel',
@@ -106,6 +116,7 @@ export async function postApprovedMaintenanceToFinance(approval) {
                 serviceDate: approval.requestDate || '',
                 serviceCenter: approval.serviceCenter || '—',
                 amount: amountLabel,
+                amountValue: amount,
                 invoiceNumber: `INV-${requestId}`,
                 remarks: approval.description || `Principal-approved maintenance ${requestId}`,
                 linkedRequestId: requestId,

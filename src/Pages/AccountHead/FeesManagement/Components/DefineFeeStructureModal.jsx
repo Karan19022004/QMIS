@@ -15,6 +15,10 @@ import {
     syncTransportFeeAmountToRoute,
 } from '../transportRouteFeeSync'
 import { parseFeeAmount } from '../../../TransportManager/RouteManagement/feeHelpers'
+import {
+    hydrateActivityFeesFromApi,
+    loadActivityFeeOptions,
+} from '../activityFees'
 import { toast } from 'react-toastify'
 
 const parseAmount = (value) => {
@@ -104,10 +108,14 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
         newCategory: '',
         routeId: '',
         routeName: '',
+        activityId: '',
+        activityName: '',
     })
     const [categoryDrafts, setCategoryDrafts] = useState([])
     const [routeOptions, setRouteOptions] = useState([])
     const [loadingRoutes, setLoadingRoutes] = useState(false)
+    const [activityOptions, setActivityOptions] = useState([])
+    const [loadingActivities, setLoadingActivities] = useState(false)
 
     useEffect(() => {
         if (!isOpen) return undefined
@@ -159,6 +167,8 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
                 newCategory: '',
                 routeId: editingStructure.routeId || '',
                 routeName: editingStructure.routeName || '',
+                activityId: editingStructure.activityId || '',
+                activityName: editingStructure.activityName || '',
             })
             return
         }
@@ -178,6 +188,8 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
             newCategory: '',
             routeId: '',
             routeName: '',
+            activityId: '',
+            activityName: '',
         }))
     }, [isOpen, feeCategories, currentYear, yearOptions, editingStructure])
 
@@ -186,15 +198,24 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
         () => (feeCategories || []).filter((item) => item.active !== false),
         [feeCategories],
     )
-    const transportSelected = useMemo(() => {
+    const categoryLabel = useMemo(() => {
         const fromActive = activeCategories.find((item) => item.id === form.feeCategoryId)
         const fromDraft = categoryDrafts.find((item) => (
             item.id === form.feeCategoryId
             || `CAT-${item.label.toUpperCase().replace(/\s+/g, '-')}` === form.feeCategoryId
         ))
-        const label = String(fromActive?.name || fromDraft?.label || form.feeHead || '').toLowerCase()
-        return label.includes('transport') || String(form.feeCategoryId || '').toUpperCase().includes('TRANSPORT')
+        return String(fromActive?.name || fromDraft?.label || form.feeHead || '')
     }, [activeCategories, categoryDrafts, form.feeCategoryId, form.feeHead])
+
+    const transportSelected = useMemo(() => {
+        const label = categoryLabel.toLowerCase()
+        return label.includes('transport') || String(form.feeCategoryId || '').toUpperCase().includes('TRANSPORT')
+    }, [categoryLabel, form.feeCategoryId])
+
+    const activityFeeSelected = useMemo(() => {
+        const label = categoryLabel.toLowerCase()
+        return label.includes('activity') || String(form.feeCategoryId || '').toUpperCase().includes('ACTIVITY')
+    }, [categoryLabel, form.feeCategoryId])
 
     useEffect(() => {
         if (!isOpen || !transportSelected) return
@@ -217,6 +238,20 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
             })
         return () => { cancelled = true }
     }, [isOpen, transportSelected])
+
+    useEffect(() => {
+        if (!isOpen || !activityFeeSelected) return undefined
+        let cancelled = false
+        setLoadingActivities(true)
+        hydrateActivityFeesFromApi()
+            .catch(() => false)
+            .finally(() => {
+                if (cancelled) return
+                setActivityOptions(loadActivityFeeOptions(form.academicYear))
+                setLoadingActivities(false)
+            })
+        return () => { cancelled = true }
+    }, [isOpen, activityFeeSelected, form.academicYear])
 
     const yearStartDate = useMemo(() => {
         const meta = adminYears.find((item) => item.name === form.academicYear)
@@ -307,6 +342,17 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
         }))
     }
 
+    const handleActivityChange = (activityId) => {
+        const selected = activityOptions.find((row) => row.id === activityId)
+        setForm((prev) => ({
+            ...prev,
+            activityId,
+            activityName: selected?.label || '',
+            feeHead: selected ? `Activity Fee — ${selected.label}` : 'Activity Fee',
+            amount: selected != null ? String(Math.round(Number(selected.amount) || 0)) : prev.amount,
+        }))
+    }
+
     const handleSaveStructure = async () => {
         if (!form.grade || !form.feeHead || !totalAmount) {
             toast.error('Class, fee head and amount are required.')
@@ -314,6 +360,10 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
         }
         if (transportSelected && !form.routeId) {
             toast.error('Select a transport route for this fee amount.')
+            return
+        }
+        if (activityFeeSelected && !form.activityId) {
+            toast.error('Select an activity created under Activity Fees.')
             return
         }
         setSaving(true)
@@ -356,7 +406,11 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
                 status: form.status,
                 routeId: transportSelected ? form.routeId : undefined,
                 routeName: transportSelected ? form.routeName : undefined,
-                source: transportSelected ? 'transport-route-fee' : undefined,
+                activityId: activityFeeSelected ? form.activityId : undefined,
+                activityName: activityFeeSelected ? form.activityName : undefined,
+                source: transportSelected
+                    ? 'transport-route-fee'
+                    : (activityFeeSelected ? 'activity-fee-catalog' : undefined),
             }, { startDate: yearStartDate, feeCategories: latestCategories })
 
             if (transportSelected && form.routeId) {
@@ -535,13 +589,22 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
                                     const label = fromActive?.name || fromDraft?.label || ''
                                     const transport = String(label).toLowerCase().includes('transport')
                                         || String(value).toUpperCase().includes('TRANSPORT')
+                                    const activity = String(label).toLowerCase().includes('activity')
+                                        || String(value).toUpperCase().includes('ACTIVITY')
                                     setForm((prev) => ({
                                         ...prev,
                                         feeCategoryId: value,
-                                        feeHead: transport ? (prev.routeName ? `Transport Fee — ${prev.routeName}` : 'Transport Fee') : (label || prev.feeHead),
+                                        feeHead: transport
+                                            ? (prev.routeName ? `Transport Fee — ${prev.routeName}` : 'Transport Fee')
+                                            : activity
+                                                ? (prev.activityName ? `Activity Fee — ${prev.activityName}` : 'Activity Fee')
+                                                : (label || prev.feeHead),
                                         grade: transport ? ALL_CLASSES_LABEL : (prev.grade === ALL_CLASSES_LABEL ? '' : prev.grade),
                                         routeId: transport ? prev.routeId : '',
                                         routeName: transport ? prev.routeName : '',
+                                        activityId: activity ? prev.activityId : '',
+                                        activityName: activity ? prev.activityName : '',
+                                        amount: (!transport && !activity) ? prev.amount : (activity && prev.activityId ? prev.amount : (transport ? prev.amount : '')),
                                     }))
                                 }}
                                 className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5 focus:outline-none focus:border-[#515DEF]'
@@ -577,6 +640,40 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
                                 </select>
                                 <p className='text-xs text-[#667085]'>
                                     Amount you save applies to this route (and its stops) in Transport Manager.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {activityFeeSelected && (
+                        <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                            <div className='flex flex-col gap-y-2'>
+                                <label className='text-sm font-medium text-[#808080]'>
+                                    Activity <span className='text-[#FF5722]'>*</span>
+                                </label>
+                                <select
+                                    value={form.activityId}
+                                    onChange={(event) => handleActivityChange(event.target.value)}
+                                    className='text-sm border border-[#D9D9D9] rounded-md px-3 py-2.5 focus:outline-none focus:border-[#515DEF]'
+                                >
+                                    <option value=''>
+                                        {loadingActivities ? 'Loading activities…' : 'Select activity'}
+                                    </option>
+                                    {form.activityId && !activityOptions.some((row) => row.id === form.activityId) && (
+                                        <option value={form.activityId}>{form.activityName || form.activityId}</option>
+                                    )}
+                                    {activityOptions.map((activity) => (
+                                        <option key={activity.id} value={activity.id}>
+                                            {activity.label} · ₹{Number(activity.amount || 0).toLocaleString('en-IN')}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className='text-xs text-[#667085]'>
+                                    Amount auto-fills from Activity Fees → Create activity for this academic year.
+                                    {form.activityId ? ` Selected: ${form.activityName}.` : ''}
+                                    {activityOptions.length === 0 && !loadingActivities
+                                        ? ' No activities for this year yet — create one under the Activity Fees tab.'
+                                        : ''}
                                 </p>
                             </div>
                         </div>

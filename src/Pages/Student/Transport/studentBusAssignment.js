@@ -88,7 +88,18 @@ export function buildBusRouteView(assignment) {
         dropTime,
         endLocation: assignment.endLocation || route?.endLocation || 'School',
         routeStops: stops.join(', ') || '—',
-        imei: route?.imei || route?.gpsImei || vehicle?.imei || vehicle?.gpsImei || '',
+        imei: assignment.imei || assignment.gpsImei
+            || route?.imei || route?.gpsImei
+            || vehicle?.imei || vehicle?.gpsImei
+            || '',
+        startLat: assignment.startLat ?? route?.startLat ?? '',
+        startLng: assignment.startLng ?? route?.startLng ?? '',
+        endLat: assignment.endLat ?? route?.endLat ?? '',
+        endLng: assignment.endLng ?? route?.endLng ?? '',
+        pickupLat: assignment.pickupLat ?? '',
+        pickupLng: assignment.pickupLng ?? '',
+        dropLat: assignment.dropLat ?? '',
+        dropLng: assignment.dropLng ?? '',
         supportStaff: assignment.supportStaff || route?.supportStaff || '',
     }
 }

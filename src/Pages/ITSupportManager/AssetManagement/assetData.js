@@ -182,6 +182,35 @@ export function hydrateAssetsFromApi() {
 }
 export const getAssetById = (id) => getAssets().find((entry) => entry.assetId === id) ?? null
 
+const nextImportedId = (index) => `AST-IMP-${Date.now()}-${index}`
+
+export function normalizeImportedAsset(row, index = 0) {
+    const category = ASSET_CATEGORIES.includes(row.category) ? row.category : (row.category || 'Others')
+    const status = STATUS_OPTIONS.includes(row.status) ? row.status : 'Active'
+    const assetId = String(row.assetId || '').trim() || nextImportedId(index)
+    return {
+        id: assetId,
+        assetId,
+        assetName: String(row.assetName || '').trim(),
+        category,
+        brand: String(row.brand || '').trim() || 'Imported',
+        model: String(row.model || '').trim(),
+        serialNumber: String(row.serialNumber || '').trim(),
+        assetTagNumber: String(row.assetTagNumber || row.assetTag || '').trim(),
+        purchaseDate: String(row.purchaseDate || '').trim(),
+        warrantyExpiry: String(row.warrantyExpiry || row.warrantyEndDate || '').trim(),
+        status,
+        department: String(row.department || '').trim(),
+        custodian: String(row.custodian || '').trim(),
+        vendorName: String(row.vendorName || '').trim(),
+        purchaseCost: String(row.purchaseCost || '').trim(),
+        invoiceNumber: String(row.invoiceNumber || '').trim(),
+        warrantyStartDate: String(row.warrantyStartDate || row.purchaseDate || '').trim(),
+        warrantyEndDate: String(row.warrantyEndDate || row.warrantyExpiry || '').trim(),
+        quantity: Number(row.quantity) || 1,
+    }
+}
+
 export const addAsset = async (asset) => {
     await hydrateAssetsFromApi()
     const rows = getAssets().filter((item) => item.assetName !== asset.assetName)
@@ -189,6 +218,23 @@ export const addAsset = async (asset) => {
     record.assetId = record.id
     await saveAssets([record, ...rows])
     return record
+}
+
+export async function importAssets(incoming) {
+    await hydrateAssetsFromApi()
+    const existing = getAssets()
+    const seen = new Set(existing.flatMap((item) => [item.assetId, item.serialNumber].filter(Boolean)))
+    const records = (incoming || [])
+        .map((row, index) => normalizeImportedAsset(row, index))
+        .filter((record) => record.assetName)
+        .filter((record) => {
+            if (seen.has(record.assetId) || (record.serialNumber && seen.has(record.serialNumber))) return false
+            seen.add(record.assetId)
+            if (record.serialNumber) seen.add(record.serialNumber)
+            return true
+        })
+    if (records.length) await saveAssets([...records, ...existing])
+    return records
 }
 
 export const updateAsset = (assetId, patch) => {

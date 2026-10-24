@@ -1,6 +1,6 @@
 ﻿import React from 'react'
 import { Route, Routes as ReactRoutes, Navigate } from 'react-router-dom'
-import PagePlaceholder from '../Pages/Driver/Components/PagePlaceholder'
+import Dashboard from '../Pages/Driver/Dashboard'
 import VehicleDetails from '../Pages/Driver/VehicleManagement/VehicleDetails'
 import VehicleDocuments from '../Pages/Driver/VehicleManagement/VehicleDocuments'
 import VehicleHealthStatus from '../Pages/Driver/VehicleManagement/VehicleHealthStatus/VehicleHealthStatus'
@@ -28,15 +28,7 @@ import ViewLeaveRequest from '../Pages/Driver/LeaveRequest/ViewLeaveRequest'
 const DriverRoutes = () => {
     return (
         <ReactRoutes>
-            <Route
-                path='/driver/dashboard'
-                element={(
-                    <PagePlaceholder
-                        title='Driver Dashboard'
-                        subtitle='Daily duty overview, vehicle status, and route summary'
-                    />
-                )}
-            />
+            <Route path='/driver/dashboard' element={<Dashboard />} />
             <Route
                 path='/driver/vehicle-management/vehicle-details'
                 element={<VehicleDetails />}

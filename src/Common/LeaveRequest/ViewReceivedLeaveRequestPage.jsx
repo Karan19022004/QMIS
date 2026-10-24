@@ -87,7 +87,13 @@ export default function ViewReceivedLeaveRequestPage({ roleKey: roleKeyProp }) {
         toast.success(successMessage)
     }
 
-    const handleApprove = () => decide('Approved', 'Leave request approved.', 'Unable to approve this leave request.')
+    const handleApprove = () => decide(
+        'Approved',
+        roleKey === 'transportmanager'
+            ? 'Approved — forwarded to HR for final confirmation and payroll.'
+            : 'Leave request approved. HR attendance/payroll will reflect this leave.',
+        'Unable to approve this leave request.',
+    )
 
     const handleReject = () => {
         if (canUseLeaveApi() && !approverRemarks.trim()) {

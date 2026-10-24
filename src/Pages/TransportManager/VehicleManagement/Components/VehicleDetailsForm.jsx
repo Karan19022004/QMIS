@@ -24,6 +24,7 @@ const VehicleDetailsForm = forwardRef(({ vehicle }, ref) => {
     const [category, setCategory] = useState(vehicle?.category ?? 'Bus')
     const [vehicleType, setVehicleType] = useState(vehicle?.vehicleType ?? '')
     const [capacity, setCapacity] = useState(vehicle?.capacity ?? '')
+    const [gpsImei, setGpsImei] = useState(vehicle?.gpsImei || vehicle?.imei || '')
     const [driverName, setDriverName] = useState(vehicle?.driverName ?? '')
     const [driverContact, setDriverContact] = useState(vehicle?.driverContact ?? '')
     const [conductorName, setConductorName] = useState(vehicle?.conductorName ?? '')
@@ -68,24 +69,33 @@ const VehicleDetailsForm = forwardRef(({ vehicle }, ref) => {
     }
 
     useImperativeHandle(ref, () => ({
-        getValues: () => ({
-            vehicleNumber: String(vehicleNumber).trim().toUpperCase(),
-            category,
-            vehicleType,
-            capacity: capacity === '' ? '' : Number(capacity),
-            driverName,
-            driverContact: String(driverContact).trim(),
-            conductorName: String(conductorName).trim(),
-            studentStrength: studentStrength === '' ? '' : Number(studentStrength),
-            staffStrength: staffStrength === '' ? '' : Number(staffStrength),
-            currentOdometer: currentOdometer === '' ? '' : Number(currentOdometer),
-            insuranceExpiryDate: formatTransportDate(insuranceExpiryDate),
-            lastServiceDate: formatTransportDate(lastServiceDate),
-            nextServiceDate: formatTransportDate(nextServiceDate),
-        }),
+        getValues: () => {
+            const imei = String(gpsImei).trim()
+            return {
+                vehicleNumber: String(vehicleNumber).trim().toUpperCase(),
+                category,
+                vehicleType,
+                capacity: capacity === '' ? '' : Number(capacity),
+                gpsImei: imei,
+                imei,
+                driverName,
+                driverContact: String(driverContact).trim(),
+                conductorName: String(conductorName).trim(),
+                studentStrength: studentStrength === '' ? '' : Number(studentStrength),
+                staffStrength: staffStrength === '' ? '' : Number(staffStrength),
+                currentOdometer: currentOdometer === '' ? '' : Number(currentOdometer),
+                insuranceExpiryDate: formatTransportDate(insuranceExpiryDate),
+                lastServiceDate: formatTransportDate(lastServiceDate),
+                nextServiceDate: formatTransportDate(nextServiceDate),
+            }
+        },
         validate: () => {
             if (!String(vehicleNumber).trim()) return 'Vehicle number is required.'
             if (!vehicleType) return 'Vehicle type is required.'
+            const imei = String(gpsImei).trim()
+            if (imei && !/^\d{10,20}$/.test(imei)) {
+                return 'GPS IMEI must be 10–20 digits (not the vehicle registration number).'
+            }
             return null
         },
     }))
@@ -126,6 +136,20 @@ const VehicleDetailsForm = forwardRef(({ vehicle }, ref) => {
                     onChange={(e) => setCapacity(e.target.value)}
                     className={inputClass}
                 />
+            </div>
+            <div className='flex flex-col gap-y-2'>
+                <label htmlFor='gps-imei' className='text-base font-medium text-[#1E1E1E]'>GPS IMEI (ProTrack):</label>
+                <input
+                    type='text'
+                    id='gps-imei'
+                    value={gpsImei}
+                    onChange={(e) => setGpsImei(e.target.value.replace(/[^\d]/g, ''))}
+                    className={inputClass}
+                    placeholder='e.g. 355710090439063'
+                    inputMode='numeric'
+                    autoComplete='off'
+                />
+                <p className='text-xs text-[#667085]'>Required for live Track Bus. Must match the ProTrack device IMEI, not the plate number.</p>
             </div>
             <div className='flex flex-col gap-y-2'>
                 <label htmlFor='driver-name' className='text-base font-medium text-[#1E1E1E]'>Driver Name:</label>

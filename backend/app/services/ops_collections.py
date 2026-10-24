@@ -91,6 +91,9 @@ COLLECTIONS: dict[str, str] = {
     "jd-tasks": "JDT",
     # Biometric (Wave 8)
     "biometric-attendance": "BIO",
+    # Hostel (student/parent assignment + payments)
+    "hostel-assignments": "HAS",
+    "hostel-payments": "HPY",
 }
 
 _ADMINS = {"admin", "superadmin", "managing_director"}
@@ -142,6 +145,8 @@ def _writers_for(collection: str) -> set[str]:
         return _JD
     if collection == "biometric-attendance":
         return _BIOMETRIC
+    if collection.startswith("hostel-"):
+        return _ADMINS
     return _ADMINS
 
 
@@ -156,6 +161,8 @@ def _readers_for(collection: str) -> set[str]:
         return writers | {"jointdirectoraudit", "principal", "director"}
     if collection == "biometric-attendance":
         return writers | {"parent", "student"}
+    if collection.startswith("hostel-"):
+        return writers | {"principal", "director", "accounthead"}
     # Teachers/coordinators need library issues/members to show Books Borrowed.
     if collection.startswith("library-"):
         return writers | {"principal", "director", "jointdirector", "teacher", "coordinator"}
@@ -327,6 +334,37 @@ def _rows(db: Session, actor: User, collection: str) -> list[dict]:
     return [_as_item(row) for row in rows]
 
 
+def _plate_key(value: object) -> str:
+    return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+
+
+def _gps_imei(row: dict | None) -> str:
+    if not isinstance(row, dict):
+        return ""
+    return str(row.get("gpsImei") or row.get("imei") or "").strip()
+
+
+def _with_gps_imei(row: dict, vehicles_by_id: dict[str, dict], vehicles_by_plate: dict[str, dict]) -> dict:
+    """Attach gpsImei/imei from the row, linked vehicle id, or plate match."""
+    imei = _gps_imei(row)
+    vehicle = None
+    vehicle_id = str(row.get("vehicleId") or "").strip()
+    if vehicle_id:
+        vehicle = vehicles_by_id.get(vehicle_id)
+    if vehicle is None:
+        vehicle = vehicles_by_plate.get(_plate_key(row.get("vehicleNumber") or row.get("vehicle")))
+    if not imei and vehicle:
+        imei = _gps_imei(vehicle)
+    if not imei:
+        return row
+    enriched = dict(row)
+    enriched["imei"] = imei
+    enriched["gpsImei"] = imei
+    if vehicle and not enriched.get("vehicleNumber") and vehicle.get("vehicleNumber"):
+        enriched["vehicleNumber"] = vehicle.get("vehicleNumber")
+    return enriched
+
+
 def my_transport(db: Session, actor: User) -> dict:
     """Assignments for the signed-in parent or student only."""
     from app.models import Student
@@ -355,8 +393,128 @@ def my_transport(db: Session, actor: User) -> dict:
         row for row in _rows(db, actor, "transport-routes")
         if str(row.get("id") or "") in route_ids or str(row.get("routeName") or row.get("name") or "") in route_ids
     ]
-    return {
-        "assignments": assignments,
-        "routes": routes,
-        "studentCount": len(students),
+    vehicles = _rows(db, actor, "transport-vehicles")
+    vehicles_by_id = {str(row.get("id") or ""): row for row in vehicles if row.get("id")}
+    vehicles_by_plate = {
+        _plate_key(row.get("vehicleNumber")): row
+        for row in vehicles
+        if _plate_key(row.get("vehicleNumber"))
     }
+    routes = [_with_gps_imei(row, vehicles_by_id, vehicles_by_plate) for row in routes]
+    assignments = [_with_gps_imei(row, vehicles_by_id, vehicles_by_plate) for row in assignments]
+    # Prefer route IMEI onto the assignment when the enrollment row has none.
+    routes_by_id = {str(row.get("id") or ""): row for row in routes}
+    routes_by_name = {
+        str(row.get("routeName") or row.get("name") or "").strip().lower(): row
+        for row in routes
+        if (row.get("routeName") or row.get("name"))
+    }
+    enriched_assignments = []
+    for row in assignments:
+        imei = _gps_imei(row)
+        if not imei:
+            route = routes_by_id.get(str(row.get("routeId") or row.get("route") or ""))
+            if route is None:
+                route = routes_by_name.get(str(row.get("routeName") or "").strip().lower())
+            if route:
+                row = _with_gps_imei({**row, **{k: route.get(k) for k in ("gpsImei", "imei", "vehicleId", "vehicleNumber") if route.get(k)}}, vehicles_by_id, vehicles_by_plate)
+        enriched_assignments.append(row)
+
+    # Active duties for today — Parent/Student Track Bus only while not completed.
+    from datetime import datetime
+
+    today = datetime.now().astimezone().strftime("%d-%m-%Y")
+    today_alt = datetime.now().astimezone().strftime("%d/%m/%Y")
+    route_names = {
+        str(row.get("routeName") or row.get("name") or "").strip().lower()
+        for row in routes
+        if row.get("routeName") or row.get("name")
+    }
+    route_ids_set = {str(row.get("id") or "") for row in routes if row.get("id")}
+    for row in enriched_assignments:
+        if row.get("routeName"):
+            route_names.add(str(row.get("routeName")).strip().lower())
+        if row.get("routeId"):
+            route_ids_set.add(str(row.get("routeId")))
+
+    def _duty_date_ok(value: object) -> bool:
+        text = str(value or "").strip()
+        return text in {today, today_alt} or text.replace("/", "-") == today
+
+    def _duty_active(row: dict) -> bool:
+        """Open duties for today (Assigned waiting to start, or In Progress live)."""
+        if row.get("trackingActive") is False:
+            return False
+        status = str(row.get("dutyStatus") or row.get("status") or "").strip()
+        if status in {"Completed", "Cancelled", "Done"}:
+            return False
+        # Include Assigned so parents can see "waiting for driver Start".
+        return status in {"", "Assigned", "In Progress", "Started"} or row.get("trackingActive") is True
+
+    active_duties = []
+    for row in _rows(db, actor, "transport-duties"):
+        if not _duty_date_ok(row.get("dutyDate") or row.get("date")):
+            continue
+        if not _duty_active(row):
+            continue
+        rid = str(row.get("routeId") or "")
+        rname = str(row.get("routeName") or "").strip().lower()
+        if rid and rid in route_ids_set:
+            active_duties.append(row)
+            continue
+        if rname and rname in route_names:
+            active_duties.append(row)
+
+    return {
+        "assignments": enriched_assignments,
+        "routes": routes,
+        "vehicles": vehicles,
+        "activeDuties": active_duties,
+        "studentCount": len(students),
+        "trackingDate": today,
+    }
+
+
+def _hostel_row_keys(row: dict) -> set[str]:
+    return {
+        str(value).strip()
+        for value in (
+            row.get("studentId"),
+            row.get("student_id"),
+            row.get("admissionNumber"),
+            row.get("admissionNo"),
+            row.get("admission_number"),
+        )
+        if value
+    }
+
+
+def my_hostel(db: Session, actor: User) -> dict:
+    """Hostel assignment + payments for the signed-in parent or student only."""
+    from app.services.finance import _child_student_ids_for_actor
+
+    code = role_code_for(db, actor)
+    if code not in {"parent", "student"}:
+        fail(403, "forbidden", "Parent or student role required.")
+
+    allowed_ids = set(_child_student_ids_for_actor(db, actor) or [])
+    from app.models import Student
+
+    if allowed_ids:
+        students = db.scalars(select(Student).where(Student.campus_id == actor.campus_id)).all()
+        for row in students:
+            if str(row.id) in allowed_ids and row.admission_number:
+                allowed_ids.add(str(row.admission_number))
+
+    assignments = [
+        row
+        for row in _rows(db, actor, "hostel-assignments")
+        if _hostel_row_keys(row) & allowed_ids
+    ]
+    payments = [
+        row
+        for row in _rows(db, actor, "hostel-payments")
+        if _hostel_row_keys(row) & allowed_ids
+    ]
+    return {"assignments": assignments, "payments": payments}
+

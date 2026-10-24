@@ -1,17 +1,37 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { EMPLOYEE_CATEGORIES } from '../domain/hrStatus'
 import { employeeName, getAttendance, getEmployees, getLeaveBundle, nextId, pushNotification, saveAttendance, saveLeaveBundle } from '../domain/hrStore'
 import { Badge, Modal, PageIntro, PrimaryButton, Select, TableWrap, inputClass, td, th, useHrTick } from '../components/HrUi'
+import {
+    hydrateLeaveRequestsFromApi,
+    getReceivedLeaveRequestsForRole,
+} from '../../../Common/LeaveRequest/leaveRequestData'
+import { syncAllStaffLeavesIntoHr } from '../../../Common/LeaveRequest/leaveHrPayrollBridge'
+import { ROLES } from '../../../constants/roles'
 
 const LeaveManagement = () => {
     const policiesMode = useLocation().pathname.includes('policies')
     const tick = useHrTick()
-    const bundle = useMemo(() => getLeaveBundle(), [tick])
-    const employees = useMemo(() => getEmployees(), [tick])
+    const [syncTick, setSyncTick] = useState(0)
+    const bundle = useMemo(() => getLeaveBundle(), [tick, syncTick])
+    const employees = useMemo(() => getEmployees(), [tick, syncTick])
     const [status, setStatus] = useState('')
     const [form, setForm] = useState(null)
+
+    useEffect(() => {
+        hydrateLeaveRequestsFromApi()
+            .finally(() => {
+                try {
+                    syncAllStaffLeavesIntoHr(getReceivedLeaveRequestsForRole(ROLES.HR))
+                } catch {
+                    /* ignore */
+                }
+                setSyncTick((value) => value + 1)
+            })
+    }, [])
+
     const requests = bundle.requests.filter((item) => !status || item.status === status)
 
     const decide = (request, next) => {
@@ -48,7 +68,7 @@ const LeaveManagement = () => {
 
     return (
         <section>
-            <PageIntro text='Leave requests move from employee submission to manager decision and stay visible to HR for attendance and payroll.'>
+            <PageIntro text='Staff leave (including Driver → Transport Manager → HR) syncs here for attendance and payroll LOP. Department-head approvals feed this list automatically.'>
                 {!policiesMode && <Select label='Status' value={status} onChange={(e) => setStatus(e.target.value)} options={['Pending', 'Approved', 'Rejected']} />}
             </PageIntro>
             {policiesMode ? (
@@ -63,8 +83,21 @@ const LeaveManagement = () => {
                 </TableWrap>
             ) : (
                 <TableWrap title='Leave Requests' action={<PrimaryButton onClick={() => employees[0] && setForm({ employeeId: employees[0].id, leaveType: 'Casual Leave', fromDate: '2026-09-28', toDate: '2026-09-28', days: 1, reason: '' })}>Add Request</PrimaryButton>}>
-                    <table className='w-full text-left'><thead className='bg-[#EDEEF5]'><tr>{['Employee', 'Type', 'Dates', 'Reason', 'Status', ''].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
-                        <tbody>{requests.map((row) => <tr key={row.id} className='border-b border-[#f2f4f7]'><td className={td}>{employeeName(row.employeeId)}</td><td className={td}>{row.leaveType}</td><td className={td}>{row.fromDate} – {row.toDate}</td><td className={td}>{row.reason}</td><td className={td}><Badge value={row.status} /></td><td className={td}>{row.status === 'Pending' && <><button type='button' className='text-[#4CAF50] mr-2' onClick={() => decide(row, 'Approved')}>Approve</button><button type='button' className='text-red-500' onClick={() => decide(row, 'Rejected')}>Reject</button></>}</td></tr>)}</tbody>
+                    <table className='w-full text-left'><thead className='bg-[#EDEEF5]'><tr>{['Employee', 'Dept / Role', 'Type', 'Dates', 'Reason', 'Source', 'Status', ''].map((h) => <th key={h} className={th}>{h}</th>)}</tr></thead>
+                        <tbody>{requests.length === 0 ? (
+                            <tr><td className={td} colSpan={8}>No leave records yet. Driver / staff requests appear here after they are filed.</td></tr>
+                        ) : requests.map((row) => (
+                            <tr key={row.id} className='border-b border-[#f2f4f7]'>
+                                <td className={td}>{row.employeeName || employeeName(row.employeeId)}</td>
+                                <td className={td}>{row.department || '—'}{row.submitterRole ? ` · ${row.submitterRole}` : ''}</td>
+                                <td className={td}>{row.leaveType}</td>
+                                <td className={td}>{row.fromDate} – {row.toDate}</td>
+                                <td className={td}>{row.reason}</td>
+                                <td className={td}>{row.source === 'staff-leave' ? 'Staff panel' : 'HR entry'}</td>
+                                <td className={td}><Badge value={row.status} /></td>
+                                <td className={td}>{row.status === 'Pending' && !row.staffLeaveId && <><button type='button' className='text-[#4CAF50] mr-2' onClick={() => decide(row, 'Approved')}>Approve</button><button type='button' className='text-red-500' onClick={() => decide(row, 'Rejected')}>Reject</button></>}{row.staffLeaveId && row.status === 'Pending' ? <span className='text-xs text-[#667085]'>Awaiting chain</span> : null}</td>
+                            </tr>
+                        ))}</tbody>
                     </table>
                 </TableWrap>
             )}

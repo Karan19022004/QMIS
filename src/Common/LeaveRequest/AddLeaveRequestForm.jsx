@@ -9,28 +9,49 @@ import {
     calculateTotalDays,
     createLeaveRequest,
     createLeaveRequestViaApi,
-    LEAVE_REQUESTS_UPDATED_EVENT,
     LEAVE_TYPES,
 } from './leaveRequestData'
 import { canUseLeaveApi } from '../../services/leaveApi'
 import { getLeaveApproverConfig, getLeaveRoutes, getSubmitterProfile, resolveRoleKey } from './leaveRequestConfigs'
+import { hydrateDriverProfileSources, resolveDriverProfile } from '../../Pages/Driver/driverProfileData'
+import { ROLES } from '../../constants/roles'
 
 const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
 const readOnlyInputClass = `${inputClass} bg-[#F9FAFB] cursor-not-allowed`
 
 export default function AddLeaveRequestForm({ roleKey: roleKeyProp }) {
     const navigate = useNavigate()
-    const { role: authRole, name } = useAuth()
+    const { role: authRole, name, email } = useAuth()
     const roleKey = resolveRoleKey(authRole || roleKeyProp)
     const routes = getLeaveRoutes(roleKey)
     const approverConfig = getLeaveApproverConfig(roleKey)
-    const submitterProfile = getSubmitterProfile(roleKey, { name })
+    const baseProfile = getSubmitterProfile(roleKey, { name })
+    const [submitterProfile, setSubmitterProfile] = useState(baseProfile)
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [leaveType, setLeaveType] = useState('')
     const [reason, setReason] = useState('')
     const [fromTime, setFromTime] = useState('09:00')
     const [toTime, setToTime] = useState('10:00')
+
+    useEffect(() => {
+        if (roleKey !== ROLES.DRIVER) {
+            setSubmitterProfile(getSubmitterProfile(roleKey, { name }))
+            return undefined
+        }
+        let cancelled = false
+        hydrateDriverProfileSources().finally(() => {
+            if (cancelled) return
+            const ctx = resolveDriverProfile(email)
+            setSubmitterProfile({
+                employeeId: ctx.driverId !== '—' ? ctx.driverId : (email || baseProfile.employeeId),
+                requestedBy: ctx.driverName || name || baseProfile.requestedBy,
+                role: 'Driver',
+                department: 'Transport',
+            })
+        })
+        return () => { cancelled = true }
+    }, [roleKey, name, email, baseProfile.employeeId, baseProfile.requestedBy])
 
     const totalDays = useMemo(() => calculateTotalDays(fromDate, toDate), [fromDate, toDate])
 
@@ -79,7 +100,7 @@ export default function AddLeaveRequestForm({ roleKey: roleKeyProp }) {
 
         createLeaveRequest(
             {
-                employeeId: submitterProfile.employeeId,
+                employeeId: email || submitterProfile.employeeId,
                 requestedBy: submitterProfile.requestedBy,
                 role: submitterProfile.role,
                 department: submitterProfile.department,

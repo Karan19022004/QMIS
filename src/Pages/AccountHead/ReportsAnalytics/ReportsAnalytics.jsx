@@ -25,7 +25,7 @@ const ReportsAnalytics = () => {
                             {' · '}
                             All Modules
                         </p>
-                        <FinanceSnapshotBanner mockNote='Financial Overview cards/charts use posted snapshot transactions and fee KPIs. Other report tabs may still use template layouts.' />
+                        <FinanceSnapshotBanner mockNote='Overview, income, expenditure, fee comparison, and trends derive from the finance snapshot (posted transactions and installments). Tiles that open unused report packs stay as labels only.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select

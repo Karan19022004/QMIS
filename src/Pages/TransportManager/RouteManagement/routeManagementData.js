@@ -1,5 +1,5 @@
 import { getDriverOptions } from '../DriverManagement/driverManagementData'
-import { getVehicleOptions } from '../VehicleManagement/vehicleManagementData'
+import { getVehicles } from '../VehicleManagement/vehicleManagementData'
 import { getTransportRows, hydrateTransportRows, saveTransportRows, nextPrefixedId } from '../transportCampus'
 
 /** @deprecated Use getRouteDriverOptions() — kept for any static imports */
@@ -17,15 +17,40 @@ export function getRouteDriverOptions() {
 }
 
 export function getRouteVehicleOptions() {
-    return getVehicleOptions().map((vehicle) => ({
+    return getVehicles().map((vehicle) => ({
         id: vehicle.id,
         vehicleNumber: vehicle.vehicleNumber,
         driverName: vehicle.driverName,
         driverContact: vehicle.driverContact,
+        gpsImei: vehicle.gpsImei || vehicle.imei || '',
+        imei: vehicle.gpsImei || vehicle.imei || '',
     }))
 }
 
 const DEFAULT_ROUTES = [
+    {
+        id: 'RT-ROUTE1',
+        routeName: 'Route 1',
+        startLocation: 'Pickup',
+        endLocation: 'Queen Mira International School',
+        vehicleId: 'VEH-ROUTE1',
+        vehicleNumber: 'TN58BB3769',
+        gpsImei: '355710090439063',
+        imei: '355710090439063',
+        driverName: '',
+        driverContact: '',
+        pickUpTime: '',
+        dropTime: '',
+        yearlyFees: '',
+        halfYearlyFees: '',
+        quarterlyFees: '',
+        monthlyFees: '',
+        supportStaff: '',
+        totalStops: 0,
+        distance: '',
+        estimatedTime: '',
+        stops: [],
+    },
     {
         id: 'RT-1001',
         routeName: 'Route 5 — North Campus',

@@ -1,7 +1,9 @@
+import { hydrateCampusKey, usesCampusApiForKey } from '../../services/campusJsonStore'
 import { ensureSeed, loadJson, nextSerial, saveJson } from './storage'
 import { logActivity } from './activityLog'
 
 export const PROCUREMENT_KEY = 'schoolerp-procurement-requests-v1'
+export const IT_PROCUREMENT_KEY = 'schoolerp-it-procurement-v1'
 export const PO_KEY = 'schoolerp-purchase-orders-v1'
 
 export const PROCUREMENT_STATUSES = [
@@ -58,20 +60,31 @@ const seedOrders = [
     },
 ]
 
-export function getProcurementRequests() {
-    return ensureSeed(PROCUREMENT_KEY, seedRequests)
+function seedForKey(key) {
+    if (usesCampusApiForKey(key)) return []
+    if (key === IT_PROCUREMENT_KEY) return seedRequests.filter((row) => row.department === 'IT Support')
+    return seedRequests
+}
+
+export function getProcurementRequests(key = PROCUREMENT_KEY) {
+    return ensureSeed(key, seedForKey(key))
+}
+
+export function hydrateProcurementFromApi(key = PROCUREMENT_KEY) {
+    if (!usesCampusApiForKey(key)) return Promise.resolve(false)
+    return hydrateCampusKey(key, [])
 }
 
 export function getPurchaseOrders() {
     return ensureSeed(PO_KEY, seedOrders)
 }
 
-export function saveProcurement(requests) {
-    saveJson(PROCUREMENT_KEY, requests)
+export function saveProcurement(requests, key = PROCUREMENT_KEY) {
+    saveJson(key, requests)
 }
 
-export function createProcurementRequest(input) {
-    const requests = getProcurementRequests()
+export function createProcurementRequest(input, key = PROCUREMENT_KEY) {
+    const requests = getProcurementRequests(key)
     const record = {
         id: nextSerial('REQ-2026-', requests, 'id'),
         title: input.title,
@@ -86,13 +99,13 @@ export function createProcurementRequest(input) {
         primaryApprover: input.primaryApprover || 'Department Head',
         createdAt: new Date().toISOString(),
     }
-    saveProcurement([record, ...requests])
+    saveProcurement([record, ...requests], key)
     logActivity({ actor: input.requestedBy, action: 'CREATE', module: 'Procurement', recordId: record.id, details: record.title })
     return record
 }
 
-export function advanceProcurement(id, actor = 'Approver') {
-    const requests = getProcurementRequests()
+export function advanceProcurement(id, actor = 'Approver', key = PROCUREMENT_KEY) {
+    const requests = getProcurementRequests(key)
     const current = requests.find((item) => item.id === id)
     if (!current) return null
     const order = current.minorPurchase
@@ -107,7 +120,7 @@ export function advanceProcurement(id, actor = 'Approver') {
         saveJson(PO_KEY, [{ id: poNumber, requestId: id, vendor: 'Selected vendor', amount: current.amount, status: 'PO_RAISED', date: new Date().toISOString().slice(0, 10) }, ...orders])
     }
     const next = requests.map((item) => (item.id === id ? { ...item, status, poNumber } : item))
-    saveProcurement(next)
+    saveProcurement(next, key)
     logActivity({ actor, action: 'STATUS_CHANGE', module: 'Procurement', recordId: id, before: current.status, after: status })
     return next.find((item) => item.id === id)
 }
@@ -124,7 +137,7 @@ export function downloadQuotationTemplate() {
     logActivity({ action: 'DOWNLOAD_CLICK', module: 'Procurement', details: 'Comparative quotation template' })
 }
 
-export function loadProcurementSafe() {
-    const stored = loadJson(PROCUREMENT_KEY, null)
-    return Array.isArray(stored) ? stored : getProcurementRequests()
+export function loadProcurementSafe(key = PROCUREMENT_KEY) {
+    const stored = loadJson(key, null)
+    return Array.isArray(stored) ? stored : getProcurementRequests(key)
 }

@@ -1103,6 +1103,16 @@ def post_payroll_voucher(db: Session, actor: User, month_row: dict) -> dict:
     return {"success": True, "transaction": txn, "state": saved}
 
 
+def _parse_money(value) -> float:
+    if isinstance(value, (int, float)):
+        return float(value or 0)
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit() or ch == ".")
+    try:
+        return float(digits) if digits else 0.0
+    except ValueError:
+        return 0.0
+
+
 def decide_approval(db: Session, actor: User, payload: dict) -> dict:
     state = fin.get_state(db, actor)
     data = dict(state["data"])
@@ -1119,6 +1129,48 @@ def decide_approval(db: Session, actor: User, payload: dict) -> dict:
     row["decidedBy"] = actor.email
     row["remarks"] = payload.get("remarks") or ""
     data["approvals"] = approvals
+
+    # Approved claims become posted OUT expenditure so Reports / Collections track spend.
+    if decision == "approved":
+        amount = _parse_money(row.get("amount"))
+        txn_id = f"TXN-APR-{str(row.get('id') or '').replace(' ', '')}"
+        transactions = list(data.get("transactions") or [])
+        already = any(
+            str(t.get("id") or "") == txn_id
+            or str(t.get("linkedApprovalId") or "") == str(row.get("id") or "")
+            for t in transactions
+        )
+        if amount > 0 and not already:
+            seq = _seq(data)
+            seq["txn"] += 1
+            seq["voucher"] += 1
+            dept = str(row.get("department") or "")
+            txn = {
+                "id": txn_id,
+                "transactionNo": f"TXN-{seq['txn']:04d}",
+                "transactionDate": _now()[:10],
+                "direction": "OUT",
+                "sourceModule": "TRANSPORT" if dept.lower() == "transport" else "MANUAL",
+                "category": row.get("type") or "Expense Claim",
+                "paymentMode": "BANK_TRANSFER",
+                "amount": amount,
+                "status": "POSTED",
+                "voucherNo": f"PV-{seq['voucher']:04d}",
+                "reference": row.get("id"),
+                "linkedApprovalId": row.get("id"),
+                "linkedRequestId": row.get("linkedRequestId") or "",
+                "narration": (
+                    f"{row.get('type') or 'Approval'} — {row.get('raisedBy') or 'Staff'}"
+                    f" · {dept}".strip()
+                ),
+                "createdBy": actor.email,
+                "createdAt": _now(),
+                "entryType": "Expense",
+            }
+            transactions.insert(0, txn)
+            data["transactions"] = transactions
+            _append_accounting_posting(data, txn, None)
+
     saved = _save(db, actor, data)
     return {"success": True, "approval": row, "state": saved}
 

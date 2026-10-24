@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react'
 import { Search } from 'lucide-react'
-import { APPROVED_SUMMARY } from '../approvalsData'
 import {
     SummaryCards,
     TableCard,
@@ -11,16 +10,63 @@ import {
 import { useFinance } from '../../financeDomain/FinanceContext'
 import { formatDisplayDate } from '../../financeDomain/financeHelpers'
 
+const parseAmount = (value) => {
+    const digits = String(value ?? '').replace(/[^\d.]/g, '')
+    return Number(digits) || 0
+}
+
+const formatInr = (amount) => {
+    try {
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+            maximumFractionDigits: 0,
+        }).format(amount)
+    } catch {
+        return `₹${amount}`
+    }
+}
+
 const ApprovedTab = () => {
     const { approvals } = useFinance()
     const approved = useMemo(
-        () => (approvals || []).filter((row) => row.status === 'Approved'),
+        () => (approvals || []).filter((row) => String(row.status || '').toLowerCase() === 'approved'),
         [approvals],
     )
+    const summaryCards = useMemo(() => {
+        const value = approved.reduce((sum, row) => sum + parseAmount(row.amount), 0)
+        return [
+            {
+                label: 'Approved (campus snapshot)',
+                value: String(approved.length),
+                sub: `${formatInr(value)} total value`,
+                subTone: 'success',
+                iconTone: 'success',
+            },
+            {
+                label: 'Transport',
+                value: String(approved.filter((row) => String(row.department || '').toLowerCase() === 'transport').length),
+                sub: 'From TM / Principal chain',
+                iconTone: 'info',
+            },
+            {
+                label: 'Other departments',
+                value: String(approved.filter((row) => String(row.department || '').toLowerCase() !== 'transport').length),
+                sub: 'Non-transport',
+                iconTone: 'success',
+            },
+            {
+                label: 'Live finance SoT',
+                value: 'API',
+                sub: 'Approved list uses finance snapshot — not demo constants',
+                iconTone: 'success',
+            },
+        ]
+    }, [approved])
 
     return (
         <div className='space-y-6'>
-            <SummaryCards cards={APPROVED_SUMMARY} />
+            <SummaryCards cards={summaryCards} />
 
             <TableCard
                 title='Approved requests'

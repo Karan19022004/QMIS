@@ -1,11 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import ReactECharts from 'echarts-for-react'
 import FinanceDataTable from './Components/FinanceDataTable'
-import {
-    INCOME_EXPENDITURE_TREND,
-    transactionStatusBadgeColor,
-} from './financeOverviewData'
+import { transactionStatusBadgeColor } from './financeOverviewData'
 import { formatCurrency } from '../../AccountHead/financeDomain/financeHelpers'
+import { buildMonthlyFlowTrend } from '../../AccountHead/financeDomain/financeLiveViews'
 import { pullFinanceState } from '../../../services/financeApi'
 import { isApiFinanceEnabled } from '../../../services/apiClient'
 
@@ -71,37 +69,47 @@ const FinanceOverview = () => {
         ]
     }, [live])
 
-    const incomeExpenseOption = useMemo(() => ({
-        tooltip: { trigger: 'axis' },
-        legend: { data: ['Income', 'Expenditure'], bottom: 0, textStyle: { color: '#667085', fontSize: 11 } },
-        grid: { left: 48, right: 24, top: 24, bottom: 48 },
-        xAxis: {
-            type: 'category',
-            data: INCOME_EXPENDITURE_TREND.labels,
-            axisLabel: { color: '#667085', fontSize: 11 },
-        },
-        yAxis: {
-            type: 'value',
-            axisLabel: { color: '#667085', fontSize: 11, formatter: '{value}L' },
-            splitLine: { lineStyle: { color: '#F2F4F7' } },
-        },
-        series: [
-            {
-                name: 'Income',
-                type: 'bar',
-                data: INCOME_EXPENDITURE_TREND.income,
-                itemStyle: { color: '#515DEF', borderRadius: [4, 4, 0, 0] },
-                barWidth: 24,
+    const incomeExpenseOption = useMemo(() => {
+        const trend = buildMonthlyFlowTrend(live?.transactions || [], 6)
+        return {
+            tooltip: {
+                trigger: 'axis',
+                valueFormatter: (value) => formatCurrency(Number(value) || 0),
             },
-            {
-                name: 'Expenditure',
-                type: 'bar',
-                data: INCOME_EXPENDITURE_TREND.expenditure,
-                itemStyle: { color: '#FF5722', borderRadius: [4, 4, 0, 0] },
-                barWidth: 24,
+            legend: { data: ['Income', 'Expenditure'], bottom: 0, textStyle: { color: '#667085', fontSize: 11 } },
+            grid: { left: 56, right: 24, top: 24, bottom: 48 },
+            xAxis: {
+                type: 'category',
+                data: trend.labels,
+                axisLabel: { color: '#667085', fontSize: 11 },
             },
-        ],
-    }), [])
+            yAxis: {
+                type: 'value',
+                axisLabel: {
+                    color: '#667085',
+                    fontSize: 11,
+                    formatter: (v) => (Math.abs(v) >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v}`),
+                },
+                splitLine: { lineStyle: { color: '#F2F4F7' } },
+            },
+            series: [
+                {
+                    name: 'Income',
+                    type: 'bar',
+                    data: trend.inflow,
+                    itemStyle: { color: '#515DEF', borderRadius: [4, 4, 0, 0] },
+                    barWidth: 24,
+                },
+                {
+                    name: 'Expenditure',
+                    type: 'bar',
+                    data: trend.outflow,
+                    itemStyle: { color: '#FF5722', borderRadius: [4, 4, 0, 0] },
+                    barWidth: 24,
+                },
+            ],
+        }
+    }, [live])
 
     const collectionSplitOption = useMemo(() => {
         const receipts = live?.receipts || []

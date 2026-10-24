@@ -20,6 +20,15 @@ def my_transport_route(
     return svc.my_transport(db, user)
 
 
+@router.get("/my-hostel")
+def my_hostel_route(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Parent/student view of their own hostel assignment and payments."""
+    return svc.my_hostel(db, user)
+
+
 @router.get("/{collection}")
 def list_route(
     collection: str,

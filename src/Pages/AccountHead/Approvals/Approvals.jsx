@@ -5,6 +5,7 @@ import PendingTab from './Components/PendingTab'
 import ApprovedTab from './Components/ApprovedTab'
 import RejectedTab from './Components/RejectedTab'
 import ApprovalRulesTab from './Components/ApprovalRulesTab'
+import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
 import { APPROVAL_DEPARTMENTS, APPROVALS_TABS } from './approvalsData'
 
 const Approvals = () => {
@@ -23,6 +24,7 @@ const Approvals = () => {
                             {' · '}
                             All Departments
                         </p>
+                        <FinanceSnapshotBanner mockNote='Live finance approvals only. Hardcoded demo APR rows are removed from the snapshot. Transport claims sync from TM ops on open.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select

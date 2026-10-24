@@ -15,6 +15,24 @@ export const VEHICLE_TYPES = [...BUS_TYPES, ...CAR_TYPES]
 
 const DEFAULT_VEHICLES = [
     {
+        id: 'VEH-ROUTE1',
+        vehicleNumber: 'TN58BB3769',
+        vehicleType: 'School Bus (45 Seater)',
+        capacity: 45,
+        gpsImei: '355710090439063',
+        imei: '355710090439063',
+        driverName: '',
+        driverContact: '',
+        conductorName: '',
+        studentStrength: '',
+        staffStrength: '',
+        currentOdometer: '',
+        category: 'Bus',
+        insuranceExpiryDate: '',
+        lastServiceDate: '',
+        nextServiceDate: '',
+    },
+    {
         id: 'VEH-1001',
         vehicleNumber: 'TN-09-AB-4521',
         vehicleType: 'School Van (32 Seater)',
@@ -133,6 +151,8 @@ export function getVehicleOptions() {
         driverName: vehicle.driverName,
         driverContact: vehicle.driverContact,
         category: vehicle.category,
+        gpsImei: vehicle.gpsImei || vehicle.imei || '',
+        imei: vehicle.gpsImei || vehicle.imei || '',
     }))
 }
 

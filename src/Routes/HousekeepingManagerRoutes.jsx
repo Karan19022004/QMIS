@@ -12,9 +12,10 @@ import Reports from '../Pages/HousekeepingManager/Reports/Reports'
 import AnnouncementList from '../Pages/HousekeepingManager/Announcement/AnnouncementList'
 import ViewAnnouncement from '../Pages/HousekeepingManager/Announcement/ViewAnnouncement'
 import AddAnnouncement from '../Pages/HousekeepingManager/Announcement/AddAnnouncement'
-import { HousekeepingDutyPage, MovementTable, RequirementsPage, SimpleRegister } from '../Common/demoDomain/DemoScreens'
+import { HousekeepingDutyPage, MovementTable, SimpleRegister } from '../Common/demoDomain/DemoScreens'
 import { getMovements } from '../Common/demoDomain/inventory'
-import { ProcurementBoard } from '../Common/demoDomain/WorkflowScreens'
+import InventoryRequirement from '../Pages/HousekeepingManager/InventoryRequirement/InventoryRequirement'
+import PurchaseWorkflow from '../Pages/HousekeepingManager/PurchaseWorkflow/PurchaseWorkflow'
 import { LOST_SEED, RO_SEED, SCHEDULE_SEED, SOM_SEED } from '../Common/demoDomain/housekeeping'
 
 const HousekeepingManagerRoutes = () => {
@@ -37,9 +38,9 @@ const HousekeepingManagerRoutes = () => {
             <Route path="/housekeeping-manager/star-of-the-month" element={<SimpleRegister title="Star of the Month" storageKey="schoolerp-housekeeping-som-v1" seed={SOM_SEED} idPrefix="SOM-HK-2026-" statusKey="" columns={[{ key: 'employee', label: 'Employee' }, { key: 'month', label: 'Month' }, { key: 'criteria', label: 'Criteria' }, { key: 'score', label: 'Score' }, { key: 'ratedBy', label: 'Rated By' }]} fields={[{ key: 'employee', label: 'Employee', required: true }, { key: 'month', label: 'Month', required: true }, { key: 'criteria', label: 'Criteria' }, { key: 'score', label: 'Score', type: 'number' }, { key: 'remarks', label: 'Remarks' }, { key: 'ratedBy', label: 'Rated By' }]} />} />
             <Route path="/housekeeping-manager/ro-testing" element={<SimpleRegister title="RO Testing" description="Generic register. No laboratory limits were supplied." storageKey="schoolerp-housekeeping-ro-testing-v1" seed={RO_SEED} idPrefix="RO-2026-" columns={[{ key: 'date', label: 'Date' }, { key: 'location', label: 'RO Unit' }, { key: 'test', label: 'Test' }, { key: 'result', label: 'Result' }, { key: 'status', label: 'Status' }]} fields={[{ key: 'date', label: 'Date', type: 'date', required: true }, { key: 'location', label: 'Location / RO Unit', required: true }, { key: 'test', label: 'Test' }, { key: 'result', label: 'Result' }, { key: 'status', label: 'Status', type: 'select', options: ['Recorded', 'Follow-up'] }, { key: 'remarks', label: 'Remarks' }, { key: 'recordedBy', label: 'Recorded By' }]} />} />
             <Route path="/housekeeping-manager/lost-found" element={<SimpleRegister title="Lost & Found" storageKey="schoolerp-housekeeping-lost-found-v1" seed={LOST_SEED} idPrefix="LF-2026-" columns={[{ key: 'date', label: 'Date' }, { key: 'item', label: 'Item' }, { key: 'foundLocation', label: 'Found Location' }, { key: 'claimStatus', label: 'Claim Status' }]} fields={[{ key: 'date', label: 'Date', type: 'date' }, { key: 'item', label: 'Item', required: true }, { key: 'foundLocation', label: 'Found Location' }, { key: 'reportedBy', label: 'Reported By' }, { key: 'description', label: 'Description', type: 'textarea' }, { key: 'claimStatus', label: 'Claim Status', type: 'select', options: ['Unclaimed', 'Claimed'] }, { key: 'claimedBy', label: 'Claimed By' }, { key: 'claimedDate', label: 'Claimed Date', type: 'date' }, { key: 'remarks', label: 'Remarks' }]} />} />
-            <Route path="/housekeeping-manager/inventory-requirement" element={<RequirementsPage department="Housekeeping" requestedBy="Housekeeping Manager" lockDepartment />} />
+            <Route path="/housekeeping-manager/inventory-requirement" element={<InventoryRequirement />} />
             <Route path="/housekeeping-manager/movements" element={<MovementTable rows={getMovements()} department="Housekeeping" />} />
-            <Route path="/housekeeping-manager/purchase-workflow" element={<ProcurementBoard department="Housekeeping" requestedBy="Housekeeping Manager" />} />
+            <Route path="/housekeeping-manager/purchase-workflow" element={<PurchaseWorkflow />} />
             <Route path="*" element={<Navigate to="/housekeeping-manager/dashboard" replace />} />
         </ReactRoutes>
     )

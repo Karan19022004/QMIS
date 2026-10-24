@@ -108,20 +108,22 @@ export const TableCard = ({ title, filters, children, footer }) => (
     </div>
 )
 
-export const ApproveRejectActions = ({ onReview, onApprove, onReject }) => (
+export const ApproveRejectActions = ({ onReview, onApprove, onReject, disabled = false }) => (
     <div className='flex items-center gap-2'>
         <button
             type='button'
+            disabled={disabled}
             onClick={onReview ?? onApprove}
-            className='size-8 flex items-center justify-center rounded-md border border-[#4CAF50] bg-[#4CAF501A] text-[#4CAF50] hover:bg-[#4CAF50] hover:text-white transition-colors cursor-pointer'
+            className='size-8 flex items-center justify-center rounded-md border border-[#4CAF50] bg-[#4CAF501A] text-[#4CAF50] hover:bg-[#4CAF50] hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
             aria-label='Approve request'
         >
             <CheckCircle2 size={16} />
         </button>
         <button
             type='button'
+            disabled={disabled}
             onClick={onReject}
-            className='size-8 flex items-center justify-center rounded-md border border-[#FF5722] bg-[#FF57221A] text-[#FF5722] hover:bg-[#FF5722] hover:text-white transition-colors cursor-pointer'
+            className='size-8 flex items-center justify-center rounded-md border border-[#FF5722] bg-[#FF57221A] text-[#FF5722] hover:bg-[#FF5722] hover:text-white transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
             aria-label='Reject request'
         >
             <XCircle size={16} />

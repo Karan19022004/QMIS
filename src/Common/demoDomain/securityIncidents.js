@@ -1,4 +1,13 @@
-import { ensureSeed, saveJson } from './storage'
+/**
+ * Gate incidents — shared by Gate Keeper + Gate Keeper Manager.
+ * API: /api/v1/ops/gate-incidents
+ */
+import {
+    ensureCampusSeed,
+    hydrateCampusKey,
+    persistCampusJson,
+    usesCampusApiForKey,
+} from '../../services/campusJsonStore'
 
 export const INCIDENT_KEY = 'schoolerp-security-incidents-v1'
 
@@ -17,11 +26,18 @@ const SEED = [
     },
 ]
 
-export const getIncidents = () => ensureSeed(INCIDENT_KEY, SEED)
+const seedFor = () => (usesCampusApiForKey(INCIDENT_KEY) ? [] : SEED)
+
+export const getIncidents = () => ensureCampusSeed(INCIDENT_KEY, seedFor())
 
 export const getIncidentById = (id) => getIncidents().find((item) => item.id === id) ?? null
 
-export const addIncident = (payload) => {
+export function hydrateIncidentsFromApi() {
+    if (!usesCampusApiForKey(INCIDENT_KEY)) return Promise.resolve(false)
+    return hydrateCampusKey(INCIDENT_KEY, [])
+}
+
+export const addIncident = async (payload) => {
     const rows = getIncidents()
     const record = {
         id: payload.id?.trim() || `REP-${Date.now()}`,
@@ -31,10 +47,14 @@ export const addIncident = (payload) => {
         location: payload.location,
         description: payload.description,
         reportTo: payload.reportTo,
-        reportedBy: 'CSO / Gate Keeper',
+        reportedBy: payload.reportedBy || 'CSO / Gate Keeper',
         priority: payload.priority || 'Medium',
-        status: 'Open',
+        status: payload.status || 'Open',
     }
-    saveJson(INCIDENT_KEY, [record, ...rows.filter((item) => item.id !== record.id)])
-    return record
+    const next = [record, ...rows.filter((item) => item.id !== record.id)]
+    const result = await persistCampusJson(INCIDENT_KEY, next)
+    if (result?.success === false) {
+        return { success: false, message: result.message, record }
+    }
+    return { success: true, record }
 }

@@ -32,12 +32,12 @@ const MaintenanceRequest = () => {
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
 
     const filteredRecords = useMemo(() => filterMaintenanceRequests({
-        records: MAINTENANCE_REQUESTS,
+        records: maintenanceRequests,
         search,
         requestStatus,
         fromDate,
         toDate,
-    }), [search, requestStatus, fromDate, toDate])
+    }), [maintenanceRequests, search, requestStatus, fromDate, toDate])
 
     const clearFilters = () => {
         setSearch('')

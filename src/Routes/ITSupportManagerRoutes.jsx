@@ -14,8 +14,9 @@ import AnnouncementList from '../Pages/ITSupportManager/Announcement/Announcemen
 import ViewAnnouncement from '../Pages/ITSupportManager/Announcement/ViewAnnouncement'
 import AddAnnouncement from '../Pages/ITSupportManager/Announcement/AddAnnouncement'
 import MaintenanceInventory from '../Pages/ITSupportManager/MaintenanceInventory/MaintenanceInventory'
-import { AssetImportPage } from '../Common/demoDomain/DemoScreens'
+import DataImport from '../Pages/ITSupportManager/DataImport/DataImport'
 import { ProcurementBoard } from '../Common/demoDomain/WorkflowScreens'
+import { IT_PROCUREMENT_KEY } from '../Common/demoDomain/procurement'
 
 const ITSupportManagerRoutes = () => {
     return (
@@ -34,8 +35,8 @@ const ITSupportManagerRoutes = () => {
             <Route path="/it-support-manager/broadcast" element={<AnnouncementList />} />
             <Route path="/it-support-manager/broadcast/view-broadcast/:id" element={<ViewAnnouncement />} />
             <Route path="/it-support-manager/broadcast/add-broadcast" element={<AddAnnouncement />} />
-            <Route path="/it-support-manager/data-import" element={<AssetImportPage />} />
-            <Route path="/it-support-manager/purchase-workflow" element={<ProcurementBoard department="IT Support" requestedBy="IT Support Manager" />} />
+            <Route path="/it-support-manager/data-import" element={<DataImport />} />
+            <Route path="/it-support-manager/purchase-workflow" element={<ProcurementBoard department="IT Support" requestedBy="IT Support Manager" storageKey={IT_PROCUREMENT_KEY} />} />
             <Route path="*" element={<Navigate to="/it-support-manager/dashboard" replace />} />
         </ReactRoutes>
     )

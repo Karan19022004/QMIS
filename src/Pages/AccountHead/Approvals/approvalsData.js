@@ -14,6 +14,7 @@ export const PENDING_SUMMARY = [
     { label: 'Rejected This Month', value: '4', sub: '₹9,200 value', iconTone: 'warning' },
 ]
 
+/** Legacy UI mock rows — never seed into finance API / snapshot. */
 export const PENDING_REQUESTS = [
     {
         id: 'APR-1142',
@@ -71,6 +72,33 @@ export const PENDING_REQUESTS = [
     },
 ]
 
+export const APPROVED_REQUESTS_DEMO_IDS = ['APR-1119', 'APR-1112', 'APR-1103']
+export const REJECTED_REQUESTS_DEMO_IDS = ['APR-1108', 'APR-1095', 'APR-1088']
+
+/** IDs that were hardcoded marketing/demo samples — strip from live SoT. */
+export const DEMO_APPROVAL_IDS = new Set([
+    ...PENDING_REQUESTS.map((row) => row.id),
+    ...APPROVED_REQUESTS_DEMO_IDS,
+    ...REJECTED_REQUESTS_DEMO_IDS,
+])
+
+const DEMO_RAISED_BY = new Set(
+    PENDING_REQUESTS.map((row) => String(row.raisedBy || '').trim().toLowerCase()),
+)
+
+export const isDemoApprovalRow = (row) => {
+    if (!row) return false
+    if (row.source === 'transport-ops' || row.linkedRequestId) return false
+    const id = String(row.id || '').trim()
+    if (DEMO_APPROVAL_IDS.has(id)) return true
+    // Catch renamed copies of the same seed cast
+    const raisedBy = String(row.raisedBy || '').trim().toLowerCase()
+    if (DEMO_RAISED_BY.has(raisedBy) && /^APR-11\d{2}$/i.test(id)) return true
+    return false
+}
+
+export const stripDemoApprovals = (rows = []) => (rows || []).filter((row) => !isDemoApprovalRow(row))
+
 export const APPROVED_SUMMARY = [
     { label: 'Approved This Month', value: '62', sub: '₹4.8L total value', subTone: 'success', iconTone: 'success' },
     { label: 'Avg. Approval Time', value: '6.4 hrs', sub: 'from raise to decision', iconTone: 'info' },
@@ -83,6 +111,8 @@ export const APPROVED_REQUESTS = [
     { id: 'APR-1112', raisedBy: 'Sri Balaji Motors', type: 'Service Bill', amount: '₹6,200', approvedBy: 'Finance Manager', approvedOn: '20 Jun' },
     { id: 'APR-1103', raisedBy: 'Preethi V. (7-C)', type: 'RTE Waiver', amount: '₹4,600', approvedBy: 'Principal', approvedOn: '15 Jun' },
 ]
+
+// Keep APPROVED_REQUESTS for offline docs only — live UI must use stripDemoApprovals.
 
 export const REJECTED_SUMMARY = [
     { label: 'Rejected This Month', value: '4', sub: '₹9,200 value', iconTone: 'danger' },

@@ -88,18 +88,23 @@ export default function useProtrackLive(opts = {}) {
 
                 let devicesList = []
                 let panelUsed = panel || ''
+                let devicesError = ''
                 try {
                     devicesList = await listProtrackDevicesApi(panel || undefined)
                 } catch (err) {
                     if (fallbackPanel && isAuthFailure(err)) {
-                        devicesList = await listProtrackDevicesApi(fallbackPanel)
-                        panelUsed = fallbackPanel
-                        panelRef.current = fallbackPanel
-                        if (active) {
-                            setError('Parent GPS login failed — using school fleet tracking instead.')
+                        try {
+                            devicesList = await listProtrackDevicesApi(fallbackPanel)
+                            panelUsed = fallbackPanel
+                            panelRef.current = fallbackPanel
+                            if (active) {
+                                setError('Parent GPS login failed — using school fleet tracking instead.')
+                            }
+                        } catch (fallbackErr) {
+                            devicesError = fallbackErr?.message || err?.message || 'Device list failed.'
                         }
                     } else {
-                        throw err
+                        devicesError = err?.message || 'Device list failed.'
                     }
                 }
                 if (!active) return
@@ -119,10 +124,15 @@ export default function useProtrackLive(opts = {}) {
                     : null
                 // Never fall back to the first device — wrong-bus risk.
                 const chosen = byImei || byPlate || null
-                if (!chosen) {
+                // Prefer listed device; if only a configured IMEI exists, still poll /track
+                // (vendor may grant track before the device appears on /device/list).
+                const nextImei = String(chosen?.imei || wantImei || '')
+                if (!nextImei) {
                     setImei('')
                     setTrack(null)
-                    if (!wantImei && !plateNorm) {
+                    if (devicesError) {
+                        setError(devicesError)
+                    } else if (!wantImei && !plateNorm) {
                         setError(
                             'Live GPS needs a verified vehicle IMEI or plate mapped to a ProTrack device. Tracking stays off until that mapping exists.',
                         )
@@ -133,9 +143,15 @@ export default function useProtrackLive(opts = {}) {
                     }
                     return
                 }
-                const nextImei = String(chosen.imei || '')
+                if (devicesError && wantImei) {
+                    setError(`${devicesError} — tracking with saved IMEI ${wantImei}.`)
+                } else if (!chosen && wantImei) {
+                    setError(
+                        `IMEI ${wantImei} is not on the ProTrack device list yet — attempting live track anyway. If this fails, ask the vendor to assign the device to the Open API account.`,
+                    )
+                }
                 setImei(nextImei)
-                if (nextImei) await refreshTrack(nextImei, panelUsed)
+                await refreshTrack(nextImei, panelUsed)
             } catch (err) {
                 if (active) setError(err?.message || 'Could not load ProTrack devices.')
             } finally {

@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Check, Search, X, XCircle } from 'lucide-react'
+import { toast } from 'react-toastify'
 import {
     departmentBadgeColor,
 } from '../approvalsData'
@@ -108,12 +109,36 @@ const formatInr = (amount) => {
 }
 
 const PendingTab = () => {
-    const { approvals, decideApproval } = useFinance()
+    const { approvals, decideApproval, syncTransportOpsIntoFinance } = useFinance()
     const [reviewRequest, setReviewRequest] = useState(null)
+    const [busyId, setBusyId] = useState('')
+
+    useEffect(() => {
+        syncTransportOpsIntoFinance?.().catch(() => {})
+        // Mount-only: sync is throttled inside FinanceContext.
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional once on open
+    }, [])
+
     const pending = useMemo(
-        () => (approvals || []).filter((row) => !row.status || row.status === 'Pending'),
+        () => (approvals || []).filter((row) => !row.status || String(row.status).toLowerCase() === 'pending'),
         [approvals],
     )
+
+    const runDecision = async (approvalId, decision, remarks = '') => {
+        setBusyId(approvalId)
+        try {
+            const result = await decideApproval({ approvalId, decision, remarks })
+            if (result?.success === false) {
+                toast.error(result.message || 'Could not update approval.')
+                return
+            }
+            toast.success(decision === 'approved' ? 'Request approved.' : 'Request rejected.')
+        } catch (err) {
+            toast.error(err?.message || 'Could not update approval.')
+        } finally {
+            setBusyId('')
+        }
+    }
     const summaryCards = useMemo(() => {
         const rows = approvals || []
         const pendingRows = rows.filter((row) => !row.status || row.status === 'Pending')
@@ -146,7 +171,7 @@ const PendingTab = () => {
             {
                 label: 'Live finance SoT',
                 value: 'API',
-                sub: 'Summary cards use finance snapshot approvals — not demo constants',
+                sub: 'Live approvals only — demo APR-11xx samples are stripped',
                 iconTone: 'success',
             },
         ]
@@ -211,13 +236,21 @@ const PendingTab = () => {
                                 <td className={tdClass}>{row.raisedOn}</td>
                                 <td className={`${tdClass} rounded-e-lg`}>
                                     <ApproveRejectActions
+                                        disabled={busyId === row.id}
                                         onReview={row.detail ? () => setReviewRequest(row) : undefined}
-                                        onApprove={() => decideApproval({ approvalId: row.id, decision: 'approved' })}
-                                        onReject={() => decideApproval({ approvalId: row.id, decision: 'rejected' })}
+                                        onApprove={() => runDecision(row.id, 'approved')}
+                                        onReject={() => runDecision(row.id, 'rejected')}
                                     />
                                 </td>
                             </tr>
                         ))}
+                        {!pending.length && (
+                            <tr>
+                                <td colSpan={7} className={`${tdClass} text-center py-8 text-[#667085]`}>
+                                    No pending approvals. Transport claims sync from TM / Principal when available.
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </TableCard>
@@ -228,7 +261,7 @@ const PendingTab = () => {
                 onClose={() => setReviewRequest(null)}
                 onDecide={async (decision, remarks) => {
                     if (!reviewRequest) return
-                    await decideApproval({ approvalId: reviewRequest.id, decision, remarks })
+                    await runDecision(reviewRequest.id, decision, remarks)
                     setReviewRequest(null)
                 }}
             />

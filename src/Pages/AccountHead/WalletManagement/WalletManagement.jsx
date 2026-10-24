@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Download, Wallet } from 'lucide-react'
+import { toast } from 'react-toastify'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import WalletOverviewTab from './Components/WalletOverviewTab'
 import UserWalletsTab from './Components/UserWalletsTab'
@@ -12,21 +13,34 @@ import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
 import { WALLET_ROLE_FILTERS, WALLET_TABS } from './walletManagementData'
 
 const WalletManagement = () => {
-    const { rechargeWallet, wallets: userWallets, walletRecharges: rechargeRecords } = useFinance()
+    const {
+        rechargeWallet,
+        ensureStudentWallets,
+        wallets: userWallets,
+        walletRecharges: rechargeRecords,
+        financePersistence,
+    } = useFinance()
     const [activeTab, setActiveTab] = useState('wallet-overview')
     const [roleFilter, setRoleFilter] = useState(WALLET_ROLE_FILTERS[0])
     const [exportModal, setExportModal] = useState(false)
     const [addMethodModal, setAddMethodModal] = useState(false)
     const [rechargeModal, setRechargeModal] = useState(false)
 
-    const handleOfflineRecharge = ({ email, amount }) => {
-        const result = rechargeWallet({ email, amount })
+    useEffect(() => {
+        if (!financePersistence?.apiEnabled) return
+        ensureStudentWallets?.().catch(() => {})
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- once when wallets page opens in API mode
+    }, [financePersistence?.apiEnabled])
+
+    const handleOfflineRecharge = async ({ email, amount }) => {
+        const result = await rechargeWallet({ email, amount })
         if (!result.success) {
             return {
                 success: false,
                 message: result.message || 'No wallet found for this email ID. Please verify and try again.',
             }
         }
+        toast.success(result.api ? 'Wallet recharged and saved to finance API.' : 'Wallet recharged.')
         return { success: true, message: 'Wallet recharged.' }
     }
 
@@ -41,7 +55,7 @@ const WalletManagement = () => {
                             {' · '}
                             All Roles
                         </p>
-                        <FinanceSnapshotBanner mockNote='Wallets & recharges come from the finance snapshot. Spending history and recharge method catalogs remain illustrative.' />
+                        <FinanceSnapshotBanner mockNote='Wallets & recharges persist via GET/PUT /finance/state. Student wallets auto-sync from the finance roster. Recharge method catalog remains illustrative.' />
                     </div>
                     <div className='flex flex-wrap items-center gap-3'>
                         <select

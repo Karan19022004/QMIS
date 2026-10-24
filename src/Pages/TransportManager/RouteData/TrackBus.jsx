@@ -1,9 +1,15 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, RefreshCw } from 'lucide-react'
 import BusTrackingMap from './Components/BusTrackingMap'
 import { getRouteById, hydrateRoutesFromApi } from '../RouteManagement/routeManagementData'
+import { getVehicles, hydrateVehiclesFromApi } from '../VehicleManagement/vehicleManagementData'
 import useProtrackLive from '../../../Common/Transport/useProtrackLive'
+import {
+    SCHOOL_CAMPUS,
+    parseMapLatLng,
+    resolveDestinationPosition,
+} from '../../../Common/Transport/schoolCampusLocation'
 
 const Field = ({ label, value }) => (
     <div className='flex flex-col gap-y-1'>
@@ -23,13 +29,24 @@ const TrackBus = () => {
     const [route, setRoute] = useState(() => getRouteById(id))
 
     useEffect(() => {
-        hydrateRoutesFromApi().finally(() => setRoute(getRouteById(id)))
+        Promise.all([hydrateRoutesFromApi(), hydrateVehiclesFromApi()])
+            .finally(() => setRoute(getRouteById(id)))
     }, [id])
+
+    const plateKey = (value) => String(value || '').replace(/[\s-]/g, '').toUpperCase()
+    const vehicle = useMemo(() => {
+        if (!route) return null
+        const rows = getVehicles()
+        return rows.find((row) => (
+            (route.vehicleId && row.id === route.vehicleId)
+            || plateKey(row.vehicleNumber) === plateKey(route.vehicleNumber)
+        )) || null
+    }, [route])
 
     const live = useProtrackLive({
         panel: 'admin',
-        preferredImei: route?.imei || route?.gpsImei || '',
-        preferredPlate: route?.vehicleNumber || '',
+        preferredImei: route?.imei || route?.gpsImei || vehicle?.imei || vehicle?.gpsImei || '',
+        preferredPlate: route?.vehicleNumber || vehicle?.vehicleNumber || '',
     })
 
     const trackingPreset = TRACKING_PRESETS[(parseInt(route?.id?.split('-')[1] ?? '1', 10) - 1) % TRACKING_PRESETS.length]
@@ -125,9 +142,15 @@ const TrackBus = () => {
                             driverContact={route.driverContact}
                             startLocation={route.startLocation}
                             startSubtitle='Pickup Point'
-                            endLocation={route.endLocation}
+                            endLocation={route.endLocation || SCHOOL_CAMPUS.name}
                             endSubtitle='School Campus'
-                            busLabel={route.vehicleId}
+                            startPosition={parseMapLatLng(route.startLat, route.startLng)}
+                            endPosition={resolveDestinationPosition({
+                                endLat: route.endLat,
+                                endLng: route.endLng,
+                                endLocation: route.endLocation || SCHOOL_CAMPUS.name,
+                            })}
+                            busLabel={route.vehicleNumber || route.vehicleId}
                             stats={stats}
                             busIndex={trackingPreset.busIndex}
                             livePosition={live.livePosition}

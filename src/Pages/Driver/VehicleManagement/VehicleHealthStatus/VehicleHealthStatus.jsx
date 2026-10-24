@@ -6,6 +6,8 @@ import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus } fro
 import Dropdown from '../../../../Common/CommonComponents/Dropdown'
 import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteRequestModal'
 import ExportModal from '../../../../Common/CommonComponents/ExportModal'
+import { useAuth } from '../../../../context/AuthContext'
+import { hydrateDriverProfileSources, resolveDriverProfile } from '../../driverProfileData'
 import {
     CONDITION_OPTIONS,
     filterHealthStatusRecords,
@@ -16,7 +18,10 @@ import {
 const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
+const plateKey = (value) => String(value || '').replace(/[\s-]/g, '').toUpperCase()
+
 const VehicleHealthStatus = () => {
+    const { email } = useAuth()
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
     const [exportModal, setExportModal] = useState(false)
     const [search, setSearch] = useState('')
@@ -26,25 +31,37 @@ const VehicleHealthStatus = () => {
     const [period, setPeriod] = useState('')
     const [fromDate, setFromDate] = useState(null)
     const [toDate, setToDate] = useState(null)
+    const [myPlate, setMyPlate] = useState('')
     const [records, setRecords] = useState(() => getHealthRecords())
 
     useEffect(() => {
         let cancelled = false
-        hydrateHealthRecords().then(() => {
-            if (!cancelled) setRecords(getHealthRecords())
+        Promise.all([
+            hydrateHealthRecords(),
+            hydrateDriverProfileSources(),
+        ]).then(() => {
+            if (cancelled) return
+            const ctx = resolveDriverProfile(email)
+            const plate = ctx.vehicleNumber === '—' ? '' : ctx.vehicleNumber
+            setMyPlate(plate)
+            setVehicleNumber(plate)
+            const all = getHealthRecords()
+            setRecords(plate
+                ? all.filter((row) => plateKey(row.vehicleNumber) === plateKey(plate))
+                : all)
         })
         return () => { cancelled = true }
-    }, [])
+    }, [email])
 
     const filteredRecords = useMemo(() => filterHealthStatusRecords({
         records,
         search,
-        vehicleNumber,
+        vehicleNumber: vehicleNumber || myPlate,
         engineStatus,
         tyreCondition,
         fromDate,
         toDate,
-    }), [records, search, vehicleNumber, engineStatus, tyreCondition, fromDate, toDate])
+    }), [records, search, vehicleNumber, myPlate, engineStatus, tyreCondition, fromDate, toDate])
 
     const clearFilters = () => {
         setSearch('')

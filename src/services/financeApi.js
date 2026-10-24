@@ -22,6 +22,9 @@ export async function pullMyFees() {
     return apiRequest('/finance/my-fees')
 }
 
+/** Alias used by FinanceContext (portal fee views). */
+export const pullMyFeesState = pullMyFees
+
 export async function pushFinanceState(data) {
     const connected = await connectFinanceApi()
     if (!connected) throw new Error('Finance API is not available')

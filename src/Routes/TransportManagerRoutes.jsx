@@ -30,7 +30,7 @@ import AddTransportExpense from '../Pages/TransportManager/TransportExpenses/Add
 import ViewTransportExpense from '../Pages/TransportManager/TransportExpenses/ViewTransportExpense'
 import LeaveRequest from '../Pages/TransportManager/LeaveRequest/LeaveRequest'
 import ViewLeaveRequest from '../Pages/TransportManager/LeaveRequest/ViewLeaveRequest'
-import { BuildingMaintenancePage } from '../Common/demoDomain/DemoScreens'
+import BuildingMaintenance from '../Pages/TransportManager/BuildingMaintenance/BuildingMaintenance'
 
 const TransportManagerRoutes = () => {
     return (
@@ -70,7 +70,7 @@ const TransportManagerRoutes = () => {
             <Route path="/transport-manager/transport-expenses/view/:type/:id" element={<ViewTransportExpense />} />
             <Route path="/transport-manager/leave-request" element={<LeaveRequest />} />
             <Route path="/transport-manager/leave-request/view/:id" element={<ViewLeaveRequest />} />
-            <Route path="/transport-manager/building-maintenance" element={<BuildingMaintenancePage />} />
+            <Route path="/transport-manager/building-maintenance" element={<BuildingMaintenance />} />
             <Route path="*" element={<Navigate to="/transport-manager/dashboard" replace />} />
         </ReactRoutes>
     )

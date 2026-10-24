@@ -1,9 +1,6 @@
 import React, { useMemo } from 'react'
 import { Search } from 'lucide-react'
-import {
-    RECHARGE_RECORDS,
-    rechargeStatusBadgeColor,
-} from '../walletManagementData'
+import { rechargeStatusBadgeColor } from '../walletManagementData'
 import {
     RoleChip,
     SummaryCards,
@@ -32,7 +29,7 @@ const formatInr = (amount) => {
     }
 }
 
-const RechargeRecordsTab = ({ rechargeRecords = RECHARGE_RECORDS }) => {
+const RechargeRecordsTab = ({ rechargeRecords }) => {
     const rows = Array.isArray(rechargeRecords) ? rechargeRecords : []
     const summaryCards = useMemo(() => {
         const total = rows.reduce((sum, row) => sum + parseAmount(row.amount), 0)

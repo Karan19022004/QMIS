@@ -11,7 +11,7 @@ import { getLeaveReceivedViewPath, getLeaveRoutes, resolveRoleKey } from './leav
 
 export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, description }) {
     const location = useLocation()
-    const { role: authRole } = useAuth()
+    const { role: authRole, isAuthenticated } = useAuth()
     const roleKey = resolveRoleKey(authRole || roleKeyProp)
     const routes = getLeaveRoutes(roleKey)
     const [search, setSearch] = useState('')
@@ -19,12 +19,9 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
     const [fromDate, setFromDate] = useState(null)
     const [exportModal, setExportModal] = useState(false)
     const [refreshKey, setRefreshKey] = useState(0)
+    const [loading, setLoading] = useState(true)
 
-    useEffect(() => {
-        setRefreshKey((value) => value + 1)
-        hydrateLeaveRequestsFromApi() // no-op without an API session; emits the update event when done
-    }, [location.pathname])
-
+    // Listen before hydrate so a fast API response never misses the refresh event.
     useEffect(() => {
         const refresh = () => setRefreshKey((value) => value + 1)
         window.addEventListener(LEAVE_REQUESTS_UPDATED_EVENT, refresh)
@@ -35,10 +32,24 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
         }
     }, [])
 
+    useEffect(() => {
+        let cancelled = false
+        setLoading(true)
+        // Await hydrate, then force a re-read from in-memory cache (critical on full page refresh).
+        hydrateLeaveRequestsFromApi()
+            .catch(() => false)
+            .finally(() => {
+                if (cancelled) return
+                setRefreshKey((value) => value + 1)
+                setLoading(false)
+            })
+        return () => { cancelled = true }
+    }, [location.pathname, location.key, isAuthenticated, authRole])
+
     const requests = useMemo(() => {
         void refreshKey
         return getReceivedLeaveRequestsForRole(roleKey)
-    }, [roleKey, refreshKey, location.key])
+    }, [roleKey, refreshKey])
 
     const filteredRequests = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -116,7 +127,11 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredRequests.length === 0 ? (
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={10} className='px-2 py-8 text-center text-[#667085]'>Loading leave requests…</td>
+                                </tr>
+                            ) : filteredRequests.length === 0 ? (
                                 <tr>
                                     <td colSpan={10} className='px-2 py-8 text-center text-[#667085]'>No received leave requests found.</td>
                                 </tr>
@@ -136,7 +151,7 @@ export default function ReceivedLeaveRequestsList({ roleKey: roleKeyProp, descri
                                         </td>
                                         <td className='px-2 py-4 text-center rounded-e-lg'>
                                             <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
-                                                <NavLink to={getLeaveReceivedViewPath(roleKey, request.id)} className='block w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>View</NavLink>
+                                                <NavLink to={getLeaveReceivedViewPath(roleKey, request.id) || `${routes.receivedView}/${request.id}`} className='block w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>View</NavLink>
                                             </Dropdown>
                                         </td>
                                     </tr>

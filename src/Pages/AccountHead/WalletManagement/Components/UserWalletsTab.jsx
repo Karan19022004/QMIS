@@ -1,9 +1,6 @@
 import React, { useMemo } from 'react'
 import { Search } from 'lucide-react'
-import {
-    USER_WALLETS,
-    walletStatusBadgeColor,
-} from '../walletManagementData'
+import { walletStatusBadgeColor } from '../walletManagementData'
 import {
     RoleChip,
     SummaryCards,
@@ -32,7 +29,7 @@ const formatInr = (amount) => {
     }
 }
 
-const UserWalletsTab = ({ userWallets = USER_WALLETS }) => {
+const UserWalletsTab = ({ userWallets }) => {
     const rows = Array.isArray(userWallets) ? userWallets : []
     const summaryCards = useMemo(() => {
         const totalBalance = rows.reduce((sum, row) => sum + parseBalance(row.balance), 0)

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-toastify'
 import RegisterPage from './RegisterPage'
 import { StatusBadge } from './statusBadge'
@@ -8,6 +8,8 @@ import {
     downloadQuotationTemplate,
     getProcurementRequests,
     getPurchaseOrders,
+    hydrateProcurementFromApi,
+    PROCUREMENT_KEY,
     PROCUREMENT_STATUSES,
 } from './procurement'
 import { getApprovers } from './governance'
@@ -16,15 +18,23 @@ import { criticalAlerts } from './inventory'
 import { AUDIT_DEVIATIONS_KEY } from './auditSeeds'
 import { ensureSeed } from './storage'
 
-export function ProcurementBoard({ department, requestedBy }) {
-    const [rows, setRows] = useState(() => getProcurementRequests())
+export function ProcurementBoard({ department, requestedBy, storageKey = PROCUREMENT_KEY }) {
+    const [rows, setRows] = useState(() => getProcurementRequests(storageKey))
     const [orders] = useState(() => getPurchaseOrders())
     const [title, setTitle] = useState('')
     const [amount, setAmount] = useState('')
     const [minor, setMinor] = useState(true)
     const approver = getApprovers().find((item) => item.department === department)
 
-    const refresh = () => setRows(getProcurementRequests())
+    useEffect(() => {
+        let active = true
+        hydrateProcurementFromApi(storageKey).finally(() => {
+            if (active) setRows(getProcurementRequests(storageKey))
+        })
+        return () => { active = false }
+    }, [storageKey])
+
+    const refresh = () => setRows(getProcurementRequests(storageKey))
 
     const create = (event) => {
         event.preventDefault()
@@ -39,7 +49,7 @@ export function ProcurementBoard({ department, requestedBy }) {
             department,
             requestedBy,
             primaryApprover: approver?.primaryApprover,
-        })
+        }, storageKey)
         setTitle('')
         setAmount('')
         refresh()
@@ -83,7 +93,7 @@ export function ProcurementBoard({ department, requestedBy }) {
                                 <td className='px-2 py-3'><StatusBadge status={row.status} /></td>
                                 <td className='px-2 py-3'>{row.poNumber || '—'}</td>
                                 <td className='px-2 py-3'>
-                                    <button type='button' onClick={() => { advanceProcurement(row.id, requestedBy); refresh(); toast.success('Workflow advanced.') }} className='text-[#515DEF] text-xs cursor-pointer'>Advance</button>
+                                    <button type='button' onClick={() => { advanceProcurement(row.id, requestedBy, storageKey); refresh(); toast.success('Workflow advanced.') }} className='text-[#515DEF] text-xs cursor-pointer'>Advance</button>
                                 </td>
                             </tr>
                         ))}

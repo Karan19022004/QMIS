@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import ReactECharts from 'echarts-for-react'
 import {
@@ -7,33 +7,24 @@ import {
     Package,
     AlertTriangle,
     ClipboardCheck,
-    Rss,
+    UtensilsCrossed,
     TrendingUp,
     Plus,
 } from 'lucide-react'
 import {
-    SUMMARY_CARDS,
-    SALES_CHART_7_DAYS,
-    SALES_CHART_30_DAYS,
-    RECENT_ORDERS,
-    TOP_SELLING_ITEMS,
-    LOW_STOCK_ALERTS,
-    PENDING_REQUESTS,
-    INVENTORY_SUMMARY,
-    ORDER_DISTRIBUTION,
-    RECENT_ANNOUNCEMENTS,
-    QUICK_ACTIONS,
+    getDashboardView,
+    hydrateDashboardFromApi,
     orderStatusBadgeColor,
     requestStatusBadgeColor,
 } from './dashboardData'
 
 const CARD_ICONS = {
-    'Orders Today': ShoppingCart,
+    'Menu Items': UtensilsCrossed,
+    'Open Orders': ShoppingCart,
     "Today's Sales": IndianRupee,
     'Inventory Items': Package,
-    'Low Stock Alerts': AlertTriangle,
-    'Pending Approvals': ClipboardCheck,
-    'Active Announcements': Rss,
+    'Low Stock Inventory': AlertTriangle,
+    'Pending Requests': ClipboardCheck,
 }
 
 const Panel = ({ title, children, action }) => (
@@ -50,13 +41,30 @@ const TableWrapper = ({ children }) => (
     <div className="relative overflow-x-auto">{children}</div>
 )
 
+const EmptyRow = ({ cols, message }) => (
+    <tr>
+        <td colSpan={cols} className="px-2 py-6 text-center text-[#667085]">{message}</td>
+    </tr>
+)
+
 const thClass = 'px-2 py-3 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-3 text-[#667085]'
 
 const Dashboard = () => {
     const [salesPeriod, setSalesPeriod] = useState('7')
+    const [view, setView] = useState(() => getDashboardView())
 
-    const salesData = salesPeriod === '7' ? SALES_CHART_7_DAYS : SALES_CHART_30_DAYS
+    useEffect(() => {
+        let cancelled = false
+        hydrateDashboardFromApi().finally(() => {
+            if (!cancelled) setView(getDashboardView())
+        })
+        return () => {
+            cancelled = true
+        }
+    }, [])
+
+    const salesData = salesPeriod === '7' ? view.salesChart7 : view.salesChart30
 
     const salesChartOption = useMemo(() => ({
         tooltip: { trigger: 'axis' },
@@ -124,21 +132,21 @@ const Dashboard = () => {
         },
         yAxis: {
             type: 'category',
-            data: TOP_SELLING_ITEMS.map((i) => i.item).reverse(),
+            data: view.topSellingItems.map((i) => i.item).reverse(),
             axisLabel: { color: '#667085', fontSize: 11 },
             axisLine: { show: false },
             axisTick: { show: false },
         },
         series: [{
             type: 'bar',
-            data: TOP_SELLING_ITEMS.map((i) => i.quantity).reverse(),
+            data: view.topSellingItems.map((i) => i.quantity).reverse(),
             barWidth: 14,
             itemStyle: { color: '#515DEF', borderRadius: [0, 4, 4, 0] },
         }],
-    }), [])
+    }), [view.topSellingItems])
 
     const orderDistributionOption = useMemo(() => ({
-        tooltip: { trigger: 'item', formatter: '{b}: {c}%' },
+        tooltip: { trigger: 'item', formatter: '{b}: {c}' },
         legend: {
             orient: 'vertical',
             right: 0,
@@ -151,7 +159,7 @@ const Dashboard = () => {
             center: ['35%', '50%'],
             avoidLabelOverlap: false,
             padAngle: 2,
-            data: ORDER_DISTRIBUTION.map((d) => ({
+            data: view.orderDistribution.map((d) => ({
                 value: d.value,
                 name: d.name,
                 itemStyle: { color: d.color },
@@ -159,12 +167,12 @@ const Dashboard = () => {
             label: { show: false },
             labelLine: { show: false },
         }],
-    }), [])
+    }), [view.orderDistribution])
 
     return (
         <section className='space-y-6'>
             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4'>
-                {SUMMARY_CARDS.map((card) => {
+                {view.summaryCards.map((card) => {
                     const Icon = CARD_ICONS[card.label] ?? Package
                     return (
                         <div key={card.label} className='bg-white rounded-2xl shadow-md p-4'>
@@ -221,26 +229,30 @@ const Dashboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {RECENT_ORDERS.map((order) => (
+                                {view.recentOrders.length ? view.recentOrders.map((order) => (
                                     <tr key={order.orderId} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                         <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{order.orderId}</td>
                                         <td className={tdClass}>{order.customer}</td>
                                         <td className={tdClass}>{order.type}</td>
                                         <td className={tdClass}>{order.amount}</td>
                                         <td className={tdClass}>
-                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${orderStatusBadgeColor[order.status]}`}>
+                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${orderStatusBadgeColor[order.status] || 'bg-[#66708533] text-[#667085]'}`}>
                                                 {order.status}
                                             </span>
                                         </td>
                                     </tr>
-                                ))}
+                                )) : <EmptyRow cols={5} message="No orders yet." />}
                             </tbody>
                         </table>
                     </TableWrapper>
                 </Panel>
 
                 <Panel title="Top Selling Menu Items">
-                    <ReactECharts option={topSellingChartOption} style={{ height: 280 }} opts={{ renderer: 'svg' }} />
+                    {view.topSellingItems.length ? (
+                        <ReactECharts option={topSellingChartOption} style={{ height: 280 }} opts={{ renderer: 'svg' }} />
+                    ) : (
+                        <p className='text-sm text-[#667085] py-8 text-center'>No sold items yet.</p>
+                    )}
                     <TableWrapper>
                         <table className="w-full text-sm text-left mt-4">
                             <thead className="text-xs bg-[#EDEEF5] whitespace-nowrap rounded-lg">
@@ -250,12 +262,12 @@ const Dashboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {TOP_SELLING_ITEMS.slice(0, 3).map((row) => (
+                                {view.topSellingItems.length ? view.topSellingItems.slice(0, 3).map((row) => (
                                     <tr key={row.item} className="border-b border-[#f2f4f7]">
                                         <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.item}</td>
                                         <td className={`${tdClass} text-right`}>{row.quantity}</td>
                                     </tr>
-                                ))}
+                                )) : <EmptyRow cols={2} message="No sold items yet." />}
                             </tbody>
                         </table>
                     </TableWrapper>
@@ -281,13 +293,13 @@ const Dashboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {LOW_STOCK_ALERTS.map((row) => (
-                                    <tr key={row.item} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
+                                {view.lowStockAlerts.length ? view.lowStockAlerts.map((row) => (
+                                    <tr key={row.id || row.item} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                         <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.item}</td>
                                         <td className={`${tdClass} text-[#FF5722] font-medium`}>{row.currentStock}</td>
                                         <td className={tdClass}>{row.reorderLevel}</td>
                                     </tr>
-                                ))}
+                                )) : <EmptyRow cols={3} message="No low-stock items." />}
                             </tbody>
                         </table>
                     </TableWrapper>
@@ -305,18 +317,18 @@ const Dashboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {PENDING_REQUESTS.map((row) => (
+                                {view.pendingRequests.length ? view.pendingRequests.map((row) => (
                                     <tr key={row.requestId} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                         <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.requestId}</td>
                                         <td className={tdClass}>{row.type}</td>
                                         <td className={tdClass}>{row.amount}</td>
                                         <td className={tdClass}>
-                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${requestStatusBadgeColor[row.status]}`}>
+                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${requestStatusBadgeColor[row.status] || 'bg-[#66708533] text-[#667085]'}`}>
                                                 {row.status}
                                             </span>
                                         </td>
                                     </tr>
-                                ))}
+                                )) : <EmptyRow cols={4} message="No pending requests." />}
                             </tbody>
                         </table>
                     </TableWrapper>
@@ -326,7 +338,7 @@ const Dashboard = () => {
             <div className='grid grid-cols-1 lg:grid-cols-2 gap-6'>
                 <Panel title="Inventory Summary">
                     <div className='grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6'>
-                        {INVENTORY_SUMMARY.map((item) => (
+                        {view.inventorySummary.map((item) => (
                             <div key={item.label} className='border border-[#EDEEF5] rounded-xl p-4 text-center'>
                                 <p className='text-xs text-[#808080]'>{item.label}</p>
                                 <p className={`text-lg font-semibold mt-1 ${item.color}`}>{item.value}</p>
@@ -334,7 +346,11 @@ const Dashboard = () => {
                         ))}
                     </div>
                     <p className='text-sm font-medium text-[#1E1E1E] mb-2'>Order Distribution</p>
-                    <ReactECharts option={orderDistributionOption} style={{ height: 220 }} opts={{ renderer: 'svg' }} />
+                    {view.orderDistribution.some((d) => d.value > 0) ? (
+                        <ReactECharts option={orderDistributionOption} style={{ height: 220 }} opts={{ renderer: 'svg' }} />
+                    ) : (
+                        <p className='text-sm text-[#667085] py-8 text-center'>No orders to chart yet.</p>
+                    )}
                 </Panel>
 
                 <Panel title="Recent Announcements">
@@ -348,13 +364,13 @@ const Dashboard = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {RECENT_ANNOUNCEMENTS.map((row) => (
+                                {view.recentAnnouncements.length ? view.recentAnnouncements.map((row) => (
                                     <tr key={row.title} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                         <td className={`${tdClass} font-medium text-[#1E1E1E] max-w-[180px] truncate`} title={row.title}>{row.title}</td>
                                         <td className={tdClass}>{row.audience}</td>
                                         <td className={tdClass}>{row.date}</td>
                                     </tr>
-                                ))}
+                                )) : <EmptyRow cols={3} message="No announcements yet." />}
                             </tbody>
                         </table>
                     </TableWrapper>
@@ -364,7 +380,7 @@ const Dashboard = () => {
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h3 className='text-lg font-semibold text-black mb-4'>Quick Actions</h3>
                 <div className='flex flex-wrap gap-3'>
-                    {QUICK_ACTIONS.map((action) => (
+                    {view.quickActions.map((action) => (
                         <NavLink
                             key={action.label}
                             to={action.to}

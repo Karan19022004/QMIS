@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useAuth } from '../../context/AuthContext'
+import { canUseEmployeeDirectoryApi, loadEmployeeDirectory } from '../../services/employeeDirectoryApi'
 import { useActiveStudent } from '../../context/ActiveStudentContext'
 import { useFinance } from '../../Pages/AccountHead/financeDomain/FinanceContext'
 import { buildMfpFromInstallments } from '../../Pages/AccountHead/financeDomain/financeSnapshotAccounting'
@@ -12,7 +14,6 @@ import { entryBlocked } from './governance'
 import { addRequirement, getInventory, getMovements, getRequirements, issueStock } from './inventory'
 import { decideReentry, getReentryRequests, isEntryClosed, requestReentry } from './governance'
 import { EXAM_TYPES } from './examTypes'
-import { ASSETS } from '../../Pages/ITSupportManager/AssetManagement/assetData'
 import { getActivityLogs, logActivity } from './activityLog'
 
 export function DemoActivityPage() {
@@ -39,7 +40,6 @@ export function DemoActivityPage() {
         </div>
     )
 }
-import { ensureSeed, saveJson } from './storage'
 import RegisterPage from './RegisterPage'
 
 const inputClass = 'text-sm border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
@@ -559,82 +559,130 @@ export function ExamTypesPage() {
     )
 }
 
-export function AssetImportPage() {
-    const [preview, setPreview] = useState([])
-    const [message, setMessage] = useState('')
-    const download = () => {
-        const csv = 'assetName,category,quantity,serialNumber\nDemo tablet,Others,2,TAB-001\n'
-        const blob = new Blob([csv], { type: 'text/csv' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = 'asset-import-template.csv'
-        link.click()
-        URL.revokeObjectURL(url)
-        logActivity({ action: 'DOWNLOAD_CLICK', module: 'Asset Import', details: 'Template' })
-    }
-    const onFile = async (event) => {
-        const file = event.target.files?.[0]
-        if (!file) return
-        const text = await file.text()
-        const lines = text.split(/\r?\n/).filter(Boolean)
-        const rows = lines.slice(1).map((line) => {
-            const [assetName, category, quantity, serialNumber] = line.split(',')
-            return { assetName, category, quantity, serialNumber, valid: Boolean(assetName && category) }
-        })
-        setPreview(rows)
-        setMessage(`${file.name} loaded. ${rows.filter((row) => row.valid).length} valid of ${rows.length}.`)
-    }
-    const importRows = () => {
-        const existing = ensureSeed('schoolerp-asset-management-v1', ASSETS)
-        const imported = preview.filter((row) => row.valid).map((row, index) => ({
-            assetId: `AST-IMP-${Date.now()}-${index}`,
-            assetName: row.assetName,
-            category: row.category || 'Others',
-            quantity: Number(row.quantity) || 1,
-            serialNumber: row.serialNumber,
-            status: 'Active',
-            brand: 'Imported',
-            model: 'Demo',
-        }))
-        saveJson('schoolerp-asset-management-v1', [...imported, ...existing])
-        logActivity({ action: 'CREATE', module: 'Asset Import', details: `${imported.length} demo records` })
-        toast.success(`${imported.length} demo asset records imported locally.`)
-    }
-    return (
-        <section className='bg-white rounded-2xl shadow-md p-4 space-y-3'>
-            <h2 className='text-xl font-semibold'>Initial data import</h2>
-            <p className='text-sm text-[#667085]'>Browser-side CSV preview. No server upload.</p>
-            <div className='flex flex-wrap gap-2'>
-                <button type='button' onClick={download} className='border border-[#515DEF] text-[#515DEF] text-sm px-3 py-2 rounded-md cursor-pointer'>Download Import Template</button>
-                <label className='bg-[#515DEF] text-white text-sm px-3 py-2 rounded-md cursor-pointer'>Upload File<input type='file' accept='.csv,text/csv' className='hidden' onChange={onFile} /></label>
-                <button type='button' onClick={importRows} disabled={!preview.length} className='bg-[#515DEF] text-white text-sm px-3 py-2 rounded-md cursor-pointer disabled:opacity-50'>Import Demo Records</button>
-            </div>
-            {message && <p className='text-sm'>{message}</p>}
-            {preview.length > 0 && (
-                <table className='w-full text-sm'>
-                    <thead><tr>{['Name', 'Category', 'Qty', 'Serial', 'Validate'].map((label) => <th key={label} className='text-left px-2 py-2'>{label}</th>)}</tr></thead>
-                    <tbody>{preview.map((row) => <tr key={row.serialNumber}><td className='px-2 py-2'>{row.assetName}</td><td>{row.category}</td><td>{row.quantity}</td><td>{row.serialNumber}</td><td>{row.valid ? 'Valid' : 'Invalid'}</td></tr>)}</tbody>
-                </table>
-            )}
-        </section>
-    )
-}
+export { default as AssetImportPage } from '../../Pages/ITSupportManager/DataImport/DataImport'
+
+const profileField = (label, value) => (
+    <div>
+        <p className='text-xs text-[#808080]'>{label}</p>
+        <p className='text-sm text-[#1E1E1E] mt-0.5'>{value || '—'}</p>
+    </div>
+)
 
 export function MyProfilePage({ roleLabel }) {
+    const { email, name } = useAuth()
+    const api = canUseEmployeeDirectoryApi()
+    const [profile, setProfile] = useState(null)
+    const [loading, setLoading] = useState(api)
+    const [error, setError] = useState('')
+
+    useEffect(() => {
+        if (!api) {
+            setProfile(null)
+            setLoading(false)
+            setError('')
+            return undefined
+        }
+        let cancelled = false
+        setLoading(true)
+        setError('')
+        loadEmployeeDirectory()
+            .then(({ records }) => {
+                if (cancelled) return
+                const emailKey = String(email || '').trim().toLowerCase()
+                const nameKey = String(name || '').trim().toLowerCase()
+                const match = records.find((item) => {
+                    const row = item.row || item.detail || {}
+                    if (emailKey && String(row.email || row.contact?.email || '').trim().toLowerCase() === emailKey) return true
+                    if (nameKey && String(row.name || '').trim().toLowerCase() === nameKey) return true
+                    return false
+                })
+                setProfile(match?.detail || match?.row || null)
+            })
+            .catch((err) => {
+                if (cancelled) return
+                setError(err?.message || 'Employee directory could not be loaded.')
+                setProfile(null)
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false)
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [api, email, name])
+
+    if (loading) {
+        return (
+            <section className='bg-white rounded-2xl shadow-md p-8 text-center text-[#667085]'>
+                Loading {roleLabel?.toLowerCase() || 'staff'} profile…
+            </section>
+        )
+    }
+
+    if (!api) {
+        return (
+            <section className='bg-white rounded-2xl shadow-md p-8 text-center space-y-2'>
+                <h2 className='text-xl font-semibold text-black'>My Profile</h2>
+                <p className='text-sm text-[#667085]'>
+                    Employee directory API is not available. Sign in against the campus API to load this {roleLabel?.toLowerCase() || 'staff'} profile.
+                </p>
+            </section>
+        )
+    }
+
+    if (error || !profile) {
+        return (
+            <section className='bg-white rounded-2xl shadow-md p-8 text-center space-y-2'>
+                <h2 className='text-xl font-semibold text-black'>My Profile</h2>
+                <p className='text-sm text-[#667085]'>
+                    {error || 'No employee directory record is linked to this login yet.'}
+                </p>
+                <p className='text-xs text-[#667085]'>
+                    HR must create the staff record (matching this account email) before personal and employment details appear here.
+                </p>
+            </section>
+        )
+    }
+
+    const contact = profile.contact || {}
+    const employment = profile.employmentInfo || {}
+    const professional = profile.professionalInfo || {}
+
     return (
         <section className='grid grid-cols-1 lg:grid-cols-2 gap-4'>
-            {['Personal Details', 'Employment Details', 'Attendance', 'Leave Requests'].map((title) => (
-                <div key={title} className='bg-white rounded-2xl shadow-md p-4'>
-                    <h2 className='text-lg font-semibold'>{title}</h2>
-                    <p className='text-sm text-[#667085] mt-2'>
-                        {title === 'Personal Details' && `${roleLabel} demo profile. Name is taken from the signed-in session when available.`}
-                        {title === 'Employment Details' && 'Department and designation stay on the existing employee record. This page does not copy a second employee master.'}
-                        {title === 'Attendance' && 'Attendance continues to come from the existing My Attendance module, including the ESSL demo sync.'}
-                        {title === 'Leave Requests' && 'Leave requests continue to use the shared leave store. Coordinator can view relevant leave from the leave menu.'}
-                    </p>
+            <div className='bg-white rounded-2xl shadow-md p-4 space-y-3'>
+                <h2 className='text-lg font-semibold'>Personal Details</h2>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                    {profileField('Name', profile.name || profile.firstName)}
+                    {profileField('Email', profile.email || contact.email || email)}
+                    {profileField('Mobile', profile.mobileNumber || contact.mobileNumber)}
+                    {profileField('Gender', profile.gender)}
+                    {profileField('Date of birth', profile.dateOfBirth)}
                 </div>
-            ))}
+            </div>
+            <div className='bg-white rounded-2xl shadow-md p-4 space-y-3'>
+                <h2 className='text-lg font-semibold'>Employment Details</h2>
+                <div className='grid grid-cols-1 sm:grid-cols-2 gap-3'>
+                    {profileField('Employee ID', profile.employeeId || profile.id)}
+                    {profileField('Department', profile.department)}
+                    {profileField('Designation', employment.designation || profile.role)}
+                    {profileField('Employee type', employment.employeeType)}
+                    {profileField('Joining date', professional.joiningDate)}
+                    {profileField('Status', employment.status || profile.status)}
+                </div>
+            </div>
+            <div className='bg-white rounded-2xl shadow-md p-4'>
+                <h2 className='text-lg font-semibold'>Attendance</h2>
+                <p className='text-sm text-[#667085] mt-2'>
+                    Attendance continues to come from the existing My Attendance module.
+                </p>
+            </div>
+            <div className='bg-white rounded-2xl shadow-md p-4'>
+                <h2 className='text-lg font-semibold'>Leave Requests</h2>
+                <p className='text-sm text-[#667085] mt-2'>
+                    Leave requests continue to use the shared leave store.
+                </p>
+            </div>
         </section>
     )
 }

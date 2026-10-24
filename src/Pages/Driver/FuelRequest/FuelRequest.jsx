@@ -31,12 +31,12 @@ const FuelRequest = () => {
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
 
     const filteredRecords = useMemo(() => filterFuelRequests({
-        records: FUEL_REQUESTS,
+        records: fuelRequests,
         search,
         approvalStatus,
         fromDate,
         toDate,
-    }), [search, approvalStatus, fromDate, toDate])
+    }), [fuelRequests, search, approvalStatus, fromDate, toDate])
 
     const clearFilters = () => {
         setSearch('')

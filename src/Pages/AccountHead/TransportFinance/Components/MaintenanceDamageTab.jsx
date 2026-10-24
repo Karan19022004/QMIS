@@ -25,7 +25,7 @@ import {
 import { mapServiceExpensesToFinanceRows } from '../../../TransportManager/RequestApprovals/transportApprovalFinanceBridge'
 
 const MaintenanceDamageTab = ({ onLogDamage }) => {
-    const { financePersistence, transportMaintenance } = useFinance()
+    const { financePersistence, transportMaintenance, syncTransportOpsIntoFinance } = useFinance()
     const apiLive = Boolean(financePersistence?.apiEnabled)
     const [opsServiceRows, setOpsServiceRows] = useState(() => mapServiceExpensesToFinanceRows(getServiceExpenses()))
 
@@ -33,6 +33,8 @@ const MaintenanceDamageTab = ({ onLogDamage }) => {
         hydrateTransportExpensesFromApi().finally(() => {
             setOpsServiceRows(mapServiceExpensesToFinanceRows(getServiceExpenses()))
         })
+        syncTransportOpsIntoFinance?.().catch(() => {})
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- mount sync
     }, [])
 
     const records = useMemo(() => {

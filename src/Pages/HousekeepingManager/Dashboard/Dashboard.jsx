@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
     ClipboardList,
     CheckCircle2,
@@ -10,11 +10,8 @@ import {
     Sparkles,
 } from 'lucide-react'
 import {
-    SUMMARY_CARDS,
-    RECENT_TASKS,
-    LOW_STOCK_ITEMS,
-    PENDING_REQUESTS,
-    RECENT_ANNOUNCEMENTS,
+    buildHousekeepingDashboard,
+    hydrateHousekeepingDashboardFromApi,
     taskStatusBadgeColor,
     requestStatusBadgeColor,
 } from './dashboardData'
@@ -40,6 +37,18 @@ const thClass = 'px-2 py-3 text-[#0C1E5B] font-medium uppercase text-xs'
 const tdClass = 'px-2 py-3 text-[#667085] text-sm'
 
 const Dashboard = () => {
+    const [data, setData] = useState(() => buildHousekeepingDashboard())
+
+    useEffect(() => {
+        let active = true
+        hydrateHousekeepingDashboardFromApi().then((next) => {
+            if (active) setData(next)
+        })
+        return () => { active = false }
+    }, [])
+
+    const { summaryCards, recentTasks, lowStockItems, pendingRequests, recentAnnouncements } = data
+
     return (
         <section className='space-y-6'>
             <div className='bg-white rounded-2xl shadow-md p-4'>
@@ -55,7 +64,7 @@ const Dashboard = () => {
             </div>
 
             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
-                {SUMMARY_CARDS.map((card) => {
+                {summaryCards.map((card) => {
                     const Icon = CARD_ICONS[card.label] ?? ClipboardList
                     return (
                         <div key={card.label} className='bg-white rounded-2xl shadow-md p-4'>
@@ -86,7 +95,10 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {RECENT_TASKS.map((row) => (
+                            {recentTasks.length === 0 && (
+                                <tr><td colSpan={4} className={`${tdClass} text-center`}>No tasks recorded yet.</td></tr>
+                            )}
+                            {recentTasks.map((row) => (
                                 <tr key={row.taskId} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.taskId}</td>
                                     <td className={`${tdClass} max-w-[180px] truncate`} title={row.title}>{row.title}</td>
@@ -112,7 +124,10 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {LOW_STOCK_ITEMS.map((row) => (
+                            {lowStockItems.length === 0 && (
+                                <tr><td colSpan={3} className={`${tdClass} text-center`}>No low-stock supplies.</td></tr>
+                            )}
+                            {lowStockItems.map((row) => (
                                 <tr key={row.item} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.item}</td>
                                     <td className={`${tdClass} text-[#FF5722] font-medium`}>{row.availableQty}</td>
@@ -133,7 +148,10 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {PENDING_REQUESTS.map((row) => (
+                            {pendingRequests.length === 0 && (
+                                <tr><td colSpan={3} className={`${tdClass} text-center`}>No pending requests.</td></tr>
+                            )}
+                            {pendingRequests.map((row) => (
                                 <tr key={row.requestId} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.requestId}</td>
                                     <td className={tdClass}>{row.type}</td>
@@ -157,7 +175,10 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {RECENT_ANNOUNCEMENTS.map((row) => (
+                            {recentAnnouncements.length === 0 && (
+                                <tr><td colSpan={2} className={`${tdClass} text-center`}>No announcements yet.</td></tr>
+                            )}
+                            {recentAnnouncements.map((row) => (
                                 <tr key={row.title} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E] max-w-[220px] truncate`} title={row.title}>{row.title}</td>
                                     <td className={tdClass}>{row.date}</td>

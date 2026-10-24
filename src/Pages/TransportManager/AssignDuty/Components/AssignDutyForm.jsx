@@ -69,18 +69,28 @@ const AssignDutyForm = forwardRef(({ duty }, ref) => {
     }
 
     useImperativeHandle(ref, () => ({
-        getValues: () => ({
-            vehicleType,
-            dutyType,
-            driverName,
-            driverId: String(driverId).trim(),
-            vehicleNumber: String(vehicleNumber).trim(),
-            routeName,
-            dutyDate: formatTransportDate(dutyDate),
-            shift,
-            startTime: String(startTime).trim(),
-            endTime: String(endTime).trim(),
-        }),
+        getValues: () => {
+            const selectedRoute = routeOptions.find((route) => route.label === routeName)
+            // Pickup = morning to school; Drop = school back to pickup points.
+            const normalizedType = String(dutyType || 'Pickup').trim() === 'Drop' ? 'Drop' : 'Pickup'
+            return {
+                vehicleType,
+                dutyType: normalizedType,
+                driverName,
+                driverId: String(driverId).trim(),
+                vehicleNumber: String(vehicleNumber).trim(),
+                routeName,
+                routeId: selectedRoute?.id || duty?.routeId || '',
+                dutyDate: formatTransportDate(dutyDate),
+                shift: shift || (normalizedType === 'Drop' ? 'Afternoon' : 'Morning'),
+                startTime: String(startTime).trim(),
+                endTime: String(endTime).trim(),
+                status: duty?.status || duty?.dutyStatus || 'Assigned',
+                dutyStatus: duty?.dutyStatus || duty?.status || 'Assigned',
+                trackingActive: duty?.trackingActive !== false,
+                assignedBy: duty?.assignedBy || 'Transport Manager',
+            }
+        },
         validate: () => {
             if (!String(driverName).trim()) return 'Driver is required.'
             if (!String(routeName).trim()) return 'Route is required.'

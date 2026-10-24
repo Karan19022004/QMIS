@@ -81,9 +81,30 @@ import { useAuth } from '../../../context/AuthContext'
 import { ROLES } from '../../../constants/roles'
 import { FLEET_VEHICLES } from '../TransportFinance/transportFinanceData'
 import { RECHARGE_RECORDS, USER_WALLETS } from '../WalletManagement/walletManagementData'
-import { PENDING_REQUESTS } from '../Approvals/approvalsData'
+import { stripDemoApprovals } from '../Approvals/approvalsData'
 import { applyFeeStructuresToStudents } from './financeBootstrap'
 import { mapEnrolledToFinanceStudent } from './financeLiveViews'
+import {
+    buildOutTransactionsFromTransportExpenses,
+    ensureWalletsFromStudents,
+    mapOpsRequestToFinanceApproval,
+    mapOpsVehicleToFleetRow,
+    mergeByKey,
+} from './financeOpsSync'
+import {
+    getFuelRequests,
+    getMaintenanceRequests,
+    hydrateTransportApprovalRequestsFromApi,
+} from '../../TransportManager/RequestApprovals/requestApprovalsData'
+import {
+    getTransportExpenses,
+    hydrateTransportExpensesFromApi,
+} from '../../TransportManager/TransportExpenses/transportExpensesData'
+import { mapServiceExpensesToFinanceRows } from '../../TransportManager/RequestApprovals/transportApprovalFinanceBridge'
+import {
+    getVehicles,
+    hydrateVehiclesFromApi,
+} from '../../TransportManager/VehicleManagement/vehicleManagementData'
 import { hydrateEnrolledStudentsFromApi, getAllEnrolledStudents } from '../../../Common/StudentDatabase/enrolledStudentsData'
 import {
     buildPaymentSchedule,
@@ -172,6 +193,14 @@ export const FinanceProvider = ({ children }) => {
     const apiHydratedRef = useRef(false)
     const hydratedRoleRef = useRef(null)
     const pushTimerRef = useRef(null)
+    const approvalsRef = useRef([])
+    const transportFleetRef = useRef([])
+    const transportMaintenanceRef = useRef([])
+    const walletsRef = useRef([])
+    const studentsRef = useRef([])
+    const transactionsRef = useRef([])
+    const transportSyncInFlightRef = useRef(false)
+    const transportSyncAtRef = useRef(0)
 
     const [financeStatus, setFinanceStatus] = useState(() => (apiMode() ? 'loading' : 'ready'))
     const [financeError, setFinanceError] = useState(null)
@@ -206,10 +235,8 @@ export const FinanceProvider = ({ children }) => {
     const [transportMaintenance, setTransportMaintenance] = useState(() => initialPersistedList(boot, 'transportMaintenance', emptyBoot))
     const [transportCompliance, setTransportCompliance] = useState(() => initialPersistedList(boot, 'transportCompliance', emptyBoot))
     const [transportSalaries, setTransportSalaries] = useState(() => initialPersistedList(boot, 'transportSalaries', emptyBoot))
-    const [approvals, setApprovals] = useState(() => initialPersistedList(
-        boot,
-        'approvals',
-        offlineAllowed ? PENDING_REQUESTS.map((row) => ({ ...row, status: 'Pending' })) : emptyBoot,
+    const [approvals, setApprovals] = useState(() => (
+        stripDemoApprovals(initialPersistedList(boot, 'approvals', emptyBoot))
     ))
     const [lastSavedAt, setLastSavedAt] = useState(() => savedEnvelopeRef.current?.savedAt ?? null)
     const booksBackfilledRef = useRef(false)
@@ -257,7 +284,7 @@ export const FinanceProvider = ({ children }) => {
         setTransportMaintenance(initialPersistedList(data, 'transportMaintenance', fb))
         setTransportCompliance(initialPersistedList(data, 'transportCompliance', fb))
         setTransportSalaries(initialPersistedList(data, 'transportSalaries', fb))
-        setApprovals(initialPersistedList(data, 'approvals', fb))
+        setApprovals(stripDemoApprovals(initialPersistedList(data, 'approvals', fb)))
         booksBackfilledRef.current = false
     }, [])
 
@@ -576,6 +603,58 @@ export const FinanceProvider = ({ children }) => {
         return { success: true }
     }, [appendAudit, applyFinanceData, cheques, getStudentById, postAccounting, transactions])
 
+    const postApprovalExpenseOut = useCallback((approvalRow) => {
+        if (!approvalRow) return null
+        const amount = Number(String(approvalRow.amount ?? '').replace(/[^\d.]/g, '')) || 0
+        if (amount <= 0) return null
+        const linkedKey = String(approvalRow.linkedRequestId || approvalRow.id || '').trim()
+        const already = (transactionsRef.current || []).some((txn) => (
+            txn.direction === TRANSACTION_DIRECTIONS.OUT
+            && (
+                String(txn.linkedApprovalId || '') === String(approvalRow.id)
+                || (linkedKey && String(txn.linkedRequestId || txn.reference || '') === linkedKey)
+            )
+        ))
+        if (already) return null
+
+        seq.current.txn += 1
+        seq.current.voucher += 1
+        const transaction = createFinanceTransaction({
+            id: `TXN-APR-${String(approvalRow.id || Date.now()).replace(/\W/g, '')}`,
+            transactionNo: generateTransactionNo(seq.current.txn),
+            transactionDate: new Date(),
+            paymentMode: PAYMENT_MODES.BANK_TRANSFER,
+            amount,
+            student: null,
+            category: approvalRow.type || 'Expense Claim',
+            reference: approvalRow.id,
+            narration: `${approvalRow.type || 'Approval'} — ${approvalRow.raisedBy || 'Staff'} · ${approvalRow.department || ''}`,
+            status: TRANSACTION_STATUSES.POSTED,
+            createdBy: ACTOR_FINANCE_HEAD,
+            voucherNo: generateVoucherNo(seq.current.voucher),
+            bankAccount: bankAccounts[0],
+            sourceModule: String(approvalRow.department || '').toLowerCase() === 'transport'
+                ? SOURCE_MODULES.TRANSPORT
+                : SOURCE_MODULES.MANUAL,
+        })
+        transaction.direction = TRANSACTION_DIRECTIONS.OUT
+        transaction.linkedApprovalId = approvalRow.id
+        transaction.linkedRequestId = approvalRow.linkedRequestId || ''
+        transaction.entryType = 'Expense'
+        setTransactions((prev) => {
+            const next = [transaction, ...prev]
+            transactionsRef.current = next
+            return next
+        })
+        postAccounting(createAccountingPosting({
+            transaction,
+            student: null,
+            amount,
+            narration: transaction.narration,
+        }))
+        return transaction
+    }, [bankAccounts, postAccounting])
+
     const decideApproval = useCallback(async ({ approvalId, decision, remarks }) => {
         if (isApiFinanceEnabled() && apiHydratedRef.current) {
             try {
@@ -586,6 +665,7 @@ export const FinanceProvider = ({ children }) => {
                 return { success: false, message: error.message }
             }
         }
+        const current = (approvalsRef.current || []).find((row) => row.id === approvalId)
         setApprovals((prev) => prev.map((row) => (
             row.id === approvalId
                 ? {
@@ -596,8 +676,15 @@ export const FinanceProvider = ({ children }) => {
                 }
                 : row
         )))
+        if (decision === 'approved' && current) {
+            postApprovalExpenseOut({
+                ...current,
+                status: 'Approved',
+                remarks: remarks || '',
+            })
+        }
         return { success: true }
-    }, [applyFinanceData])
+    }, [applyFinanceData, postApprovalExpenseOut])
 
     const applyHrConcessions = useCallback(async () => {
         if (!isApiFinanceEnabled()) {
@@ -758,7 +845,7 @@ export const FinanceProvider = ({ children }) => {
         transportMaintenance,
         transportCompliance,
         transportSalaries,
-        approvals,
+        approvals: stripDemoApprovals(approvals),
         sequence: { ...seq.current },
         meta: { seeded: true },
         ...overrides,
@@ -1340,7 +1427,7 @@ export const FinanceProvider = ({ children }) => {
         return transaction
     }, [bankAccounts, postAccounting])
 
-    const rechargeWallet = useCallback(({ email, amount }) => {
+    const rechargeWallet = useCallback(async ({ email, amount }) => {
         const walletIndex = wallets.findIndex(
             (wallet) => String(wallet.email || '').toLowerCase() === String(email || '').toLowerCase(),
         )
@@ -1367,8 +1454,10 @@ export const FinanceProvider = ({ children }) => {
             dateTime: new Date().toLocaleString('en-IN'),
             status: 'Success',
         }
-        setWallets((prev) => prev.map((item, index) => (index === walletIndex ? updatedWallet : item)))
-        setWalletRecharges((prev) => [newRecord, ...prev])
+        const nextWallets = wallets.map((item, index) => (index === walletIndex ? updatedWallet : item))
+        const nextRecharges = [newRecord, ...walletRecharges]
+        setWallets(nextWallets)
+        setWalletRecharges(nextRecharges)
         postExternalInflow({
             amount: Number(amount),
             category: 'Wallet Recharge',
@@ -1377,8 +1466,181 @@ export const FinanceProvider = ({ children }) => {
             narration: `Wallet recharge — ${wallet.name}`,
             sourceModule: SOURCE_MODULES.WALLET,
         })
-        return { success: true, wallet: updatedWallet, record: newRecord }
-    }, [postExternalInflow, wallets])
+        const persist = await flushFinanceToApi({
+            wallets: nextWallets,
+            walletRecharges: nextRecharges,
+        })
+        if (persist?.success === false) {
+            return {
+                success: false,
+                message: persist.message || 'Wallet updated locally but finance API push failed.',
+                wallet: updatedWallet,
+                record: newRecord,
+            }
+        }
+        return { success: true, wallet: updatedWallet, record: newRecord, api: Boolean(persist?.api) }
+    }, [flushFinanceToApi, postExternalInflow, walletRecharges, wallets])
+
+    approvalsRef.current = approvals
+    transportFleetRef.current = transportFleet
+    transportMaintenanceRef.current = transportMaintenance
+    walletsRef.current = wallets
+    studentsRef.current = students
+    transactionsRef.current = transactions
+
+    /** Pull TM fleet / fuel / maintenance into finance snapshot and push when API is on. */
+    const syncTransportOpsIntoFinance = useCallback(async ({ force = false } = {}) => {
+        if (transportSyncInFlightRef.current) {
+            return { success: true, skipped: true, reason: 'in-flight' }
+        }
+        if (!force && Date.now() - transportSyncAtRef.current < 8000) {
+            return { success: true, skipped: true, reason: 'throttled' }
+        }
+        transportSyncInFlightRef.current = true
+        try {
+            await Promise.all([
+                hydrateTransportApprovalRequestsFromApi(),
+                hydrateTransportExpensesFromApi(),
+                hydrateVehiclesFromApi(),
+            ])
+            const opsApprovals = [...getMaintenanceRequests(), ...getFuelRequests()]
+                .map(mapOpsRequestToFinanceApproval)
+            const opsFleet = getVehicles().map(mapOpsVehicleToFleetRow).filter((row) => row.regNo)
+            const opsExpenses = getTransportExpenses()
+            const opsMaintenance = mapServiceExpensesToFinanceRows(
+                opsExpenses.filter((row) => String(row.id || '').startsWith('SE-')),
+            )
+
+            // Ops first, snapshot second — finance decisions (Approved/Rejected) must win.
+            const nextApprovals = stripDemoApprovals(mergeByKey(
+                opsApprovals,
+                approvalsRef.current,
+                (row) => String(row.linkedRequestId || row.id || '').trim(),
+            ))
+            const nextFleet = mergeByKey(
+                opsFleet,
+                transportFleetRef.current,
+                (row) => String(row.regNo || row.id || '').trim().toUpperCase(),
+            )
+            const nextMaintenance = mergeByKey(
+                opsMaintenance,
+                transportMaintenanceRef.current,
+                (row) => String(row.linkedRequestId || row.id || '').trim(),
+            )
+
+            // Post TM fuel/service expenses as finance OUT vouchers (income already posts via fee collect).
+            const { transactions: newOutTxns, sequence: nextSeq } = buildOutTransactionsFromTransportExpenses(
+                opsExpenses,
+                transactionsRef.current,
+                seq.current,
+            )
+            seq.current = { ...seq.current, ...nextSeq }
+
+            // Also post approved finance claims that still have no OUT voucher.
+            const approvalOutTxns = []
+            nextApprovals
+                .filter((row) => String(row.status || '').toLowerCase() === 'approved')
+                .forEach((row) => {
+                    const amount = Number(String(row.amount ?? '').replace(/[^\d.]/g, '')) || 0
+                    if (amount <= 0) return
+                    const txnId = `TXN-APR-${String(row.id || '').replace(/\W/g, '')}`
+                    const exists = [...(transactionsRef.current || []), ...newOutTxns, ...approvalOutTxns]
+                        .some((txn) => (
+                            String(txn.id) === txnId
+                            || String(txn.linkedApprovalId || '') === String(row.id)
+                        ))
+                    if (exists) return
+                    seq.current.txn += 1
+                    seq.current.voucher += 1
+                    approvalOutTxns.push({
+                        id: txnId,
+                        transactionNo: generateTransactionNo(seq.current.txn),
+                        transactionDate: (row.decidedAt || '').slice(0, 10) || new Date().toISOString().slice(0, 10),
+                        direction: TRANSACTION_DIRECTIONS.OUT,
+                        sourceModule: String(row.department || '').toLowerCase() === 'transport'
+                            ? SOURCE_MODULES.TRANSPORT
+                            : SOURCE_MODULES.MANUAL,
+                        category: row.type || 'Expense Claim',
+                        paymentMode: PAYMENT_MODES.BANK_TRANSFER,
+                        amount,
+                        reference: row.id,
+                        linkedApprovalId: row.id,
+                        linkedRequestId: row.linkedRequestId || '',
+                        narration: `${row.type || 'Approval'} — ${row.raisedBy || 'Staff'} · ${row.department || ''}`,
+                        status: TRANSACTION_STATUSES.POSTED,
+                        voucherNo: generateVoucherNo(seq.current.voucher),
+                        createdBy: ACTOR_FINANCE_HEAD,
+                        createdAt: new Date().toISOString(),
+                        entryType: 'Expense',
+                    })
+                })
+
+            const createdOut = [...newOutTxns, ...approvalOutTxns]
+            const nextTransactions = createdOut.length
+                ? [...createdOut, ...(transactionsRef.current || [])]
+                : transactionsRef.current
+
+            if (createdOut.length) {
+                createdOut.forEach((transaction) => {
+                    postAccounting(createAccountingPosting({
+                        transaction,
+                        student: null,
+                        amount: transaction.amount,
+                        narration: transaction.narration,
+                    }))
+                })
+                setTransactions(nextTransactions)
+                transactionsRef.current = nextTransactions
+            }
+
+            setApprovals(nextApprovals)
+            setTransportFleet(nextFleet)
+            setTransportMaintenance(nextMaintenance)
+            approvalsRef.current = nextApprovals
+            transportFleetRef.current = nextFleet
+            transportMaintenanceRef.current = nextMaintenance
+
+            const persist = await flushFinanceToApi({
+                approvals: nextApprovals,
+                transportFleet: nextFleet,
+                transportMaintenance: nextMaintenance,
+                transactions: nextTransactions,
+                sequence: { ...seq.current },
+            })
+            transportSyncAtRef.current = Date.now()
+            return {
+                success: persist?.success !== false,
+                approvals: nextApprovals,
+                transportFleet: nextFleet,
+                transportMaintenance: nextMaintenance,
+                outTransactionsPosted: createdOut.length,
+                opsApprovalCount: opsApprovals.length,
+                opsFleetCount: opsFleet.length,
+                opsMaintenanceCount: opsMaintenance.length,
+                persist,
+            }
+        } finally {
+            transportSyncInFlightRef.current = false
+        }
+    }, [flushFinanceToApi, postAccounting])
+
+    /** Create zero-balance wallets for finance students missing one; persist. */
+    const ensureStudentWallets = useCallback(async () => {
+        const currentWallets = walletsRef.current || []
+        const next = ensureWalletsFromStudents(studentsRef.current || [], currentWallets)
+        if (next.length === currentWallets.length) {
+            return { success: true, created: 0, wallets: next }
+        }
+        setWallets(next)
+        walletsRef.current = next
+        const persist = await flushFinanceToApi({ wallets: next })
+        return {
+            success: persist?.success !== false,
+            created: next.length - currentWallets.length,
+            wallets: next,
+            persist,
+        }
+    }, [flushFinanceToApi])
 
     const reloadFinanceFromApi = useCallback(async () => {
         if (!isApiFinanceEnabled()) {
@@ -1389,8 +1651,15 @@ export const FinanceProvider = ({ children }) => {
         const remote = await pullFinanceState()
         apiHydratedRef.current = true
         if (remote?.seeded && remote?.data) {
-            applyFinanceData(remote.data)
+            const rawApprovals = Array.isArray(remote.data.approvals) ? remote.data.approvals : []
+            const cleanedApprovals = stripDemoApprovals(rawApprovals)
+            const payload = { ...remote.data, approvals: cleanedApprovals }
+            applyFinanceData(payload)
             if (remote.savedAt) setLastSavedAt(remote.savedAt)
+            if (cleanedApprovals.length !== rawApprovals.length) {
+                const savedRemote = await pushFinanceState(payload)
+                if (savedRemote?.savedAt) setLastSavedAt(savedRemote.savedAt)
+            }
         } else {
             const empty = createEmptyFinanceState()
             applyFinanceData(empty)
@@ -1435,8 +1704,24 @@ export const FinanceProvider = ({ children }) => {
                 apiHydratedRef.current = true
                 hydratedRoleRef.current = role
                 if (remote?.seeded && remote?.data) {
-                    applyFinanceData(remote.data)
+                    const rawApprovals = Array.isArray(remote.data.approvals) ? remote.data.approvals : []
+                    const cleanedApprovals = stripDemoApprovals(rawApprovals)
+                    const payload = { ...remote.data, approvals: cleanedApprovals }
+                    applyFinanceData(payload)
                     if (remote.savedAt) setLastSavedAt(remote.savedAt)
+                    // Persist purge so APR-11xx demo cast never reappears on next login.
+                    if (
+                        cleanedApprovals.length !== rawApprovals.length
+                        && isStaffFinance
+                        && FINANCE_WRITE_ROLES.has(role)
+                    ) {
+                        try {
+                            const savedRemote = await pushFinanceState(payload)
+                            if (!cancelled && savedRemote?.savedAt) setLastSavedAt(savedRemote.savedAt)
+                        } catch {
+                            /* UI already shows cleaned list; retry on next save */
+                        }
+                    }
                 } else if (isStaffFinance) {
                     const empty = createEmptyFinanceState()
                     applyFinanceData(empty)
@@ -1461,6 +1746,26 @@ export const FinanceProvider = ({ children }) => {
             })
         return () => { cancelled = true }
     }, [applyFinanceData, isAuthenticated, role])
+
+    // One-shot purge if a previous session still has demo APR rows in memory.
+    useEffect(() => {
+        if (financeStatus !== 'ready') return
+        const cleaned = stripDemoApprovals(approvals)
+        if (cleaned.length === approvals.length) return
+        setApprovals(cleaned)
+        approvalsRef.current = cleaned
+        if (apiHydratedRef.current && FINANCE_WRITE_ROLES.has(role)) {
+            flushFinanceToApi({ approvals: cleaned }).catch(() => {})
+        }
+    }, [approvals, financeStatus, flushFinanceToApi, role])
+
+    // After hydrate: pull TM expenses into OUT vouchers so Reports/Collections show expenditure.
+    useEffect(() => {
+        if (financeStatus !== 'ready') return
+        if (!FINANCE_WRITE_ROLES.has(role) && !FINANCE_API_ROLES.has(role)) return
+        syncTransportOpsIntoFinance({ force: true }).catch(() => {})
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- once when finance becomes ready
+    }, [financeStatus, role])
 
     const moneyInTransactions = useMemo(
         () => transactions.filter((item) => item.direction === TRANSACTION_DIRECTIONS.IN),
@@ -1790,6 +2095,8 @@ export const FinanceProvider = ({ children }) => {
         decideApproval,
         applyHrConcessions,
         rechargeWallet,
+        syncTransportOpsIntoFinance,
+        ensureStudentWallets,
         wallets,
         setWallets,
         walletRecharges,
@@ -1888,6 +2195,11 @@ export const FinanceProvider = ({ children }) => {
         settleCheque,
         students,
         setStudents,
+        syncTransportOpsIntoFinance,
+        ensureStudentWallets,
+        rechargeWallet,
+        decideApproval,
+        applyHrConcessions,
         transactions,
         transportCompliance,
         transportFleet,

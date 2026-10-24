@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { Search, X } from 'lucide-react'
-import { DIRECTORY_CONTACTS } from '../communicationData'
+import { getDirectoryContacts } from '../communicationData'
 import UserAvatar from './UserAvatar'
 
 const NewMessageModal = ({ open, onClose, currentUserId, existingParticipantIds = [], onSelect, contacts: supplied }) => {
@@ -8,14 +8,14 @@ const NewMessageModal = ({ open, onClose, currentUserId, existingParticipantIds 
 
     const contacts = useMemo(() => {
         const q = query.trim().toLowerCase()
-        return (supplied || DIRECTORY_CONTACTS).filter((contact) => {
+        return (supplied || getDirectoryContacts()).filter((contact) => {
             if (contact.id === currentUserId) return false
             if (!q) return true
             return (
-                contact.name.toLowerCase().includes(q) ||
-                contact.employeeId.toLowerCase().includes(q) ||
-                contact.role.toLowerCase().includes(q) ||
-                contact.department.toLowerCase().includes(q)
+                String(contact.name || '').toLowerCase().includes(q) ||
+                String(contact.employeeId || contact.id || '').toLowerCase().includes(q) ||
+                String(contact.role || '').toLowerCase().includes(q) ||
+                String(contact.department || '').toLowerCase().includes(q)
             )
         })
     }, [currentUserId, query, supplied])

@@ -19,6 +19,10 @@ import {
 import { getActivityConfig, getActivityRoutes, getActivityEditPath, getActivityViewPath } from './activityConfigs'
 import { canUseActivitiesApi } from '../../services/activitiesApi'
 import { getClassDisplayLabel, getClassSelectOptions } from '../RBAC/academicsCatalogData'
+import {
+    getFeeActivitiesVisibleInModule,
+    hydrateActivityFeesFromApi,
+} from '../../Pages/AccountHead/FeesManagement/activityFees'
 
 export default function ActivityListView({ roleKey, activityType }) {
     const location = useLocation()
@@ -31,6 +35,7 @@ export default function ActivityListView({ roleKey, activityType }) {
     const [classFilter, setClassFilter] = useState('')
     const [search, setSearch] = useState('')
     const [refreshKey, setRefreshKey] = useState(0)
+    const [feeActivityNames, setFeeActivityNames] = useState(() => getFeeActivitiesVisibleInModule())
     const classOptions = useMemo(() => getClassSelectOptions(), [])
 
     const activities = useMemo(() => {
@@ -56,6 +61,17 @@ export default function ActivityListView({ roleKey, activityType }) {
             active = false
         }
     }, [activityType, location.key])
+
+    useEffect(() => {
+        let active = true
+        hydrateActivityFeesFromApi()
+            .catch(() => false)
+            .finally(() => {
+                if (!active) return
+                setFeeActivityNames(getFeeActivitiesVisibleInModule())
+            })
+        return () => { active = false }
+    }, [location.key, refreshKey])
 
     const filteredActivities = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -97,6 +113,25 @@ export default function ActivityListView({ roleKey, activityType }) {
 
     return (
         <section>
+            {feeActivityNames.length > 0 && (
+                <div className='bg-white rounded-2xl shadow-md p-4 mb-4'>
+                    <h2 className='text-lg font-medium text-[#1E1E1E]'>Fee activities</h2>
+                    <p className='text-sm text-[#667085] mt-1 mb-3'>
+                        Activity names enrolled from Fees Management → Activity Fees.
+                    </p>
+                    <div className='flex flex-wrap gap-2'>
+                        {feeActivityNames.map((item) => (
+                            <span
+                                key={item.id}
+                                className='inline-flex items-center px-3 py-1.5 rounded-md bg-[#EDEEF5] text-sm font-medium text-[#0C1E5B]'
+                            >
+                                {item.name}
+                            </span>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
                     <button

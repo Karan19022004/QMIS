@@ -1,14 +1,12 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, Download } from 'lucide-react'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
     REPORT_TYPES,
-    TASK_COMPLETION_REPORT,
-    SUPPLY_USAGE_REPORT,
-    ZONE_CLEANING_REPORT,
-    LOW_STOCK_REPORT,
+    buildHousekeepingReports,
+    hydrateHousekeepingReportsFromApi,
 } from './reportsData'
 
 const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
@@ -38,6 +36,15 @@ const Reports = () => {
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
     const [activeReport, setActiveReport] = useState('All')
+    const [reports, setReports] = useState(() => buildHousekeepingReports())
+
+    useEffect(() => {
+        let active = true
+        hydrateHousekeepingReportsFromApi().then((next) => {
+            if (active) setReports(next)
+        })
+        return () => { active = false }
+    }, [])
 
     const show = (type) => activeReport === 'All' || activeReport === type
 
@@ -104,7 +111,7 @@ const Reports = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {TASK_COMPLETION_REPORT.map((row) => (
+                            {reports.taskCompletion.map((row) => (
                                 <tr key={`${row.task}-${row.date}`} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E] rounded-s-lg`}>{row.task}</td>
                                     <td className={tdClass}>{row.assignedTo}</td>
@@ -130,7 +137,7 @@ const Reports = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {SUPPLY_USAGE_REPORT.map((row) => (
+                            {reports.supplyUsage.map((row) => (
                                 <tr key={`${row.item}-${row.zone}`} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E] rounded-s-lg`}>{row.item}</td>
                                     <td className={tdClass}>{row.quantityUsed}</td>
@@ -155,7 +162,7 @@ const Reports = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {ZONE_CLEANING_REPORT.map((row) => (
+                            {reports.zoneCleaning.map((row) => (
                                 <tr key={row.zone} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E] rounded-s-lg`}>{row.zone}</td>
                                     <td className={tdClass}>{row.lastCleaned}</td>
@@ -179,7 +186,7 @@ const Reports = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {LOW_STOCK_REPORT.map((row) => (
+                            {reports.lowStock.map((row) => (
                                 <tr key={row.item} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E] rounded-s-lg`}>{row.item}</td>
                                     <td className={`${tdClass} ${row.currentQty <= row.reorderLevel ? 'text-[#FF5722] font-medium' : ''}`}>{row.currentQty}</td>

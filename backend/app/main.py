@@ -18,6 +18,7 @@ from app.api.v1.endpoints.academics_collections import router as academics_colle
 from app.api.v1.endpoints.ops_collections import router as ops_collections_router
 from app.api.v1.endpoints.campus_audit_collections import router as campus_audit_collections_router
 from app.api.v1.endpoints.protrack import router as protrack_router
+from app.api.v1.endpoints.geo import router as geo_router
 from app.api.v1.endpoints.webhooks import router as webhooks_router
 from app.api.v1.endpoints.tc_requests import router as tc_requests_router
 from app.api.v1.endpoints.files import router as files_router
@@ -99,6 +100,7 @@ app.include_router(academics_collections_router)
 app.include_router(ops_collections_router)
 app.include_router(campus_audit_collections_router)
 app.include_router(protrack_router)
+app.include_router(geo_router)
 app.include_router(webhooks_router)
 
 

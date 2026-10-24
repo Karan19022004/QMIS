@@ -3,7 +3,13 @@
  * Prefer these over hardcoded demo series when Finance API mode is on.
  */
 import { DEFAULT_ACADEMIC_YEAR, PAYMENT_MODES, TRANSACTION_DIRECTIONS, TRANSACTION_STATUSES } from './financeConstants'
-import { formatCurrency } from './financeHelpers'
+import {
+    compareAcademicYears,
+    formatCurrency,
+    normalizeAcademicYear,
+    sameAcademicYear,
+    summarizeStudentFees,
+} from './financeHelpers'
 import {
     CANONICAL_CLASS_COUNT,
     buildCampusClassOptions,
@@ -269,4 +275,271 @@ export const buildIncomeExpenseDaily = (transactions = []) => {
         else income[index] += amount
     })
     return { labels, income, expense }
+}
+
+const emptyFeeYearStats = (academicYear = '') => ({
+    academicYear,
+    totalDemand: 0,
+    totalConcession: 0,
+    netDemand: 0,
+    collected: 0,
+    outstanding: 0,
+    fineCollected: 0,
+    defaulters: 0,
+})
+
+const previousAcademicYear = (year) => {
+    const normalized = normalizeAcademicYear(year)
+    const match = String(normalized).match(/^(20\d{2})-(20\d{2})$/)
+    if (!match) return ''
+    const start = Number(match[1])
+    return `${start - 1}-${start}`
+}
+
+export const buildFeeYearStats = (installments = [], { academicYear, studentIds, categoryIds } = {}) => {
+    const rows = installments.filter((row) => {
+        if (academicYear && row.academicYear && !sameAcademicYear(row.academicYear, academicYear)) return false
+        if (studentIds && !studentIds.has(String(row.studentId))) return false
+        if (categoryIds && !categoryIds.has(String(row.feeCategoryId))) return false
+        return true
+    })
+    const summary = summarizeStudentFees(rows)
+    const outstandingByStudent = new Map()
+    rows.forEach((row) => {
+        const key = String(row.studentId || '')
+        if (!key) return
+        outstandingByStudent.set(key, (outstandingByStudent.get(key) || 0) + (Number(row.balanceAmount) || 0))
+    })
+    let defaulters = 0
+    outstandingByStudent.forEach((balance) => {
+        if (balance > 0) defaulters += 1
+    })
+    return {
+        academicYear: academicYear || '',
+        totalDemand: summary.totalFee,
+        totalConcession: summary.totalConcession,
+        netDemand: summary.netPayable,
+        collected: summary.paid,
+        outstanding: summary.outstanding,
+        fineCollected: summary.totalFine,
+        defaulters,
+    }
+}
+
+/** Live fee YoY comparison from snapshot installments / students / categories — no invented totals. */
+export const buildFeeComparisonFromSnapshot = ({
+    installments = [],
+    students = [],
+    feeCategories = [],
+    className = 'All Classes',
+    categoryName = 'All Fee Categories',
+    currentYear = DEFAULT_ACADEMIC_YEAR,
+} = {}) => {
+    const studentById = new Map(students.map((row) => [String(row.id), row]))
+    const categoryById = new Map(feeCategories.map((row) => [String(row.id), row]))
+    const classOptions = ['All Classes', ...[...new Set(
+        students.map((row) => String(row.className || '').trim()).filter(Boolean),
+    )].sort()]
+    const categoryOptions = ['All Fee Categories', ...feeCategories
+        .map((row) => row.name)
+        .filter(Boolean)]
+
+    let studentIds = null
+    if (className && className !== 'All Classes') {
+        studentIds = new Set(
+            students
+                .filter((row) => String(row.className || '').trim() === className)
+                .map((row) => String(row.id)),
+        )
+    }
+
+    let categoryIds = null
+    if (categoryName && categoryName !== 'All Fee Categories') {
+        categoryIds = new Set(
+            feeCategories
+                .filter((row) => row.name === categoryName)
+                .map((row) => String(row.id)),
+        )
+    }
+
+    const scoped = installments.filter((row) => {
+        if (studentIds && !studentIds.has(String(row.studentId))) return false
+        if (categoryIds && !categoryIds.has(String(row.feeCategoryId))) return false
+        return true
+    })
+
+    const years = [...new Set(
+        scoped.map((row) => normalizeAcademicYear(row.academicYear)).filter(Boolean),
+    )].sort()
+    const currentNormalized = normalizeAcademicYear(currentYear) || DEFAULT_ACADEMIC_YEAR
+    const resolvedCurrent = years.includes(currentNormalized)
+        ? currentNormalized
+        : (years[years.length - 1] || currentNormalized)
+    const previous = years.filter((year) => year < resolvedCurrent).pop()
+        || previousAcademicYear(resolvedCurrent)
+
+    const currentStats = buildFeeYearStats(scoped, { academicYear: resolvedCurrent })
+    const previousStats = years.includes(previous)
+        ? buildFeeYearStats(scoped, { academicYear: previous })
+        : emptyFeeYearStats(previous)
+
+    return {
+        currentStats,
+        previousStats,
+        currentYear: resolvedCurrent,
+        previousYear: previous || 'Prior year',
+        classOptions,
+        categoryOptions,
+        comparison: compareAcademicYears(currentStats, previousStats),
+        studentById,
+        categoryById,
+        installmentCount: scoped.length,
+    }
+}
+
+const txnDateMs = (row) => {
+    const date = new Date(row.transactionDate || row.date || row.createdAt)
+    return Number.isNaN(date.getTime()) ? 0 : date.getTime()
+}
+
+/** Posted OUT transactions grouped by category, with last-90-day vs prior-90-day change. */
+export const buildExpenditureBreakdownFromTransactions = (transactions = []) => {
+    const posted = transactions.filter((row) => (
+        row.direction === TRANSACTION_DIRECTIONS.OUT
+        && (!row.status || row.status === TRANSACTION_STATUSES.POSTED)
+    ))
+    const now = Date.now()
+    const termMs = 90 * 24 * 60 * 60 * 1000
+    const thisTermStart = now - termMs
+    const lastTermStart = now - (2 * termMs)
+
+    const totals = new Map()
+    posted.forEach((row) => {
+        const category = row.category || row.sourceModule || 'Other'
+        const amount = Number(row.amount) || 0
+        const ms = txnDateMs(row)
+        const cur = totals.get(category) || { amount: 0, thisTerm: 0, lastTerm: 0 }
+        cur.amount += amount
+        if (ms >= thisTermStart) cur.thisTerm += amount
+        else if (ms >= lastTermStart) cur.lastTerm += amount
+        totals.set(category, cur)
+    })
+
+    const grand = [...totals.values()].reduce((sum, row) => sum + row.amount, 0)
+    return [...totals.entries()]
+        .sort((a, b) => b[1].amount - a[1].amount)
+        .map(([category, row]) => {
+            const delta = row.lastTerm ? ((row.thisTerm - row.lastTerm) / row.lastTerm) * 100 : null
+            return {
+                category,
+                amount: formatCurrency(row.amount),
+                percent: grand ? `${((row.amount / grand) * 100).toFixed(1)}%` : '0%',
+                vsLastTerm: delta == null ? '—' : `${delta >= 0 ? '↑' : '↓'} ${Math.abs(delta).toFixed(1)}%`,
+                trend: delta == null ? 'flat' : (delta < 0 ? 'down' : 'up'),
+            }
+        })
+}
+
+const stdev = (values) => {
+    if (!values.length) return 0
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length
+    const variance = values.reduce((sum, value) => sum + ((value - mean) ** 2), 0) / values.length
+    return Math.sqrt(variance)
+}
+
+/** Trends cards, YoY bars, and observations from posted snapshot transactions. */
+export const buildTrendsFromTransactions = (transactions = []) => {
+    const posted = transactions.filter((row) => !row.status || row.status === TRANSACTION_STATUSES.POSTED)
+    const trend = buildMonthlyFlowTrend(posted, 12)
+    const last3In = trend.inflow.slice(-3).reduce((sum, value) => sum + value, 0)
+    const last3Out = trend.outflow.slice(-3).reduce((sum, value) => sum + value, 0)
+    const avgSurplus = (last3In - last3Out) / 3
+    const maxOutIdx = trend.outflow.reduce((best, value, index, arr) => (value > arr[best] ? index : best), 0)
+    const maxInIdx = trend.inflow.reduce((best, value, index, arr) => (value > arr[best] ? index : best), 0)
+    const meanOut = trend.outflow.length
+        ? trend.outflow.reduce((sum, value) => sum + value, 0) / trend.outflow.length
+        : 0
+    const volatility = meanOut ? stdev(trend.outflow) / meanOut : 0
+    const volatilityLabel = volatility < 0.15 ? 'Low' : volatility < 0.35 ? 'Moderate' : 'High'
+
+    const byYear = new Map()
+    posted.forEach((row) => {
+        const iso = String(row.transactionDate || row.date || '').slice(0, 4)
+        if (!iso) return
+        const cur = byYear.get(iso) || { income: 0, expenditure: 0 }
+        const amount = Number(row.amount) || 0
+        if (row.direction === TRANSACTION_DIRECTIONS.OUT) cur.expenditure += amount
+        else cur.income += amount
+        byYear.set(iso, cur)
+    })
+    const years = [...byYear.keys()].sort()
+    const maxIncome = Math.max(1, ...years.map((year) => byYear.get(year).income))
+    const maxExpense = Math.max(1, ...years.map((year) => byYear.get(year).expenditure))
+    const yearOnYear = years.flatMap((year) => {
+        const row = byYear.get(year)
+        return [
+            { label: `Income — ${year}`, amount: formatCurrency(row.income), value: Math.max(6, Math.round((row.income / maxIncome) * 100)), tone: 'in' },
+            { label: `Expenditure — ${year}`, amount: formatCurrency(row.expenditure), value: Math.max(6, Math.round((row.expenditure / maxExpense) * 100)), tone: 'out' },
+        ]
+    })
+
+    const peakMonth = trend.labels[maxInIdx] || '—'
+    const spendMonth = trend.labels[maxOutIdx] || '—'
+    const salaryRows = posted.filter((row) => (
+        row.direction === TRANSACTION_DIRECTIONS.OUT
+        && /salary|payroll/i.test(`${row.category || ''} ${row.sourceModule || ''} ${row.narration || ''}`)
+    ))
+    const salaryByMonth = new Map()
+    salaryRows.forEach((row) => {
+        const key = String(row.transactionDate || row.date || '').slice(0, 7)
+        if (!key) return
+        salaryByMonth.set(key, (salaryByMonth.get(key) || 0) + (Number(row.amount) || 0))
+    })
+    const salaryValues = [...salaryByMonth.values()]
+    const salaryMean = salaryValues.length ? salaryValues.reduce((sum, value) => sum + value, 0) / salaryValues.length : 0
+    const salaryVol = salaryMean ? (stdev(salaryValues) / salaryMean) * 100 : 0
+
+    const cards = [
+        {
+            label: '3-Month Avg. Surplus',
+            value: formatCurrency(avgSurplus),
+            sub: 'per month',
+            iconTone: avgSurplus >= 0 ? 'success' : 'danger',
+            subTone: avgSurplus >= 0 ? 'success' : 'danger',
+        },
+        {
+            label: 'Highest Spend Month',
+            value: spendMonth,
+            sub: `${formatCurrency(trend.outflow[maxOutIdx] || 0)} outflow`,
+            subTone: 'danger',
+            iconTone: 'danger',
+        },
+        {
+            label: 'Collection Peak',
+            value: peakMonth,
+            sub: `${formatCurrency(trend.inflow[maxInIdx] || 0)} inflow`,
+            subTone: 'success',
+            iconTone: 'success',
+        },
+        {
+            label: 'Expense Volatility',
+            value: volatilityLabel,
+            sub: meanOut ? `${(volatility * 100).toFixed(0)}% month-to-month` : 'No posted OUT yet',
+            iconTone: 'info',
+        },
+    ]
+
+    const observations = [
+        posted.length
+            ? `Fee / inflow collection peaks in ${peakMonth} on the current snapshot (${formatCurrency(trend.inflow[maxInIdx] || 0)}).`
+            : 'No posted transactions on the finance snapshot yet — trends will appear after collections and expenses are recorded.',
+        spendMonth !== '—'
+            ? `Highest outflow month is ${spendMonth} (${formatCurrency(trend.outflow[maxOutIdx] || 0)}).`
+            : 'No posted expenditure months yet.',
+        salaryValues.length
+            ? `Salary / payroll spend varies ${salaryVol.toFixed(1)}% month-to-month across ${salaryValues.length} month(s).`
+            : 'No salary / payroll OUT lines on the snapshot yet.',
+    ]
+
+    return { cards, yearOnYear, observations }
 }

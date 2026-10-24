@@ -20,12 +20,25 @@ const FinancialOverviewTab = () => {
         const expense = (transactions || [])
             .filter((row) => row.direction === 'OUT' && row.status === 'POSTED')
             .reduce((sum, row) => sum + Number(row.amount || 0), 0)
-        return OVERVIEW_SUMMARY.map((card, index) => {
-            if (index === 0 || /income|collection/i.test(card.label)) {
-                return { ...card, value: formatCurrency(income || dashboardMetrics?.todaysCollection || 0), sub: `${receipts?.length || 0} receipts` }
+        const net = income - expense
+        const margin = income > 0 ? `${((net / income) * 100).toFixed(1)}% margin` : 'No income yet'
+        return OVERVIEW_SUMMARY.map((card) => {
+            if (/income \(ytd\)|total income/i.test(card.label)) {
+                return { ...card, value: formatCurrency(income), sub: `${receipts?.length || 0} receipts`, subTone: 'success' }
             }
             if (/expense|expenditure|outflow/i.test(card.label)) {
-                return { ...card, value: formatCurrency(expense), sub: 'Posted OUT vouchers' }
+                return { ...card, value: formatCurrency(expense), sub: 'Posted OUT vouchers', subTone: 'danger' }
+            }
+            if (/surplus|net/i.test(card.label)) {
+                return {
+                    ...card,
+                    value: formatCurrency(net),
+                    sub: margin,
+                    subTone: net >= 0 ? 'success' : 'danger',
+                }
+            }
+            if (/efficiency|collection/i.test(card.label)) {
+                return { ...card, value: formatCurrency(income), sub: `${receipts?.length || 0} receipts` }
             }
             if (/due|pending|outstanding/i.test(card.label)) {
                 return { ...card, value: formatCurrency(dashboardMetrics?.currentDue || 0), sub: 'Fee balances' }

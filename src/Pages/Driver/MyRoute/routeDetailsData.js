@@ -1,14 +1,4 @@
-export const ROUTE_DETAILS = {
-    routeId: 'RT001',
-    routeName: 'Erode Central Route',
-    vehicleNumber: 'TN 33 AB 1234',
-    routeType: 'Morning & Evening',
-    totalDistance: '28 KM',
-    estimatedTravelTime: '1 Hour 20 Minutes',
-    totalStops: '8',
-    totalStudents: '46',
-    status: 'Active',
-}
+import { resolveDriverProfile } from '../driverProfileData'
 
 export const routeStatusBadgeColor = {
     Active: 'bg-[#4CAF501A] text-[#4CAF50]',
@@ -27,3 +17,35 @@ export const ROUTE_INFO_TILES = [
     { key: 'totalStudents', label: 'Total Students', icon: 'students', iconTone: 'success' },
     { key: 'status', label: 'Route Status', icon: 'routeStatus', iconTone: 'success', isStatus: true },
 ]
+
+export function getMyRouteDetails(userEmail = '') {
+    const ctx = resolveDriverProfile(userEmail)
+    const route = ctx.route
+    const stopCount = Array.isArray(route?.stops) ? route.stops.length : Number(route?.totalStops || 0)
+    return {
+        routeId: ctx.routeId,
+        routeName: ctx.routeName,
+        vehicleNumber: ctx.vehicleNumber,
+        routeType: route?.routeType || 'Morning & Evening',
+        totalDistance: route?.distance || route?.totalDistance || '—',
+        estimatedTravelTime: route?.estimatedTime || route?.estimatedTravelTime || '—',
+        totalStops: String(stopCount || '—'),
+        totalStudents: String(ctx.students.length || 0),
+        status: route?.status || ctx.vehicle?.status || (route ? 'Active' : '—'),
+        startLocation: route?.startLocation || '—',
+        endLocation: route?.endLocation || '—',
+    }
+}
+
+/** @deprecated use getMyRouteDetails */
+export const ROUTE_DETAILS = {
+    routeId: '—',
+    routeName: '—',
+    vehicleNumber: '—',
+    routeType: '—',
+    totalDistance: '—',
+    estimatedTravelTime: '—',
+    totalStops: '—',
+    totalStudents: '—',
+    status: '—',
+}

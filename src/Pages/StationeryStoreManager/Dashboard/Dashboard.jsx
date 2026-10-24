@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
     Package,
     AlertTriangle,
@@ -10,11 +10,8 @@ import {
     Store,
 } from 'lucide-react'
 import {
-    SUMMARY_CARDS,
-    RECENT_ISSUES,
-    LOW_STOCK_ITEMS,
-    PENDING_REQUESTS,
-    RECENT_NOTICES,
+    buildStationeryDashboard,
+    hydrateStationeryDashboardFromApi,
     requestStatusBadgeColor,
 } from './dashboardData'
 
@@ -39,6 +36,18 @@ const thClass = 'px-2 py-3 text-[#0C1E5B] font-medium uppercase text-xs'
 const tdClass = 'px-2 py-3 text-[#667085] text-sm'
 
 const Dashboard = () => {
+    const [data, setData] = useState(() => buildStationeryDashboard())
+
+    useEffect(() => {
+        let active = true
+        hydrateStationeryDashboardFromApi().then((next) => {
+            if (active) setData(next)
+        })
+        return () => { active = false }
+    }, [])
+
+    const { summaryCards, recentIssues, lowStockItems, pendingRequests, recentNotices } = data
+
     return (
         <section className='space-y-6'>
             <div className='bg-white rounded-2xl shadow-md p-4'>
@@ -54,7 +63,7 @@ const Dashboard = () => {
             </div>
 
             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
-                {SUMMARY_CARDS.map((card) => {
+                {summaryCards.map((card) => {
                     const Icon = CARD_ICONS[card.label] ?? Package
                     return (
                         <div key={card.label} className='bg-white rounded-2xl shadow-md p-4'>
@@ -85,7 +94,10 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {RECENT_ISSUES.map((row) => (
+                            {recentIssues.length === 0 && (
+                                <tr><td colSpan={4} className={`${tdClass} text-center`}>No issues recorded yet.</td></tr>
+                            )}
+                            {recentIssues.map((row) => (
                                 <tr key={row.issueId} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.issueId}</td>
                                     <td className={tdClass}>{row.requestedBy}</td>
@@ -107,7 +119,10 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {LOW_STOCK_ITEMS.map((row) => (
+                            {lowStockItems.length === 0 && (
+                                <tr><td colSpan={3} className={`${tdClass} text-center`}>No low-stock items.</td></tr>
+                            )}
+                            {lowStockItems.map((row) => (
                                 <tr key={row.item} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.item}</td>
                                     <td className={`${tdClass} text-[#FF5722] font-medium`}>{row.availableQty}</td>
@@ -128,7 +143,10 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {PENDING_REQUESTS.map((row) => (
+                            {pendingRequests.length === 0 && (
+                                <tr><td colSpan={3} className={`${tdClass} text-center`}>No pending requests.</td></tr>
+                            )}
+                            {pendingRequests.map((row) => (
                                 <tr key={row.requestId} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.requestId}</td>
                                     <td className={tdClass}>{row.type}</td>
@@ -152,7 +170,10 @@ const Dashboard = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {RECENT_NOTICES.map((row) => (
+                            {recentNotices.length === 0 && (
+                                <tr><td colSpan={2} className={`${tdClass} text-center`}>No announcements yet.</td></tr>
+                            )}
+                            {recentNotices.map((row) => (
                                 <tr key={row.title} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E] max-w-[220px] truncate`} title={row.title}>{row.title}</td>
                                     <td className={tdClass}>{row.date}</td>

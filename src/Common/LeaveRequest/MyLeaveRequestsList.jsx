@@ -11,7 +11,7 @@ import { getLeaveMyViewPath, getLeaveRoutes, resolveRoleKey } from './leaveReque
 
 export default function MyLeaveRequestsList({ roleKey: roleKeyProp }) {
     const location = useLocation()
-    const { role: authRole } = useAuth()
+    const { role: authRole, isAuthenticated } = useAuth()
     const roleKey = resolveRoleKey(authRole || roleKeyProp)
     const routes = getLeaveRoutes(roleKey)
     const [search, setSearch] = useState('')
@@ -20,11 +20,7 @@ export default function MyLeaveRequestsList({ roleKey: roleKeyProp }) {
     const [toDate, setToDate] = useState(null)
     const [exportModal, setExportModal] = useState(false)
     const [refreshKey, setRefreshKey] = useState(0)
-
-    useEffect(() => {
-        setRefreshKey((value) => value + 1)
-        hydrateLeaveRequestsFromApi() // no-op without an API session; emits the update event when done
-    }, [location.pathname])
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         const refresh = () => setRefreshKey((value) => value + 1)
@@ -36,10 +32,23 @@ export default function MyLeaveRequestsList({ roleKey: roleKeyProp }) {
         }
     }, [])
 
+    useEffect(() => {
+        let cancelled = false
+        setLoading(true)
+        hydrateLeaveRequestsFromApi()
+            .catch(() => false)
+            .finally(() => {
+                if (cancelled) return
+                setRefreshKey((value) => value + 1)
+                setLoading(false)
+            })
+        return () => { cancelled = true }
+    }, [location.pathname, location.key, isAuthenticated, authRole])
+
     const requests = useMemo(() => {
         void refreshKey
         return getMyLeaveRequestsForRole(roleKey)
-    }, [roleKey, refreshKey, location.key])
+    }, [roleKey, refreshKey])
 
     const filteredRequests = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -134,7 +143,11 @@ export default function MyLeaveRequestsList({ roleKey: roleKeyProp }) {
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredRequests.length === 0 ? (
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={10} className='px-2 py-8 text-center text-[#667085]'>Loading leave requests…</td>
+                                </tr>
+                            ) : filteredRequests.length === 0 ? (
                                 <tr>
                                     <td colSpan={10} className='px-2 py-8 text-center text-[#667085]'>No leave requests found.</td>
                                 </tr>

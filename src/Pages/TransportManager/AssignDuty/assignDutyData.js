@@ -25,6 +25,11 @@ export function getAssignDutyRouteOptions() {
         id: route.id,
         label: route.routeName,
         vehicleNumber: route.vehicleNumber,
+        gpsImei: route.gpsImei || route.imei || '',
+        endLat: route.endLat,
+        endLng: route.endLng,
+        endMapsUrl: route.endMapsUrl || '',
+        stops: Array.isArray(route.stops) ? route.stops : [],
     }))
 }
 
@@ -109,9 +114,51 @@ export function hydrateDutiesFromApi() {
 export async function upsertDuty(duty) {
     const rows = getDuties()
     const nextId = duty.id || nextPrefixedId(rows, 'DUTY-')
-    const record = { ...duty, id: nextId, dutyId: duty.dutyId || nextId }
+    const route = getRoutes().find((item) => (
+        item.id === duty.routeId
+        || String(item.routeName || '').trim() === String(duty.routeName || '').trim()
+    )) || null
+    const dutyType = String(duty.dutyType || 'Pickup').trim() === 'Drop' ? 'Drop' : 'Pickup'
+    const record = {
+        ...duty,
+        id: nextId,
+        dutyId: duty.dutyId || nextId,
+        routeId: duty.routeId || route?.id || '',
+        routeName: duty.routeName || route?.routeName || '',
+        vehicleNumber: duty.vehicleNumber || route?.vehicleNumber || '',
+        gpsImei: duty.gpsImei || route?.gpsImei || route?.imei || '',
+        imei: duty.imei || duty.gpsImei || route?.gpsImei || route?.imei || '',
+        dutyType,
+        shift: duty.shift || (dutyType === 'Drop' ? 'Afternoon' : 'Morning'),
+        status: duty.status || duty.dutyStatus || 'Assigned',
+        dutyStatus: duty.dutyStatus || duty.status || 'Assigned',
+        trackingActive: duty.trackingActive !== false
+            && !['Completed', 'Cancelled'].includes(String(duty.dutyStatus || duty.status || '')),
+        endLat: duty.endLat ?? route?.endLat ?? '',
+        endLng: duty.endLng ?? route?.endLng ?? '',
+        endMapsUrl: duty.endMapsUrl || route?.endMapsUrl || '',
+        endLocation: duty.endLocation || route?.endLocation || '',
+        stops: Array.isArray(duty.stops) ? duty.stops : (route?.stops || []),
+        assignedBy: duty.assignedBy || 'Transport Manager',
+    }
     const idx = rows.findIndex((row) => row.id === nextId)
     const next = idx >= 0 ? rows.map((row, i) => (i === idx ? record : row)) : [...rows, record]
+    const result = await saveDuties(next)
+    return { ...result, record }
+}
+
+export async function updateDutyStatus(id, dutyStatus) {
+    const rows = getDuties()
+    const idx = rows.findIndex((row) => row.id === id || row.dutyId === id)
+    if (idx < 0) return { success: false, message: 'Duty not found.' }
+    const status = String(dutyStatus || '').trim() || 'Assigned'
+    const record = {
+        ...rows[idx],
+        dutyStatus: status,
+        status,
+        trackingActive: !['Completed', 'Cancelled'].includes(status),
+    }
+    const next = rows.map((row, i) => (i === idx ? record : row))
     const result = await saveDuties(next)
     return { ...result, record }
 }

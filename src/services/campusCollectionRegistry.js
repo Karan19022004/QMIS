@@ -10,6 +10,9 @@ export const CAMPUS_COLLECTION_BY_STORAGE_KEY = {
     'schoolerp-security-handover-v1': { kind: 'ops', collection: 'gate-handover' },
     'schoolerp-security-vendors-v1': { kind: 'ops', collection: 'gate-vendors' },
     'schoolerp-security-incidents-v1': { kind: 'ops', collection: 'gate-incidents' },
+    'schoolerp-security-duties-v1': { kind: 'ops', collection: 'gate-duties' },
+    'schoolerp-security-duty-assignments-v1': { kind: 'ops', collection: 'gate-duty-assignments' },
+    'schoolerp-security-team-attendance-v1': { kind: 'ops', collection: 'gate-team-attendance' },
     // Housekeeping registers
     'schoolerp-housekeeping-schedules-v1': { kind: 'ops', collection: 'hk-schedules' },
     'schoolerp-housekeeping-som-v1': { kind: 'ops', collection: 'hk-star-of-month' },
@@ -39,18 +42,34 @@ export const CAMPUS_COLLECTION_BY_STORAGE_KEY = {
     'schoolerp-transport-budget-requests-v1': { kind: 'ops', collection: 'transport-budget-requests' },
     'schoolerp-transport-approvals-v1': { kind: 'ops', collection: 'transport-approval-requests' },
     'schoolerp-transport-service-centers-v1': { kind: 'ops', collection: 'transport-service-centers' },
+    'schoolerp-transport-building-maintenance-v1': { kind: 'ops', collection: 'transport-building-maintenance' },
+    // Activity fees (Account Head → Fees Management → Activity Fees)
+    'schoolerp-activity-fee-catalog-v1': { kind: 'ops', collection: 'activity-fee-catalog' },
+    'schoolerp-activity-fee-enrollments-v1': { kind: 'ops', collection: 'activity-fee-enrollments' },
+    // Hostel (Student / Parent details + payments)
+    'schoolerp-hostel-assignments-v1': { kind: 'ops', collection: 'hostel-assignments' },
+    'schoolerp-hostel-payments-v1': { kind: 'ops', collection: 'hostel-payments' },
     // Canteen
     'schoolerp-canteen-menu-v1': { kind: 'ops', collection: 'canteen-menu' },
     'schoolerp-canteen-inventory-v1': { kind: 'ops', collection: 'canteen-inventory' },
     'schoolerp-canteen-orders-v1': { kind: 'ops', collection: 'canteen-orders' },
     'schoolerp-canteen-requests-v1': { kind: 'ops', collection: 'canteen-requests' },
+    'schoolerp-canteen-reports-v1': { kind: 'ops', collection: 'canteen-reports' },
     // IT
     'school-erp-it-assets-v1': { kind: 'ops', collection: 'it-assets' },
     'schoolerp-it-tickets-v1': { kind: 'ops', collection: 'it-support-tickets' },
+    // legacy alias (older localStorage key)
+    'schoolerp-it-support-tickets-v1': { kind: 'ops', collection: 'it-support-tickets' },
     'schoolerp-it-requests-v1': { kind: 'ops', collection: 'it-requests' },
+    'school-erp-maintenance-inventory-v1': { kind: 'ops', collection: 'it-maintenance-inventory' },
+    'schoolerp-it-procurement-v1': { kind: 'ops', collection: 'it-procurement' },
     // Stationery
     'schoolerp-stationery-inventory-v1': { kind: 'ops', collection: 'stationery-inventory' },
     'schoolerp-stationery-requests-v1': { kind: 'ops', collection: 'stationery-requests' },
+    'schoolerp-stationery-requirements-v1': { kind: 'ops', collection: 'stationery-requirements' },
+    'schoolerp-stationery-stock-issues-v1': { kind: 'ops', collection: 'stationery-stock-issues' },
+    'schoolerp-stationery-critical-alerts-v1': { kind: 'ops', collection: 'stationery-critical-alerts' },
+    'schoolerp-stationery-procurement-v1': { kind: 'ops', collection: 'stationery-procurement' },
     // JD
     'schoolerp-jd-meetings-v1': { kind: 'ops', collection: 'jd-meetings' },
     'schoolerp-jd-approvals-v1': { kind: 'ops', collection: 'jd-request-approvals' },
@@ -91,6 +110,8 @@ export const CAMPUS_COLLECTION_BY_STORAGE_KEY = {
     'schoolerp-jd-audit-assignments-v1': { kind: 'audit', collection: 'audit-assignments' },
     'schoolerp-hk-inventory-v1': { kind: 'ops', collection: 'hk-inventory' },
     'schoolerp-hk-requests-v1': { kind: 'ops', collection: 'hk-requests' },
+    'schoolerp-hk-inventory-requirements-v1': { kind: 'ops', collection: 'hk-inventory-requirements' },
+    'schoolerp-hk-procurement-v1': { kind: 'ops', collection: 'hk-procurement' },
     'schoolerp-stationery-issue-returns-v1': { kind: 'ops', collection: 'stationery-issue-returns' },
     'school-erp-it-asset-service-v1': { kind: 'ops', collection: 'it-asset-service' },
     'school-erp-it-asset-transfers-v1': { kind: 'ops', collection: 'it-asset-transfers' },

@@ -118,6 +118,40 @@ export function getMyDuties() {
 export function saveMyDuties(rows) {
     return saveCampusJson('schoolerp-transport-driver-my-duties-v1', rows)
 }
+
+/** Persist status onto TM Assign Duty collection so Parent/Student Track Bus can hide completed trips. */
+export async function setMyDutyStatus(dutyId, dutyStatus) {
+    const status = String(dutyStatus || '').trim() || 'Assigned'
+    const assigned = loadCampusJson(ASSIGNED_DUTIES_KEY, []).map(asDuty)
+    const idx = assigned.findIndex((row) => (
+        String(row.id) === String(dutyId) || String(row.dutyId) === String(dutyId)
+    ))
+    const patchDuty = (row) => ({
+        ...row,
+        dutyStatus: status,
+        status,
+        trackingActive: !['Completed', 'Cancelled', 'Done'].includes(status),
+        startedAt: ['In Progress', 'Started'].includes(status)
+            ? (row.startedAt || new Date().toISOString())
+            : row.startedAt,
+        completedAt: ['Completed', 'Done'].includes(status)
+            ? new Date().toISOString()
+            : row.completedAt,
+    })
+    if (idx >= 0) {
+        const next = assigned.map((row, i) => (i === idx ? patchDuty(row) : row))
+        await saveCampusJson(ASSIGNED_DUTIES_KEY, next)
+        return { success: true, record: next[idx] }
+    }
+    const own = loadCampusJson(MY_DUTIES_STORAGE_KEY, []).map(asDuty)
+    const ownIdx = own.findIndex((row) => (
+        String(row.id) === String(dutyId) || String(row.dutyId) === String(dutyId)
+    ))
+    if (ownIdx < 0) return { success: false, message: 'Duty not found.' }
+    const nextOwn = own.map((row, i) => (i === ownIdx ? patchDuty(row) : row))
+    await saveMyDuties(nextOwn)
+    return { success: true, record: nextOwn[ownIdx] }
+}
 export function hydrateMyDutiesFromApi() {
     if (!usesCampusApiForKey(MY_DUTIES_STORAGE_KEY)) return Promise.resolve(false)
     return Promise.all([

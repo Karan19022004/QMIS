@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download } from 'lucide-react'
+import { toast } from 'react-toastify'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import { parseTransportDate } from '../transportCampus'
 import {
@@ -89,15 +90,28 @@ const RequestApprovals = () => {
     )
 
     const filteredFuel = useMemo(
-        () => fuelRequests.filter((row) => matchesFilters(row, 'requestedDate')),
+        () => fuelRequests.filter((row) => matchesFilters(row, row.requestedDate ? 'requestedDate' : 'requestDate')),
         [fuelRequests, search, statusFilter, fromDate, toDate, activeTab]
     )
 
     const handleDecision = async (requestId, status) => {
         setBusyId(requestId)
         try {
-            await updateApprovalRequestStatus(requestId, status)
+            const result = await updateApprovalRequestStatus(requestId, status)
+            if (result?.success === false) {
+                toast.error(result.message || 'Could not update this request.')
+                return
+            }
+            await hydrateTransportApprovalRequestsFromApi()
             refresh()
+            const lower = String(status || '').toLowerCase()
+            toast.success(
+                lower === 'rejected'
+                    ? 'Request rejected.'
+                    : 'Sent to Principal for final approval.',
+            )
+        } catch (err) {
+            toast.error(err?.message || 'Could not update this request.')
         } finally {
             setBusyId('')
         }
@@ -346,7 +360,7 @@ const RequestApprovals = () => {
                                             <td className='px-2 py-4'>{request.routeName}</td>
                                             <td className='px-2 py-4'>{request.currentOdometerReading}</td>
                                             <td className='px-2 py-4'>{request.requestedQuantity}</td>
-                                            <td className='px-2 py-4'>{request.requestedDate}</td>
+                                            <td className='px-2 py-4'>{request.requestedDate || request.requestDate || '—'}</td>
                                             <td className='px-2 py-4'>
                                                 <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusBadgeColor[request.status] || 'bg-gray-100 text-gray-600'}`}>
                                                     {request.status}

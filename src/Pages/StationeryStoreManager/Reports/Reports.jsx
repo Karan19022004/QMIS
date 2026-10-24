@@ -1,14 +1,12 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, Download } from 'lucide-react'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
     REPORT_TYPES,
-    STOCK_MOVEMENT_REPORT,
-    CONSUMPTION_REPORT,
-    EXPENSE_REPORT,
-    LOW_STOCK_REPORT,
+    buildStationeryReports,
+    hydrateStationeryReportsFromApi,
 } from './reportsData'
 
 const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
@@ -39,7 +37,16 @@ const Reports = () => {
     const [exportModal, setExportModal] = useState(false)
     const [activeReport, setActiveReport] = useState('All')
     const [search, setSearch] = useState('')
+    const [reports, setReports] = useState(() => buildStationeryReports())
     const matches = (row) => !search.trim() || Object.values(row).join(' ').toLowerCase().includes(search.trim().toLowerCase())
+
+    useEffect(() => {
+        let active = true
+        hydrateStationeryReportsFromApi().then((next) => {
+            if (active) setReports(next)
+        })
+        return () => { active = false }
+    }, [])
 
     const show = (type) => activeReport === 'All' || activeReport === type
 
@@ -110,7 +117,7 @@ const Reports = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {STOCK_MOVEMENT_REPORT.filter(matches).map((row) => (
+                            {reports.stockMovement.filter(matches).map((row) => (
                                 <tr key={row.item} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E] rounded-s-lg`}>{row.item}</td>
                                     <td className={tdClass}>{row.openingStock}</td>
@@ -136,7 +143,7 @@ const Reports = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {CONSUMPTION_REPORT.filter(matches).map((row) => (
+                            {reports.consumption.filter(matches).map((row) => (
                                 <tr key={`${row.item}-${row.department}`} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E] rounded-s-lg`}>{row.item}</td>
                                     <td className={tdClass}>{row.quantityUsed}</td>
@@ -163,7 +170,7 @@ const Reports = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {EXPENSE_REPORT.filter(matches).map((row, index) => (
+                            {reports.expense.filter(matches).map((row, index) => (
                                 <tr key={row.invoiceNo} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} rounded-s-lg`}>{index + 1}</td>
                                     <td className={`${tdClass} font-medium text-[#1E1E1E]`}>{row.invoiceNo}</td>
@@ -189,7 +196,7 @@ const Reports = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {LOW_STOCK_REPORT.filter(matches).map((row) => (
+                            {reports.lowStock.filter(matches).map((row) => (
                                 <tr key={row.item} className="border-b border-[#f2f4f7] hover:bg-[#f2f4f7]">
                                     <td className={`${tdClass} font-medium text-[#1E1E1E] rounded-s-lg`}>{row.item}</td>
                                     <td className={`${tdClass} ${row.currentQty <= row.reorderLevel ? 'text-[#FF5722] font-medium' : ''}`}>{row.currentQty}</td>

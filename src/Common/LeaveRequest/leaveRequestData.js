@@ -1,6 +1,7 @@
 import { ROLES } from '../../constants/roles'
 import { getLeaveApproverConfig, getSubmitterProfile, resolveRoleKey } from './leaveRequestConfigs'
 import { canUseLeaveApi, createLeaveApi, decideLeaveApi, listLeaveApi } from '../../services/leaveApi'
+import { syncAllStaffLeavesIntoHr, syncStaffLeaveIntoHr } from './leaveHrPayrollBridge'
 
 export const STORAGE_KEY = 'schoolerp-leave-requests'
 export const LEAVE_REQUESTS_UPDATED_EVENT = 'schoolerp-leave-requests-updated'
@@ -186,11 +187,16 @@ const mapApiLeave = (item) => {
     const submitterRole = resolveRoleKey(item.submitterRole)
     const profile = getSubmitterProfile(submitterRole, {})
     const chain = Array.isArray(item.chain) ? item.chain : []
+    const email = String(item.requestedBy || '').trim()
+    const displayName = email.includes('@')
+        ? (profile.requestedBy && profile.requestedBy !== 'Demo Driver' ? profile.requestedBy : email.split('@')[0])
+        : (item.requestedBy || profile.requestedBy)
     return {
         id: item.id,
         leaveRequestId: item.leaveRequestId,
-        employeeId: item.requestedBy,
-        requestedBy: item.requestedBy,
+        employeeId: item.employeeId || email,
+        requestedBy: displayName,
+        requestedByEmail: email.includes('@') ? email : '',
         submitterRole,
         role: profile.role,
         department: profile.department,
@@ -228,8 +234,14 @@ export const hydrateLeaveRequestsFromApi = async () => {
         const [mine, received] = await Promise.all([listLeaveApi('mine'), listLeaveApi('received')])
         const merged = new Map()
         ;[...mine, ...received].forEach((item) => merged.set(item.id, mapApiLeave(item)))
-        saveRawToStorage([...merged.values()])
+        const rows = [...merged.values()]
+        saveRawToStorage(rows)
         purgeBrowserLeaveCopies()
+        try {
+            syncAllStaffLeavesIntoHr(rows)
+        } catch {
+            /* HR bridge is best-effort */
+        }
         return true
     } catch {
         return false
@@ -257,7 +269,15 @@ export const decideLeaveRequestViaApi = async (id, status, remarks) => {
             request.leaveRequestId === id ||
             (decided?.id && request.id === decided.id),
     )
-    return fromCache ?? (decided ? mapApiLeave(decided) : null)
+    const resolved = fromCache ?? (decided ? mapApiLeave(decided) : null)
+    if (resolved) {
+        try {
+            syncStaffLeaveIntoHr(resolved)
+        } catch {
+            /* ignore */
+        }
+    }
+    return resolved
 }
 
 /** Approver can act now: pending and the request is waiting on this role. */
@@ -267,10 +287,15 @@ export const isAwaitingApprover = (request, approverRole) =>
     resolveRoleKey(request.approverRole) === resolveRoleKey(approverRole)
 
 const roleReachedRequest = (request, role) => {
-    if (Array.isArray(request.reachedRoles)) {
-        return request.reachedRoles.map(resolveRoleKey).includes(resolveRoleKey(role))
+    const want = resolveRoleKey(role)
+    // HR / Admin can review any staff leave that has entered the shared leave store.
+    if (want === ROLES.HR || want === ROLES.ADMIN || want === ROLES.SUPER_ADMIN) {
+        return Boolean(request)
     }
-    return resolveRoleKey(request.approverRole) === resolveRoleKey(role)
+    if (Array.isArray(request.reachedRoles)) {
+        return request.reachedRoles.map(resolveRoleKey).includes(want)
+    }
+    return resolveRoleKey(request.approverRole) === want
 }
 
 const readLegacyArray = (key) => {
@@ -494,6 +519,7 @@ export const createLeaveRequest = (
         leaveRequestId,
         employeeId,
         requestedBy,
+        requestedByEmail: String(employeeId || '').includes('@') ? employeeId : '',
         submitterRole: resolvedSubmitterRole,
         role,
         department,
@@ -505,29 +531,74 @@ export const createLeaveRequest = (
         reason,
         requestedTo: approverConfig.requestedToLabel,
         approverRole: approverConfig.approverRole,
+        reachedRoles: [approverConfig.approverRole].filter(Boolean),
         status: 'Pending',
         approverRemarks: '',
     })
 
     requests.unshift(newRequest)
     saveToStorage(requests)
+    try {
+        syncStaffLeaveIntoHr(newRequest)
+    } catch {
+        /* ignore */
+    }
     return newRequest
 }
 
 export const updateLeaveRequestStatus = (id, status, approverRemarks = '', approverRole) => {
     const requests = loadFromStorage()
-    const index = requests.findIndex((request) => request.id === id)
+    const index = requests.findIndex((request) => request.id === id || request.leaveRequestId === id)
     if (index === -1) return null
 
     const current = requests[index]
     if (approverRole && !canApproverAccessRequest(current, approverRole)) return null
 
+    const actor = resolveRoleKey(approverRole)
+    const submitter = resolveRoleKey(current.submitterRole)
+    const nextStatus = String(status || '').trim()
+    const remarks = approverRemarks || current.approverRemarks
+
+    // Offline chain: Driver → Transport Manager → HR (mirrors backend leave.chain_for).
+    if (
+        nextStatus === 'Approved'
+        && actor === ROLES.TRANSPORT_MANAGER
+        && submitter === ROLES.DRIVER
+    ) {
+        requests[index] = normalizeLeaveRequest({
+            ...current,
+            status: 'Pending',
+            approverRole: ROLES.HR,
+            requestedTo: 'HR',
+            reachedRoles: [ROLES.TRANSPORT_MANAGER, ROLES.HR],
+            deptHeadApprovedAt: new Date().toISOString(),
+            approverRemarks: remarks,
+        })
+        saveToStorage(requests)
+        try {
+            syncStaffLeaveIntoHr(requests[index])
+        } catch {
+            /* ignore */
+        }
+        return requests[index]
+    }
+
     requests[index] = normalizeLeaveRequest({
         ...current,
-        status,
-        approverRemarks: approverRemarks || current.approverRemarks,
+        status: nextStatus,
+        approverRemarks: remarks,
+        reachedRoles: Array.from(new Set([
+            ...(Array.isArray(current.reachedRoles) ? current.reachedRoles : []),
+            actor,
+            ...(nextStatus === 'Approved' ? [ROLES.HR] : []),
+        ].filter(Boolean))),
     })
     saveToStorage(requests)
+    try {
+        syncStaffLeaveIntoHr(requests[index])
+    } catch {
+        /* ignore */
+    }
     return requests[index]
 }
 

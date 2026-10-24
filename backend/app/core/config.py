@@ -93,11 +93,13 @@ class Settings(BaseSettings):
     rfid_import_enabled: bool = False
 
     # ProTrack365 Open API (https://api.protrack365.com) — bus GPS.
-    # Admin panel account sees the full fleet; parent panel is the school parent login.
+    # Primary admin + optional secondary fleet (devices may live on different vendor accounts).
     protrack_admin_account: str = ""
     protrack_admin_password: str = ""
     protrack_parent_account: str = ""
     protrack_parent_password: str = ""
+    protrack_secondary_account: str = ""
+    protrack_secondary_password: str = ""
 
     @property
     def is_sqlite(self) -> bool:

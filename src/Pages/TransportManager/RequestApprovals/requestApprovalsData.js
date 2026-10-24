@@ -3,6 +3,14 @@ import {
     getMaintenanceRecords,
     hydrateMaintenanceRecordsFromApi,
 } from '../VehicleMaintenance/vehicleMaintenanceData'
+import {
+    getDriverFuelRequests,
+    hydrateDriverFuelRequestsFromApi,
+} from '../../Driver/FuelRequest/fuelRequestData'
+import {
+    getDriverMaintenanceRequests,
+    hydrateDriverMaintenanceRequestsFromApi,
+} from '../../Driver/MaintenanceRequest/maintenanceRequestData'
 
 export const REQUEST_STATUSES = [
     'Pending',
@@ -171,6 +179,64 @@ const DEFAULT_TRANSPORT_APPROVAL_REQUESTS = [
 const maintenanceRows = (rows) => rows.filter((item) => String(item.id ?? item.requestId ?? '').startsWith('MR-'))
 const fuelRows = (rows) => rows.filter((item) => String(item.id ?? item.requestId ?? '').startsWith('FR-'))
 
+const mapDriverFuelToApproval = (row) => ({
+    id: row.id || row.fuelRequestId,
+    requestId: row.fuelRequestId || row.id,
+    vehicleNumber: row.vehicleNumber || '',
+    reportedBy: row.driverName || '',
+    driverName: row.driverName || '',
+    driverId: row.driverId || '',
+    routeName: row.assignedRoute || row.routeName || '',
+    assignedRoute: row.assignedRoute || row.routeName || '',
+    currentOdometerReading: row.currentOdometerReading || '',
+    currentFuelLevel: row.currentFuelLevel || '',
+    requestedQuantity: row.requestedQuantity || '',
+    requestDate: row.requestDate || row.requestedDate || '',
+    requestedDate: row.requestedDate || row.requestDate || '',
+    issueType: 'Fuel Request',
+    description: row.description || `Qty ${row.requestedQuantity || '—'}`,
+    priority: 'Medium',
+    status: row.workflowStatus || row.status || row.approvalStatus || 'Pending',
+    source: row.source || 'driver-panel',
+})
+
+const mapDriverMaintenanceToApproval = (row) => ({
+    id: row.id || row.requestId,
+    requestId: row.requestId || row.id,
+    vehicleNumber: row.vehicleNumber || '',
+    reportedBy: row.driverName || row.reportedBy || '',
+    driverName: row.driverName || '',
+    requestDate: row.reportedDate || row.requestDate || '',
+    issueType: row.issueCategory || row.issueType || 'General Maintenance',
+    description: row.issueDescription || row.description || '',
+    priority: row.priority || 'Medium',
+    status: row.workflowStatus || row.status || (
+        row.requestStatus === 'Completed' ? 'Completed'
+            : row.requestStatus === 'Rejected' ? 'Rejected'
+                : row.requestStatus === 'In Progress' ? 'In-Process'
+                    : 'Pending'
+    ),
+    source: row.source || 'driver-panel',
+})
+
+const mergeByRequestId = (baseRows, extraRows) => {
+    const map = new Map()
+    ;[...baseRows, ...extraRows].forEach((row) => {
+        const key = String(row.id || row.requestId || '').trim()
+        if (!key) return
+        const prev = map.get(key) || {}
+        // Later list wins on conflicts (call with driver first, approvals second).
+        map.set(key, {
+            ...prev,
+            ...row,
+            id: key,
+            requestId: row.requestId || prev.requestId || key,
+            status: row.status || prev.status || 'Pending',
+        })
+    })
+    return [...map.values()]
+}
+
 export const TRANSPORT_APPROVAL_REQUESTS_STORAGE_KEY = 'schoolerp-transport-approvals-v1'
 
 const mapMaintenanceStatusToApproval = (status) => {
@@ -258,11 +324,28 @@ function mergeVehicleMaintenanceIntoApprovals(approvals) {
 }
 
 export function getMaintenanceRequests() {
-    return maintenanceRows(mergeVehicleMaintenanceIntoApprovals(getTransportApprovalRequests()))
+    // Driver rows first; approval-collection status must win after TM/Principal decisions.
+    const fromDriver = getDriverMaintenanceRequests().map(mapDriverMaintenanceToApproval)
+    const fromApprovals = maintenanceRows(mergeVehicleMaintenanceIntoApprovals(getTransportApprovalRequests()))
+    return mergeByRequestId(fromDriver, fromApprovals)
 }
 
 export function getFuelRequests() {
-    return fuelRows(getTransportApprovalRequests())
+    const fromDriver = getDriverFuelRequests().map(mapDriverFuelToApproval)
+    const fromApprovals = fuelRows(getTransportApprovalRequests()).map((row) => ({
+        ...row,
+        driverName: row.driverName || row.reportedBy || '',
+        driverId: row.driverId || '',
+        routeName: row.routeName || row.assignedRoute || '',
+        assignedRoute: row.assignedRoute || row.routeName || '',
+        requestedDate: row.requestedDate || row.requestDate || '',
+        requestDate: row.requestDate || row.requestedDate || '',
+        currentOdometerReading: row.currentOdometerReading || '',
+        requestedQuantity: row.requestedQuantity || '',
+        status: row.status || 'Pending',
+    }))
+    // Approvals last so "Awaiting Principal" / Rejected is not overwritten by driver Pending.
+    return mergeByRequestId(fromDriver, fromApprovals)
 }
 
 export function saveTransportApprovalRequests(rows) {
@@ -343,6 +426,68 @@ async function syncLinkedMaintenanceStatus(row, status) {
     )
 }
 
+const mapWorkflowToDriverFuelStatus = (status) => {
+    const value = String(status || '').trim().toLowerCase()
+    if (value === 'rejected') return 'Rejected'
+    if (value === 'approved' || value === 'completed') return 'Approved'
+    // Still open in TM/Principal workflow — keep Pending on the driver list.
+    return 'Pending'
+}
+
+const mapWorkflowToDriverMaintenanceStatus = (status) => {
+    const value = String(status || '').trim().toLowerCase()
+    if (value === 'rejected') return 'Rejected'
+    if (value === 'approved' || value === 'completed') return 'Completed'
+    if (value === 'awaiting principal' || value === 'in-process' || value === 'in process') return 'In Progress'
+    return 'Pending'
+}
+
+/** Keep Driver Fuel / Maintenance collections in sync when TM decides. */
+async function syncLinkedDriverRequestStatus(row, status) {
+    const id = String(row?.id || row?.requestId || '').trim()
+    if (!id) return { success: true }
+
+    if (id.startsWith('FR-')) {
+        await hydrateDriverFuelRequestsFromApi()
+        const rows = getDriverFuelRequests()
+        const idx = rows.findIndex((item) => String(item.id || item.fuelRequestId) === id)
+        if (idx < 0) return { success: true }
+        const next = rows.map((item, i) => (
+            i === idx
+                ? {
+                    ...item,
+                    approvalStatus: mapWorkflowToDriverFuelStatus(status),
+                    workflowStatus: status,
+                }
+                : item
+        ))
+        const { saveDriverFuelRequests } = await import('../../Driver/FuelRequest/fuelRequestData')
+        const result = await saveDriverFuelRequests(next)
+        return result?.success === false ? result : { success: true }
+    }
+
+    if (id.startsWith('MR-') && (row.source === 'driver-panel' || !row.linkedServiceId)) {
+        await hydrateDriverMaintenanceRequestsFromApi()
+        const rows = getDriverMaintenanceRequests()
+        const idx = rows.findIndex((item) => String(item.id || item.requestId) === id)
+        if (idx < 0) return { success: true }
+        const next = rows.map((item, i) => (
+            i === idx
+                ? {
+                    ...item,
+                    requestStatus: mapWorkflowToDriverMaintenanceStatus(status),
+                    workflowStatus: status,
+                }
+                : item
+        ))
+        const { saveDriverMaintenanceRequests } = await import('../../Driver/MaintenanceRequest/maintenanceRequestData')
+        const result = await saveDriverMaintenanceRequests(next)
+        return result?.success === false ? result : { success: true }
+    }
+
+    return { success: true }
+}
+
 function resolveApprovalRow(requestId) {
     const id = String(requestId || '').trim()
     if (!id) return null
@@ -350,6 +495,7 @@ function resolveApprovalRow(requestId) {
         (row) => String(row.id || row.requestId || '').trim() === id
     )
     if (stored) return { ...stored }
+    // Fall back to merged driver/TM views, then persist into approvals on decide.
     const merged = [...getMaintenanceRequests(), ...getFuelRequests()].find(
         (item) => String(item.id || item.requestId) === id
     )
@@ -391,7 +537,15 @@ export async function decideTransportApproval(requestId, { decision, actor } = {
     const current = String(row.status || '').toLowerCase()
 
     const commitDecision = async (nextStatus, extras = {}) => {
-        Object.assign(row, extras, { status: nextStatus })
+        Object.assign(row, extras, {
+            status: nextStatus,
+            // Normalize fuel fields so Principal / Finance screens can read them.
+            requestDate: row.requestDate || row.requestedDate || '',
+            requestedDate: row.requestedDate || row.requestDate || '',
+            reportedBy: row.reportedBy || row.driverName || '',
+            driverName: row.driverName || row.reportedBy || '',
+            routeName: row.routeName || row.assignedRoute || '',
+        })
         const { result } = await persistApprovalRow(row)
         if (result?.success === false) {
             return {
@@ -405,6 +559,15 @@ export async function decideTransportApproval(requestId, { decision, actor } = {
             return {
                 success: false,
                 message: maintenanceResult.message || 'Approval saved, but vehicle maintenance status failed to update.',
+                row,
+                warning: true,
+            }
+        }
+        const driverResult = await syncLinkedDriverRequestStatus(row, nextStatus)
+        if (driverResult?.success === false) {
+            return {
+                success: false,
+                message: driverResult.message || 'Approval saved, but driver request status failed to update.',
                 row,
                 warning: true,
             }
@@ -478,6 +641,8 @@ export async function hydrateTransportApprovalRequestsFromApi() {
     await Promise.all([
         hydrateTransportRows(TRANSPORT_APPROVAL_REQUESTS_STORAGE_KEY),
         hydrateMaintenanceRecordsFromApi(),
+        hydrateDriverFuelRequestsFromApi(),
+        hydrateDriverMaintenanceRequestsFromApi(),
     ])
 }
 export const MAINTENANCE_REQUESTS = DEFAULT_MAINTENANCE_REQUESTS
