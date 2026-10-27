@@ -183,6 +183,22 @@ export const getAdmissionViewPath = (pathname, id) =>
 export const getAdmissionEditPath = (pathname, id) =>
     `${getAdmissionListBase(pathname)}/edit/${id}`
 
+/** Required on every save (the backend enforces the same three). `id` is the form control to focus. */
+export const ADMISSION_REQUIRED_FIELDS = [
+    { field: 'firstName', id: 'firstName', label: 'First Name' },
+    { field: 'mobileNumber', id: 'mobileNumber', label: 'Mobile Number' },
+    { field: 'className', id: 'admissionClass', label: 'Class' },
+]
+
+export const getMissingAdmissionFields = (payload) =>
+    ADMISSION_REQUIRED_FIELDS.filter(({ field }) => !String(payload?.[field] ?? '').trim())
+
+const missingFieldsResult = (missing) => ({
+    success: false,
+    missing,
+    message: `Please fill in the required field${missing.length > 1 ? 's' : ''}: ${missing.map((m) => m.label).join(', ')}.`,
+})
+
 const buildAdmissionRecord = (payload, existing = null) => {
     const firstName = String(payload.firstName || '').trim()
     const mobileNumber = String(payload.mobileNumber || '').trim()
@@ -270,6 +286,8 @@ const buildAdmissionRecord = (payload, existing = null) => {
 }
 
 export const createAdmission = async (payload) => {
+    const missing = getMissingAdmissionFields(payload)
+    if (missing.length) return missingFieldsResult(missing)
     if (apiAdmissionsEnabled()) {
         try {
             const record = await createAdmissionApi(payload)
@@ -288,6 +306,8 @@ export const createAdmission = async (payload) => {
 }
 
 export const updateAdmission = async (id, payload) => {
+    const missing = getMissingAdmissionFields(payload)
+    if (missing.length) return missingFieldsResult(missing)
     if (apiAdmissionsEnabled()) {
         try {
             const record = await updateAdmissionApi(id, payload)

@@ -1,5 +1,5 @@
 import { ensureSeed, saveJson } from './storage'
-import { hydrateCampusKey, usesCampusApiForKey } from '../../services/campusJsonStore'
+import { hydrateCampusKey, persistCampusJson, usesCampusApiForKey } from '../../services/campusJsonStore'
 import { logActivity } from './activityLog'
 
 export const BIOMETRIC_KEY = 'schoolerp-biometric-attendance-v1'
@@ -19,25 +19,50 @@ export async function hydrateBiometricFromApi() {
     return hydrateCampusKey(BIOMETRIC_KEY, seed)
 }
 
-export function syncBiometricDemo() {
-    const rows = getBiometricRows().map((row) => (
-        row.changedBy
-            ? row
-            : { ...row, source: 'ESSL', lastSync: new Date().toISOString(), biometricStatus: row.biometricStatus || 'Present' }
-    ))
-    const stamped = rows.map((row) => ({ ...row, lastSync: new Date().toISOString() }))
-    saveJson(BIOMETRIC_KEY, stamped)
-    logActivity({ action: 'UPDATE', module: 'ESSL Demo Sync', details: 'Deterministic biometric punches loaded' })
-    return stamped
+// In API mode a save replaces the whole server collection, so rows must be loaded first and an
+// empty list is never written back.
+async function loadedRows() {
+    if (usesCampusApiForKey(BIOMETRIC_KEY)) {
+        const ok = await hydrateBiometricFromApi()
+        if (!ok) return { rows: getBiometricRows(), loaded: false }
+    }
+    return { rows: getBiometricRows(), loaded: true }
 }
 
-export function overrideAttendance(id, finalStatus, changedBy, reason) {
-    const next = getBiometricRows().map((row) => (
+async function persistRows(rows) {
+    if (usesCampusApiForKey(BIOMETRIC_KEY)) return persistCampusJson(BIOMETRIC_KEY, rows)
+    return { success: Boolean(saveJson(BIOMETRIC_KEY, rows)), api: false }
+}
+
+export async function syncBiometricDemo() {
+    const { rows, loaded } = await loadedRows()
+    if (!loaded) return { success: false, rows, message: 'Could not load biometric records from the server.' }
+    if (!rows.length) {
+        return { success: false, rows, message: 'No biometric punches to sync yet. The attendance device import is not connected.' }
+    }
+    const now = new Date().toISOString()
+    const stamped = rows.map((row) => (
+        row.changedBy
+            ? { ...row, lastSync: now }
+            : { ...row, source: 'ESSL', lastSync: now, biometricStatus: row.biometricStatus || 'Present' }
+    ))
+    const saved = await persistRows(stamped)
+    if (!saved.success) return { success: false, rows, message: saved.message || 'Could not save the biometric sync.' }
+    logActivity({ action: 'UPDATE', module: 'ESSL Demo Sync', details: 'Deterministic biometric punches loaded' })
+    return { success: true, rows: stamped }
+}
+
+export async function overrideAttendance(id, finalStatus, changedBy, reason) {
+    const { rows, loaded } = await loadedRows()
+    if (!loaded) return { success: false, rows, message: 'Could not load biometric records from the server.' }
+    if (!rows.some((row) => row.id === id)) return { success: false, rows, message: 'This record no longer exists. Refresh the page.' }
+    const next = rows.map((row) => (
         row.id === id
             ? { ...row, finalStatus, changedBy, changedAt: new Date().toISOString(), reason }
             : row
     ))
-    saveJson(BIOMETRIC_KEY, next)
+    const saved = await persistRows(next)
+    if (!saved.success) return { success: false, rows, message: saved.message || 'Could not save the override.' }
     logActivity({ actor: changedBy, action: 'UPDATE', module: 'Attendance Override', recordId: id, after: finalStatus, reason })
-    return next
+    return { success: true, rows: next }
 }

@@ -119,10 +119,17 @@ export default function AttendanceCalendar({
   fetchAttendance = defaultFetchAttendance,
   initialYear,
   initialMonth, // 0-indexed
+  year, // controlled mode: pass year + month (0-indexed) + onMonthChange
+  month,
+  onMonthChange,
+  onLoaded, // (data, { error }) after each month loads
 }) {
   const now = new Date();
-  const [viewYear, setViewYear] = useState(initialYear ?? now.getFullYear());
-  const [viewMonth, setViewMonth] = useState(initialMonth ?? now.getMonth()); // 0-indexed
+  const controlled = year != null && month != null;
+  const [ownYear, setOwnYear] = useState(initialYear ?? now.getFullYear());
+  const [ownMonth, setOwnMonth] = useState(initialMonth ?? now.getMonth()); // 0-indexed
+  const viewYear = controlled ? year : ownYear;
+  const viewMonth = controlled ? month : ownMonth;
   const [attendance, setAttendance] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -137,25 +144,32 @@ export default function AttendanceCalendar({
         if (!cancelled) {
           setAttendance(data ?? {});
           setLoading(false);
+          onLoaded?.(data ?? {}, { error: null });
         }
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err.message ?? "Failed to load attendance");
+          const message = err.message ?? "Failed to load attendance";
+          setError(message);
           setLoading(false);
+          onLoaded?.({}, { error: message });
         }
       });
 
     return () => { cancelled = true; };
-  }, [viewYear, viewMonth, fetchAttendance]);
+  }, [viewYear, viewMonth, fetchAttendance, onLoaded]);
 
+  function goTo(nextYear, nextMonth) {
+    if (controlled) onMonthChange?.(nextYear, nextMonth);
+    else { setOwnYear(nextYear); setOwnMonth(nextMonth); }
+  }
   function prevMonth() {
-    if (viewMonth === 0) { setViewYear((y) => y - 1); setViewMonth(11); }
-    else setViewMonth((m) => m - 1);
+    if (viewMonth === 0) goTo(viewYear - 1, 11);
+    else goTo(viewYear, viewMonth - 1);
   }
   function nextMonth() {
-    if (viewMonth === 11) { setViewYear((y) => y + 1); setViewMonth(0); }
-    else setViewMonth((m) => m + 1);
+    if (viewMonth === 11) goTo(viewYear + 1, 0);
+    else goTo(viewYear, viewMonth + 1);
   }
 
   // Build grid cells (prev tail + current + next lead)

@@ -17,11 +17,23 @@ import {
     hydrateClassTimetablesFromApi,
 } from '../../Principal/ClassTimetable/classTimetableData'
 
+// Submitted dates are saved as DD-MM-YYYY; API rows may carry ISO dates.
+const parseSubmittedDate = (value) => {
+    const text = String(value || '').trim()
+    const dmy = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+    return null
+}
+
+const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate())
+
 const mapRecordToApprovalRow = (record) => ({
     id: record.id,
     classSection: getClassSectionLabel(record),
     academicYear: record.academicYear || '—',
-    submittedBy: record.createdByRole || record.ownerTeacherName || '—',
+    submittedBy: [record.ownerTeacherName, record.createdByRole].filter(Boolean).join(' · ') || '—',
     submittedDate: record.submittedDate || '—',
     approvalStatus: record.approvalStatus || 'Pending',
     rejectionReason: record.rejectionReason || '',
@@ -30,8 +42,8 @@ const mapRecordToApprovalRow = (record) => ({
 
 const ClassTimetableApprovals = () => {
     const navigate = useNavigate()
-    const [fromDate, setFromDate] = useState(new Date())
-    const [toDate, setToDate] = useState(new Date())
+    const [fromDate, setFromDate] = useState(null)
+    const [toDate, setToDate] = useState(null)
     const [exportModal, setExportModal] = useState(false)
     const [selectedRecord, setSelectedRecord] = useState(null)
     const [denyModal, setDenyModal] = useState(false)
@@ -58,15 +70,21 @@ const ClassTimetableApprovals = () => {
 
     const filteredApprovals = useMemo(() => {
         const query = search.trim().toLowerCase()
+        const from = fromDate ? startOfDay(fromDate) : null
+        const to = toDate ? startOfDay(toDate) : null
         return approvals.filter((item) => {
             const matchesStatus = !statusFilter || item.approvalStatus === statusFilter
             const matchesSearch = !query
                 || item.id.toLowerCase().includes(query)
                 || item.classSection.toLowerCase().includes(query)
                 || String(item.submittedBy).toLowerCase().includes(query)
-            return matchesStatus && matchesSearch
+            if (!matchesStatus || !matchesSearch) return false
+            if (!from && !to) return true
+            const submitted = parseSubmittedDate(item.submittedDate)
+            if (!submitted) return false
+            return (!from || submitted >= from) && (!to || submitted <= to)
         })
-    }, [approvals, search, statusFilter])
+    }, [approvals, search, statusFilter, fromDate, toDate])
 
     const handleApprove = (id) => {
         const updated = decideClassTimetableApproval(id, 'Approved', 'Director')
@@ -99,6 +117,8 @@ const ClassTimetableApprovals = () => {
     const clearFilters = () => {
         setSearch('')
         setStatusFilter('')
+        setFromDate(null)
+        setToDate(null)
     }
 
     return (
@@ -143,7 +163,7 @@ const ClassTimetableApprovals = () => {
                         </select>
                     </div>
                     <div className='flex flex-col gap-y-2'>
-                        <label className='text-base font-medium text-[#808080]'>From</label>
+                        <label className='text-base font-medium text-[#808080]'>Submitted from</label>
                         <div className='relative w-full'>
                             <DatePicker
                                 selected={fromDate}
@@ -157,7 +177,7 @@ const ClassTimetableApprovals = () => {
                         </div>
                     </div>
                     <div className='flex flex-col gap-y-2'>
-                        <label className='text-base font-medium text-[#808080]'>To</label>
+                        <label className='text-base font-medium text-[#808080]'>Submitted to</label>
                         <div className='relative'>
                             <DatePicker
                                 selected={toDate}

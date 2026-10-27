@@ -14,7 +14,7 @@ import VisibilityRuleFormModal from './VisibilityRuleFormModal'
 import {
     VISIBILITY_MODULES,
     VISIBILITY_ROLES,
-    getAuditVisibilityRules, hydrateAuditVisibilityRulesFromApi,
+    getAuditVisibilityRules, hydrateAuditVisibilityRulesFromApi, saveAuditVisibilityRules,
     buildVisibilityPayload,
     createVisibilityRuleId,
     formatPermissionSummary,
@@ -27,12 +27,17 @@ const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
 const VisibilityRulesList = () => {
-    const [visibilityRules, setVisibilityRules] = useState(() => getAuditVisibilityRules())
+    const [rules, setRulesState] = useState(() => getAuditVisibilityRules())
     useEffect(() => {
-        hydrateAuditVisibilityRulesFromApi().finally(() => setVisibilityRules(getAuditVisibilityRules()))
+        hydrateAuditVisibilityRulesFromApi().finally(() => setRulesState(getAuditVisibilityRules()))
     }, [])
-
-    const [rules, setRules] = useState(VISIBILITY_RULES)
+    const setRules = (updater) => {
+        setRulesState((prev) => {
+            const next = typeof updater === 'function' ? updater(prev) : updater
+            saveAuditVisibilityRules(next)
+            return next
+        })
+    }
     const [search, setSearch] = useState('')
     const [moduleFilter, setModuleFilter] = useState('')
     const [roleFilter, setRoleFilter] = useState('')

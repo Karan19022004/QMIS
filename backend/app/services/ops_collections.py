@@ -94,6 +94,11 @@ COLLECTIONS: dict[str, str] = {
     # Hostel (student/parent assignment + payments)
     "hostel-assignments": "HAS",
     "hostel-payments": "HPY",
+    # Star of the Month matrix: one record per month/year/grade/section; school-wide checklist + titles.
+    "som-matrix": "SOM",
+    "som-config": "SOMC",
+    # Camera register (records only; no video is handled by the ERP).
+    "security-cameras": "CAM",
 }
 
 _ADMINS = {"admin", "superadmin", "managing_director"}
@@ -117,6 +122,7 @@ _HK = {"housekeepingmanager"} | _ADMINS
 _STORES = _CANTEEN | _IT | _STATIONERY | _HK
 _JD = {"jointdirector", "jointdirectorassistant"} | _ADMINS
 _BIOMETRIC = {"teacher", "coordinator", "principal", "director", "hr"} | _ADMINS
+_STAR_OF_MONTH = {"teacher", "coordinator", "principal", "director"} | _ADMINS
 
 
 def _writers_for(collection: str) -> set[str]:
@@ -147,6 +153,10 @@ def _writers_for(collection: str) -> set[str]:
         return _BIOMETRIC
     if collection.startswith("hostel-"):
         return _ADMINS
+    if collection.startswith("som-"):
+        return _STAR_OF_MONTH
+    if collection == "security-cameras":
+        return _ADMINS | {"gatekeepermanager"}
     return _ADMINS
 
 
@@ -267,6 +277,9 @@ def list_records(db: Session, actor: User, collection: str) -> list[dict]:
 
 def replace_records(db: Session, actor: User, collection: str, items: list) -> list[dict]:
     _ensure_collection(collection)
+    if collection in _ITEM_UPSERT_COLLECTIONS:
+        # A whole-list PUT would erase other people's records (e.g. other classes' matrices).
+        fail(400, "not_supported", "Save this collection one record at a time.")
     if not _can_write(db, actor, collection):
         fail(403, "forbidden", "You are not allowed to change ops records.")
     if not isinstance(items, list):
@@ -322,6 +335,91 @@ def replace_records(db: Session, actor: User, collection: str, items: list) -> l
     from app.services.integrations.events import notify_saved_ops
     notify_saved_ops(db, actor, collection, previous, saved)
     return saved
+
+
+_ITEM_UPSERT_COLLECTIONS = {"som-matrix", "som-config", "security-cameras"}
+CAMERA_STATUSES = {"Active", "Offline", "Under Maintenance", "Removed"}
+
+
+def _validate_camera(body: dict) -> None:
+    from urllib.parse import urlsplit
+
+    if not str(body.get("name") or "").strip():
+        fail(422, "invalid_body", "Camera name is required.")
+    if not str(body.get("location") or "").strip():
+        fail(422, "invalid_body", "Camera location is required.")
+    if body.get("status") not in CAMERA_STATUSES:
+        fail(422, "invalid_body", f"Status must be one of: {', '.join(sorted(CAMERA_STATUSES))}.")
+    url = str(body.get("streamUrl") or "").strip()
+    if url:
+        parts = urlsplit(url)
+        if parts.scheme not in {"rtsp", "http", "https"} or not parts.hostname:
+            fail(422, "invalid_body", "Stream link must be an rtsp://, http:// or https:// address.")
+        if parts.username or parts.password:
+            # Never keep camera passwords in the ERP; they belong in the NVR/VMS.
+            fail(422, "invalid_body", "Remove the username/password from the stream link; store credentials in the NVR.")
+
+
+def delete_item(db: Session, actor: User, collection: str, item_id: str) -> dict:
+    _ensure_collection(collection)
+    if collection not in _ITEM_UPSERT_COLLECTIONS:
+        fail(400, "not_supported", "This collection is saved as a whole list.")
+    if not _can_write(db, actor, collection):
+        fail(403, "forbidden", "You are not allowed to change ops records.")
+    result = db.execute(
+        delete(OpsRecord).where(
+            OpsRecord.campus_id == actor.campus_id,
+            OpsRecord.collection == collection,
+            OpsRecord.public_id == str(item_id),
+        )
+    )
+    db.commit()
+    if not result.rowcount:
+        fail(404, "not_found", "Record not found.")
+    return {"deleted": True, "id": str(item_id)}
+
+
+def upsert_record(db: Session, actor: User, collection: str, item_id: str, body: dict) -> dict:
+    """Create or replace ONE record, leaving the rest of the collection alone (no whole-list PUT race)."""
+    _ensure_collection(collection)
+    if collection not in _ITEM_UPSERT_COLLECTIONS:
+        fail(400, "not_supported", "This collection is saved as a whole list.")
+    if not _can_write(db, actor, collection):
+        fail(403, "forbidden", "You are not allowed to change ops records.")
+    public_id = str(item_id or "").strip()
+    if not public_id or len(public_id) > 120:
+        fail(422, "invalid_body", "A record id (1-120 characters) is required.")
+    if not isinstance(body, dict):
+        fail(422, "invalid_body", "Body must be a JSON object.")
+    payload = {key: value for key, value in body.items() if not str(key).startswith("_")}
+    payload["id"] = public_id
+    if collection == "security-cameras":
+        _validate_camera(payload)
+    row = db.scalar(
+        select(OpsRecord).where(
+            OpsRecord.campus_id == actor.campus_id,
+            OpsRecord.collection == collection,
+            OpsRecord.public_id == public_id,
+        )
+    )
+    now = datetime.now(timezone.utc)
+    if row is None:
+        row = OpsRecord(
+            id=uuid.uuid4(),
+            campus_id=actor.campus_id,
+            collection=collection,
+            public_id=public_id,
+            body=payload,
+            created_by=actor.id,
+            updated_at=now,
+        )
+        db.add(row)
+    else:
+        row.body = payload
+        row.updated_at = now
+    db.commit()
+    db.refresh(row)
+    return _as_item(row)
 
 
 def _rows(db: Session, actor: User, collection: str) -> list[dict]:

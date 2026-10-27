@@ -14,6 +14,7 @@ import {
     getGrades,
     getSubjects,
     getTeacherAllocationRows,
+    getTeacherRosterStatus,
     hydrateTeacherAllocationsFromApi,
     hydrateTeachersFromDirectory,
     isUsingDemoTeacherRoster,
@@ -33,6 +34,7 @@ const TeacherAllocationList = () => {
     const [entriesPerPage, setEntriesPerPage] = useState(10)
     const [removeTarget, setRemoveTarget] = useState(null)
     const [usingDemoRoster, setUsingDemoRoster] = useState(() => isUsingDemoTeacherRoster())
+    const [rosterStatus, setRosterStatus] = useState(() => (getTeacherRosterStatus() === 'idle' ? 'loading' : getTeacherRosterStatus()))
 
     const filteredRows = useMemo(() => filterTeacherAllocationRows(rows, filters), [rows, filters])
     const departments = getDepartments()
@@ -42,6 +44,7 @@ const TeacherAllocationList = () => {
     const refreshRows = () => {
         setRows(getTeacherAllocationRows())
         setUsingDemoRoster(isUsingDemoTeacherRoster())
+        setRosterStatus(getTeacherRosterStatus())
     }
 
     useEffect(() => {
@@ -84,6 +87,16 @@ const TeacherAllocationList = () => {
                     <p className='text-sm text-[#B54708] bg-[#FFFAEB] border border-[#FEDF89] rounded-lg px-3 py-2 mb-4'>
                         Showing demo teachers (TEA-1001…). Sign in with API enabled and ensure HR has Active
                         teachers — then refresh this page to allocate real employees.
+                    </p>
+                ) : null}
+                {!usingDemoRoster && rosterStatus === 'loading' ? (
+                    <p className='text-sm text-[#667085] mb-4'>Loading teachers from HR…</p>
+                ) : null}
+                {!usingDemoRoster && (rosterStatus === 'error' || rosterStatus === 'empty') ? (
+                    <p className='text-sm text-[#B54708] bg-[#FFFAEB] border border-[#FEDF89] rounded-lg px-3 py-2 mb-4'>
+                        {rosterStatus === 'error'
+                            ? 'Teachers could not be loaded from HR. Refresh the page to try again.'
+                            : 'No active teachers found in HR. Add teachers in HR (Employee Management), then refresh.'}
                     </p>
                 ) : null}
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>

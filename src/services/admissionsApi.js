@@ -8,6 +8,29 @@ const toIsoDate = (value) => {
     return date.toISOString().slice(0, 10)
 }
 
+/** Mirrors backend STUDENT_LOGIN_MIN_GRADE: pre-primary and lower grades use the parent login only. */
+export const STUDENT_LOGIN_MIN_GRADE = 6
+
+const PRE_PRIMARY_RE = /^(pre[\s-]*kg|prekg|nursery|play\s*group|lkg|ukg|kg|kindergarten|pre[\s-]*primary)\b/i
+const ROMAN_GRADES = { i: 1, ii: 2, iii: 3, iv: 4, v: 5, vi: 6, vii: 7, viii: 8, ix: 9, x: 10, xi: 11, xii: 12 }
+
+export const schoolGradeOf = (className) => {
+    const text = String(className || '').trim().replace(/^(class|grade)\s+/i, '')
+    if (!text) return null
+    if (PRE_PRIMARY_RE.test(text)) return 0
+    const digits = text.match(/(\d{1,2})/)
+    if (digits) {
+        const n = Number(digits[1])
+        return n >= 1 && n <= 12 ? n : null
+    }
+    return ROMAN_GRADES[text.toLowerCase().replace(/[^a-z]/g, '')] ?? null
+}
+
+export const studentLoginAllowedForClass = (className) => {
+    const grade = schoolGradeOf(className)
+    return grade == null || grade >= STUDENT_LOGIN_MIN_GRADE
+}
+
 /** API enquiry → frontend camelCase shape used by existing screens */
 export const mapEnquiryFromApi = (row) => ({
     id: String(row.id),
@@ -85,7 +108,15 @@ export const mapAdmissionFromApi = (row) => ({
     parentAltMobileNumber: row.parent_alt_mobile_number || '',
     parentEmail: row.parent_email || '',
     parentAccountEmail: row.parent_account_email || '',
+    hasParentAccountPassword: Boolean(row.has_parent_account_password),
+    studentAccountEmail: row.student_account_email || '',
+    hasStudentAccountPassword: Boolean(row.has_student_account_password),
     feesGroup: row.fees_group || '',
+    referralType: row.referral_type || 'Parent',
+    referralName: row.referral_name || '',
+    referralContact: row.referral_contact || '',
+    referralStudentAdmissionNo: row.referral_student_admission_no || '',
+    referralNotes: row.referral_notes || '',
     status: row.status || 'Active',
     enrolledStudentId: row.enrolled_student_id != null ? String(row.enrolled_student_id) : '',
     enrolledAt: row.enrolled_at || '',
@@ -164,6 +195,16 @@ export const admissionFormToApi = (form) => ({
     parent_email: form.parentEmail || null,
     parent_account_email: form.parentAccountEmail || null,
     parent_account_password: form.parentAccountPassword || null,
+    student_account_email: studentLoginAllowedForClass(form.className) ? form.studentAccountEmail || null : null,
+    student_account_password: studentLoginAllowedForClass(form.className) ? form.studentAccountPassword || null : null,
+    // A blank referrer name removes any saved referral.
+    referral_type: form.referralName ? form.referralType || 'Parent' : null,
+    referral_name: String(form.referralName || '').trim(),
+    referral_contact: form.referralContact || null,
+    referral_student_admission_no: form.referralType === 'Parent' || !form.referralType
+        ? form.referralStudentAdmissionNo || null
+        : null,
+    referral_notes: form.referralNotes || null,
     fees_group: form.feesGroup || null,
     profile_image_file_id: form.profileImageFileId ?? null,
     status: form.status || 'Active',
@@ -222,6 +263,12 @@ export const updateAdmissionApi = async (id, form) => {
             body: admissionFormToApi(ready),
         }),
     )
+}
+
+/** Referred admissions (record only) for the Account Head. */
+export const listAdmissionReferralsApi = async () => {
+    const rows = await apiRequest('/admissions/referrals')
+    return Array.isArray(rows) ? rows : []
 }
 
 export const enrollAdmissionApi = async (id, payload = {}) =>

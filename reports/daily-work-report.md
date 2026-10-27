@@ -8,6 +8,64 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 27 October 2026 (evening) — Browser checks done, remaining items built
+
+**Status:** Every changed screen checked in the browser as each role (read-only). The remaining approved items are built. Database backed up and migration 0021 applied. Not committed or pushed.
+
+### Done
+- Browser checks for Principal, Admin, PRM, Teacher, Coordinator, Account Head, Student, Parent and Director pages
+- Fixed: placed students and parents saw "Awaiting section assignment" everywhere (timetable, attendance and more) because the portal dropped the placement status
+- Lesson Plan: one "Lesson Plan" menu with two tabs (My Submissions / Approved & Delivery); new plans now really go for approval; approve, reject and Mark as Done are saved on the server (they used to undo themselves on reload); older draft plans can be submitted
+- Star of the Month matrix ratings, checklist and titles are now saved on the server, one class at a time (teachers can no longer overwrite each other). Ratings kept only in a teacher's browser are uploaded the first time they open the page
+- Notifications: marking a shared (role-wide) notice as read now only marks it for you; dashboard unread count fixed
+- Admission referral (record only): "Referral" section on the admission form; Account Head → Admission Referrals list to apply any bonus by hand
+- File Management (Admin, Super Admin): list, search, download, upload PDF/JPG/PNG; only files uploaded there can be deleted, files owned by other modules are read-only
+- Camera Management (Admin, Super Admin, Gate Keeper Manager): camera register with status and stream link; camera passwords are refused
+- Page titles for Promote Students, Section Assignment and the new pages; clearer empty message on Teacher and Coordinator student lists
+- Backup `C:\karan\QMIS_backups\qmis_erp_before_0021_20261027_211215.dump` (checked), then migration 0021 (two new tables); existing records unchanged (34 admissions, 30 students)
+
+### Still open
+- Star of the Month matrix results are not yet shown on the Principal/Student star rating lists (the two rating systems remain separate)
+- No automatic daily run for fee reminders; Razorpay keys empty and no parent checkout screen
+- Lesson plan groups are still labelled by the teacher's email
+- Live data clean-up for you to decide: the demo allocation TEA-1001 and the test-looking HR employees
+- Test runs write uploaded test files into `backend/uploads` (existing behaviour)
+
+---
+
+## 27 October 2026 (afternoon) — Frontend error fixes and pending task list
+
+**Status:** Crashing pages fixed; student lists, fees, timetable, attendance and notification issues fixed; your policy choices applied for admissions login, leave, fee reminders, payment confirmation and Razorpay settlement. Not committed or pushed.
+
+### Done
+- Four pages that crashed on load fixed (JD Assistant Assets, JD Audit Template Versioning, Visibility Rules, Workflow Rules); they now also save
+- Admissions: route and bus stop can be typed; required fields show clear messages; the student portal login saved on the form is no longer lost; browser password autofill no longer fills the portal fields; enrolled admissions no longer show Edit/View
+- Login by grade: Pre-KG to Grade 5 get a parent login only; Grades 6–12 keep the optional student login (older admissions still enrol, parent-only)
+- Student lists (Admin, Teacher, Coordinator): class, section, gender, status and date filters now filter the rows; working pagination
+- Staff Database (renamed from Teacher DB) shows all staff with staff-type, role, department and joining-date filters
+- Student Promotion: pick a class, Select all or tick students, promote one by one with a result per student
+- Fees: instalments always add up to the total; route transport fees no longer billed to every student; percentage and flat concessions calculated correctly (flat = yearly amount spread over instalments); Fee Collection has class/section filters and Unpaid / Paid / All views; payment link no longer opens empty
+- Fees backend: verified Razorpay/gateway payments now settle the instalments and issue a receipt once; parents get an in-app message after each payment; in-app reminders 15 days before due and weekly in the final month of the year ("Send Reminder" button works); a cheque cleared twice no longer pays twice
+- Leave: Casual and Personal leave limited to 2 days a month; Sick, Medical and Emergency not limited
+- Timetables: Class Timetable filters match every period, plus teacher and status filters and pagination; Principal edit page works; Director approvals date filter works; student timetable shows every approved period for the class and section with correct dates; Daily tab fixed; teacher timetable matches periods by teacher
+- Attendance page shows real figures from the marks; biometric page no longer wipes server records when synced before loading
+- Notification bell: View all goes only to pages that exist; long lists capped
+- Principal / Director Employee Database showed 43 blank rows (data was loaded but read the wrong way); now shows names, roles and departments, with case-insensitive role filter
+- Teacher Allocation and Class Timetable now use real HR teachers only (never the demo TEA-* list, which had produced an allocation for a non-existent teacher); Director no longer listed as a teacher; subjects include the campus subject master; timetable explains when a teacher has no allocated subjects
+- Restored Coordinator Section Assignment / Promote pages, Coordinator Create Class Timetable pages and the Director Class Timetable approvals link (removed by an earlier snapshot commit)
+
+### Still open
+- Lesson Plan merge (one menu with tabs) and saving approve / mark-as-done to the server
+- Star of the Month matrix ratings still saved only in the browser
+- Notification read status is shared by everyone in a role (needs a new table + migration after backup)
+- File Management screen and API; Camera register
+- Admission referral: record who referred a new admission (decided: record only; Account Head applies any bonus manually)
+- No automatic daily run for reminders (runs on the button and when a parent opens fees)
+- Razorpay keys are empty and there is no parent checkout screen yet
+- Browser re-check of today's pages still running
+
+---
+
 ## 27 October 2026 — Fresh setup, academic privacy fixes, substitute duty
 
 **Status:** New clone set up on PostgreSQL and verified. Academic module audited and hardened. Migration 0020 applied after a fresh backup. Pushed to the QMIS repo.

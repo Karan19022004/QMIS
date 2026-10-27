@@ -1,9 +1,12 @@
+import logging
+
 from fastapi import APIRouter, Body, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.deps import require_any, require_permission
 from app.models import User
+from app.services import fee_reminders
 from app.services import finance as svc
 from app.services import finance_actions as actions
 
@@ -24,7 +27,16 @@ def get_my_fees_route(
     user: User = Depends(require_permission("finance.read")),
 ) -> dict:
     """Parent/student scoped fee ledger (children / self only)."""
-    return svc.get_my_fees(db, user)
+    result = svc.get_my_fees(db, user)
+    from app.deps import role_code_for
+
+    if role_code_for(db, user) == "parent":
+        try:
+            fee_reminders.run_sweep(db, user.campus_id, student_ids=svc._child_student_ids_for_actor(db, user))
+        except Exception:  # reminders must never break the fee page
+            db.rollback()
+            logging.getLogger(__name__).exception("Fee reminder sweep failed for a parent")
+    return result
 
 
 @router.put("/state")
@@ -97,6 +109,15 @@ def gateway_confirm_route(
     user: User = Depends(require_any("finance.approve", "finance.write")),
 ) -> dict:
     return actions.confirm_gateway_payment(db, user, body)
+
+
+@router.post("/actions/reminder-sweep")
+def reminder_sweep_route(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_any("finance.collect", "finance.write")),
+) -> dict:
+    """Send due in-app fee reminders to parents now (idempotent; see services/fee_reminders.py)."""
+    return fee_reminders.run_sweep(db, user.campus_id)
 
 
 @router.post("/actions/apply-hr-concessions")

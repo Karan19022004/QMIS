@@ -13,7 +13,9 @@ import { canUseClassDetailsApi, listAcademicYears } from '../../services/classDe
 import { useStarRatingsRouteBase } from './useStarRatingsRouteBase'
 import {
     getDisabledSubs,
+    hydrateSomFromApi,
     SOM_MONTHS,
+    SOM_SYNC_EVENT,
     SOM_RATINGS,
     averageRatings,
     checklistTemplateCsv,
@@ -77,6 +79,10 @@ const SomMatrixPage = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when assignment hydrate settles
     }, [assignments.ready, assignments.assignments.length])
 
+    const [yearOptions, setYearOptions] = useState(() => {
+        const current = new Date().getFullYear()
+        return [String(current - 1), String(current), String(current + 1)]
+    })
     useEffect(() => {
         let cancelled = false
         if (!canUseClassDetailsApi()) return undefined
@@ -113,10 +119,6 @@ const SomMatrixPage = () => {
     const now = useMemo(() => new Date(), [])
     const [month, setMonth] = useState(() => SOM_MONTHS[now.getMonth()])
     const [year, setYear] = useState(() => String(now.getFullYear()))
-    const [yearOptions, setYearOptions] = useState(() => {
-        const current = now.getFullYear()
-        return [String(current - 1), String(current), String(current + 1)]
-    })
     const [grade, setGrade] = useState('')
     const [section, setSection] = useState('')
     const activeGrade = grade && grades.some((item) => classKeysMatch(item, grade) || item === grade)
@@ -153,6 +155,27 @@ const SomMatrixPage = () => {
     const [preview, setPreview] = useState(null)
     const [panel, setPanel] = useState('matrix')
     const [revision, setRevision] = useState(0)
+    const [syncError, setSyncError] = useState('')
+
+    // Server copy wins over this browser; the cache is refilled once on open.
+    useEffect(() => {
+        let cancelled = false
+        const onSync = (event) => {
+            if (event.detail && event.detail.ok === false) setSyncError(event.detail.message)
+        }
+        window.addEventListener(SOM_SYNC_EVENT, onSync)
+        hydrateSomFromApi().then((loaded) => {
+            if (cancelled || !loaded) return
+            setChecklist(getChecklist())
+            setTitles(getStarTitles())
+            setRatings(getRatings())
+            setRevision((value) => value + 1)
+        })
+        return () => {
+            cancelled = true
+            window.removeEventListener(SOM_SYNC_EVENT, onSync)
+        }
+    }, [])
 
     const students = useMemo(
         () => getSomRoster(scopedRows).filter(
@@ -233,6 +256,11 @@ const SomMatrixPage = () => {
 
     return (
         <section className='space-y-4'>
+            {syncError ? (
+                <p role='alert' className='text-sm text-[#B42318] bg-[#FEF3F2] border border-[#FECDCA] rounded-lg px-3 py-2'>
+                    {syncError} Your changes are kept in this browser; reload the page to retry.
+                </p>
+            ) : null}
             <div className='bg-white rounded-2xl shadow-md p-4 space-y-3'>
                 <h2 className='text-xl font-semibold'>{SCHOOL_PROFILE.name}</h2>
                 <p className='font-medium'>Star of the Month - {month} {year}</p>

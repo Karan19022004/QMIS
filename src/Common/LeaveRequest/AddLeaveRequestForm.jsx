@@ -141,6 +141,11 @@ export default function AddLeaveRequestForm({ roleKey: roleKeyProp }) {
                                 <option key={type} value={type}>{type}</option>
                             ))}
                         </select>
+                        {(leaveType === 'Casual Leave' || leaveType === 'Personal Leave') && (
+                            <p className='text-xs text-[#B54708]'>
+                                Casual and Personal leave together: at most 2 days per month. Sick, Medical and Emergency leave are not limited.
+                            </p>
+                        )}
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label className='text-base font-medium text-[#1E1E1E]'>From Date:</label>

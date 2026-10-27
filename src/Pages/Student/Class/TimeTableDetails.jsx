@@ -8,51 +8,46 @@ import {
     hydrateClassTimetablesFromApi,
 } from '../../Principal/ClassTimetable/classTimetableData'
 import { canUseAcademicsApi } from '../../../services/academicsApi'
+import { classKeysMatch, normalizeSectionKey } from '../../../Common/Teacher/teacherAssignedClasses'
 
 const classKey = (value) => String(value || '').trim().toLowerCase()
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-const pickTimetableForStudent = (timetables, student) => {
-    if (!student || !timetables?.length) return null
-    const wantClass = classKey(student.className)
-    const wantSection = classKey(student.section)
-    const approved = timetables.filter((row) => {
-        const status = String(row.approvalStatus || row.status || '').toLowerCase()
-        return !status || status === 'approved' || status === 'active'
-    })
-    const pool = approved.length ? approved : timetables
+const isPublished = (row) => {
+    const status = String(row.approvalStatus || row.status || '').toLowerCase()
+    return !status || status === 'approved' || status === 'active'
+}
 
-    const scored = pool.map((row) => {
-        const rowClass = classKey(row.className)
-        const timelines = row.timelines || []
-        const timelineMatch = timelines.some((t) => classKey(t.className) === wantClass)
-        const classMatch = rowClass === wantClass || timelineMatch
-        const sectionMatch = !wantSection
-            || wantSection === '—'
-            || classKey(row.section) === wantSection
-            || timelines.some((t) => classKey(t.className) === wantClass && classKey(t.section) === wantSection)
-        return { row, score: (classMatch ? 2 : 0) + (sectionMatch ? 1 : 0) }
-    })
-    scored.sort((a, b) => b.score - a.score)
-    return scored[0]?.score > 0 ? scored[0].row : null
+/**
+ * A class's week is spread over several teacher-owned timetables, so collect the student's
+ * periods from every published one. Pending or denied timetables are never shown.
+ */
+const collectStudentPeriods = (timetables, student) => {
+    if (!student?.className || !timetables?.length) return []
+    const wantSection = normalizeSectionKey(student.section)
+    const hasSection = Boolean(wantSection && wantSection !== '—')
+    return timetables.filter(isPublished).flatMap((record) => (record.timelines || []).filter((row) => (
+        classKeysMatch(row.className || record.className, student.className)
+        && (!hasSection || normalizeSectionKey(row.section || record.section) === wantSection)
+    )))
 }
 
 const deriveDailyRows = (grid) => {
     if (!grid?.timeSlots?.length || !grid?.schedule) return []
     const todayName = DAY_NAMES[new Date().getDay()]
     const dayKey = (grid.days || []).find((d) => classKey(d) === classKey(todayName))
-        || (grid.days || [])[0]
     if (!dayKey) return []
-    return grid.timeSlots.map((slot, index) => {
-        const cell = grid.schedule?.[slot]?.[dayKey] || {}
+    return grid.timeSlots.map((slot) => {
+        const cell = grid.schedule?.[slot.label]?.[dayKey] || {}
         return {
-            period: String(index + 1),
-            time: slot,
+            time: slot.label,
             subject: cell.subject || '—',
             teacher: cell.teacher || '—',
         }
-    }).filter((row) => row.subject && row.subject !== '—')
+    })
+        .filter((row) => row.subject && row.subject !== '—')
+        .map((row, index) => ({ ...row, period: String(index + 1) }))
 }
 
 /**
@@ -86,19 +81,15 @@ const TimeTableDetails = ({ weeklyOnly = false }) => {
         return () => { cancelled = true }
     }, [activeStudent?.id])
 
-    const matched = useMemo(
-        () => pickTimetableForStudent(timetables, activeStudent),
+    const periods = useMemo(
+        () => collectStudentPeriods(timetables, activeStudent),
         [timetables, activeStudent],
     )
+    const matched = periods.length > 0
 
     const grid = useMemo(() => {
-        if (!matched?.timelines?.length) return null
-        const built = buildClassGridFromTimelines(
-            matched.timelines.filter((row) => {
-                if (!activeStudent?.className) return true
-                return classKey(row.className) === classKey(activeStudent.className)
-            }),
-        )
+        if (!periods.length) return null
+        const built = buildClassGridFromTimelines(periods)
         const schedule = {}
         Object.entries(built.schedule || {}).forEach(([slot, days]) => {
             schedule[slot] = {}
@@ -108,7 +99,7 @@ const TimeTableDetails = ({ weeklyOnly = false }) => {
             })
         })
         return { ...built, schedule }
-    }, [matched, activeStudent?.className])
+    }, [periods])
 
     const dailyRows = useMemo(() => deriveDailyRows(grid), [grid])
     const placed = isStudentPlaced(activeStudent)
@@ -209,7 +200,7 @@ const TimeTableDetails = ({ weeklyOnly = false }) => {
                             <div className='overflow-x-auto'>
                                 {dailyRows.length === 0 ? (
                                     <p className='text-sm text-[#667085] py-8 text-center'>
-                                        No periods scheduled for today in the published timetable.
+                                        No periods scheduled for today ({DAY_NAMES[new Date().getDay()]}) in the published timetable.
                                     </p>
                                 ) : (
                                     <table className='w-full text-sm text-left'>

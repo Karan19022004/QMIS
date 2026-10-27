@@ -30,6 +30,17 @@ _BYPASS_ROLES = {
 }
 
 
+_PRE_PRIMARY = re.compile(r"^(pre[\s-]*kg|prekg|nursery|play\s*group|playgroup|lkg|ukg|kg|kindergarten|pre[\s-]*primary)\b", re.I)
+
+
+def school_grade(class_name: str | None) -> int | None:
+    """Like parse_grade, but pre-primary classes (Pre-KG, LKG, UKG, KG, Nursery) count as 0."""
+    text = str(class_name or "").strip()
+    if _PRE_PRIMARY.match(re.sub(r"^(class|grade)\s+", "", text, flags=re.I)):
+        return 0
+    return parse_grade(text)
+
+
 def parse_grade(class_name: str | None) -> int | None:
     """Extract grade number from names like 'Grade 1', 'I', '1', 'Class 5', 'VI'."""
     text = str(class_name or "").strip()

@@ -155,13 +155,28 @@ export const generateEnquiryId = () => {
     return `AE-${String(max + 1).padStart(4, '0')}`
 }
 
+/** Required on every save (the backend enforces the same three). `id` is the form control to focus. */
+export const ENQUIRY_REQUIRED_FIELDS = [
+    { field: 'name', id: 'name', label: 'Name' },
+    { field: 'mobileNumber', id: 'mobileNumber', label: 'Mobile Number' },
+    { field: 'className', id: 'className', label: 'Class' },
+]
+
+export const getMissingEnquiryFields = (payload) =>
+    ENQUIRY_REQUIRED_FIELDS.filter(({ field }) => !String(payload?.[field] ?? '').trim())
+
+const missingEnquiryResult = (missing) => ({
+    success: false,
+    missing,
+    message: `Please fill in the required field${missing.length > 1 ? 's' : ''}: ${missing.map((m) => m.label).join(', ')}.`,
+})
+
 export const createAdmissionEnquiry = async (payload) => {
     const name = String(payload.name || '').trim()
     const mobileNumber = String(payload.mobileNumber || '').trim()
 
-    if (!name) return { success: false, message: 'Name is required.' }
-    if (!mobileNumber) return { success: false, message: 'Mobile number is required.' }
-    if (!payload.className) return { success: false, message: 'Class is required.' }
+    const missing = getMissingEnquiryFields(payload)
+    if (missing.length) return missingEnquiryResult(missing)
 
     if (apiAdmissionsEnabled()) {
         try {
@@ -204,9 +219,8 @@ export const updateAdmissionEnquiry = async (id, payload) => {
     const name = String(payload.name || '').trim()
     const mobileNumber = String(payload.mobileNumber || '').trim()
 
-    if (!name) return { success: false, message: 'Name is required.' }
-    if (!mobileNumber) return { success: false, message: 'Mobile number is required.' }
-    if (!payload.className) return { success: false, message: 'Class is required.' }
+    const missing = getMissingEnquiryFields(payload)
+    if (missing.length) return missingEnquiryResult(missing)
 
     if (apiAdmissionsEnabled()) {
         try {

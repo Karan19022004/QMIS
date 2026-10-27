@@ -63,6 +63,7 @@
     HeartPulse,
     Fuel,
     Wrench,
+    Cctv,
 } from "lucide-react";
 
 export const superAdminSidebarLinks = [
@@ -203,6 +204,18 @@ export const superAdminSidebarLinks = [
         icon: BellDot,
     },
     {
+        id: 171,
+        title: "File Management",
+        to: "/super-admin/file-management",
+        icon: FolderOpen,
+    },
+    {
+        id: 172,
+        title: "Camera Management",
+        to: "/super-admin/camera-management",
+        icon: Cctv,
+    },
+    {
         id: 18,
         title: "Escalation Management",
         to: "/super-admin/escalation-management",
@@ -306,7 +319,14 @@ export const adminSidebarLinks = [
         subLinks: [
             { icon: FileText, title: "Student Documents", to: "/admin/documents/student-documents" },
             { icon: FileText, title: "Employee Documents", to: "/admin/documents/employee-documents" },
+            { icon: FolderOpen, title: "File Management", to: "/admin/file-management" },
         ],
+    },
+    {
+        id: 71,
+        title: "Camera Management",
+        to: "/admin/camera-management",
+        icon: Cctv,
     },
     {
         id: 8,
@@ -624,7 +644,7 @@ export const prmSidebarLinks = [
         icon: Users,
         subLinks: [
             { icon: UserRound, title: "Student Database", to: "/front-office/student-management" },
-            { icon: UserRoundCog, title: "Teacher Database", to: "/front-office/teacher-management" },
+            { icon: UserRoundCog, title: "Staff Database", to: "/front-office/teacher-management" },
         ],
     },
     {
@@ -948,6 +968,12 @@ export const gateKeeperManagerSidebarLinks = [
         icon: BellDot,
     },
     {
+        id: 91,
+        title: "Camera Management",
+        to: "/gatekeeper-manager/camera-management",
+        icon: Cctv,
+    },
+    {
         id: 10,
         title: "Escalation Management",
         to: "/gatekeeper-manager/escalation-management",
@@ -1225,8 +1251,7 @@ export const teacherSidebarLinks = [
         icon: School,
         subLinks: [
             { icon: CalendarDays, title: "Class Timetable", to: "/teacher/class/class-routine" },
-            { icon: NotebookPen, title: "Lesson Plan", to: "/teacher/lesson-plan/my-lesson-plan" },
-            { icon: ClipboardCheck, title: "Lesson Plan Approval", to: "/teacher/lesson-plan-approval" },
+            { icon: NotebookPen, title: "Lesson Plan", to: "/teacher/lesson-plan-approval" },
             { icon: UserPlus, title: "Extended Class", to: "/teacher/class/extra-class" },
             { icon: MonitorPlay, title: "Online Class", to: "/teacher/class/online-class" },
         ],
@@ -1323,9 +1348,9 @@ export const coordinatorSidebarLinks = [
         to: "#0",
         icon: School,
         subLinks: [
-            { icon: CalendarDays, title: "Class Timetable", to: "/coordinator/class/class-routine" },
-            { icon: NotebookPen, title: "Lesson Plan", to: "/coordinator/lesson-plan/my-lesson-plan" },
-            { icon: ClipboardCheck, title: "Lesson Plan Approval", to: "/coordinator/lesson-plan-approval" },
+            { icon: CalendarDays, title: "My Class Timetable", to: "/coordinator/class/class-routine" },
+            { icon: CalendarDays, title: "Create Class Timetable", to: "/coordinator/class/class-timetable" },
+            { icon: NotebookPen, title: "Lesson Plan", to: "/coordinator/lesson-plan-approval" },
             { icon: UserPlus, title: "Extended Class", to: "/coordinator/class/extra-class" },
             { icon: MonitorPlay, title: "Online Class", to: "/coordinator/class/online-class" },
         ],
@@ -1343,6 +1368,7 @@ export const coordinatorSidebarLinks = [
         icon: GraduationCap,
         subLinks: [
             { icon: GraduationCap, title: "Students List", to: "/coordinator/user-management/students-list" },
+            { icon: UserPlus, title: "Section Assignment", to: "/coordinator/student-placement" },
             { icon: UsersRound, title: "Parents List", to: "/coordinator/user-management/parents-list" },
             { icon: FileText, title: "CA / RCT", to: "/coordinator/unit-tests" },
             { icon: CalendarCheck, title: "Exam", to: "/coordinator/student-evaluation/exam" },
@@ -1950,6 +1976,12 @@ export const accountHeadSidebarLinks = [
         icon: BadgeDollarSign,
     },
     {
+        id: 31,
+        title: "Admission Referrals",
+        to: "/account-head/admission-referrals",
+        icon: UserPlus,
+    },
+    {
         id: 4,
         title: "Wallet Management",
         to: "/account-head/wallet-management",
@@ -2114,6 +2146,7 @@ export const directorSidebarLinks = [
         icon: CalendarCheck,
         subLinks: [
             { icon: CalendarCheck, title: "Exam Timetable", to: "/director/examination-approvals" },
+            { icon: CalendarDays, title: "Class Timetable", to: "/director/class-timetable-approvals" },
         ],
     },
     {

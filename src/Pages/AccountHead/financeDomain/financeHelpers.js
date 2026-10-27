@@ -139,14 +139,41 @@ export const calculateFeeStatus = ({
     return FEE_INSTALLMENT_STATUSES.UNPAID
 }
 
-export const resolveConcessionAmount = (installment, concessions = []) => {
+/**
+ * Share of a flat yearly concession for one instalment: split across the fee's instalments in
+ * proportion to their amounts, in whole rupees, leftover on the earliest instalment.
+ */
+const flatConcessionShare = (amount, installment, group) => {
+    const rows = [...(group?.length ? group : [installment])]
+        .sort((a, b) => (Number(a.scheduleIndex) || 0) - (Number(b.scheduleIndex) || 0)
+            || String(a.dueDate || '').localeCompare(String(b.dueDate || '')))
+    const feeTotal = rows.reduce((sum, row) => sum + (Number(row.feeAmount) || 0), 0)
+    const total = Math.min(Math.max(0, Number(amount) || 0), feeTotal)
+    if (!total || !feeTotal) return 0
+    const shares = rows.map((row) => Math.floor((total * (Number(row.feeAmount) || 0)) / feeTotal))
+    shares[0] += total - shares.reduce((sum, value) => sum + value, 0)
+    const index = rows.findIndex((row) => row.id === installment.id)
+    return Math.min(shares[index === -1 ? 0 : index], Number(installment.feeAmount) || 0)
+}
+
+/**
+ * @param group the student's instalments for the same fee category and academic year; a flat
+ *   concession is a yearly amount and is spread across them.
+ */
+export const resolveConcessionAmount = (installment, concessions = [], group = null) => {
     const match = concessions.find((item) => (
         item.studentId === installment.studentId
         && item.feeCategoryId === installment.feeCategoryId
         && String(item.status || '').toLowerCase() === 'approved'
         && (!item.academicYear || item.academicYear === installment.academicYear)
     ))
-    if (match) return Number(match.amount) || 0
+    if (match) {
+        if (String(match.amountType || '').toUpperCase() === 'PERCENT') {
+            const percent = Math.min(100, Math.max(0, Number(match.amount) || 0))
+            return Math.round((Number(installment.feeAmount) || 0) * percent) / 100
+        }
+        return flatConcessionShare(match.amount, installment, group)
+    }
     return Number(installment.concessionAmount) || 0
 }
 

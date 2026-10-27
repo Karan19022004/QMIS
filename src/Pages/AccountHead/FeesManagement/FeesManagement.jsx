@@ -35,6 +35,8 @@ import { buildFeeQuickStats } from '../financeDomain/financeLiveViews'
 import FinanceSnapshotBanner from '../financeDomain/FinanceSnapshotBanner'
 import { FEE_STRUCTURE_CSV_TEMPLATE, parseFeeStructureUpload } from './feeStructureImport'
 import { loadAdminAcademicYears } from './feeCampusOptions'
+import { feeReminderSweepApi } from '../../../services/financeApi'
+import { isApiFinanceEnabled } from '../../../services/apiClient'
 
 const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
@@ -323,6 +325,30 @@ const FeesManagement = () => {
     const [deletingId, setDeletingId] = useState(null)
     const fileInputRef = useRef(null)
     const { defineFeeStructure, addFeeCategory, saveFeeCategories, deleteFeeStructure } = useFinance()
+    const [remindersBusy, setRemindersBusy] = useState(false)
+
+    const sendFeeReminders = async () => {
+        if (!isApiFinanceEnabled()) {
+            toast.info('Fee reminders need the campus server connection.')
+            return
+        }
+        setRemindersBusy(true)
+        try {
+            const result = await feeReminderSweepApi()
+            if (!result?.sent) {
+                toast.info('No new reminders due. Parents get one 15 days before each due date and a weekly one in the final month of the year.')
+            } else {
+                toast.success(`Sent ${result.sent} in-app reminder${result.sent === 1 ? '' : 's'} to parents.`)
+            }
+            if (result?.skippedNoParentLogin) {
+                toast.warning(`${result.skippedNoParentLogin} student(s) with dues have no parent login, so no reminder was sent.`)
+            }
+        } catch (error) {
+            toast.error(error?.message || 'Could not send fee reminders.')
+        } finally {
+            setRemindersBusy(false)
+        }
+    }
 
     const openDefineModal = (structure = null) => {
         setEditingStructure(structure)
@@ -475,10 +501,13 @@ const FeesManagement = () => {
                             </button>
                             <button
                                 type='button'
-                                className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] border border-[#515DEF] px-4 py-2 rounded-md hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer'
+                                onClick={sendFeeReminders}
+                                disabled={remindersBusy}
+                                title='In-app reminders to parents: 15 days before each due date, weekly in the final month of the year'
+                                className='inline-flex items-center gap-2 text-sm font-medium text-[#515DEF] border border-[#515DEF] px-4 py-2 rounded-md hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer disabled:opacity-50'
                             >
                                 <Bell size={16} />
-                                Send Reminder
+                                {remindersBusy ? 'Sending…' : 'Send Reminder'}
                             </button>
                             <button
                                 type='button'
@@ -528,10 +557,13 @@ const FeesManagement = () => {
                             </button>
                             <button
                                 type='button'
-                                className='inline-flex items-center gap-2 bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all cursor-pointer'
+                                onClick={sendFeeReminders}
+                                disabled={remindersBusy}
+                                title='In-app reminders to parents: 15 days before each due date, weekly in the final month of the year'
+                                className='inline-flex items-center gap-2 bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all cursor-pointer disabled:opacity-50'
                             >
                                 <Send size={16} />
-                                Bulk Reminder
+                                {remindersBusy ? 'Sending…' : 'Bulk Reminder'}
                             </button>
                         </div>
                     )}

@@ -1,4 +1,5 @@
 import { getStudentsList } from '../StudentDatabase/studentDatabaseData'
+import { canUseOpsApi, listOpsCollectionApi, upsertOpsItemApi } from '../../services/opsApi'
 
 const CHECKLIST_KEY = 'schoolerp-som-checklist-v1'
 const DISABLED_KEY = 'schoolerp-som-checklist-disabled-v1'
@@ -64,6 +65,111 @@ const readJson = (key, fallback) => {
 
 const writeJson = (key, value) => localStorage.setItem(key, JSON.stringify(value))
 
+// Server storage (ops collections "som-matrix" and "som-config"). The browser keys above stay as
+// the in-page cache so the matrix reads synchronously; every change is also saved to the server,
+// one record per month/year/grade/section, so teachers never overwrite each other's classes.
+export const SOM_SYNC_EVENT = 'schoolerp-som-sync'
+const MATRIX_COLLECTION = 'som-matrix'
+const CONFIG_COLLECTION = 'som-config'
+
+const emitSync = (detail) => {
+    try {
+        window.dispatchEvent(new CustomEvent(SOM_SYNC_EVENT, { detail }))
+    } catch {
+        /* ignore */
+    }
+}
+
+const pushToServer = (collection, id, body) => {
+    if (!canUseOpsApi()) return Promise.resolve(true)
+    return upsertOpsItemApi(collection, id, body)
+        .then(() => true)
+        .catch((error) => {
+            emitSync({ ok: false, message: error?.message || 'Star of the Month changes could not be saved to the server.' })
+            return false
+        })
+}
+
+const sameContext = (row, context) => (
+    row.month === context.month
+    && String(row.year) === String(context.year)
+    && row.grade === context.grade
+    && row.section === context.section
+)
+
+const contextRecord = (context) => {
+    const key = contextKey(context)
+    return {
+        context: { month: context.month, year: String(context.year), grade: context.grade, section: context.section },
+        ratings: readJson(RATINGS_KEY, [])
+            .filter((row) => sameContext(row, context))
+            .map(({ studentId, subId, rating }) => ({ studentId, subId, rating })),
+        disabledSubs: readJson(DISABLED_KEY, {})[key] || [],
+        meta: readJson(META_KEY, {})[key] || null,
+    }
+}
+
+const pushContext = (context) => pushToServer(MATRIX_COLLECTION, contextKey(context), contextRecord(context))
+
+/**
+ * Load every class matrix and the shared checklist/titles from the server into the page cache.
+ * Classes that exist only in this browser (rated before server storage) are uploaded once.
+ */
+export async function hydrateSomFromApi() {
+    if (!canUseOpsApi()) return false
+    try {
+        const [matrices, configs] = await Promise.all([
+            listOpsCollectionApi(MATRIX_COLLECTION),
+            listOpsCollectionApi(CONFIG_COLLECTION),
+        ])
+        const serverKeys = new Set()
+        const ratings = []
+        const disabled = {}
+        const meta = {}
+        ;(Array.isArray(matrices) ? matrices : []).forEach((record) => {
+            const context = record?.context
+            if (!context) return
+            const key = contextKey(context)
+            serverKeys.add(key)
+            ;(record.ratings || []).forEach((row) => ratings.push({ ...context, ...row }))
+            if (Array.isArray(record.disabledSubs) && record.disabledSubs.length) disabled[key] = record.disabledSubs
+            if (record.meta) meta[key] = record.meta
+        })
+
+        const localRatings = readJson(RATINGS_KEY, [])
+        const localOnly = new Map()
+        localRatings.forEach((row) => {
+            const key = contextKey(row)
+            if (!serverKeys.has(key)) localOnly.set(key, row)
+        })
+        const localDisabled = readJson(DISABLED_KEY, {})
+        const localMeta = readJson(META_KEY, {})
+        localOnly.forEach((row, key) => {
+            localRatings.filter((item) => contextKey(item) === key).forEach((item) => ratings.push(item))
+            if (localDisabled[key]) disabled[key] = localDisabled[key]
+            if (localMeta[key]) meta[key] = localMeta[key]
+        })
+
+        writeJson(RATINGS_KEY, ratings)
+        writeJson(DISABLED_KEY, disabled)
+        writeJson(META_KEY, meta)
+
+        const config = Object.fromEntries((Array.isArray(configs) ? configs : []).map((row) => [row.id, row]))
+        if (Array.isArray(config.checklist?.categories) && config.checklist.categories.length) {
+            writeJson(CHECKLIST_KEY, config.checklist.categories)
+        }
+        if (Array.isArray(config.titles?.titles) && config.titles.titles.length) {
+            writeJson(TITLES_KEY, config.titles.titles)
+        }
+
+        await Promise.all([...localOnly.values()].map((row) => pushContext(row)))
+        return true
+    } catch (error) {
+        emitSync({ ok: false, message: error?.message || 'Star of the Month data could not be loaded from the server.' })
+        return false
+    }
+}
+
 export const getChecklist = () => {
     const stored = readJson(CHECKLIST_KEY, null)
     if (Array.isArray(stored) && stored.length) return stored
@@ -71,10 +177,13 @@ export const getChecklist = () => {
     return DEFAULT_SOM_CHECKLIST
 }
 
-export const saveChecklist = (categories) => writeJson(CHECKLIST_KEY, categories)
+export const saveChecklist = (categories) => {
+    writeJson(CHECKLIST_KEY, categories)
+    pushToServer(CONFIG_COLLECTION, 'checklist', { categories })
+}
 
 export const resetChecklist = () => {
-    writeJson(CHECKLIST_KEY, DEFAULT_SOM_CHECKLIST)
+    saveChecklist(DEFAULT_SOM_CHECKLIST)
     return DEFAULT_SOM_CHECKLIST
 }
 
@@ -90,6 +199,7 @@ export const setSubDisabled = (context, subId, disabled) => {
     else current.delete(subId)
     all[key] = [...current]
     writeJson(DISABLED_KEY, all)
+    pushContext(context)
 }
 
 export const getRatings = () => readJson(RATINGS_KEY, [])
@@ -103,7 +213,10 @@ export const getStarTitles = () => {
     return DEFAULT_STAR_TITLES
 }
 
-export const saveStarTitles = (titles) => writeJson(TITLES_KEY, titles)
+export const saveStarTitles = (titles) => {
+    writeJson(TITLES_KEY, titles)
+    pushToServer(CONFIG_COLLECTION, 'titles', { titles })
+}
 
 export const getMatrixMeta = (context) => readJson(META_KEY, {})[contextKey(context)] || { classMentor: '', signoff: {} }
 
@@ -111,6 +224,7 @@ export const saveMatrixMeta = (context, meta) => {
     const all = readJson(META_KEY, {})
     all[contextKey(context)] = meta
     writeJson(META_KEY, all)
+    pushContext(context)
 }
 
 export const isNumericRating = (value) => value !== 'NA' && value !== '' && value !== undefined && !Number.isNaN(Number(value))
@@ -171,6 +285,7 @@ export const upsertRating = (context, studentId, subId, rating) => {
     ))
     if (rating) rows.push({ ...context, year: String(context.year), studentId, subId, rating })
     saveRatings(rows)
+    pushContext(context)
     return rows
 }
 
@@ -288,5 +403,6 @@ export const importSomRows = (context, rows) => {
         ratings.push({ ...context, year: String(context.year), studentId: row.studentId, subId: row.subId, rating: row.rating })
     })
     saveRatings(ratings)
+    pushContext(context)
     return ratings
 }

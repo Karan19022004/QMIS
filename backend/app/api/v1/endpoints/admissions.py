@@ -107,6 +107,15 @@ def list_enrolled_students_route(
     return svc.list_enrolled_students(db, user)
 
 
+@router.get("/referrals")
+def list_referrals_route(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_any("admissions.write", "finance.write")),
+) -> list[dict]:
+    """Referred admissions (record only); the Account Head applies any bonus manually."""
+    return svc.list_referrals(db, user)
+
+
 @router.get("/{admission_id}", response_model=AdmissionOut)
 def get_admission_route(
     admission_id: UUID,

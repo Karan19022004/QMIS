@@ -6,7 +6,7 @@ import { useFinance } from '../../Pages/AccountHead/financeDomain/FinanceContext
 import { buildMfpFromInstallments } from '../../Pages/AccountHead/financeDomain/financeSnapshotAccounting'
 import ReactECharts from 'echarts-for-react'
 import { toast } from 'react-toastify'
-import { getBiometricRows, overrideAttendance, syncBiometricDemo } from './biometric'
+import { getBiometricRows, hydrateBiometricFromApi, overrideAttendance, syncBiometricDemo } from './biometric'
 import { StatusBadge } from './statusBadge'
 import { bookFeeRows, getFeeProjection, projectFee, saveFeeProjection } from './financeExtras'
 import EntryClosureGate from './EntryClosureGate'
@@ -47,25 +47,55 @@ const inputClass = 'text-sm border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
 export function BiometricAttendancePage({ canOverride = false }) {
     const actor = canOverride ? 'Teacher' : 'Coordinator'
     const [rows, setRows] = useState(() => getBiometricRows())
-    const [lastSync, setLastSync] = useState(rows[0]?.lastSync || 'Not synced in this session')
+    const [lastSync, setLastSync] = useState(rows[0]?.lastSync || '')
     const [reason, setReason] = useState('Official duty')
+    const [loading, setLoading] = useState(true)
+    const [busy, setBusy] = useState(false)
 
-    const sync = () => {
+    useEffect(() => {
+        let cancelled = false
+        hydrateBiometricFromApi().finally(() => {
+            if (cancelled) return
+            const loaded = getBiometricRows()
+            setRows(loaded)
+            setLastSync(loaded[0]?.lastSync || '')
+            setLoading(false)
+        })
+        return () => { cancelled = true }
+    }, [])
+
+    const sync = async () => {
         if (entryBlocked('Attendance', actor)) return
-        const next = syncBiometricDemo()
-        setRows(next)
-        setLastSync(next[0]?.lastSync || '')
-        toast.success('Demo biometric sync completed.')
+        setBusy(true)
+        try {
+            const result = await syncBiometricDemo()
+            setRows(result.rows)
+            if (!result.success) {
+                toast.error(result.message)
+                return
+            }
+            setLastSync(result.rows[0]?.lastSync || '')
+            toast.success('Demo biometric sync completed.')
+        } finally {
+            setBusy(false)
+        }
     }
 
-    const override = (id, status) => {
+    const override = async (id, status) => {
         if (entryBlocked('Attendance', actor)) return
         if (!reason.trim()) {
             toast.error('A reason is required for an override.')
             return
         }
-        setRows(overrideAttendance(id, status, 'Class Mentor', reason.trim()))
-        toast.success(`Final status set to ${status}.`)
+        setBusy(true)
+        try {
+            const result = await overrideAttendance(id, status, actor, reason.trim())
+            setRows(result.rows)
+            if (result.success) toast.success(`Final status set to ${status}.`)
+            else toast.error(result.message)
+        } finally {
+            setBusy(false)
+        }
     }
 
     return (
@@ -74,7 +104,9 @@ export function BiometricAttendancePage({ canOverride = false }) {
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h2 className='text-xl font-semibold'>Biometric attendance</h2>
                 <p className='text-sm text-[#667085] mt-1'>Source: ESSL · Last demo sync: {lastSync ? new Date(lastSync).toLocaleString() : 'Not synced'}. This is a simulated sync.</p>
-                <button type='button' onClick={sync} className='mt-3 bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md cursor-pointer'>Sync Biometric Data</button>
+                <button type='button' onClick={sync} disabled={loading || busy} className='mt-3 bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'>
+                    {busy ? 'Working…' : 'Sync Biometric Data'}
+                </button>
                 {canOverride && (
                     <label className='block mt-3 text-sm'>Override reason
                         <input value={reason} onChange={(event) => setReason(event.target.value)} className={`${inputClass} mt-1 max-w-md`} />
@@ -87,7 +119,14 @@ export function BiometricAttendancePage({ canOverride = false }) {
                         <tr>{['Person', 'Punch', 'Biometric status', 'Final status', 'Changed by', 'Reason', canOverride ? 'Override' : ''].filter(Boolean).map((label) => <th key={label} className='px-2 py-3 text-left'>{label}</th>)}</tr>
                     </thead>
                     <tbody>
-                        {rows.map((row) => (
+                        {(loading || rows.length === 0) && (
+                            <tr>
+                                <td colSpan={canOverride ? 7 : 6} className='px-2 py-6 text-center text-[#667085]'>
+                                    {loading ? 'Loading biometric records…' : 'No biometric punches recorded yet.'}
+                                </td>
+                            </tr>
+                        )}
+                        {!loading && rows.map((row) => (
                             <tr key={row.id} className='border-b border-[#f2f4f7]'>
                                 <td className='px-2 py-3'>{row.person}</td>
                                 <td className='px-2 py-3'>{row.punchTime || '—'}</td>
@@ -99,7 +138,7 @@ export function BiometricAttendancePage({ canOverride = false }) {
                                     <td className='px-2 py-3'>
                                         <div className='flex gap-1 flex-wrap'>
                                             {['Present', 'Absent', 'Half Day', 'OD'].map((status) => (
-                                                <button key={status} type='button' onClick={() => override(row.id, status)} className='text-xs border border-[#515DEF] text-[#515DEF] rounded px-2 py-1 cursor-pointer'>{status}</button>
+                                                <button key={status} type='button' disabled={busy} onClick={() => override(row.id, status)} className='text-xs border border-[#515DEF] text-[#515DEF] rounded px-2 py-1 cursor-pointer disabled:opacity-50'>{status}</button>
                                             ))}
                                         </div>
                                     </td>

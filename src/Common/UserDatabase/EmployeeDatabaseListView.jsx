@@ -9,20 +9,53 @@ import ExportModal from '../CommonComponents/ExportModal'
 import { DEPARTMENTS, EMPLOYEES_LIST } from '../EmployeeDatabase/employeeDatabaseData'
 import { canUseEmployeeDirectoryApi, loadEmployeeDirectory } from '../../services/employeeDirectoryApi'
 
+const PAGE_SIZE = 10
+
+// Joining dates arrive as YYYY-MM-DD or DD-MM-YYYY.
+const parseDay = (value) => {
+    const text = String(value || '').trim()
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+    const dmy = text.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/)
+    if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+    return null
+}
+
+const dayStart = (date) => (date ? new Date(date.getFullYear(), date.getMonth(), date.getDate()) : null)
+
+// HR data mixes "Teacher" and "teacher"; one option per value regardless of case.
+const sortedValues = (rows, pick) => {
+    const byKey = new Map()
+    rows.forEach((row) => {
+        const value = String(pick(row) || '').trim()
+        if (!value || value === '—') return
+        const key = value.toLowerCase()
+        if (!byKey.has(key) || /^[A-Z]/.test(value)) byKey.set(key, value)
+    })
+    return [...byKey.values()].sort((a, b) => a.localeCompare(b))
+}
+
+const sameText = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase()
+
 const EmployeeDatabaseListView = ({
     routeBase,
     title = 'Employee Database',
     subtitle = 'Employees created through User Creation appear here automatically.',
     fixedDepartmentFilter = '',
     showDepartmentFilter = true,
+    // (employee) => boolean; when given, a Teaching / Non-teaching filter is shown.
+    isTeachingStaff = null,
 }) => {
     const location = useLocation()
     const api = canUseEmployeeDirectoryApi()
-    const [fromDate, setFromDate] = useState(new Date())
-    const [toDate, setToDate] = useState(new Date())
+    const [fromDate, setFromDate] = useState(null)
+    const [toDate, setToDate] = useState(null)
     const [exportModal, setExportModal] = useState(false)
     const [search, setSearch] = useState('')
     const [departmentFilter, setDepartmentFilter] = useState(fixedDepartmentFilter)
+    const [roleFilter, setRoleFilter] = useState('')
+    const [staffTypeFilter, setStaffTypeFilter] = useState('')
+    const [page, setPage] = useState(1)
     const [employees, setEmployees] = useState(() => (api ? [] : [...EMPLOYEES_LIST]))
     const [loadError, setLoadError] = useState('')
 
@@ -35,7 +68,12 @@ const EmployeeDatabaseListView = ({
         loadEmployeeDirectory()
             .then(({ records }) => {
                 if (!active) return
-                setEmployees(records)
+                // The directory returns { row, detail } pairs; the table works on rows.
+                setEmployees((records || []).map(({ row, detail }) => ({
+                    ...row,
+                    designation: detail?.employmentInfo?.designation || row.role,
+                    joiningDate: detail?.professionalInfo?.joiningDate || '',
+                })))
                 setLoadError('')
             })
             .catch((error) => {
@@ -52,18 +90,49 @@ const EmployeeDatabaseListView = ({
         setDepartmentFilter(fixedDepartmentFilter)
     }, [fixedDepartmentFilter])
 
+    const departmentOptions = useMemo(
+        () => sortedValues([...DEPARTMENTS.map((department) => ({ department })), ...employees], (e) => e.department),
+        [employees],
+    )
+    const roleOptions = useMemo(() => sortedValues(employees, (e) => e.role), [employees])
+
     const filteredEmployees = useMemo(() => {
         const query = search.trim().toLowerCase()
+        const from = dayStart(fromDate)
+        const to = dayStart(toDate)
         return employees.filter((employee) => {
-            if (departmentFilter && employee.department !== departmentFilter) return false
+            if (departmentFilter && !sameText(employee.department, departmentFilter)) return false
+            if (roleFilter && !sameText(employee.role, roleFilter)) return false
+            if (staffTypeFilter && isTeachingStaff) {
+                const teaching = Boolean(isTeachingStaff(employee))
+                if ((staffTypeFilter === 'teaching') !== teaching) return false
+            }
+            if (from || to) {
+                const joined = parseDay(employee.joiningDate)
+                if (!joined) return false
+                if ((from && joined < from) || (to && joined > to)) return false
+            }
             if (!query) return true
             const haystack = `${employee.employeeId} ${employee.name} ${employee.department} ${employee.role} ${employee.email}`.toLowerCase()
             return haystack.includes(query)
         })
-    }, [employees, search, departmentFilter])
+    }, [employees, search, departmentFilter, roleFilter, staffTypeFilter, isTeachingStaff, fromDate, toDate])
+
+    const pageCount = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE))
+    const currentPage = Math.min(page, pageCount)
+    const pageEmployees = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+    const withPageReset = (setter) => (value) => {
+        setter(value)
+        setPage(1)
+    }
 
     const clearFilters = () => {
         setSearch('')
+        setRoleFilter('')
+        setStaffTypeFilter('')
+        setFromDate(null)
+        setToDate(null)
+        setPage(1)
         if (!fixedDepartmentFilter) {
             setDepartmentFilter('')
         }
@@ -73,39 +142,55 @@ const EmployeeDatabaseListView = ({
         <section>
             {loadError ? <p className='text-sm text-[#B42318] mb-3'>{loadError}</p> : null}
             <div className='bg-white rounded-2xl shadow-md p-4'>
-                <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
+                <div className='flex justify-end'>
                     <button type='button' onClick={clearFilters} className='bg-[#515DEF] text-white uppercase text-sm px-6 py-2 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>Clear Filters</button>
-                    <select className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full md:max-w-xs sm:max-w-full'>
-                        <option value=''>From Beginning</option>
-                    </select>
                 </div>
-                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>
+                <div className='grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 lg:mt-6 mt-2'>
                     <div className='flex flex-col gap-y-2'>
-                        <label className='text-base font-medium text-[#808080]'>Search</label>
-                        <input type='text' value={search} onChange={(e) => setSearch(e.target.value)} placeholder='Employee ID, name...' className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full' />
+                        <label htmlFor='employee-search' className='text-base font-medium text-[#808080]'>Search</label>
+                        <input id='employee-search' type='text' value={search} onChange={(e) => withPageReset(setSearch)(e.target.value)} placeholder='Employee ID, name...' className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full' />
+                    </div>
+                    {isTeachingStaff && (
+                        <div className='flex flex-col gap-y-2'>
+                            <label htmlFor='employee-staff-type' className='text-base font-medium text-[#808080]'>Staff type</label>
+                            <select id='employee-staff-type' value={staffTypeFilter} onChange={(e) => withPageReset(setStaffTypeFilter)(e.target.value)} className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
+                                <option value=''>All</option>
+                                <option value='teaching'>Teaching</option>
+                                <option value='non-teaching'>Non-teaching</option>
+                            </select>
+                        </div>
+                    )}
+                    <div className='flex flex-col gap-y-2'>
+                        <label htmlFor='employee-role' className='text-base font-medium text-[#808080]'>Role</label>
+                        <select id='employee-role' value={roleFilter} onChange={(e) => withPageReset(setRoleFilter)(e.target.value)} className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
+                            <option value=''>All</option>
+                            {roleOptions.map((role) => (
+                                <option key={role} value={role}>{role}</option>
+                            ))}
+                        </select>
                     </div>
                     {showDepartmentFilter && (
                         <div className='flex flex-col gap-y-2'>
-                            <label className='text-base font-medium text-[#808080]'>Department</label>
-                            <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)} disabled={Boolean(fixedDepartmentFilter)} className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
+                            <label htmlFor='employee-department' className='text-base font-medium text-[#808080]'>Department</label>
+                            <select id='employee-department' value={departmentFilter} onChange={(e) => withPageReset(setDepartmentFilter)(e.target.value)} disabled={Boolean(fixedDepartmentFilter)} className='text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
                                 <option value=''>All</option>
-                                {DEPARTMENTS.map((department) => (
+                                {departmentOptions.map((department) => (
                                     <option key={department} value={department}>{department}</option>
                                 ))}
                             </select>
                         </div>
                     )}
                     <div className='flex flex-col gap-y-2'>
-                        <label className='text-base font-medium text-[#808080]'>From</label>
+                        <label className='text-base font-medium text-[#808080]'>Joining date from</label>
                         <div className='relative'>
-                            <DatePicker selected={fromDate} onChange={setFromDate} isClearable showMonthYearDropdown scrollableMonthYearDropdown className='w-full text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-3 py-2 pr-10 focus:outline-none' />
+                            <DatePicker selected={fromDate} onChange={withPageReset(setFromDate)} isClearable showMonthYearDropdown scrollableMonthYearDropdown className='w-full text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-3 py-2 pr-10 focus:outline-none' />
                             <Calendar size={16} className='absolute right-3 top-1/2 -translate-y-1/2 text-[#808080] pointer-events-none' />
                         </div>
                     </div>
                     <div className='flex flex-col gap-y-2'>
-                        <label className='text-base font-medium text-[#808080]'>To</label>
+                        <label className='text-base font-medium text-[#808080]'>Joining date to</label>
                         <div className='relative'>
-                            <DatePicker selected={toDate} onChange={setToDate} isClearable showMonthYearDropdown scrollableMonthYearDropdown className='w-full text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-3 py-2 pr-10 focus:outline-none' />
+                            <DatePicker selected={toDate} onChange={withPageReset(setToDate)} isClearable showMonthYearDropdown scrollableMonthYearDropdown className='w-full text-sm text-[#808080] border border-[#D9D9D9] rounded-md px-3 py-2 pr-10 focus:outline-none' />
                             <Calendar size={16} className='absolute right-3 top-1/2 -translate-y-1/2 text-[#808080] pointer-events-none' />
                         </div>
                     </div>
@@ -150,7 +235,7 @@ const EmployeeDatabaseListView = ({
                                     <td colSpan={15} className='px-2 py-8 text-center text-[#667085]'>No employees found.</td>
                                 </tr>
                             ) : (
-                                filteredEmployees.map((employee) => (
+                                pageEmployees.map((employee) => (
                                     <tr key={employee.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7]'>
                                         <td className='px-2 py-4 flex justify-center rounded-s-lg'>
                                             <img src={employee.profileImage || mo_user} alt='' className='w-9 h-9 rounded-full object-cover' />
@@ -182,11 +267,15 @@ const EmployeeDatabaseListView = ({
             </div>
 
             <div className='flex justify-between items-center px-4 mt-4'>
-                <p className='text-sm font-medium text-[#515DEF]'>Showing {filteredEmployees.length} of {employees.length} entries</p>
-                <div className='flex gap-x-2'>
-                    <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'><ChevronLeft size={16} /></button>
-                    <button type='button' className='size-8 flex justify-center items-center p-2 bg-[#515DEF] text-white border border-[#515DEF] rounded-full cursor-pointer'>1</button>
-                    <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer'><ChevronRight size={16} /></button>
+                <p className='text-sm font-medium text-[#515DEF]'>
+                    {filteredEmployees.length === 0
+                        ? `Showing 0 of ${employees.length} entries`
+                        : `Showing ${(currentPage - 1) * PAGE_SIZE + 1} to ${Math.min(currentPage * PAGE_SIZE, filteredEmployees.length)} of ${filteredEmployees.length} entries${filteredEmployees.length !== employees.length ? ` (${employees.length} total)` : ''}`}
+                </p>
+                <div className='flex items-center gap-x-2'>
+                    <button type='button' aria-label='Previous page' disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)} className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'><ChevronLeft size={16} /></button>
+                    <span className='text-sm text-[#515DEF]'>{currentPage} / {pageCount}</span>
+                    <button type='button' aria-label='Next page' disabled={currentPage >= pageCount} onClick={() => setPage(currentPage + 1)} className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] hover:bg-[#515DEF] hover:text-white rounded-full cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'><ChevronRight size={16} /></button>
                 </div>
             </div>
 

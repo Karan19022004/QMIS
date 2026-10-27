@@ -38,6 +38,8 @@ import ViewStudentDocuments from '../Pages/Admin/Documents/StudentDocuments/View
 import EmployeeDocuments from '../Pages/Admin/Documents/EmployeeDocuments/EmployeeDocuments'
 import AddEmployeeDocuments from '../Pages/Admin/Documents/EmployeeDocuments/AddEmployeeDocuments'
 import EditEmployeeDocuments from '../Pages/Admin/Documents/EmployeeDocuments/EditEmployeeDocuments'
+import FileManagement from '../Pages/Admin/FileManagement/FileManagement'
+import CameraRegister from '../Pages/Admin/CameraManagement/CameraRegister'
 import VehicleDetailsList from '../Pages/Admin/Transport/VehicleDetails/VehicleDetailsList'
 import AddVehicleDetails from '../Pages/Admin/Transport/VehicleDetails/AddVehicleDetails'
 import RouteDetailsList from '../Pages/Admin/Transport/RouteDetails/RouteDetailsList'
@@ -182,6 +184,8 @@ const AdminRoutes = () => {
             <Route path="/admin/documents/employee-documents" element={<EmployeeDocuments />} />
             <Route path="/admin/documents/add-employee-documents" element={<AddEmployeeDocuments />} />
             <Route path="/admin/documents/edit-employee-documents/:id" element={<EditEmployeeDocuments />} />
+            <Route path="/admin/file-management" element={<FileManagement />} />
+            <Route path="/admin/camera-management" element={<CameraRegister />} />
 
             {/* Transport */}
             <Route path="/admin/transport/vehicle-details" element={<VehicleDetailsList />} />

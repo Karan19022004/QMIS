@@ -5,6 +5,7 @@ from app.models.ops_record import OpsRecord
 from app.models.admission import (
     Admission,
     AdmissionEnquiry,
+    AdmissionReferral,
     CoordinatorGradeBand,
     Guardian,
     Student,
@@ -14,7 +15,7 @@ from app.models.announcements import Announcement, AnnouncementReply, Announceme
 from app.models.calendar import CalendarEvent
 from app.models.communication import Conversation, ConversationParticipant, Message
 from app.models.tc_requests import TcRequest
-from app.models.approval import ApprovalEvent, ApprovalRequest, Notification
+from app.models.approval import ApprovalEvent, ApprovalRequest, Notification, NotificationRead
 from app.models.escalation import Escalation, Task, TaskEvent
 from app.models.exams import Exam, ExamType, ExamWeightage, MarkEntry, MarksBatch
 from app.models.leave import LeaveRequest
@@ -44,6 +45,7 @@ __all__ = [
     "OpsRecord",
     "FinancialYear",
     "Admission",
+    "AdmissionReferral",
     "AdmissionEnquiry",
     "Announcement",
     "AnnouncementReply",
@@ -75,6 +77,7 @@ __all__ = [
     "MarkEntry",
     "MarksBatch",
     "Notification",
+    "NotificationRead",
     "OtpChallenge",
     "Permission",
     "Role",

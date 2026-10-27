@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.deps import role_code_for
-from app.models import ApprovalEvent, ApprovalRequest, Notification, Role, User
+from app.models import ApprovalEvent, ApprovalRequest, Notification, NotificationRead, Role, User
 from app.models.base import utcnow
 from app.services.audit import write_audit
 from app.services.errors import fail
@@ -412,16 +412,37 @@ def detail(db: Session, actor: User, approval_id: UUID) -> dict:
 # ---------------------------------------------------------------- notifications
 
 
-def _notif_out(n: Notification) -> dict:
+def _notif_out(n: Notification, *, read: bool | None = None) -> dict:
     return {
         "id": str(n.id),
         "title": n.title,
         "body": n.body or "",
         "entityType": n.entity_type,
         "entityId": n.entity_id,
-        "read": n.read_at is not None,
+        "read": (n.read_at is not None) if read is None else read,
         "createdAt": n.created_at.isoformat(),
     }
+
+
+def _my_read_ids(db: Session, actor: User, notification_ids: list[UUID]) -> set[UUID]:
+    if not notification_ids:
+        return set()
+    return set(
+        db.scalars(
+            select(NotificationRead.notification_id).where(
+                NotificationRead.user_id == actor.id,
+                NotificationRead.notification_id.in_(notification_ids),
+            )
+        ).all()
+    )
+
+
+def is_read_by(n: Notification, actor: User, read_ids: set[UUID]) -> bool:
+    """A direct notice is read via read_at. A role-wide notice is read per user; a read_at stamped
+    on a role-wide row before per-user receipts existed still counts as read."""
+    if n.user_id is not None:
+        return n.read_at is not None
+    return n.id in read_ids or n.read_at is not None
 
 
 def list_notifications(db: Session, actor: User, *, unread_only: bool = False) -> list[dict]:
@@ -432,9 +453,11 @@ def list_notifications(db: Session, actor: User, *, unread_only: bool = False) -
         .order_by(Notification.created_at.desc())
     ).all()
     mine_ = [n for n in rows if n.user_id == actor.id or (n.user_id is None and n.role_code == role)]
+    read_ids = _my_read_ids(db, actor, [n.id for n in mine_ if n.user_id is None])
+    out = [_notif_out(n, read=is_read_by(n, actor, read_ids)) for n in mine_]
     if unread_only:
-        mine_ = [n for n in mine_ if n.read_at is None]
-    return [_notif_out(n) for n in mine_]
+        out = [item for item in out if not item["read"]]
+    return out
 
 
 def mark_read(db: Session, actor: User, notification_id: UUID) -> dict:
@@ -446,7 +469,13 @@ def mark_read(db: Session, actor: User, notification_id: UUID) -> dict:
         or not (n.user_id == actor.id or (n.user_id is None and n.role_code == role))
     ):
         fail(404, "not_found", "Notification not found.")
-    if n.read_at is None:
-        n.read_at = datetime.now(n.created_at.tzinfo) if n.created_at.tzinfo else utcnow()
+    if n.user_id is not None:
+        if n.read_at is None:
+            n.read_at = datetime.now(n.created_at.tzinfo) if n.created_at.tzinfo else utcnow()
+            db.commit()
+        return _notif_out(n)
+    # Role-wide: record only this user's read; everyone else in the role still sees it unread.
+    if not _my_read_ids(db, actor, [n.id]):
+        db.add(NotificationRead(notification_id=n.id, user_id=actor.id))
         db.commit()
-    return _notif_out(n)
+    return _notif_out(n, read=True)

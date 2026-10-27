@@ -6,6 +6,7 @@ import { Calendar, ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import FilterChips from '../../../Common/LessonPlanApproval/Components/FilterChips'
 import LessonPlanGroupedTable from '../../../Common/LessonPlanApproval/Components/LessonPlanGroupedTable'
+import LessonPlanTabs from '../../../Common/LessonPlanApproval/Components/LessonPlanTabs'
 import {
     buildLessonPlanGroupHref,
     CLASS_OPTIONS,
@@ -77,6 +78,7 @@ const MyLessonPlan = () => {
 
     return (
         <section className='space-y-8'>
+            <LessonPlanTabs />
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
                     <button

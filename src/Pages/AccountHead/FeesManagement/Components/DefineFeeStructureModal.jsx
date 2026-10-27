@@ -428,6 +428,10 @@ const DefineFeeStructureModal = ({ isOpen, onClose, editingStructure = null }) =
             const routePart = transportSelected && form.routeName ? ` · ${form.routeName}` : ''
             if (!result?.persist?.success) {
                 toast.error(result?.persist?.message || 'Fee structure saved locally but API push failed.')
+            } else if (transportSelected && form.routeId) {
+                toast.success(
+                    `${verb} ${form.routeName || 'route'} transport fee · ${schedule.planLabel}. Students on this route are billed when the Transport Manager enrolls them.`,
+                )
             } else if (result.persist.api) {
                 toast.success(
                     `${verb} ${form.grade}${routePart} · ${schedule.planLabel} · ${result.installmentsCreated} installment row(s) for ${result.studentsMatched} student(s). Synced to API.`,

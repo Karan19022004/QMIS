@@ -5,6 +5,7 @@ import {
     stripAcademicsMeta,
 } from '../../../services/academicsApi'
 import { canUseEmployeeDirectoryApi, loadEmployeeDirectory } from '../../../services/employeeDirectoryApi'
+import { apiRequest, getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
 import {
     getClasses as getCatalogClasses,
     getSections as getCatalogSections,
@@ -62,9 +63,30 @@ export const getSections = () => {
     return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_SECTIONS]
 }
 
+let masterSubjects = []
+
+/** Subject names from the campus subject master (GET /masters/subjects). */
+export const hydrateMasterSubjects = async () => {
+    if (!isApiAuthEnabled() || !getAccessToken()) return false
+    try {
+        const rows = await apiRequest('/masters/subjects')
+        masterSubjects = (Array.isArray(rows) ? rows : [])
+            .map((row) => String(row?.name || '').trim())
+            .filter(Boolean)
+        return true
+    } catch {
+        return false
+    }
+}
+
+// Server subject master + Class Details catalog + the standard school subjects, one entry per name.
 export const getSubjects = () => {
-    const fromCatalog = getCatalogSubjects().map((item) => String(item || '').trim()).filter(Boolean)
-    return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_SUBJECTS]
+    const byKey = new Map()
+    ;[...masterSubjects, ...getCatalogSubjects(), ...FALLBACK_SUBJECTS].forEach((item) => {
+        const name = String(item || '').trim()
+        if (name && !byKey.has(name.toLowerCase())) byKey.set(name.toLowerCase(), name)
+    })
+    return [...byKey.values()].sort((a, b) => a.localeCompare(b))
 }
 
 /** Live getters for dropdowns — prefer Admin Class Details catalog over seed fallbacks. */
@@ -152,6 +174,10 @@ export const TEACHERS = DEMO_TEACHERS
 
 let teacherRoster = null
 let teacherRosterHydrating = null
+// 'idle' | 'loading' | 'ready' | 'empty' | 'error' — server mode only; offline uses the demo roster.
+let teacherRosterStatus = 'idle'
+
+export const getTeacherRosterStatus = () => teacherRosterStatus
 
 const dashToEmpty = (value) => {
     const text = String(value ?? '').trim()
@@ -170,7 +196,7 @@ export const isAllocatableTeacherRecord = (row, detail = null) => {
     const category = dashToEmpty(detail?.employmentInfo?.category)
     const role = dashToEmpty(row.role)
     const blob = `${role} ${designation} ${department} ${category}`.toLowerCase()
-    if (/\b(principal|administrator|admin|accountant|accounts|hr\b|gate|security|driver|peon|clerk|nurse)\b/.test(blob)) {
+    if (/\b(principal|director|jointdirector\w*|administrator|admin|accountant|accounts|hr\b|gate|security|driver|peon|clerk|nurse)\b/.test(blob)) {
         if (!/\bteacher\b|\btgt\b|\bpgt\b|\bprt\b|\bleturer\b|\blecturer\b/.test(blob)) return false
     }
     if (/\bteacher\b|\btgt\b|\bpgt\b|\bprt\b|\bleturer\b|\blecturer\b|\binstructor\b/.test(blob)) return true
@@ -208,8 +234,11 @@ const rebuildDepartments = (teachers) => {
 
 export const getDepartments = () => [...DEPARTMENTS]
 
+// With the server on, never show the demo TEA-* roster: allocating one of those people saves an
+// allocation that matches no real employee, so their subjects never reach timetables.
 export const getTeachers = () => {
     if (Array.isArray(teacherRoster) && teacherRoster.length) return [...teacherRoster]
+    if (canUseEmployeeDirectoryApi()) return []
     return [...DEMO_TEACHERS]
 }
 
@@ -235,11 +264,13 @@ export const hydrateTeachersFromDirectory = async ({ force = false } = {}) => {
     teacherRosterHydrating = (async () => {
         if (!canUseEmployeeDirectoryApi()) {
             teacherRoster = null
+            teacherRosterStatus = 'idle'
             emitUpdated()
             return false
         }
+        teacherRosterStatus = 'loading'
         try {
-            const { records } = await loadEmployeeDirectory()
+            const [{ records }] = await Promise.all([loadEmployeeDirectory(), hydrateMasterSubjects()])
             const allocatedIds = new Set(getAllocations().map((item) => String(item.employeeId)))
             const teachers = records
                 .filter(({ row, detail }) => {
@@ -250,14 +281,17 @@ export const hydrateTeachersFromDirectory = async ({ force = false } = {}) => {
                 .filter((item) => item.employeeId)
 
             if (teachers.length) {
+                teacherRosterStatus = 'ready'
                 setTeacherRoster(teachers)
                 return true
             }
             teacherRoster = null
+            teacherRosterStatus = 'empty'
             emitUpdated()
             return false
         } catch {
             teacherRoster = null
+            teacherRosterStatus = 'error'
             emitUpdated()
             return false
         } finally {
@@ -418,7 +452,7 @@ export const getTeacherAllocationRows = () =>
 
 /** True when the list is still the offline demo TEA-* seed (not HR). */
 export const isUsingDemoTeacherRoster = () =>
-    !Array.isArray(teacherRoster) || teacherRoster.length === 0
+    !canUseEmployeeDirectoryApi() && (!Array.isArray(teacherRoster) || teacherRoster.length === 0)
 
 export const emptyTeacherAllocationFilters = {
     search: '',

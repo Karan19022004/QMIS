@@ -12,6 +12,10 @@ const enc = encodeURIComponent
 
 export const listOpsCollectionApi = (collection) => apiRequest(`/ops/${enc(collection)}`)
 
+/** Save one record of an item-saved collection (e.g. som-matrix) without replacing the rest. */
+export const upsertOpsItemApi = (collection, itemId, body) =>
+    apiRequest(`/ops/${enc(collection)}/items/${enc(itemId)}`, { method: 'PUT', body })
+
 export const replaceOpsCollectionApi = (collection, items) =>
     apiRequest(`/ops/${enc(collection)}`, { method: 'PUT', body: items })
 

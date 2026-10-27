@@ -242,6 +242,12 @@ const AdminssionList = () => {
                                             <td className='px-2 py-4'>{record.country || '—'}</td>
                                             <td className='px-2 py-4'>{record.city || '—'}</td>
                                             <td className='px-2 py-4 text-center rounded-e-lg'>
+                                                {/* Once enrolled, the record lives in the Student Database; the admission is closed. */}
+                                                {record.status === 'Enrolled' ? (
+                                                    <span className='text-xs font-medium text-[#027A48] whitespace-nowrap' title='Managed in the Student Database'>
+                                                        Enrolled
+                                                    </span>
+                                                ) : (
                                                 <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
                                                     <NavLink
                                                         to={getAdmissionViewPath(pathname, record.id)}
@@ -260,22 +266,21 @@ const AdminssionList = () => {
                                                             <button
                                                                 type='button'
                                                                 onClick={() => handleDelete(record.id)}
-                                                                disabled={record.status === 'Enrolled'}
-                                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
                                                             >
                                                                 Delete
                                                             </button>
                                                             <button
                                                                 type='button'
                                                                 onClick={() => handleEnroll(record)}
-                                                                disabled={record.status === 'Enrolled'}
-                                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
                                                             >
                                                                 Enroll as Student
                                                             </button>
                                                         </>
                                                     )}
                                                 </Dropdown>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

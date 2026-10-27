@@ -7,16 +7,20 @@ import {
     markNotificationReadApi,
 } from "../../../services/notificationsApi"
 
+// Portals that have a full notifications page (see src/Routes). Others only get the dropdown.
+const NOTIFICATION_PAGE_SEGMENTS = new Set([
+    'admin', 'super-admin', 'principal', 'director', 'teacher', 'coordinator', 'hr', 'librarian',
+    'front-office', 'gate-keeper', 'gatekeeper-manager', 'student', 'parent',
+])
+
 const notificationsPathFor = (pathname) => {
     const segment = String(pathname || '').split('/').filter(Boolean)[0]
-    if (!segment) return '/admin/notifications'
-    if (segment === 'front-office') return '/front-office/notifications'
-    if (segment === 'gate-keeper') return '/gate-keeper/notifications'
-    if (segment === 'gatekeeper-manager') return '/gatekeeper-manager/notifications'
-    return `/${segment}/notifications`
+    if (!segment || segment === 'dashboard') return '/admin/notifications'
+    return NOTIFICATION_PAGE_SEGMENTS.has(segment) ? `/${segment}/notifications` : null
 }
 
 const POLL_MS = 30000
+const DROPDOWN_LIMIT = 20
 
 const UserNotifications = () => {
     const location = useLocation();
@@ -41,9 +45,13 @@ const UserNotifications = () => {
 
     useEffect(() => {
         refresh()
-        const timer = setInterval(refresh, POLL_MS)
+        const timer = setInterval(() => {
+            if (!document.hidden) refresh()
+        }, POLL_MS)
         return () => clearInterval(timer)
     }, [refresh])
+
+    const visibleItems = items.slice(0, DROPDOWN_LIMIT)
 
     const toggleDropdown = () => {
         setOpen((prev) => !prev)
@@ -95,13 +103,15 @@ const UserNotifications = () => {
                 <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-100 divide-y divide-gray-100 z-50 max-h-96 overflow-y-auto">
                     <div className="py-2 px-4 font-semibold text-gray-700 bg-gray-50 flex items-center justify-between gap-2">
                         <span>Notifications</span>
-                        <Link
-                            to={allPath}
-                            onClick={() => setOpen(false)}
-                            className="text-xs font-medium text-[#515DEF] hover:underline"
-                        >
-                            View all
-                        </Link>
+                        {allPath ? (
+                            <Link
+                                to={allPath}
+                                onClick={() => setOpen(false)}
+                                className="text-xs font-medium text-[#515DEF] hover:underline"
+                            >
+                                View all
+                            </Link>
+                        ) : null}
                     </div>
                     {items.length === 0 ? (
                         <div className="py-3 px-4 text-sm text-gray-600">
@@ -110,7 +120,7 @@ const UserNotifications = () => {
                                 : 'No new notifications!'}
                         </div>
                     ) : (
-                        items.map((item) => (
+                        visibleItems.map((item) => (
                             <button
                                 key={item.id}
                                 type="button"
@@ -121,6 +131,11 @@ const UserNotifications = () => {
                                 {item.body ? <span className="block text-xs mt-0.5">{item.body}</span> : null}
                             </button>
                         ))
+                    )}
+                    {items.length > DROPDOWN_LIMIT && (
+                        <div className="py-2 px-4 text-xs text-gray-500">
+                            Showing the latest {DROPDOWN_LIMIT} of {items.length}.
+                        </div>
                     )}
                 </div>
             )}

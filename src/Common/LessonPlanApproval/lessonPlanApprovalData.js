@@ -2,9 +2,12 @@ import { SECTIONS, SUBJECTS, getClasses } from '../../Pages/Teacher/AssignedClas
 import { liveArray } from '../RBAC/liveArray'
 import {
     canUseLessonPlansApi,
+    completeLessonPlanApi,
     createLessonPlanApi,
+    decideLessonPlanApi,
     listLessonPlansApi,
     mapLessonPlanFromApi,
+    submitLessonPlanApi,
 } from '../../services/lessonPlansApi'
 
 const STORAGE_KEY = 'school-erp-lesson-plan-approvals'
@@ -153,13 +156,27 @@ const buildLessonPlanRecord = (plans, payload, submittedAt) => {
     }
 }
 
+// "October" + academic year "2026-27" → "2026-10"; Jan–May fall in the second calendar year
+// (the school year starts in June).
+export const toLessonPlanMonth = (month, academicYear) => {
+    const text = String(month || '').trim()
+    if (/^\d{4}-\d{2}$/.test(text)) return text
+    const index = MONTH_OPTIONS.findIndex((name) => name.toLowerCase() === text.toLowerCase())
+    const now = new Date()
+    if (index === -1) return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const startYear = Number(String(academicYear || '').match(/(20\d{2})/)?.[1]) || now.getFullYear()
+    const year = index < 5 ? startYear + 1 : startYear
+    return `${year}-${String(index + 1).padStart(2, '0')}`
+}
+
+const replaceInCache = (mapped) => {
+    apiCache = (apiCache || []).map((item) => (item.id === mapped.id ? mapped : item))
+    return apiCache
+}
+
 export const addLessonPlan = async (payload) => {
     if (canUseLessonPlansApi()) {
-        const monthValue = (() => {
-            if (/^\d{4}-\d{2}$/.test(String(payload.month || ''))) return payload.month
-            const now = new Date()
-            return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-        })()
+        const monthValue = toLessonPlanMonth(payload.month, payload.academicYear)
         const created = await createLessonPlanApi({
             className: String(payload.className || '').replace(/^Grade\s+/i, ''),
             section: payload.section || null,
@@ -172,7 +189,9 @@ export const addLessonPlan = async (payload) => {
             },
             fileId: payload.fileId || null,
         })
-        const mapped = mapLessonPlanFromApi(created)
+        // "Submit for Approval": a created plan is only a draft until it enters the approval chain.
+        const submitted = await submitLessonPlanApi(created.id)
+        const mapped = mapLessonPlanFromApi(submitted)
         apiCache = [mapped, ...(apiCache || [])]
         return mapped
     }
@@ -202,7 +221,15 @@ export const addLessonPlans = (payloads) => {
     return records
 }
 
-export const updateLessonPlanStatus = (id, approvalStatus) => {
+export const updateLessonPlanStatus = async (id, approvalStatus, comment = '') => {
+    if (canUseLessonPlansApi()) {
+        const plan = (apiCache || []).find((item) => item.id === id)
+        if (!plan?.approvalId) {
+            throw new Error('This lesson plan has not been submitted for approval yet.')
+        }
+        await decideLessonPlanApi(plan.approvalId, approvalStatus === 'Approved' ? 'approve' : 'deny', comment)
+        return getLessonPlans()
+    }
     const plans = getLessonPlans()
     const updated = plans.map((item) => {
         if (item.id !== id) return item
@@ -230,7 +257,17 @@ export const getApprovedLessonPlansBySubmitter = (submitterName) =>
         (item) => item.submitterName === submitterName && item.approvalStatus === 'Approved'
     )
 
-export const markLessonPlanAsDone = (id, completionRemarks = '') => {
+/** Submit a plan that was saved as a draft (older saves never entered approval). */
+export const submitDraftLessonPlan = async (id) => {
+    const submitted = await submitLessonPlanApi(id)
+    return replaceInCache(mapLessonPlanFromApi(submitted))
+}
+
+export const markLessonPlanAsDone = async (id, completionRemarks = '') => {
+    if (canUseLessonPlansApi()) {
+        const updated = await completeLessonPlanApi(id, completionRemarks.trim())
+        return replaceInCache(mapLessonPlanFromApi(updated))
+    }
     const plans = getLessonPlans()
     const updated = plans.map((item) =>
         item.id === id

@@ -4,6 +4,7 @@ import Dashboard from '../Pages/AccountHead/Dashboard/Dashboard'
 import FeesManagement from '../Pages/AccountHead/FeesManagement/FeesManagement'
 import TransportFinance from '../Pages/AccountHead/TransportFinance/TransportFinance'
 import Collections from '../Pages/AccountHead/Collections/Collections'
+import AdmissionReferrals from '../Pages/AccountHead/Referrals/AdmissionReferrals'
 import WalletManagement from '../Pages/AccountHead/WalletManagement/WalletManagement'
 import Accounting from '../Pages/AccountHead/Accounting/Accounting'
 import Approvals from '../Pages/AccountHead/Approvals/Approvals'
@@ -20,6 +21,7 @@ const AccountHeadRoutes = () => {
             <Route path="/account-head/fees-management" element={<FeesManagement />} />
             <Route path="/account-head/transport-finance" element={<TransportFinance />} />
             <Route path="/account-head/collections" element={<Collections />} />
+            <Route path="/account-head/admission-referrals" element={<AdmissionReferrals />} />
             <Route path="/account-head/wallet-management" element={<WalletManagement />} />
             <Route path="/account-head/accounting" element={<Navigate to="/account-head/accounting/day-book" replace />} />
             <Route path="/account-head/accounting/:section" element={<Accounting />} />

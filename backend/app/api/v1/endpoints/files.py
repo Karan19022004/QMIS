@@ -6,11 +6,41 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.deps import bearer, get_current_user, require_any
+from app.deps import bearer, get_current_user, require_any, require_permission
 from app.models import User
-from app.services.files import get_file, save_upload
+from app.services.files import delete_library_file, get_file, list_files, save_upload, upload_library_file
 
 router = APIRouter(prefix="/api/v1/files", tags=["files"])
+
+# File Management screen: Administrator / Super Admin / MD (the roles holding users.write).
+
+
+@router.get("")
+def list_files_route(
+    search: str = Query(""),
+    kind: str = Query("", description="'' all, 'library' File Management uploads, 'module' other modules"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("users.write")),
+) -> list[dict]:
+    return list_files(db, user, search=search, kind=kind)
+
+
+@router.post("/library", status_code=201)
+async def upload_library_route(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("users.write")),
+) -> dict:
+    return upload_library_file(db, user, file)
+
+
+@router.delete("/{file_id}")
+def delete_file_route(
+    file_id: UUID,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("users.write")),
+) -> dict:
+    return delete_library_file(db, user, file_id)
 
 
 @router.post("", status_code=201)

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.passwords import password_policy_message
 from app.core.security import hash_password
-from app.models import Admission, AdmissionEnquiry, Guardian, Role, Student, User
+from app.models import Admission, AdmissionEnquiry, AdmissionReferral, Guardian, Role, Student, User
 from app.schemas.admissions import AdmissionCreate, EnrollAdmissionIn, EnquiryCreate
 from app.services.audit import write_audit
 from app.services.errors import fail
@@ -106,11 +106,68 @@ def admission_to_out(row: Admission) -> dict:
         "has_parent_account_password": bool(row.parent_pending_password_hash),
         "has_student_account_password": bool(row.student_pending_password_hash),
         "fees_group": row.fees_group,
+        **_referral_out(row.referral),
         "status": row.status,
         "enrolled_student_id": row.enrolled_student_id,
         "enrolled_at": row.enrolled_at,
         "created_at": row.created_at,
     }
+
+
+def _referral_out(ref: AdmissionReferral | None) -> dict:
+    return {
+        "referral_type": ref.referrer_type if ref else None,
+        "referral_name": ref.referrer_name if ref else None,
+        "referral_contact": ref.referrer_contact if ref else None,
+        "referral_student_admission_no": ref.referrer_student_admission_no if ref else None,
+        "referral_notes": ref.notes if ref else None,
+    }
+
+
+def _apply_referral(row: Admission, payload: AdmissionCreate) -> None:
+    # Clients that do not send referral fields leave any saved referral untouched.
+    if "referral_name" not in payload.model_fields_set:
+        return
+    name = (payload.referral_name or "").strip()
+    if not name:
+        row.referral = None
+        return
+    clean = lambda value: (value or "").strip() or None  # noqa: E731
+    ref = row.referral or AdmissionReferral(campus_id=row.campus_id)
+    ref.referrer_type = payload.referral_type or "Other"
+    ref.referrer_name = name
+    ref.referrer_contact = clean(payload.referral_contact)
+    ref.referrer_student_admission_no = clean(payload.referral_student_admission_no)
+    ref.notes = clean(payload.referral_notes)
+    ref.updated_at = _utcnow()
+    row.referral = ref
+
+
+def list_referrals(db: Session, actor: User) -> list[dict]:
+    """Referred admissions for the Account Head to apply any bonus manually."""
+    rows = db.scalars(
+        select(AdmissionReferral)
+        .join(Admission, Admission.id == AdmissionReferral.admission_id)
+        .where(AdmissionReferral.campus_id == actor.campus_id)
+        .order_by(AdmissionReferral.created_at.desc())
+    ).all()
+    return [
+        {
+            "id": str(ref.id),
+            "admissionId": str(ref.admission_id),
+            "admissionCode": ref.admission.admission_code,
+            "studentName": _full_name(ref.admission),
+            "className": ref.admission.class_name,
+            "admissionStatus": ref.admission.status,
+            "referrerType": ref.referrer_type,
+            "referrerName": ref.referrer_name,
+            "referrerContact": ref.referrer_contact,
+            "referrerStudentAdmissionNo": ref.referrer_student_admission_no,
+            "notes": ref.notes,
+            "createdAt": ref.created_at.isoformat(),
+        }
+        for ref in rows
+    ]
 
 
 def _code_max_suffix(codes: list[str | None], prefix: str) -> int:
@@ -355,6 +412,29 @@ def _store_pending_password(row: Admission, *, field: str, password: str | None,
     setattr(row, field, hash_password(plain))
 
 
+JUNIOR_STUDENT_LOGIN_MESSAGE = (
+    "Student portal login is only for Grade {min_grade} and above. "
+    "Younger children use the parent login; clear the student login fields."
+)
+
+
+def student_login_allowed(class_name: str | None) -> bool:
+    """Pre-primary and grades below the configured minimum use the parent login only."""
+    from app.core.config import settings
+    from app.services.placement import school_grade
+
+    grade = school_grade(class_name)
+    return grade is None or grade >= settings.student_login_min_grade
+
+
+def _reject_junior_student_login(class_name: str | None, email: str | None, password: str | None) -> None:
+    from app.core.config import settings
+
+    if (email or "").strip() or (password or "").strip():
+        if not student_login_allowed(class_name):
+            fail(400, "validation_error", JUNIOR_STUDENT_LOGIN_MESSAGE.format(min_grade=settings.student_login_min_grade))
+
+
 def _apply_admission_fields(row: Admission, payload: AdmissionCreate) -> None:
     data = payload.model_dump(exclude_unset=False)
     skip = {"parent_account_password", "student_account_password"}
@@ -395,6 +475,7 @@ def create_admission(db: Session, actor: User, payload: AdmissionCreate) -> dict
         fail(400, "validation_error", "Mobile number is required.")
     if not class_name:
         fail(400, "validation_error", "Class is required.")
+    _reject_junior_student_login(class_name, payload.student_account_email, payload.student_account_password)
 
     if payload.enquiry_id:
         _get_enquiry(db, actor, payload.enquiry_id)
@@ -405,6 +486,7 @@ def create_admission(db: Session, actor: User, payload: AdmissionCreate) -> dict
         status=payload.status or "Active",
     )
     _apply_admission_fields(row, payload)
+    _apply_referral(row, payload)
     row.first_name = first
     row.mobile_number = mobile
     row.class_name = class_name
@@ -440,7 +522,9 @@ def update_admission(db: Session, actor: User, admission_id: UUID, payload: Admi
     class_name = (payload.class_name or row.class_name or "").strip()
     if not first or not mobile or not class_name:
         fail(400, "validation_error", "First name, mobile number, and class are required.")
+    _reject_junior_student_login(class_name, payload.student_account_email, payload.student_account_password)
     _apply_admission_fields(row, payload)
+    _apply_referral(row, payload)
     row.first_name = first
     row.mobile_number = mobile
     row.class_name = class_name
@@ -580,8 +664,12 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
     # pending hash saved on the admission) are available. Email alone must not fail enroll.
     student_password = (payload.student_account_password or "").strip() or None
     student_password_hash = (row.student_pending_password_hash or "").strip() or None
+    if not payload.skip_student_account:
+        _reject_junior_student_login(row.class_name, payload.student_account_email, payload.student_account_password)
+    # Older admissions may still carry a student login for a junior class: enrol without it.
     skip_student = (
         payload.skip_student_account
+        or not student_login_allowed(row.class_name)
         or not student_email
         or not (student_password or student_password_hash)
     )

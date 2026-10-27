@@ -13,8 +13,12 @@ import { getCreatedUsersByRole, syncCreatedUsersFromApi } from '../../../../../C
 import { CLASS_LEVEL_OPTIONS } from '../../../Class/ClassDetails/classDetailsOptions'
 
 const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
+const invalidClass = 'text-sm font-normal text-[#1E1E1E] border border-[#F44336] rounded-md px-2 py-3 w-full'
 
-const AdmissionEnquiryInfo = ({ form, onChange, readOnly = false }) => {
+const RequiredMark = ({ show }) => (show ? <span className='text-[#F44336]'> *</span> : null)
+const FieldError = ({ id, message }) => <p id={id} className='text-xs text-[#F44336]'>{message}</p>
+
+const AdmissionEnquiryInfo = ({ form, onChange, readOnly = false, missing = new Set() }) => {
     const [prmRecords, setPrmRecords] = useState(() => getCreatedUsersByRole('prm'))
     const assignees = useMemo(() => {
         const created = prmRecords
@@ -43,28 +47,34 @@ const AdmissionEnquiryInfo = ({ form, onChange, readOnly = false }) => {
     return (
         <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 lg:mt-8 mt-2'>
             <div className='flex flex-col gap-y-2'>
-                <label htmlFor='name' className='text-base font-medium text-[#1E1E1E]'>Name:</label>
+                <label htmlFor='name' className='text-base font-medium text-[#1E1E1E]'>Name:<RequiredMark show={!readOnly} /></label>
                 <input
                     id='name'
                     type='text'
                     value={form.name}
                     onChange={(e) => update('name', e.target.value)}
                     disabled={readOnly}
-                    className={inputClass}
+                    aria-invalid={missing.has('name')}
+                    aria-describedby={missing.has('name') ? 'name-error' : undefined}
+                    className={missing.has('name') ? invalidClass : inputClass}
                     placeholder='Student / enquiry name'
                 />
+                {missing.has('name') && <FieldError id='name-error' message='Name is required.' />}
             </div>
             <div className='flex flex-col gap-y-2'>
-                <label htmlFor='mobileNumber' className='text-base font-medium text-[#1E1E1E]'>Mobile Number:</label>
+                <label htmlFor='mobileNumber' className='text-base font-medium text-[#1E1E1E]'>Mobile Number:<RequiredMark show={!readOnly} /></label>
                 <input
                     id='mobileNumber'
                     type='text'
                     value={form.mobileNumber}
                     onChange={(e) => update('mobileNumber', e.target.value)}
                     disabled={readOnly}
-                    className={inputClass}
+                    aria-invalid={missing.has('mobileNumber')}
+                    aria-describedby={missing.has('mobileNumber') ? 'mobileNumber-error' : undefined}
+                    className={missing.has('mobileNumber') ? invalidClass : inputClass}
                     placeholder='10-digit mobile number'
                 />
+                {missing.has('mobileNumber') && <FieldError id='mobileNumber-error' message='Mobile number is required.' />}
             </div>
             <div className='flex flex-col gap-y-2'>
                 <label htmlFor='email' className='text-base font-medium text-[#1E1E1E]'>Email:</label>
@@ -200,19 +210,22 @@ const AdmissionEnquiryInfo = ({ form, onChange, readOnly = false }) => {
                 </select>
             </div>
             <div className='flex flex-col gap-y-2'>
-                <label htmlFor='className' className='text-base font-medium text-[#1E1E1E]'>Class:</label>
+                <label htmlFor='className' className='text-base font-medium text-[#1E1E1E]'>Class:<RequiredMark show={!readOnly} /></label>
                 <select
                     id='className'
                     value={form.className}
                     onChange={(e) => update('className', e.target.value)}
                     disabled={readOnly}
-                    className={inputClass}
+                    aria-invalid={missing.has('className')}
+                    aria-describedby={missing.has('className') ? 'className-error' : undefined}
+                    className={missing.has('className') ? invalidClass : inputClass}
                 >
                     <option value=''>Select Class</option>
                     {CLASS_LEVEL_OPTIONS.map((item) => (
                         <option key={item} value={item}>{item}</option>
                     ))}
                 </select>
+                {missing.has('className') && <FieldError id='className-error' message='Class is required.' />}
             </div>
             <div className='flex flex-col gap-y-2'>
                 <label htmlFor='numberOfChild' className='text-base font-medium text-[#1E1E1E]'>Number Of Child:</label>

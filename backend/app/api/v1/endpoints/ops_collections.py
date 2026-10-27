@@ -38,6 +38,28 @@ def list_route(
     return svc.list_records(db, user, collection)
 
 
+@router.put("/{collection}/items/{item_id}")
+def upsert_item_route(
+    collection: str,
+    item_id: str,
+    body: dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("ops.write")),
+) -> dict:
+    """Save one record of an item-saved collection (Star of the Month) without touching the others."""
+    return svc.upsert_record(db, user, collection, item_id, body)
+
+
+@router.delete("/{collection}/items/{item_id}")
+def delete_item_route(
+    collection: str,
+    item_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("ops.write")),
+) -> dict:
+    return svc.delete_item(db, user, collection, item_id)
+
+
 @router.put("/{collection}")
 def replace_route(
     collection: str,

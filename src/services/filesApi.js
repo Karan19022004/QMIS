@@ -43,6 +43,23 @@ export const uploadProfileImage = async (fileOrDataUrl, resourceType = 'profile'
     })
 }
 
+/** File Management (Admin): every campus file, with whether it may be deleted. */
+export const listFilesApi = (params = {}) => {
+    const qs = new URLSearchParams()
+    if (params.search) qs.set('search', params.search)
+    if (params.kind) qs.set('kind', params.kind)
+    const suffix = qs.toString() ? `?${qs}` : ''
+    return apiRequest(`/files${suffix}`)
+}
+
+export const uploadLibraryFileApi = (file) => {
+    const body = new FormData()
+    body.append('file', file)
+    return apiRequest('/files/library', { method: 'POST', body, formData: true })
+}
+
+export const deleteFileApi = (fileId) => apiRequest(`/files/${fileId}`, { method: 'DELETE' })
+
 /**
  * If form has a new data-URL image, upload it and return file id.
  * If image cleared, return null. If already a stored file id, keep it.

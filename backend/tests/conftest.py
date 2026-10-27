@@ -13,6 +13,9 @@ import pytest
 os.environ["INTEGRATIONS_MODE"] = ""
 os.environ.setdefault("RFID_IMPORT_ENABLED", "false")
 os.environ["ENVIRONMENT"] = "development"
+# Privacy fixtures enrol Grade 5 students with their own logins; the grade policy itself is
+# exercised in test_admissions.py with the production value.
+os.environ["STUDENT_LOGIN_MIN_GRADE"] = "1"
 
 # Neutralize developer backend/.env secrets so credential-gate tests stay deterministic.
 _CLEAR_ENV_KEYS = (

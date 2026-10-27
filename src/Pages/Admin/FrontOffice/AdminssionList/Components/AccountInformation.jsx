@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
 import { getParentByEmail } from '../../../../../Common/ParentAccounts/parentAccountsData'
+import { STUDENT_LOGIN_MIN_GRADE, studentLoginAllowedForClass } from '../../../../../services/admissionsApi'
 
 const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
 
 const AccountInformation = ({ form, onChange, isEnrolled = false }) => {
     const update = (key, value) => onChange?.(key, value)
+    const studentLoginAllowed = studentLoginAllowedForClass(form.className)
     const [existingParentHint, setExistingParentHint] = useState(null)
 
     const handleEmailBlur = () => {
@@ -32,7 +34,9 @@ const AccountInformation = ({ form, onChange, isEnrolled = false }) => {
                         </label>
                         <input
                             id='parentAccountEmail'
+                            name='parent-portal-email'
                             type='email'
+                            autoComplete='off'
                             value={form.parentAccountEmail}
                             onChange={(e) => {
                                 update('parentAccountEmail', e.target.value)
@@ -53,6 +57,7 @@ const AccountInformation = ({ form, onChange, isEnrolled = false }) => {
                         </label>
                         <input
                             id='parentAccountPassword'
+                            name='parent-portal-new-password'
                             type='password'
                             value={form.parentAccountPassword}
                             onChange={(e) => update('parentAccountPassword', e.target.value)}
@@ -72,8 +77,14 @@ const AccountInformation = ({ form, onChange, isEnrolled = false }) => {
 
             <div>
                 <h3 className='text-base font-semibold text-[#0C1E5B] mb-1'>Student portal login</h3>
+                {!studentLoginAllowed ? (
+                    <p className='text-sm text-[#6B7280]'>
+                        Not available for {form.className}: children below Grade {STUDENT_LOGIN_MIN_GRADE} use the parent login only.
+                    </p>
+                ) : (
+                <>
                 <p className='text-sm text-[#6B7280] mb-4'>
-                    Optional. Save email and password here — enroll uses them (no second password prompt).
+                    Optional for Grade {STUDENT_LOGIN_MIN_GRADE} and above. Save email and password here — enroll uses them (no second password prompt).
                 </p>
                 <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6'>
                     <div className='flex flex-col gap-y-2 lg:col-span-2'>
@@ -82,7 +93,9 @@ const AccountInformation = ({ form, onChange, isEnrolled = false }) => {
                         </label>
                         <input
                             id='studentAccountEmail'
+                            name='student-portal-email'
                             type='email'
+                            autoComplete='off'
                             value={form.studentAccountEmail || ''}
                             onChange={(e) => update('studentAccountEmail', e.target.value)}
                             readOnly={isEnrolled}
@@ -96,6 +109,7 @@ const AccountInformation = ({ form, onChange, isEnrolled = false }) => {
                         </label>
                         <input
                             id='studentAccountPassword'
+                            name='student-portal-new-password'
                             type='password'
                             value={form.studentAccountPassword || ''}
                             onChange={(e) => update('studentAccountPassword', e.target.value)}
@@ -109,6 +123,8 @@ const AccountInformation = ({ form, onChange, isEnrolled = false }) => {
                         />
                     </div>
                 </div>
+                </>
+                )}
             </div>
         </div>
     )

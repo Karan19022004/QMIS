@@ -83,6 +83,37 @@ def test_biometric_teacher_can_write(client):
     assert get.json()[0]["id"] == "BIO-1001"
 
 
+def test_star_of_month_matrix_records_are_saved_one_class_at_a_time(client):
+    teacher = _login(client, TEACHER[0], TEACHER[1])
+    coordinator = _login(client, "coordinator@qmis.edu", "coord123")
+    grade7 = {"context": {"month": "October", "year": "2026", "grade": "Grade 7", "section": "A"},
+              "ratings": [{"studentId": "S1", "subId": "sub-attendance", "rating": "3"}]}
+    grade8 = {"context": {"month": "October", "year": "2026", "grade": "Grade 8", "section": "B"},
+              "ratings": [{"studentId": "S9", "subId": "sub-homework", "rating": "2.5"}]}
+    first = client.put("/api/v1/ops/som-matrix/items/2026|October|Grade 7|A", json=grade7, headers=teacher)
+    assert first.status_code == 200, first.text
+    second = client.put("/api/v1/ops/som-matrix/items/2026|October|Grade 8|B", json=grade8, headers=coordinator)
+    assert second.status_code == 200, second.text
+
+    # saving one class again replaces only that class
+    updated = {**grade7, "ratings": [{"studentId": "S1", "subId": "sub-attendance", "rating": "2"}]}
+    assert client.put("/api/v1/ops/som-matrix/items/2026|October|Grade 7|A", json=updated,
+                      headers=teacher).status_code == 200
+    rows = {row["id"]: row for row in client.get("/api/v1/ops/som-matrix", headers=teacher).json()}
+    assert rows["2026|October|Grade 7|A"]["ratings"][0]["rating"] == "2"
+    assert rows["2026|October|Grade 8|B"]["ratings"][0]["rating"] == "2.5"
+
+    assert client.put("/api/v1/ops/som-config/items/checklist", json={"categories": [{"id": "c1"}]},
+                      headers=coordinator).status_code == 200
+    # whole-list collections cannot be saved item by item
+    assert client.put("/api/v1/ops/library-books/items/LBK-1", json={"title": "x"},
+                      headers=_admin_headers(client)).status_code == 400
+    # parents/students neither read nor write matrix ratings
+    parent = _login(client, "parent@qmis.edu", "parent123")
+    assert client.get("/api/v1/ops/som-matrix", headers=parent).status_code == 403
+    assert client.put("/api/v1/ops/som-matrix/items/x", json=grade7, headers=parent).status_code == 403
+
+
 def test_campus_audit_replace_and_list(client):
     headers = _admin_headers(client)
     payload = [{"id": "ATM-1", "name": "Safety Walkthrough", "status": "Published"}]

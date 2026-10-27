@@ -157,13 +157,27 @@ const ViewAdmission = () => {
                     <Field label='Parent Username / Email ID' value={record.parentAccountEmail} />
                     <Field
                         label='Parent Password'
-                        value={record.parentAccountPassword ? '••••••••' : '—'}
+                        value={record.parentAccountPassword || record.hasParentAccountPassword ? '••••••••' : '—'}
                     />
                     <Field label='Student Username / Email ID' value={record.studentAccountEmail} />
                     <Field
                         label='Student Password'
-                        value={record.studentAccountPassword ? '••••••••' : '—'}
+                        value={record.studentAccountPassword || record.hasStudentAccountPassword ? '••••••••' : '—'}
                     />
+                </div>
+
+                <h3 className='text-lg font-semibold text-black mb-4'>Referral</h3>
+                <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8'>
+                    {record.referralName ? (
+                        <>
+                            <Field label='Referred by' value={`${record.referralName} (${record.referralType || 'Other'})`} />
+                            <Field label='Referrer contact' value={record.referralContact} />
+                            <Field label="Referrer's child admission no." value={record.referralStudentAdmissionNo} />
+                            <Field label='Notes' value={record.referralNotes} />
+                        </>
+                    ) : (
+                        <Field label='Referred by' value='—' />
+                    )}
                 </div>
 
                 <h3 className='text-lg font-semibold text-black mb-4'>Fees</h3>

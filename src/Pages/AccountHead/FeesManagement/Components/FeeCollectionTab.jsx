@@ -17,6 +17,18 @@ import CheckoutMockModal from './CheckoutMockModal'
 import EntryClosureGate from '../../../../Common/demoDomain/EntryClosureGate'
 import { entryBlocked } from '../../../../Common/demoDomain/governance'
 
+const PAID_STATUSES = [FEE_INSTALLMENT_STATUSES.PAID, FEE_INSTALLMENT_STATUSES.WAIVED]
+const UNPAID_STATUSES = [
+    FEE_INSTALLMENT_STATUSES.UNPAID,
+    FEE_INSTALLMENT_STATUSES.PARTIALLY_PAID,
+    FEE_INSTALLMENT_STATUSES.OVERDUE,
+]
+const RECORD_VIEWS = [
+    { id: 'unpaid', label: 'Unpaid / due', statuses: UNPAID_STATUSES },
+    { id: 'paid', label: 'Paid', statuses: PAID_STATUSES },
+    { id: 'all', label: 'All', statuses: null },
+]
+
 const FeeCollectionTab = () => {
     const {
         students,
@@ -72,6 +84,8 @@ const FeeCollectionTab = () => {
     const [siblingSelection, setSiblingSelection] = useState([])
     const [activeStudentId, setActiveStudentId] = useState(null)
     const [waiverReason, setWaiverReason] = useState('')
+    const [recordView, setRecordView] = useState('unpaid')
+    const [linkLoading, setLinkLoading] = useState(false)
 
     const activeStudent = student || getStudentById(activeStudentId)
     const installments = activeStudent
@@ -79,7 +93,15 @@ const FeeCollectionTab = () => {
         : []
     const summary = activeStudent ? getStudentSummary(activeStudent.id, academicYear) : null
     const siblings = activeStudent ? getSiblings(activeStudent.id) : []
-    const grouped = groupInstallmentsByMonth(installments)
+    const viewCounts = Object.fromEntries(RECORD_VIEWS.map((view) => [
+        view.id,
+        view.statuses ? installments.filter((row) => view.statuses.includes(row.status)).length : installments.length,
+    ]))
+    const activeView = RECORD_VIEWS.find((view) => view.id === recordView) || RECORD_VIEWS[0]
+    const visibleInstallments = activeView.statuses
+        ? installments.filter((row) => activeView.statuses.includes(row.status))
+        : installments
+    const grouped = groupInstallmentsByMonth(visibleInstallments)
 
     const siblingSummaries = {}
     siblings.forEach((item) => {
@@ -178,20 +200,28 @@ const FeeCollectionTab = () => {
                         </button>
                         <button
                             type='button'
-                            onClick={() => {
+                            disabled={linkLoading}
+                            onClick={async () => {
                                 if (!totalAmount) {
                                     toast.error('Select payable instalments before generating a link.')
                                     return
                                 }
-                                setLink(generatePaymentLink({
-                                    studentId: activeStudent.id,
-                                    amount: totalAmount,
-                                    installmentIds: selectedIds,
-                                }))
+                                setLinkLoading(true)
+                                try {
+                                    const created = await generatePaymentLink({
+                                        studentId: activeStudent.id,
+                                        amount: totalAmount,
+                                        installmentIds: selectedIds,
+                                    })
+                                    if (created?.url) setLink(created)
+                                    else toast.error('Could not generate a payment link.')
+                                } finally {
+                                    setLinkLoading(false)
+                                }
                             }}
-                            className='inline-flex items-center gap-2 text-sm border border-[#515DEF] text-[#515DEF] px-4 py-2 rounded-md cursor-pointer'
+                            className='inline-flex items-center gap-2 text-sm border border-[#515DEF] text-[#515DEF] px-4 py-2 rounded-md cursor-pointer disabled:opacity-50'
                         >
-                            <Link2 size={16} /> Generate Payment Link
+                            <Link2 size={16} /> {linkLoading ? 'Generating…' : 'Generate Payment Link'}
                         </button>
                         <button
                             type='button'
@@ -207,6 +237,31 @@ const FeeCollectionTab = () => {
                             <Smartphone size={16} /> Mock Card / UPI
                         </button>
                     </div>
+
+                    <div className='flex flex-wrap items-center gap-2' role='tablist' aria-label='Fee records'>
+                        {RECORD_VIEWS.map((view) => (
+                            <button
+                                key={view.id}
+                                type='button'
+                                role='tab'
+                                aria-selected={recordView === view.id}
+                                onClick={() => setRecordView(view.id)}
+                                className={`text-sm px-4 py-1.5 rounded-full border cursor-pointer ${recordView === view.id ? 'bg-[#515DEF] text-white border-[#515DEF]' : 'bg-white text-[#515DEF] border-[#515DEF]'}`}
+                            >
+                                {view.label} ({viewCounts[view.id]})
+                            </button>
+                        ))}
+                    </div>
+
+                    {grouped.length === 0 && (
+                        <div className='bg-white rounded-2xl shadow-md p-6 text-center text-sm text-[#667085]'>
+                            {recordView === 'paid'
+                                ? 'No paid instalments for this academic year yet.'
+                                : recordView === 'unpaid'
+                                    ? 'No unpaid instalments. Everything for this academic year is settled.'
+                                    : 'No fee instalments for this academic year.'}
+                        </div>
+                    )}
 
                     {grouped.map((group) => (
                         <div key={group.label} className='space-y-3'>

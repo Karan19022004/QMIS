@@ -10,6 +10,8 @@ import CommunicationInbox from '../Pages/SuperAdmin/Communication/Inbox'
 import RedirectLegacyDirectMessages from '../Common/Communication/RedirectLegacyDirectMessages'
 import AcademicCalendar from '../Pages/SuperAdmin/AcademicCalendar/AcademicCalendar'
 import Notifications from '../Pages/SuperAdmin/Notifications/Notifications'
+import FileManagement from '../Pages/Admin/FileManagement/FileManagement'
+import CameraRegister from '../Pages/Admin/CameraManagement/CameraRegister'
 import EscalationList from '../Pages/SuperAdmin/EscalationManagement/EscalationList'
 import AddEscalation from '../Pages/SuperAdmin/EscalationManagement/AddEscalation'
 import ViewEscalation from '../Pages/SuperAdmin/EscalationManagement/ViewEscalation'
@@ -112,6 +114,8 @@ const SuperAdminRoutes = () => {
 
             <Route path="/super-admin/academic-calendar" element={<AcademicCalendar />} />
             <Route path="/super-admin/notifications" element={<Notifications />} />
+            <Route path="/super-admin/file-management" element={<FileManagement />} />
+            <Route path="/super-admin/camera-management" element={<CameraRegister />} />
 
             <Route path="/super-admin/escalation-management" element={<EscalationList />} />
             <Route path="/super-admin/escalation-management/add-escalation" element={<AddEscalation />} />

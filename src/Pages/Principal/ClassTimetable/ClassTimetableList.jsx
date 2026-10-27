@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronRight, Download, Eye, Plus, EllipsisIcon } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Eye, Plus, EllipsisIcon } from 'lucide-react'
+import { classKeysMatch, normalizeClassKey, normalizeSectionKey } from '../../../Common/Teacher/teacherAssignedClasses'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
@@ -20,6 +21,25 @@ import {
     loadAcademicYearOptions,
 } from './classTimetableData'
 
+const PAGE_SIZE = 10
+const APPROVAL_STATUSES = ['Pending', 'Approved', 'Denied']
+
+// A timetable belongs to one teacher and can cover several classes, one per period.
+const periodsOf = (record) => (
+    Array.isArray(record.timelines) && record.timelines.length
+        ? record.timelines
+        : [{ className: record.className, section: record.section }]
+)
+
+const uniqueByClassKey = (labels) => {
+    const seen = new Map()
+    labels.forEach((label) => {
+        const key = normalizeClassKey(label)
+        if (key && !seen.has(key)) seen.set(key, label)
+    })
+    return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+}
+
 const ClassTimetableList = () => {
     const location = useLocation()
     const navigate = useNavigate()
@@ -36,16 +56,24 @@ const ClassTimetableList = () => {
     const [sectionFilter, setSectionFilter] = useState('')
     const [academicYearFilter, setAcademicYearFilter] = useState('')
     const [academicYearOptions, setAcademicYearOptions] = useState([])
+    const [statusFilter, setStatusFilter] = useState('')
+    const [teacherFilter, setTeacherFilter] = useState('')
+    const [page, setPage] = useState(1)
 
     const classOptions = useMemo(() => {
-        const fromRecords = [...new Set(records.map((item) => item.className).filter(Boolean))]
-        const catalog = getGradeOptions()
-        return [...new Set([...catalog, ...fromRecords])].sort()
+        const fromRecords = records.flatMap((item) => periodsOf(item).map((row) => row.className)).filter(Boolean)
+        return uniqueByClassKey([...getGradeOptions(), ...fromRecords])
     }, [records])
     const sectionOptions = useMemo(() => {
-        const fromRecords = [...new Set(records.map((item) => item.section).filter(Boolean))]
-        return [...new Set([...getSectionOptions(), ...fromRecords])].sort()
+        const fromRecords = records.flatMap((item) => periodsOf(item).map((row) => normalizeSectionKey(row.section)))
+        return [...new Set([...getSectionOptions().map(normalizeSectionKey), ...fromRecords].filter(Boolean))].sort()
     }, [records])
+    const teacherOptions = useMemo(() => (
+        [...new Set(records.map((item) => String(item.ownerTeacherName || '').trim()).filter(Boolean))].sort()
+    ), [records])
+    const statusOptions = useMemo(() => (
+        [...new Set([...APPROVAL_STATUSES, ...records.map((item) => item.approvalStatus).filter(Boolean)])]
+    ), [records])
 
     const yearFilterOptions = useMemo(() => {
         const fromRecords = records.map((item) => item.academicYear).filter(Boolean)
@@ -92,25 +120,61 @@ const ClassTimetableList = () => {
         const query = search.trim().toLowerCase()
         return records.filter((record) => {
             if (academicYearFilter && record.academicYear !== academicYearFilter) return false
-            if (classFilter && record.className !== classFilter) return false
-            if (sectionFilter && record.section !== sectionFilter) return false
+            if (statusFilter && record.approvalStatus !== statusFilter) return false
+            if (teacherFilter && String(record.ownerTeacherName || '').trim() !== teacherFilter) return false
+            if (classFilter || sectionFilter) {
+                const hit = periodsOf(record).some((row) => (
+                    (!classFilter || classKeysMatch(row.className, classFilter))
+                    && (!sectionFilter || normalizeSectionKey(row.section) === sectionFilter)
+                ))
+                if (!hit) return false
+            }
             if (!query) return true
             const haystack = `${record.id} ${getClassSectionLabel(record)} ${record.academicYear} ${record.term} ${record.ownerTeacherName || ''} ${record.createdByRole || ''}`.toLowerCase()
             return haystack.includes(query)
         })
-    }, [records, search, academicYearFilter, classFilter, sectionFilter])
+    }, [records, search, academicYearFilter, statusFilter, teacherFilter, classFilter, sectionFilter])
+
+    const pageCount = Math.max(1, Math.ceil(filteredRecords.length / PAGE_SIZE))
+    const currentPage = Math.min(page, pageCount)
+    const pageRecords = filteredRecords.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+    const withPageReset = (setter) => (value) => {
+        setter(value)
+        setPage(1)
+    }
+    const hasFilters = Boolean(search || academicYearFilter || statusFilter || teacherFilter || classFilter || sectionFilter)
+    const clearFilters = () => {
+        setSearch('')
+        setAcademicYearFilter('')
+        setStatusFilter('')
+        setTeacherFilter('')
+        setClassFilter('')
+        setSectionFilter('')
+        setPage(1)
+    }
 
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4'>
-                <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
+                <div className='flex justify-end mb-2'>
+                    <button
+                        type='button'
+                        onClick={clearFilters}
+                        disabled={!hasFilters}
+                        className='bg-[#515DEF] text-white uppercase text-sm px-6 py-1.5 border border-[#515DEF] rounded-lg hover:opacity-90 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
+                    >
+                        Clear Filters
+                    </button>
+                </div>
+                <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4'>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='search' className='text-base font-medium text-[#808080]'>Search</label>
                         <input
                             type='text'
                             id='search'
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder='ID, class, teacher…'
+                            onChange={(e) => withPageReset(setSearch)(e.target.value)}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         />
                     </div>
@@ -119,7 +183,7 @@ const ClassTimetableList = () => {
                         <select
                             id='academic-year-filter'
                             value={academicYearFilter}
-                            onChange={(e) => setAcademicYearFilter(e.target.value)}
+                            onChange={(e) => withPageReset(setAcademicYearFilter)(e.target.value)}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
@@ -133,7 +197,7 @@ const ClassTimetableList = () => {
                         <select
                             id='class-filter'
                             value={classFilter}
-                            onChange={(e) => setClassFilter(e.target.value)}
+                            onChange={(e) => withPageReset(setClassFilter)(e.target.value)}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
@@ -147,11 +211,39 @@ const ClassTimetableList = () => {
                         <select
                             id='section-filter'
                             value={sectionFilter}
-                            onChange={(e) => setSectionFilter(e.target.value)}
+                            onChange={(e) => withPageReset(setSectionFilter)(e.target.value)}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
                             {sectionOptions.map((item) => (
+                                <option key={item} value={item}>{item}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className='flex flex-col gap-y-2'>
+                        <label htmlFor='teacher-filter' className='text-base font-medium text-[#808080]'>Teacher</label>
+                        <select
+                            id='teacher-filter'
+                            value={teacherFilter}
+                            onChange={(e) => withPageReset(setTeacherFilter)(e.target.value)}
+                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                        >
+                            <option value=''>All</option>
+                            {teacherOptions.map((item) => (
+                                <option key={item} value={item}>{item}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className='flex flex-col gap-y-2'>
+                        <label htmlFor='status-filter' className='text-base font-medium text-[#808080]'>Approval Status</label>
+                        <select
+                            id='status-filter'
+                            value={statusFilter}
+                            onChange={(e) => withPageReset(setStatusFilter)(e.target.value)}
+                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                        >
+                            <option value=''>All</option>
+                            {statusOptions.map((item) => (
                                 <option key={item} value={item}>{item}</option>
                             ))}
                         </select>
@@ -232,11 +324,13 @@ const ClassTimetableList = () => {
                             {filteredRecords.length === 0 ? (
                                 <tr>
                                     <td colSpan={9} className='px-2 py-8 text-center text-[#667085]'>
-                                        No class timetables found. Use Create Timetable to add one.
+                                        {records.length && hasFilters
+                                            ? 'No class timetables match these filters.'
+                                            : 'No class timetables found. Use Create Timetable to add one.'}
                                     </td>
                                 </tr>
                             ) : (
-                                filteredRecords.map((record) => (
+                                pageRecords.map((record) => (
                                     <tr key={record.id} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7]'>
                                         <td className='px-2 py-4 rounded-s-lg'>{record.id}</td>
                                         <td className='px-2 py-4'>{record.ownerTeacherName || '—'}</td>
@@ -318,13 +412,28 @@ const ClassTimetableList = () => {
 
             <div className='flex justify-between items-center px-4 mt-4'>
                 <p className='text-sm font-medium text-[#515DEF]'>
-                    Showing {filteredRecords.length} entries
+                    {filteredRecords.length === 0
+                        ? 'Showing 0 entries'
+                        : `Showing ${(currentPage - 1) * PAGE_SIZE + 1} to ${Math.min(currentPage * PAGE_SIZE, filteredRecords.length)} of ${filteredRecords.length} entries`}
                 </p>
-                <div className='flex justify-center gap-x-2'>
-                    <button type='button' className='size-8 flex justify-center items-center p-2 bg-[#EDEDF5] text-[#515DEF] rounded-full cursor-pointer'>
-                        1
+                <div className='flex justify-center items-center gap-x-2'>
+                    <button
+                        type='button'
+                        aria-label='Previous page'
+                        disabled={currentPage <= 1}
+                        onClick={() => setPage(currentPage - 1)}
+                        className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] rounded-full cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
+                    >
+                        <ChevronLeft size={16} />
                     </button>
-                    <button type='button' className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] rounded-full cursor-pointer'>
+                    <span className='text-sm text-[#515DEF]'>{currentPage} / {pageCount}</span>
+                    <button
+                        type='button'
+                        aria-label='Next page'
+                        disabled={currentPage >= pageCount}
+                        onClick={() => setPage(currentPage + 1)}
+                        className='size-8 flex justify-center items-center p-2 bg-white text-[#515DEF] border border-[#E2E8F0] rounded-full cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed'
+                    >
                         <ChevronRight size={16} />
                     </button>
                 </div>

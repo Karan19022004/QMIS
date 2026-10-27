@@ -12,6 +12,7 @@ import {
     getLessonPlansBySubmitter,
     hydrateLessonPlansFromApi,
     markLessonPlanAsDone,
+    submitDraftLessonPlan,
     updateLessonPlanStatus,
 } from '../lessonPlanApprovalData'
 import { canUseLessonPlansApi } from '../../../services/lessonPlansApi'
@@ -166,6 +167,18 @@ const LessonPlanGroupDetail = () => {
         }
     }
 
+    const handleSubmitDraft = async (id) => {
+        setBusyPlanId(id)
+        try {
+            applyPlans(await submitDraftLessonPlan(id))
+            toast.success('Lesson plan submitted for approval.')
+        } catch (error) {
+            toast.error(error?.message || 'Could not submit the lesson plan.')
+        } finally {
+            setBusyPlanId(null)
+        }
+    }
+
     const handleMarkAsDoneClick = (plan) => {
         if (plan.markAsDone) return
         setConfirmPlan(plan)
@@ -176,10 +189,11 @@ const LessonPlanGroupDetail = () => {
         const planId = confirmPlan.id
         setBusyPlanId(planId)
         try {
-            await markLessonPlanAsDone(planId, remarks)
+            const rows = await markLessonPlanAsDone(planId, remarks)
             setConfirmPlan(null)
             toast.success('Lesson plan marked as done.')
-            refreshPlans()
+            if (canUseLessonPlansApi()) applyPlans(rows.filter((item) => item.approvalStatus === 'Approved'))
+            else refreshPlans()
         } catch (error) {
             toast.error(error?.message || 'Could not mark lesson plan as done.')
         } finally {
@@ -283,6 +297,17 @@ const LessonPlanGroupDetail = () => {
                                                     Reject
                                                 </button>
                                             </>
+                                        ) : null}
+
+                                        {variant === 'submissions' && plan.isDraft ? (
+                                            <button
+                                                type='button'
+                                                onClick={() => handleSubmitDraft(plan.id)}
+                                                disabled={busyPlanId === plan.id}
+                                                className='bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all cursor-pointer disabled:opacity-50'
+                                            >
+                                                {busyPlanId === plan.id ? 'Submitting…' : 'Submit for approval'}
+                                            </button>
                                         ) : null}
 
                                         <button

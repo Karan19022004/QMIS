@@ -93,6 +93,9 @@ class Settings(BaseSettings):
     whatsapp_from: str = ""
     # RFID / eSSL punch import — off until school confirms.
     rfid_import_enabled: bool = False
+    # Lowest grade that gets its own student portal login; younger children (pre-primary and
+    # below this grade) use the parent login only. School policy: Grades 6–12.
+    student_login_min_grade: int = 6
 
     # ProTrack365 Open API (https://api.protrack365.com) — bus GPS.
     # Primary admin + optional secondary fleet (devices may live on different vendor accounts).

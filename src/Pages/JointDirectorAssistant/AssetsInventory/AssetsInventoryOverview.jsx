@@ -6,7 +6,8 @@ import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon } from 'luc
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
-    ASSETS_INVENTORY,
+    getJdAssets,
+    hydrateJdAssetsFromApi,
     VIEW_FILTERS,
     DEPARTMENTS,
     ALERT_TYPES,
@@ -29,9 +30,9 @@ const AssetsInventoryOverview = () => {
     const [exportModal, setExportModal] = useState(false)
 
     const filteredItems = useMemo(() => {
-        if (activeView === 'all') return ASSETS_INVENTORY
-        return ASSETS_INVENTORY.filter((item) => item.viewType === activeView)
-    }, [activeView])
+        if (activeView === 'all') return assets
+        return assets.filter((item) => item.viewType === activeView)
+    }, [activeView, assets])
 
     const activeViewMeta = VIEW_FILTERS.find((view) => view.key === activeView)
 

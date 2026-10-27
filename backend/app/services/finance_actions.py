@@ -469,9 +469,8 @@ def pay_my_fees(db: Session, actor: User, payload: dict) -> dict:
     }
 
 
-def collect_payment(db: Session, actor: User, payload: dict) -> dict:
-    state = fin.get_state(db, actor)
-    data = dict(state["data"])
+def _apply_collection(data: dict, payload: dict, *, actor_email: str) -> tuple[dict, dict]:
+    """Apply one fee collection to the snapshot ``data`` in place; returns (transaction, receipt)."""
     students = list(data.get("students") or [])
     installments = list(data.get("installments") or [])
     transactions = list(data.get("transactions") or [])
@@ -573,7 +572,7 @@ def collect_payment(db: Session, actor: User, payload: dict) -> dict:
         "paymentReference": pay_ref,
         "installmentIds": [a.get("installmentId") for a in allocations],
         "allocations": allocations,
-        "createdBy": payload.get("collectedBy") or actor.email,
+        "createdBy": payload.get("collectedBy") or actor_email,
         "createdAt": _now(),
         "narration": payload.get("narration") or f"Fee collection — {student.get('name')}",
     }
@@ -622,7 +621,7 @@ def collect_payment(db: Session, actor: User, payload: dict) -> dict:
         {
             "id": f"AUD-{uuid4().hex[:8]}",
             "performedAt": _now(),
-            "performedBy": actor.email,
+            "performedBy": actor_email,
             "action": "FEE_PAYMENT_COLLECTED",
             "entity": "FinanceTransaction",
             "entityId": txn_id,
@@ -638,7 +637,53 @@ def collect_payment(db: Session, actor: User, payload: dict) -> dict:
     data["receipts"] = receipts
     data["cheques"] = cheques
     data["auditLog"] = audit
+    return transaction, receipt
+
+
+def _notify_fee_paid(db: Session, campus_id, student_id, receipt: dict) -> None:
+    """In-app confirmation to the student's parent once per receipt (no email / WhatsApp)."""
+    from uuid import UUID
+
+    from app.models import Notification, Student
+
+    try:
+        sid = UUID(str(student_id))
+    except (TypeError, ValueError):
+        return
+    student = db.get(Student, sid)
+    if student is None or student.campus_id != campus_id or not student.parent_user_id:
+        return
+    receipt_no = str(receipt.get("receiptNo") or "")
+    already = db.scalar(
+        select(Notification.id).where(
+            Notification.user_id == student.parent_user_id,
+            Notification.entity_type == "fee_receipt",
+            Notification.entity_id == receipt_no,
+        )
+    )
+    if already is not None:
+        return
+    heads = ", ".join(receipt.get("feeHeads") or []) or "School fees"
+    db.add(
+        Notification(
+            campus_id=campus_id,
+            user_id=student.parent_user_id,
+            title=f"Payment received — {_inr_label(receipt.get('amountPaid') or 0)}",
+            body=f"{student.full_name}: {heads}. Receipt {receipt_no} ({_display_date(receipt.get('paymentDate'))}).",
+            entity_type="fee_receipt",
+            entity_id=receipt_no,
+        )
+    )
+    db.commit()
+
+
+def collect_payment(db: Session, actor: User, payload: dict) -> dict:
+    state = fin.get_state(db, actor)
+    data = dict(state["data"])
+    transaction, receipt = _apply_collection(data, payload, actor_email=actor.email)
     saved = _save(db, actor, data)
+    if transaction.get("status") == "POSTED":
+        _notify_fee_paid(db, actor.campus_id, transaction.get("studentId"), receipt)
     return {"success": True, "transaction": transaction, "receipt": receipt, "state": saved}
 
 
@@ -669,7 +714,10 @@ def settle_cheque(db: Session, actor: User, payload: dict) -> dict:
                 txn["status"] = "REVERSED"
             txn["chequeDetails"] = {**(txn.get("chequeDetails") or {}), "status": next_status}
 
-    if next_status == "CLEARED":
+    # A cheque moved CLEARED -> RECEIVED -> CLEARED must not pay its instalments twice.
+    newly_cleared = next_status == "CLEARED" and old != "CLEARED" and not cheque.get("allocationsApplied")
+    if newly_cleared:
+        cheque["allocationsApplied"] = True
         for alloc in cheque.get("installmentAllocations") or []:
             row = next((i for i in installments if i.get("id") == alloc.get("installmentId")), None)
             if not row:
@@ -713,6 +761,10 @@ def settle_cheque(db: Session, actor: User, payload: dict) -> dict:
     data["installments"] = installments
     data["auditLog"] = audit
     saved = _save(db, actor, data)
+    if newly_cleared:
+        receipt = next((r for r in receipts if r.get("transactionId") == cheque.get("transactionId")), None)
+        if receipt is not None:
+            _notify_fee_paid(db, actor.campus_id, cheque.get("studentId"), receipt)
     return {"success": True, "cheque": cheque, "state": saved}
 
 
@@ -861,6 +913,82 @@ def create_gateway_intent(db: Session, actor: User, payload: dict) -> dict:
     return {"success": True, "intent": link, "state": saved}
 
 
+def _settle_gateway_link(data: dict, link: dict, *, actor_email: str) -> dict | None:
+    """Turn a verified gateway payment into a fee collection (instalments, receipt, books) once.
+
+    The link amount is applied to its instalments in order, capped at each live balance. Anything
+    that cannot be applied (instalments settled at the desk meanwhile) is recorded on the link for
+    manual reconciliation instead of being dropped.
+    """
+    if link.get("settledTransactionId"):
+        return None
+    installments = list(data.get("installments") or [])
+    fine_rules = list(data.get("fineRules") or [])
+    as_of = datetime.now(timezone.utc).date()
+    student_id = str(link.get("studentId") or "")
+    remaining = round(float(link.get("amount") or 0), 2)
+    allocations: list[dict] = []
+    for installment_id in link.get("installmentIds") or []:
+        if remaining <= 0.009:
+            break
+        row = next((i for i in installments if i.get("id") == installment_id), None)
+        if row is None or str(row.get("studentId") or "") != student_id:
+            continue
+        if str(row.get("status") or "").upper() in {"PAID", "WAIVED", "CANCELLED"}:
+            continue
+        _, _, balance = _live_payable(row, fine_rules, as_of)
+        take = round(min(balance, remaining), 2)
+        if take <= 0:
+            continue
+        allocations.append({"installmentId": installment_id, "amount": take})
+        remaining = round(remaining - take, 2)
+
+    audit = list(data.get("auditLog") or [])
+    if not allocations:
+        link["unallocatedAmount"] = round(float(link.get("amount") or 0), 2)
+        audit.insert(0, {
+            "id": f"AUD-{uuid4().hex[:8]}",
+            "performedAt": _now(),
+            "performedBy": actor_email,
+            "action": "GATEWAY_PAYMENT_UNALLOCATED",
+            "entity": "PaymentLink",
+            "entityId": link.get("id"),
+            "newValue": str(link["unallocatedAmount"]),
+            "reason": "No unpaid instalments left on this link; reconcile manually.",
+        })
+        data["auditLog"] = audit
+        return None
+
+    transaction, receipt = _apply_collection(
+        data,
+        {
+            "studentId": student_id,
+            "allocations": allocations,
+            "paymentMode": "PAYMENT_GATEWAY",
+            "paymentDate": as_of.isoformat(),
+            "details": {"paymentReference": link.get("providerPaymentId") or link.get("reference")},
+            "collectedBy": "Payment gateway",
+            "narration": f"Online payment {link.get('reference')}",
+        },
+        actor_email=actor_email,
+    )
+    link["settledTransactionId"] = transaction["id"]
+    link["receiptNo"] = receipt["receiptNo"]
+    if remaining > 0.009:
+        link["unallocatedAmount"] = remaining
+        data["auditLog"].insert(0, {
+            "id": f"AUD-{uuid4().hex[:8]}",
+            "performedAt": _now(),
+            "performedBy": actor_email,
+            "action": "GATEWAY_PAYMENT_UNALLOCATED",
+            "entity": "PaymentLink",
+            "entityId": link.get("id"),
+            "newValue": str(remaining),
+            "reason": "Part of the payment exceeded the instalment balances; reconcile manually.",
+        })
+    return {"transaction": transaction, "receipt": receipt}
+
+
 def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
     """Verify provider payment (Razorpay signature) and mark link PAID once (idempotent).
 
@@ -921,6 +1049,7 @@ def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
     )
     data["paymentLinks"] = links
     data["auditLog"] = audit
+    settled = _settle_gateway_link(data, link, actor_email=actor.email)
     write_audit(
         db,
         action="PAYMENT_GATEWAY_CONFIRMED",
@@ -931,7 +1060,14 @@ def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
         details=link.get("reference"),
     )
     saved = _save(db, actor, data)
-    return {"success": True, "intent": link, "state": saved}
+    if settled:
+        _notify_fee_paid(db, actor.campus_id, link.get("studentId"), settled["receipt"])
+    return {
+        "success": True,
+        "intent": link,
+        "receipt": settled["receipt"] if settled else None,
+        "state": saved,
+    }
 
 
 def apply_razorpay_webhook(db: Session, *, raw_body: bytes, signature: str, payload: dict) -> dict:
@@ -983,6 +1119,7 @@ def apply_razorpay_webhook(db: Session, *, raw_body: bytes, signature: str, payl
             },
         )
         body["auditLog"] = audit
+        settled = _settle_gateway_link(body, link, actor_email="razorpay-webhook")
         row.body = body
         flag_modified(row, "body")
         write_audit(
@@ -994,6 +1131,8 @@ def apply_razorpay_webhook(db: Session, *, raw_body: bytes, signature: str, payl
             details=link.get("reference"),
         )
         db.commit()
+        if settled:
+            _notify_fee_paid(db, row.campus_id, link.get("studentId"), settled["receipt"])
         # Signature-verified webhook path — liveVerified only when not in demo outbox mode.
         return {
             "success": True,

@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
 import {
     DAYS,
@@ -22,6 +23,7 @@ const ClassTimelineEditor = ({
     ownerTeacherId = '',
     defaultTeacher = '',
 }) => {
+    const { pathname } = useLocation()
     const classOptions = getClassesForTimetableTeacher(ownerTeacherId)
 
     const updateRow = (index, key, value) => {
@@ -62,6 +64,20 @@ const ClassTimelineEditor = ({
                     <p className='text-sm text-[#667085] mt-1'>
                         Pick the grade for each period. Section and subject map from that teacher&apos;s allocation.
                     </p>
+                    {ownerTeacherId && !readOnly && getSubjectsForTimetableTeacher(ownerTeacherId).length === 0 && (
+                        <p className='text-sm text-[#B54708] mt-2' role='alert'>
+                            This teacher has no subjects allocated yet, so the Subject list is empty.{' '}
+                            {pathname.startsWith('/principal') ? (
+                                <>
+                                    Allocate classes and subjects in{' '}
+                                    <Link to='/principal/academic/teacher-allocation' className='underline text-[#515DEF]'>
+                                        Teacher Allocation
+                                    </Link>{' '}
+                                    first.
+                                </>
+                            ) : 'Ask the Principal to allocate classes and subjects (Teacher Allocation) first.'}
+                        </p>
+                    )}
                 </div>
                 {!readOnly && (
                     <button

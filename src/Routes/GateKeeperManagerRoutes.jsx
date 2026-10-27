@@ -21,6 +21,7 @@ import AcademicCalendar from '../Pages/GateKeeperManager/AcademicCalendar/Academ
 import MyAttendance from '../Pages/GateKeeperManager/Attendance/MyAttendance'
 import GatekeepersAttendance from '../Pages/GateKeeperManager/Attendance/GatekeepersAttendance'
 import Notifications from '../Pages/GateKeeperManager/Notifications/Notifications'
+import CameraRegister from '../Pages/Admin/CameraManagement/CameraRegister'
 import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 
 const LegacyLeaveApprovalViewRedirect = () => {
@@ -51,6 +52,7 @@ const GateKeeperManagerRoutes = () => {
             <Route path="/gatekeeper-manager/attendance/gatekeepers-attendance" element={<GatekeepersAttendance />} />
             <Route path="/gatekeeper-manager/academic-calendar" element={<AcademicCalendar />} />
             <Route path="/gatekeeper-manager/notifications" element={<Notifications />} />
+            <Route path="/gatekeeper-manager/camera-management" element={<CameraRegister />} />
             {TaskManagementRoutes({ basePath: '/gatekeeper-manager' })}
             <Route path="/gatekeeper-manager/communication" element={<Navigate to="/gatekeeper-manager/communication/inbox" replace />} />
             <Route path="/gatekeeper-manager/communication/inbox" element={<CommunicationInbox />} />

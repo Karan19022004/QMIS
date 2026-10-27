@@ -6,6 +6,7 @@ import StudentInfo from './Components/StudentInfo'
 import TransportInfo from './Components/TransportInfo'
 import ParentsInfo from './Components/ParentsInfo'
 import AccountInformation from './Components/AccountInformation'
+import ReferralInfo from './Components/ReferralInfo'
 import FeesTimeLine from './Components/FeesTimeLine'
 import {
     buildInitialAdmissionForm,
@@ -37,6 +38,7 @@ const AddAdmission = () => {
         return buildInitialAdmissionForm(prefill, locationState?.fromEnquiryId || '')
     })
     const [error, setError] = useState('')
+    const [missingFields, setMissingFields] = useState([])
     const [notFound, setNotFound] = useState(false)
     const apiAdmissionId = locationState?.admissionId || locationState?.admission?.id || null
 
@@ -68,16 +70,25 @@ const AddAdmission = () => {
 
     const updateField = (key, value) => {
         setForm((prev) => ({ ...prev, [key]: value }))
+        if (String(value ?? '').trim()) {
+            setMissingFields((prev) => prev.filter((item) => item.field !== key))
+        }
     }
 
     const handleSave = async () => {
         setError('')
+        setMissingFields([])
         const targetId = isEdit ? id : apiAdmissionId
         const result = targetId
             ? await updateAdmission(targetId, form)
             : await createAdmission(form)
         if (!result.success) {
             setError(result.message)
+            toast.error(result.message)
+            if (result.missing?.length) {
+                setMissingFields(result.missing)
+                document.getElementById(result.missing[0].id)?.focus()
+            }
             return
         }
 
@@ -100,16 +111,24 @@ const AddAdmission = () => {
         )
     }
 
+    const missingKeys = new Set(missingFields.map((item) => item.field))
+
     return (
         <section>
+            {error && (
+                <div role='alert' className='bg-[#FEECEC] text-[#B42318] text-sm rounded-xl px-4 py-3 mb-4'>
+                    {error}
+                </div>
+            )}
+            <p className='text-sm text-[#667085] mb-2'>Fields marked <span className='text-[#F44336]'>*</span> are required.</p>
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h2 className='text-xl font-semibold text-black'>Admission Information</h2>
-                <AdmissionInfo form={form} onChange={updateField} />
+                <AdmissionInfo form={form} onChange={updateField} missing={missingKeys} />
             </div>
 
             <div className='bg-white rounded-2xl shadow-md p-4 mt-6'>
                 <h2 className='text-xl font-semibold text-black'>Student Information</h2>
-                <StudentInfo form={form} onChange={updateField} />
+                <StudentInfo form={form} onChange={updateField} missing={missingKeys} />
             </div>
 
             <div className='bg-white rounded-2xl shadow-md p-4 mt-6'>
@@ -120,6 +139,11 @@ const AddAdmission = () => {
             <div className='bg-white rounded-2xl shadow-md p-4 mt-6'>
                 <h2 className='text-xl font-semibold text-black'>Parents Information</h2>
                 <ParentsInfo form={form} onChange={updateField} />
+            </div>
+
+            <div className='bg-white rounded-2xl shadow-md p-4 mt-6'>
+                <h2 className='text-xl font-semibold text-black'>Referral</h2>
+                <ReferralInfo form={form} onChange={updateField} />
             </div>
 
             <div className='bg-white rounded-2xl shadow-md p-4 mt-6'>

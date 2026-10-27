@@ -15,6 +15,7 @@ import { listDirectoryApi } from '../../../services/communicationApi'
 import {
     getAllocationByEmployeeId,
     getAllocations,
+    getGrades as getAllocationGrades,
     getTeachers,
     hydrateTeacherAllocationsFromApi,
     hydrateTeachersFromDirectory,
@@ -37,9 +38,11 @@ export const TERMS = ['Term 1', 'Term 2', 'Term 3']
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
 /** Live catalog helpers (empty until Class Details / subjects exist). */
+// Falls back to the Teacher Allocation class list (standard levels) when this browser has no
+// Class Details catalog, so a teacher without an allocation still gets class options.
 export const getGradeOptions = () => {
     const classes = getCatalogClasses()
-    return classes.length ? classes : []
+    return classes.length ? classes : getAllocationGrades()
 }
 export const getSectionOptions = () => {
     const sections = getCatalogSections()
@@ -569,8 +572,24 @@ export const updateClassTimetable = (id, payload) => {
     return updated
 }
 
+// "09:00", "9:00 AM", "01:30 PM" → minutes since midnight (unparseable sorts last).
+export const slotStartMinutes = (value) => {
+    const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})\s*([AP]M)?/i)
+    if (!match) return Number.MAX_SAFE_INTEGER
+    let hours = Number(match[1]) % 24
+    const meridiem = (match[3] || '').toUpperCase()
+    if (meridiem === 'PM' && hours < 12) hours += 12
+    if (meridiem === 'AM' && hours === 12) hours = 0
+    return hours * 60 + Number(match[2])
+}
+
 export const buildClassGridFromTimelines = (timelines = []) => {
+    const dayOrder = (day) => {
+        const index = DAYS.findIndex((name) => name.toLowerCase() === String(day).trim().toLowerCase())
+        return index === -1 ? DAYS.length : index
+    }
     const days = [...new Set(timelines.map((row) => row.day).filter(Boolean))]
+        .sort((a, b) => dayOrder(a) - dayOrder(b))
     const slotMap = new Map()
 
     timelines.forEach((row) => {
@@ -580,11 +599,14 @@ export const buildClassGridFromTimelines = (timelines = []) => {
             slotMap.set(label, {
                 label,
                 time: `${row.startTime} -\n${row.endTime}`,
+                start: slotStartMinutes(row.startTime),
             })
         }
     })
 
     const timeSlots = [...slotMap.values()]
+        .sort((a, b) => a.start - b.start)
+        .map(({ label, time }) => ({ label, time }))
     const schedule = {}
 
     timelines.forEach((row) => {

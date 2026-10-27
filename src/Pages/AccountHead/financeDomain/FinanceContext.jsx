@@ -110,6 +110,7 @@ import {
     buildPaymentSchedule,
     scheduleToInstallments,
 } from '../FeesManagement/feePaymentSchedule'
+import { isRouteBilledFee } from '../FeesManagement/feeCampusOptions'
 
 const classKey = (value) => String(value || '').trim().toLowerCase()
 
@@ -288,15 +289,25 @@ export const FinanceProvider = ({ children }) => {
         booksBackfilledRef.current = false
     }, [])
 
-    const hydratedInstallments = useMemo(() => (
-        installments.map((row) => hydrateInstallment({
+    const hydratedInstallments = useMemo(() => {
+        const groups = new Map()
+        installments.forEach((row) => {
+            const key = `${row.studentId}|${row.feeCategoryId}|${row.academicYear}`
+            if (!groups.has(key)) groups.set(key, [])
+            groups.get(key).push(row)
+        })
+        return installments.map((row) => hydrateInstallment({
             ...row,
-            concessionAmount: resolveConcessionAmount(row, concessions),
+            concessionAmount: resolveConcessionAmount(
+                row,
+                concessions,
+                groups.get(`${row.studentId}|${row.feeCategoryId}|${row.academicYear}`),
+            ),
         }, {
             fineRule: getFineRuleForCategory(fineRules, row.feeCategoryId),
             asOfDate: new Date(),
         }))
-    ), [concessions, fineRules, installments])
+    }, [concessions, fineRules, installments])
 
     const getStudentById = useCallback(
         (id) => students.find((student) => student.id === id) ?? null,
@@ -982,7 +993,8 @@ export const FinanceProvider = ({ children }) => {
         const targetYear = String(structure.academicYear || '').trim()
         const structureClass = String(structure.className || '').trim()
         const allClasses = /^(all classes|all|\*)$/i.test(structureClass)
-        const matchingStudents = students.filter((student) => {
+        const routeBilled = isRouteBilledFee(nextStructure)
+        const matchingStudents = routeBilled ? [] : students.filter((student) => {
             if (!allClasses && classKey(student.className) !== classKey(structureClass)) return false
             if (!targetYear) return true
             const studentYear = String(student.academicYear || '').trim()
@@ -1001,6 +1013,7 @@ export const FinanceProvider = ({ children }) => {
         }))
 
         const nextInstallments = (() => {
+            if (routeBilled) return baseInstallments
             const keep = baseInstallments.filter((row) => {
                 if (row.feeStructureId !== id) return true
                 const paid = Number(row.paidAmount) || 0

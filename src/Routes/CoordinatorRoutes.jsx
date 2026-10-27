@@ -50,6 +50,11 @@ import ViewAnnouncement from '../Pages/Coordinator/Announcement/ViewAnnouncement
 import MarkEntry from '../Pages/Coordinator/StudentEvaluation/MarkEntry/MarkEntry'
 import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 import { StudentStarRatingsRoutes } from '../Common/StudentStarRatings/StudentStarRatingsRoutes'
+import PendingPlacementList from '../Pages/Coordinator/StudentPlacement/PendingPlacementList'
+import PlaceStudent from '../Pages/Coordinator/StudentPlacement/PlaceStudent'
+import PromoteStudents from '../Pages/Coordinator/StudentPlacement/PromoteStudents'
+import ClassTimetableList from '../Pages/Principal/ClassTimetable/ClassTimetableList'
+import CreateClassTimetable from '../Pages/Principal/ClassTimetable/CreateClassTimetable'
 
 const CoordinatorRoutes = () => {
     return (
@@ -60,6 +65,10 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/attendance/my-attendance" element={<MyAttendance />} />
             <Route path="/coordinator/attendance/class-attendance" element={<ClassAttendance />} />
             <Route path="/coordinator/class/class-routine" element={<ClassRoutine />} />
+            <Route path="/coordinator/class/class-timetable" element={<ClassTimetableList />} />
+            <Route path="/coordinator/class/create-class-timetable" element={<CreateClassTimetable />} />
+            <Route path="/coordinator/class/edit-class-timetable/:id" element={<CreateClassTimetable />} />
+            <Route path="/coordinator/create-class-timetable" element={<Navigate to="/coordinator/class/create-class-timetable" replace />} />
             <Route path="/coordinator/class/extra-class" element={<ExtraClass />} />
             <Route path="/coordinator/class/extra-class/add" element={<AddExtraClass />} />
             <Route path="/coordinator/class/extra-class/view/:id" element={<ViewExtraClass />} />
@@ -99,8 +108,11 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/lesson-plan-approval/group/:teacherName/:subject" element={<LessonPlanGroupDetail />} />
             <Route path="/coordinator/lesson-plan/my-lesson-plan" element={<MyLessonPlan />} />
             <Route path="/coordinator/lesson-plan/my-lesson-plan/group/:teacherName/:subject" element={<LessonPlanGroupDetail />} />
-            <Route path="/coordinator/student-allocation" element={<Navigate to="/coordinator/dashboard" replace />} />
-            <Route path="/coordinator/student-allocation/allocate/:id" element={<Navigate to="/coordinator/dashboard" replace />} />
+            <Route path="/coordinator/student-allocation" element={<Navigate to="/coordinator/student-placement" replace />} />
+            <Route path="/coordinator/student-allocation/allocate/:id" element={<Navigate to="/coordinator/student-placement" replace />} />
+            <Route path="/coordinator/student-placement" element={<PendingPlacementList />} />
+            <Route path="/coordinator/student-placement/place/:id" element={<PlaceStudent />} />
+            <Route path="/coordinator/student-placement/promote" element={<PromoteStudents />} />
             {TaskManagementRoutes({ basePath: '/coordinator' })}
             {StudentStarRatingsRoutes({ basePath: '/coordinator' })}
             <Route path="/coordinator/communication" element={<Navigate to="/coordinator/communication/inbox" replace />} />

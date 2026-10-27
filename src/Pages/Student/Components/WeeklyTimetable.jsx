@@ -26,6 +26,16 @@ const DEFAULT_DAYS = [
     "Saturday",
 ];
 
+const WEEKDAY_OFFSETS = {
+    monday: 0,
+    tuesday: 1,
+    wednesday: 2,
+    thursday: 3,
+    friday: 4,
+    saturday: 5,
+    sunday: 6,
+};
+
 const DEFAULT_TIME_SLOTS = [
     { time: "09:00 AM -\n09:45 AM", label: "09:00 AM - 09:45 AM" },
     { time: "09:45 AM -\n10:30 AM", label: "09:45 AM - 10:30 AM" },
@@ -88,9 +98,13 @@ export default function WeeklyTimetable({
     const [hoveredCell, setHoveredCell] = useState(null);
     const [currentWeekDate, setCurrentWeekDate] = useState(initialWeekDate);
 
+    // Date each column by its weekday name: a grid may skip days (e.g. only Monday and Wednesday).
     const dayDates = useMemo(() => {
         const weekStart = startOfWeek(currentWeekDate, { weekStartsOn: 1 });
-        return days.map((_, index) => addDays(weekStart, index));
+        return days.map((day, index) => {
+            const offset = WEEKDAY_OFFSETS[String(day || "").trim().toLowerCase()];
+            return addDays(weekStart, offset ?? index);
+        });
     }, [days, currentWeekDate]);
 
     const weekLabel = useMemo(() => {
