@@ -114,6 +114,33 @@ def test_rich_enquiry_admission_enroll_with_parent(client):
     assert again.status_code == 409
 
 
+def test_enroll_refuses_parent_email_owned_by_staff_account(client):
+    headers = _login(client)
+    created = client.post(
+        "/api/v1/admissions",
+        json={
+            "first_name": "Ishaan",
+            "mobile_number": "9000000077",
+            "class_name": "Grade 1",
+            "parent_account_email": "hr@qmis.edu",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    admission_id = created.json()["id"]
+
+    enrolled = client.post(
+        f"/api/v1/admissions/{admission_id}/enroll",
+        json={"parent_account_email": "hr@qmis.edu", "parent_account_password": "Parent-Test-2026"},
+        headers=headers,
+    )
+    assert enrolled.status_code == 409, enrolled.text
+    assert enrolled.json()["detail"]["code"] == "email_in_use"
+
+    still_open = client.get(f"/api/v1/admissions/{admission_id}", headers=headers)
+    assert still_open.json()["status"] != "Enrolled"
+
+
 def test_create_admission_direct(client):
     headers = _login(client)
     created = client.post(

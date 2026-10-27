@@ -31,6 +31,7 @@ from app.models.hr_employee import HrEmployee
 from app.models.hr_record import HrRecord
 from app.models.otp import OtpChallenge
 from app.models.role import Permission, Role, RolePermission
+from app.models.substitute_duty import SubstituteDuty
 from app.models.user import User
 from app.models.user_profile import UserProfile
 
@@ -83,6 +84,7 @@ __all__ = [
     "Student",
     "StudentAttendance",
     "Subject",
+    "SubstituteDuty",
     "Task",
     "TaskEvent",
     "TcRequest",

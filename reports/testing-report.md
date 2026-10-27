@@ -1,35 +1,38 @@
 # Testing report
 
-**Date:** 23 October 2026  
-**Branch:** `ERP1`  
-**Context:** Final pending-requirements audit (code re-check + targeted pytest)
+**Date:** 27 October 2026  
+**Branch:** `main` (QMIS repo)  
+**Context:** Academic privacy, approval routing, substitute duty, attendance change audit
 
-## Backend (this audit)
-
-| Metric | Count |
-|---|---|
-| Passed | **19** |
-| Failed | **0** |
-| Skipped | 0 |
-| Warnings | 1 (Starlette TestClient / httpx deprecation) |
-| Duration | ~27 seconds |
-
-Command: `python -m pytest tests/test_remaining_workflows.py tests/test_frontend_production_readiness_static.py tests/test_protrack_proxy.py tests/test_integrations_ready.py -q` from `backend/`.
-
-## Backend (earlier same day — full suite)
+## Backend (full suite)
 
 | Metric | Count |
 |---|---|
-| Passed | **464** |
+| Passed | **520** |
 | Failed | **0** |
-| Duration | 4 minutes 41 seconds |
+| Skipped | **35** (PostgreSQL-only migration tests: no database-creation rights / no `TEST_PG_URL`) |
+| Duration | ~3 minutes 51 seconds |
 
-Command: `python -m pytest tests/ -q` from `backend/`.
+Command: `python -m pytest tests -q` from `backend/` (isolated in-memory SQLite).
+
+New test files this day:
+- `test_academic_privacy.py` (26)
+- `test_academic_access_phase2.py` (21)
+- `test_academic_access_phase3a.py` (19)
+- `test_academic_phase4.py` (14)
+- `test_attendance_audit.py` (8)
+- `test_migration_substitute_duties.py` (opt-in, skipped without `TEST_PG_URL`)
 
 ## Frontend
 
-`npm run build` passed earlier same day (~1 minute 7 seconds). Not re-run in the final audit pass.
+`npm run build` passed (~1 minute 22 seconds).
+
+## Live database
+
+- Backup `qmis_erp_before_0020_20261027_185916.dump` verified with `pg_restore --list`.
+- Migration 0020 applied (0019 → 0020); row counts unchanged.
+- Backend health check, demo logins (admin, principal, teacher) and CORS from the frontend verified.
 
 ## Browser
 
-Canteen order create → API persist → refresh → re-login → controlled fail-save was verified on localhost (see `QMIS_ERP_PRODUCTION_READINESS_REPORT.md` §6). Live ProTrack, SMTP, WhatsApp, and Razorpay were not attempted (configuration empty / out of scope).
+Not tested for the new screens (Substitute Duty, Class Attendance options).

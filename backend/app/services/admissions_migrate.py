@@ -37,7 +37,7 @@ def _widen_varchar(connection, table: str, column: str, length: int) -> None:
     if connection.dialect.name != "postgresql":
         return
     meta = next(
-        (c for c in inspect(engine).get_columns(table) if c["name"] == column),
+        (c for c in inspect(connection).get_columns(table) if c["name"] == column),
         None,
     )
     if not meta:

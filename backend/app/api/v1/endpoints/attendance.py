@@ -35,6 +35,16 @@ def list_attendance_route(
     )
 
 
+@router.get("/my-classes")
+def my_attendance_classes_route(
+    date_: date | None = Query(default=None, alias="date"),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("attendance.read")),
+) -> dict:
+    """Classes and sections the signed-in user may load and mark (same rule as roster and save)."""
+    return svc.my_attendance_classes(db, user, date_)
+
+
 @router.post("")
 def upsert_attendance_route(
     body: AttendanceUpsertIn,

@@ -28,6 +28,7 @@ from app.api.v1.endpoints.masters import router as masters_router
 from app.api.v1.endpoints.parents import router as parents_router
 from app.api.v1.endpoints.students import router as students_router
 from app.api.v1.endpoints.attendance import router as attendance_router
+from app.api.v1.endpoints.substitute_duties import router as substitute_duties_router
 from app.api.v1.endpoints.approvals import router as approvals_router
 from app.api.v1.endpoints.lesson_plans import router as lesson_plans_router
 from app.api.v1.endpoints.exams import router as exams_router
@@ -80,6 +81,7 @@ app.include_router(admissions_router)
 app.include_router(parents_router)
 app.include_router(students_router)
 app.include_router(attendance_router)
+app.include_router(substitute_duties_router)
 app.include_router(approvals_router)
 app.include_router(lesson_plans_router)
 app.include_router(exams_router)

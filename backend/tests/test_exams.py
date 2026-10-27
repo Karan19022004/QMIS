@@ -78,7 +78,20 @@ def _approved_exam(client, cls: str, exam_type="MIDTERM", start=FUTURE, end=FUTU
     return eid
 
 
+def _coordinator_band(client, grade_from=1, grade_to=12) -> None:
+    """Coordinators approve marks only inside their grade band, so give the demo coordinator one."""
+    options = client.get("/api/v1/masters/class-teacher-options", headers=_h(client, "admin")).json()
+    coordinator_id = next(o["user_id"] for o in options if o["email"] == USERS["coordinator"][0])
+    r = client.put(
+        "/api/v1/students/coordinator-grade-bands",
+        json={"userId": coordinator_id, "gradeFrom": grade_from, "gradeTo": grade_to},
+        headers=_h(client, "principal"),
+    )
+    assert r.status_code == 200, r.text
+
+
 def _publish(client, batch: dict) -> None:
+    _coordinator_band(client)
     for who in ("coordinator", "principal", "director"):
         r = client.post(
             f"/api/v1/approvals/{batch['approvalId']}/decide", json={"decision": "approve"}, headers=_h(client, who)
@@ -191,6 +204,7 @@ def test_marks_validation_and_deny_revise(client):
     assert post([{"studentId": s, "marks": 10}]).status_code == 409  # duplicate
 
     sub = client.post(f"/api/v1/marks-batches/{batch['id']}/submit", headers=teacher).json()
+    _coordinator_band(client)
     denied = client.post(
         f"/api/v1/approvals/{sub['approvalId']}/decide",
         json={"decision": "deny", "comment": "Recheck absentee"},

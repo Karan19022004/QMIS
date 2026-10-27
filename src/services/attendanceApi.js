@@ -11,6 +11,20 @@ export async function listAttendanceApi({ date, className, section, roster = fal
     return Array.isArray(rows) ? rows : []
 }
 
+/**
+ * Classes/sections the signed-in user may load and mark on ``date`` (YYYY-MM-DD; default today).
+ * Substitute-duty sections appear only while that duty is valid for the date and current period.
+ */
+export async function listMyAttendanceClassesApi(date) {
+    const suffix = date ? `?date=${encodeURIComponent(date)}` : ''
+    const data = await apiRequest(`/attendance/my-classes${suffix}`)
+    return {
+        scoped: Boolean(data?.scoped),
+        classes: Array.isArray(data?.classes) ? data.classes : [],
+        substituteDuties: Array.isArray(data?.substituteDuties) ? data.substituteDuties : [],
+    }
+}
+
 /** @returns {Promise<Array<object>>} */
 export async function upsertAttendanceApi(payload) {
     return apiRequest('/attendance', {

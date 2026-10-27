@@ -271,6 +271,12 @@ export const adminSidebarLinks = [
         icon: ClipboardList,
     },
     {
+        id: "substitute-duty",
+        title: "Substitute Duty",
+        to: "/admin/class/substitute-duty",
+        icon: CalendarCheck,
+    },
+    {
         id: 5,
         title: "Attendance",
         to: "#0",
@@ -2161,6 +2167,12 @@ export const directorSidebarLinks = [
         icon: ClipboardList,
     },
     {
+        id: "substitute-duty",
+        title: "Substitute Duty",
+        to: "/director/substitute-duty",
+        icon: CalendarCheck,
+    },
+    {
         id: 11,
         title: "Leave Request",
         to: "#0",
@@ -2256,6 +2268,12 @@ export const principalSidebarLinks = [
         title: "Teacher Allocation",
         to: "/principal/academic/teacher-allocation",
         icon: UserRoundCog,
+    },
+    {
+        id: "substitute-duty",
+        title: "Substitute Duty",
+        to: "/principal/academic/substitute-duty",
+        icon: CalendarCheck,
     },
     {
         id: 7,

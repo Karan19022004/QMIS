@@ -3,7 +3,7 @@ import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download, Save } from 'lucide-react'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
-import { listAttendanceApi, upsertAttendanceApi } from '../../../services/attendanceApi'
+import { listAttendanceApi, listMyAttendanceClassesApi, upsertAttendanceApi } from '../../../services/attendanceApi'
 import { isApiAttendanceEnabled } from '../../../services/apiClient'
 import {
     ATTENDANCE_LIST,
@@ -36,6 +36,44 @@ const ClassAttendance = () => {
     const [error, setError] = useState('')
     const [saveMessage, setSaveMessage] = useState('')
     const [dirty, setDirty] = useState(false)
+    const [classOptions, setClassOptions] = useState(null)
+    const [substituteDuties, setSubstituteDuties] = useState([])
+    const [optionsError, setOptionsError] = useState('')
+    const optionsDate = toIsoDate(selectedDate)
+
+    useEffect(() => {
+        if (!api) return undefined
+        let cancelled = false
+        listMyAttendanceClassesApi(optionsDate || undefined)
+            .then((data) => {
+                if (!cancelled) {
+                    setClassOptions(data.classes)
+                    setSubstituteDuties(data.substituteDuties)
+                    setOptionsError('')
+                }
+            })
+            .catch((err) => {
+                if (!cancelled) {
+                    setClassOptions([])
+                    setSubstituteDuties([])
+                    setOptionsError(err.message || 'Could not load your classes')
+                }
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [api, optionsDate])
+
+    const classNames = useMemo(
+        () => (api ? (classOptions || []).map((item) => item.className) : CLASSES),
+        [api, classOptions],
+    )
+    const sectionNames = useMemo(() => {
+        if (!api) return SECTIONS
+        const list = classOptions || []
+        const chosen = classFilter ? list.filter((item) => item.className === classFilter) : list
+        return [...new Set(chosen.flatMap((item) => item.sections || []))].sort()
+    }, [api, classOptions, classFilter])
 
     const canEdit = api && Boolean(classFilter)
 
@@ -183,9 +221,14 @@ const ClassAttendance = () => {
                         Clear Filters
                     </button>
                     {api && (
-                        <p className='text-sm text-[#667085]'>
-                            Select a class to load the roster, mark Present/Absent, then Save.
-                        </p>
+                        <div className='text-sm text-[#667085]'>
+                            <p>Select a class to load the roster, mark Present/Absent, then Save.</p>
+                            {substituteDuties.map((duty) => (
+                                <p key={duty.id} className='text-[#515DEF]'>
+                                    Substitute duty: {duty.className}-{duty.section}, {duty.period} ({duty.startTime}–{duty.endTime}) — available only during this period.
+                                </p>
+                            ))}
+                        </div>
                     )}
                 </div>
                 <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>
@@ -205,14 +248,22 @@ const ClassAttendance = () => {
                         <select
                             id='class-filter'
                             value={classFilter}
-                            onChange={(e) => setClassFilter(e.target.value)}
+                            onChange={(e) => {
+                                setClassFilter(e.target.value)
+                                setSectionFilter('')
+                            }}
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {CLASSES.map((item) => (
-                                <option key={item} value={item}>Class {item}</option>
+                            {classNames.map((item) => (
+                                <option key={item} value={item}>{api ? item : `Class ${item}`}</option>
                             ))}
                         </select>
+                        {api && classOptions && classOptions.length === 0 && (
+                            <p className='text-xs text-[#B42318]'>
+                                {optionsError || 'No classes are assigned to you for attendance.'}
+                            </p>
+                        )}
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='section-filter' className='text-base font-medium text-[#808080]'>Section</label>
@@ -223,7 +274,7 @@ const ClassAttendance = () => {
                             className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
                         >
                             <option value=''>All</option>
-                            {SECTIONS.map((item) => (
+                            {sectionNames.map((item) => (
                                 <option key={item} value={item}>Section {item}</option>
                             ))}
                         </select>

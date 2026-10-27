@@ -13,6 +13,7 @@ Doc rules implemented:
 from __future__ import annotations
 
 from datetime import date
+from types import SimpleNamespace
 from uuid import UUID
 
 from sqlalchemy import select
@@ -34,6 +35,13 @@ from app.models.base import utcnow
 from app.services import approvals
 from app.services.audit import write_audit
 from app.services.errors import fail
+from app.services.students import (
+    PORTAL_ROLES,
+    class_key,
+    ensure_staff_can_view_student,
+    portal_students,
+    staff_student_filter,
+)
 
 VIEW_ALL_ROLES = {"coordinator", "principal", "director", "jointdirector", "admin", "superadmin", "managing_director"}
 # Doc weightage pattern types first, then the exact list the frontend already offers
@@ -67,10 +75,6 @@ def _status(approval: ApprovalRequest | None, *, final: str) -> str:
     if approval is None:
         return "draft"
     return {"pending": "submitted", "approved": final, "denied": "denied"}[approval.status]
-
-
-def _own_or_all(db: Session, actor: User, owner_id) -> bool:
-    return owner_id == actor.id or role_code_for(db, actor) in VIEW_ALL_ROLES
 
 
 # ------------------------------------------------------------------ exam types
@@ -276,17 +280,35 @@ def update_exam(
     return _submit_exam_approval(db, actor, exam)
 
 
+def _portal_exam_filter(db: Session, actor: User):
+    """Parents/students see only Director-approved schedules for their own (or their child's) class."""
+    role = role_code_for(db, actor)
+    if role not in PORTAL_ROLES:
+        return None
+    classes = {class_key(s.class_name) for s in portal_students(db, actor, role)}
+    return lambda exam: class_key(exam.class_name) in classes and (
+        _status(_approval(db, exam.approval_id), final="approved") == "approved"
+    )
+
+
 def list_exams(db: Session, actor: User, *, class_name: str | None, status: str | None) -> list[dict]:
     stmt = select(Exam).where(Exam.campus_id == actor.campus_id)
     if class_name:
         stmt = stmt.where(Exam.class_name == class_name)
     rows = db.scalars(stmt.order_by(Exam.start_date.desc())).all()
+    visible = _portal_exam_filter(db, actor)
+    if visible is not None:
+        rows = [e for e in rows if visible(e)]
     out = [_exam_out(db, e) for e in rows]
     return [o for o in out if o["status"] == status] if status else out
 
 
 def get_exam(db: Session, actor: User, exam_id: UUID) -> dict:
-    return _exam_out(db, _load_exam(db, actor, exam_id))
+    exam = _load_exam(db, actor, exam_id)
+    visible = _portal_exam_filter(db, actor)
+    if visible is not None and not visible(exam):
+        fail(404, "not_found", "Exam not found.")
+    return _exam_out(db, exam)
 
 
 # ------------------------------------------------------------------ weightage
@@ -384,6 +406,7 @@ def _batch_out(db: Session, batch: MarksBatch, *, entries: bool = False) -> dict
         "approvalId": str(appr.id) if appr else None,
         "awaitingRole": appr_out["awaitingRole"] if appr_out else None,
         "awaitingRoles": appr_out.get("awaitingRoles") if appr_out else [],
+        "awaitingEligibleApprover": approvals.awaiting_eligible_approver(db, appr),
     }
     if entries:
         rows = db.scalars(select(MarkEntry).where(MarkEntry.batch_id == batch.id)).all()
@@ -405,9 +428,40 @@ def _batch_out(db: Session, batch: MarksBatch, *, entries: bool = False) -> dict
     return data
 
 
+def _batch_in_scope(db: Session, batch: MarksBatch, allowed) -> bool:
+    """A batch is in a scoped role's reach only if its class/section and every student in it are."""
+    exam = db.get(Exam, batch.exam_id)
+    if exam is None or not allowed(SimpleNamespace(class_name=exam.class_name, section=batch.section or "")):
+        return False
+    ids = db.scalars(select(MarkEntry.student_id).where(MarkEntry.batch_id == batch.id)).all()
+    students = db.scalars(select(Student).where(Student.id.in_(ids))).all() if ids else []
+    return len(students) == len(ids) and all(allowed(s) for s in students)
+
+
+def batch_visible(db: Session, actor: User, batch: MarksBatch, role: str | None = None) -> bool:
+    """Owner, campus-wide leadership, or a coordinator whose grade band / allocations cover the batch."""
+    if batch.campus_id != actor.campus_id:
+        return False
+    if batch.teacher_id == actor.id:
+        return True
+    role = role or role_code_for(db, actor)
+    if role not in VIEW_ALL_ROLES:
+        return False
+    allowed = staff_student_filter(db, actor, role)
+    return allowed is None or _batch_in_scope(db, batch, allowed)
+
+
+def marks_batch_visible_by_id(db: Session, actor: User, batch_id: str, role: str | None = None) -> bool:
+    try:
+        batch = db.get(MarksBatch, UUID(str(batch_id)))
+    except ValueError:
+        return False
+    return batch is not None and batch_visible(db, actor, batch, role)
+
+
 def _load_batch(db: Session, actor: User, batch_id: UUID) -> MarksBatch:
     batch = db.get(MarksBatch, batch_id)
-    if not batch or batch.campus_id != actor.campus_id or not _own_or_all(db, actor, batch.teacher_id):
+    if not batch or not batch_visible(db, actor, batch):
         fail(404, "not_found", "Marks batch not found.")
     return batch
 
@@ -562,12 +616,14 @@ def get_batch(db: Session, actor: User, batch_id: UUID) -> dict:
 
 
 def list_batches(db: Session, actor: User, *, exam_id: UUID | None, status: str | None, mine: bool) -> list[dict]:
+    role = role_code_for(db, actor)
     stmt = select(MarksBatch).where(MarksBatch.campus_id == actor.campus_id)
-    if mine or role_code_for(db, actor) not in VIEW_ALL_ROLES:
+    if mine or role not in VIEW_ALL_ROLES:
         stmt = stmt.where(MarksBatch.teacher_id == actor.id)
     if exam_id:
         stmt = stmt.where(MarksBatch.exam_id == exam_id)
     rows = db.scalars(stmt.order_by(MarksBatch.created_at.desc())).all()
+    rows = [b for b in rows if batch_visible(db, actor, b, role)]
     out = [_batch_out(db, b) for b in rows]
     return [o for o in out if o["status"] == status] if status else out
 
@@ -620,14 +676,29 @@ def _exam_table(db: Session, exam: Exam) -> dict[UUID, dict]:
 
 
 def exam_results(db: Session, actor: User, exam_id: UUID) -> dict:
+    role = role_code_for(db, actor)
+    if role in PORTAL_ROLES:
+        fail(403, "forbidden", "The class result table is for staff. Open the student's own results instead.")
+    if role not in VIEW_ALL_ROLES and role != "teacher":
+        fail(403, "forbidden", "Not allowed to view results.")
     exam = _load_exam(db, actor, exam_id)
     table = _exam_table(db, exam)
-    rows = sorted(table.values(), key=lambda r: (r["rank"], r["studentName"]))
+    # Ranks and class highs stay class-wide; only the rows a scoped role may see are returned.
     highs: dict[str, float] = {}
-    for r in rows:
+    for r in table.values():
         for s in r["subjects"]:
             if not s["absent"] and s["marks"] is not None:
                 highs[s["subject"]] = max(highs.get(s["subject"], 0.0), s["marks"])
+    allowed = staff_student_filter(db, actor, role)
+    if allowed is not None:
+        class_students = db.scalars(
+            select(Student).where(Student.campus_id == exam.campus_id, Student.class_name == exam.class_name)
+        ).all()
+        visible = {s.id for s in class_students if allowed(s)}
+        if class_students and not visible:
+            fail(403, "forbidden", "This exam's class is outside your assigned classes.")
+        table = {sid: row for sid, row in table.items() if sid in visible}
+    rows = sorted(table.values(), key=lambda r: (r["rank"], r["studentName"]))
     return {
         "exam": _exam_out(db, exam),
         "publishedSubjects": sorted({b.subject for b in _published_batches(db, exam)}),
@@ -661,6 +732,8 @@ def student_results(db: Session, actor: User, student_id: UUID) -> dict:
             fail(404, "not_found", "Student not found.")
     elif role not in VIEW_ALL_ROLES and role != "teacher":
         fail(403, "forbidden", "Not allowed to view results.")
+    else:
+        ensure_staff_can_view_student(db, actor, student, role)
 
     exams = db.scalars(
         select(Exam).where(Exam.campus_id == actor.campus_id, Exam.class_name == student.class_name)

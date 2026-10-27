@@ -22,6 +22,7 @@ import ViewTeacherLMS from '../Pages/Director/LMS/ViewTeacherLMS'
 import AddStudentHomeFun from '../Pages/Director/LMS/AddStudentHomeFun'
 import AddTeacherHomeFun from '../Pages/Director/LMS/AddTeacherHomeFun'
 import RequestApprovals from '../Pages/Director/Request-Approvals/RequestApprovals'
+import SubstituteDuties from '../Common/SubstituteDuties/SubstituteDuties'
 import ViewRequestApproval from '../Pages/Director/Request-Approvals/ViewRequestApproval'
 import EscalationList from '../Pages/Director/EscalationManagement/EscalationList'
 import AddEscalation from '../Pages/Director/EscalationManagement/AddEscalation'
@@ -91,6 +92,7 @@ const DirectorRoutes = () => {
             <Route path="/director/lms/teacher-lms/view/:id" element={<ViewTeacherLMS />} />
             <Route path="/director/lms/view-teacher-lms" element={<ViewTeacherLMS />} />
             <Route path="/director/request-approvals" element={<RequestApprovals />} />
+            <Route path="/director/substitute-duty" element={<SubstituteDuties />} />
             <Route path="/director/request-approvals/view-request/:id" element={<ViewRequestApproval />} />
             <Route path="/director/request-approvals/view-request" element={<ViewRequestApproval />} />
             <Route path="/director/academic-calendar" element={<AcademicCalendar />} />

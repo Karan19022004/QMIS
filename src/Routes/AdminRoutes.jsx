@@ -15,6 +15,7 @@ import AddDriverList from '../Pages/Admin/FrontOffice/DriverList/AddDriverList'
 import StudentsList from '../Pages/Admin/Attendance/Students/StudentsList'
 import EmployeesList from '../Pages/Admin/Attendance/Employees/EmployeesList'
 import ClassDetails from '../Pages/Admin/Class/ClassDetails/ClassDetails'
+import SubstituteDuties from '../Common/SubstituteDuties/SubstituteDuties'
 import AddClassDetails from '../Pages/Admin/Class/ClassDetails/AddClassDetails'
 import OnlineClass from '../Pages/Admin/Class/OnlineClass/OnlineClass'
 import AddOnlineClass from '../Pages/Admin/Class/OnlineClass/AddOnlineClass'
@@ -126,6 +127,7 @@ const AdminRoutes = () => {
             {/* Class */}
 
             <Route path="/admin/class/class-details" element={<ClassDetails />} />
+            <Route path="/admin/class/substitute-duty" element={<SubstituteDuties />} />
             <Route path="/admin/class/add-class-details" element={<AddClassDetails />} />
             <Route path="/admin/class/online-class" element={<OnlineClass />} />
             <Route path="/admin/class/add-online-class" element={<AddOnlineClass />} />

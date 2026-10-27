@@ -26,6 +26,7 @@ import CommunicationInbox from '../Pages/Principal/Communication/Inbox'
 import RedirectLegacyDirectMessages from '../Common/Communication/RedirectLegacyDirectMessages'
 import AcademicCalendar from '../Pages/Principal/AcademicCalendar/AcademicCalendar'
 import TeacherAllocationList from '../Pages/Principal/TeacherAllocation/TeacherAllocationList'
+import SubstituteDuties from '../Common/SubstituteDuties/SubstituteDuties'
 import AllocateTeacher from '../Pages/Principal/TeacherAllocation/AllocateTeacher'
 import ViewTeacherAllocation from '../Pages/Principal/TeacherAllocation/ViewTeacherAllocation'
 import EditTeacherAllocation from '../Pages/Principal/TeacherAllocation/EditTeacherAllocation'
@@ -96,6 +97,7 @@ const PrincipalRoutes = () => {
             <Route path="/principal/announcement/add" element={<AddAnnouncement />} />
             <Route path="/principal/announcement/view/:id" element={<ViewAnnouncement />} />
             <Route path="/principal/academic/teacher-allocation" element={<TeacherAllocationList />} />
+            <Route path="/principal/academic/substitute-duty" element={<SubstituteDuties />} />
             <Route path="/principal/academic/teacher-allocation/allocate/:employeeId" element={<AllocateTeacher />} />
             <Route path="/principal/academic/teacher-allocation/view/:employeeId" element={<ViewTeacherAllocation />} />
             <Route path="/principal/academic/teacher-allocation/edit/:employeeId" element={<EditTeacherAllocation />} />

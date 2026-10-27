@@ -478,8 +478,26 @@ def _ensure_portal_user(
     if skip or not email:
         return None, False
     email = email.strip().lower()
+    role = db.scalar(select(Role).where(Role.code == role_code))
+    if role is None:
+        fail(500, "config_error", f"{label} role is not seeded.")
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
+        # Linking a child to a staff (or otherwise non-portal) account would leave the family
+        # without a working login, so the email must already be a login of the same role.
+        if existing.role_id != role.id:
+            fail(
+                409,
+                "email_in_use",
+                f"{email} is already used by another account that is not a {label.lower()} login. "
+                f"Use a different {label.lower()} email.",
+            )
+        if not existing.is_active:
+            fail(
+                409,
+                "account_inactive",
+                f"The {label.lower()} login {email} is deactivated. Reactivate it or use a different email.",
+            )
         return existing, False
 
     resolved_hash = (password_hash or "").strip() or None
@@ -495,9 +513,6 @@ def _ensure_portal_user(
             "validation_error",
             f"{label} password is required. Save it under Account Information on the admission, then enroll.",
         )
-    role = db.scalar(select(Role).where(Role.code == role_code))
-    if role is None:
-        fail(500, "config_error", f"{label} role is not seeded.")
     user = User(
         campus_id=actor.campus_id,
         role_id=role.id,

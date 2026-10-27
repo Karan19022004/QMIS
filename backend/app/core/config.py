@@ -50,6 +50,8 @@ class Settings(BaseSettings):
     director_seed_email: str = "director@qmis.edu"
     director_seed_password: str = "director123"
     upload_dir: str = "uploads"
+    # Campus wall-clock time, used where a rule depends on the local date/period (substitute duty).
+    campus_timezone: str = "Asia/Kolkata"
 
     # --- Brute-force protection (in-memory, per API process) ---
     login_max_failures: int = 5  # failed logins per email before lockout

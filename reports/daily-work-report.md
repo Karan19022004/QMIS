@@ -8,6 +8,31 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 27 October 2026 — Fresh setup, academic privacy fixes, substitute duty
+
+**Status:** New clone set up on PostgreSQL and verified. Academic module audited and hardened. Migration 0020 applied after a fresh backup. Pushed to the QMIS repo.
+
+### Done
+- Set up the fresh clone (Postgres, backend, frontend) and fixed failing tests; admission zip fields widened (migration 0019)
+- Enrolling a student no longer links a parent login to an existing staff account
+- Academic module audited end to end (`QMIS_ERP_ACADEMIC_MODULE_USER_GUIDE_AND_FLOW_AUDIT.md`)
+- Parents and students can no longer see whole-class results, other classes' attendance, draft exams or other classes' timetables and content
+- Teachers and coordinators see only their own classes, grade bands and allocations (results, attendance, marks, lesson plans)
+- Approval notifications go only to people who can act
+- A coordinator's own marks or lesson plan now goes to the Principal; a step with nobody eligible waits and alerts Admin
+- New substitute duty: Principal/Director/Admin assign a teacher to a class, date and period; attendance access only during that window
+- Every attendance change is now audited with old and new values
+- Backup taken (`qmis_erp_before_0020_20261027_185916.dump`), migration 0020 applied, backend running for the client demo
+
+### Still open
+- Lesson plan submission and marks approval screens in the UI (backend works; UI incomplete)
+- No progress report / report card; no grading rule
+- Migration 0020 not yet tested on a separate PostgreSQL test database
+- New screens not checked in a browser
+- Email/WhatsApp still in live mode
+
+---
+
 ## 23 October 2026 — Leave and approval API wiring
 
 **Status:** Fixed broken leave/approval screens that showed demo data or “not found”. Not full go-live.
