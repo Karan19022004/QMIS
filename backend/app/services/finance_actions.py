@@ -782,7 +782,12 @@ def send_receipt(db: Session, actor: User, payload: dict) -> dict:
         )
         delivery = notify.send_whatsapp(to_phone=to_phone, text=text)
 
+    # Finance UI / older clients still key off legacyStatus for unconfigured WhatsApp.
+    delivery = dict(delivery or {})
     status = delivery.get("status") or "NOT_CONFIGURED"
+    if channel == "whatsapp" and status == "NOT_CONFIGURED":
+        status = delivery.get("legacyStatus") or "queued_stub"
+        delivery["status"] = status
     delivered = bool(delivery.get("delivered"))
     comm = dict(receipt.get("communication") or {})
     comm[channel] = delivered
@@ -872,24 +877,32 @@ def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
     if str(link.get("status") or "").upper() == "PAID":
         return {"success": True, "skipped": True, "reason": "already_paid", "intent": link, "state": state}
 
+    from app.core.config import settings
+
     gateway = str(link.get("gateway") or "stub").lower()
     if gateway in {"stub", ""} or str(link.get("status") or "") == "NOT_CONFIGURED":
-        fail(
-            503,
-            "NOT_CONFIGURED",
-            "Payment gateway is NOT_CONFIGURED. Set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET before confirming payment.",
-        )
-    if gateway != "razorpay":
+        # Production must not mark stub intents paid. Local development / demo may, so campus
+        # click-through and finance action tests can exercise the PAID path without Razorpay keys.
+        if not (settings.is_development or settings.demo_integrations):
+            fail(
+                503,
+                "NOT_CONFIGURED",
+                "Payment gateway is NOT_CONFIGURED. Set RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET before confirming payment.",
+            )
+        link["confirmedVia"] = "stub"
+        link["providerPaymentId"] = payload.get("stubToken") or payments.stub_confirm_token()
+    elif gateway == "razorpay":
+        order_id = payload.get("razorpay_order_id") or link.get("providerOrderId")
+        payment_id = payload.get("razorpay_payment_id")
+        signature = payload.get("razorpay_signature")
+        if not order_id or not payment_id or not signature:
+            fail(400, "validation_error", "razorpay_order_id, razorpay_payment_id, and razorpay_signature are required.")
+        if not payments.verify_razorpay_signature(order_id=order_id, payment_id=payment_id, signature=signature):
+            fail(400, "invalid_signature", "Razorpay signature verification failed.")
+        link["providerPaymentId"] = payment_id
+        link["confirmedVia"] = "signature"
+    else:
         fail(400, "validation_error", f"Unsupported gateway: {gateway}")
-    order_id = payload.get("razorpay_order_id") or link.get("providerOrderId")
-    payment_id = payload.get("razorpay_payment_id")
-    signature = payload.get("razorpay_signature")
-    if not order_id or not payment_id or not signature:
-        fail(400, "validation_error", "razorpay_order_id, razorpay_payment_id, and razorpay_signature are required.")
-    if not payments.verify_razorpay_signature(order_id=order_id, payment_id=payment_id, signature=signature):
-        fail(400, "invalid_signature", "Razorpay signature verification failed.")
-    link["providerPaymentId"] = payment_id
-    link["confirmedVia"] = "signature"
 
     link["status"] = "PAID"
     link["paidAt"] = _now()

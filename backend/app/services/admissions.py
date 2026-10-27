@@ -561,8 +561,15 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
     parent_email = payload.parent_account_email or row.parent_account_email
     raw_student_email = payload.student_account_email or row.student_account_email
     student_email = (raw_student_email or "").strip().lower() or None
-    # Create/link student portal login when an email is present (form or enroll payload).
-    skip_student = not student_email
+    # Student portal login is optional: create/link only when an email AND a password (or a
+    # pending hash saved on the admission) are available. Email alone must not fail enroll.
+    student_password = (payload.student_account_password or "").strip() or None
+    student_password_hash = (row.student_pending_password_hash or "").strip() or None
+    skip_student = (
+        payload.skip_student_account
+        or not student_email
+        or not (student_password or student_password_hash)
+    )
     parent_user, parent_created = _ensure_parent_user(
         db,
         actor,
@@ -575,8 +582,8 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
         db,
         actor,
         email=student_email,
-        password=payload.student_account_password,
-        password_hash=row.student_pending_password_hash,
+        password=student_password,
+        password_hash=student_password_hash,
         skip=skip_student,
     )
 

@@ -70,6 +70,8 @@ def seed_reference_data(db: Session) -> None:
     # Demo logins have well-known passwords, so they exist only in explicit development mode.
     if settings.seed_demo_accounts:
         _seed_demo_users(db, campus, roles_by_code)
+        # SessionLocal uses autoflush=False; HR link lookups must see pending users.
+        db.flush()
         _seed_demo_parent_student_link(db, campus)
         _ensure_demo_staff_hr_links(db, campus)
     if created_campus:

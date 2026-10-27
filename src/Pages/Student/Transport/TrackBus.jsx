@@ -317,7 +317,7 @@ const TrackBus = ({ showRouteDetails = false }) => {
                         }
                         livePosition={live.livePosition}
                         liveStatusLabel={live.liveStatusLabel || 'LIVE GPS'}
-                        trackingMode={hasLiveGps ? 'live' : 'waiting'}
+                        trackingMode={hasLiveGps ? 'live' : 'demo'}
                     />
                 </div>
             )}

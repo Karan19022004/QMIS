@@ -104,6 +104,8 @@ class AdmissionCreate(BaseModel):
     parent_email: str | None = None
     parent_account_email: str | None = None
     parent_account_password: str | None = None
+    student_account_email: str | None = None
+    student_account_password: str | None = None
     fees_group: str | None = None
     profile_image_file_id: UUID | None = None
     status: str | None = "Active"

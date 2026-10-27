@@ -88,15 +88,16 @@ def roster_with_marks(
     class_name: str,
     section: str | None = None,
 ) -> list[dict]:
-    """Enrolled students for a class, merged with any marks for the date."""
+    """Enrolled students for a class, merged with any marks for the date.
+
+    Includes pending placement rows so Administrator Attendance can show "Not marked"
+    before section/roll assignment — not only already-placed students.
+    """
     from app.services.placement import repair_student_class_labels
 
     repair_student_class_labels(db, actor.campus_id)
 
-    stmt = select(Student).where(
-        Student.campus_id == actor.campus_id,
-        Student.placement_status == "placed",
-    )
+    stmt = select(Student).where(Student.campus_id == actor.campus_id)
     students = [
         row
         for row in db.scalars(stmt.order_by(Student.roll_number.nulls_last(), Student.full_name)).all()
