@@ -4,7 +4,7 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { toast } from 'react-toastify'
 import { Calendar, ChevronLeft, ChevronRight, Download, Eye } from 'lucide-react'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
-import TimeTableModal from './Components/TimeTableModal'
+import TimeTableModal from '../../Principal/ExaminationTimetable/Components/TimeTableModal'
 import DenyTimetableModal from '../Components/DenyTimetableModal'
 import {
     APPROVAL_STATUSES,
@@ -12,8 +12,9 @@ import {
     SUBMITTED_BY,
     approvalStatusColor,
 } from '../timetableApprovalsData'
+import { mapExamApiToTimetableRecord } from '../../Principal/ExaminationTimetable/examinationTimetableData'
 import { decideApprovalApi } from '../../../services/approvalsApi'
-import { canUseExamsApi, listExamsApi, mapExamFromApi } from '../../../services/examsApi'
+import { canUseExamsApi, getExamApi, listExamsApi, mapExamFromApi } from '../../../services/examsApi'
 
 const formatDisplayDate = (iso) => {
     if (!iso) return '—'
@@ -22,16 +23,27 @@ const formatDisplayDate = (iso) => {
     return d.toLocaleDateString('en-GB').replace(/\//g, '-')
 }
 
+const formatClassLabel = (className, section) => {
+    const cls = String(className || '').trim()
+    const sec = String(section || '').trim()
+    if (!cls && !sec) return '—'
+    if (!sec) return cls
+    return `${cls} · ${sec}`
+}
+
 const mapExamToApprovalRow = (exam) => {
     const status = String(exam.status || '').toLowerCase()
     let approvalStatus = 'Pending'
     if (status === 'approved') approvalStatus = 'Approved'
     else if (status === 'denied' || status === 'rejected') approvalStatus = 'Denied'
+    else if (status === 'submitted') approvalStatus = 'Pending'
     else if (status === 'draft') approvalStatus = 'Pending'
     return {
         id: exam.id,
         examName: exam.name || 'Exam',
-        classSection: exam.className ? `Grade ${exam.className}` : '—',
+        className: exam.className || '',
+        section: exam.section || '',
+        classSection: formatClassLabel(exam.className, exam.section),
         startDate: formatDisplayDate(exam.startDate),
         endDate: formatDisplayDate(exam.endDate),
         submittedBy: SUBMITTED_BY,
@@ -39,7 +51,7 @@ const mapExamToApprovalRow = (exam) => {
         approvalStatus,
         approvalId: exam.approvalId || null,
         rejectionReason: '',
-        modalTitle: `${exam.name || 'Exam'} — ${exam.className || ''}`,
+        timelines: Array.isArray(exam.timelines) ? exam.timelines : [],
         source: 'api',
     }
 }
@@ -49,7 +61,8 @@ const ExamApprovals = () => {
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
-    const [timeTableModal, setTimeTableModal] = useState(false)
+    const [viewRecord, setViewRecord] = useState(null)
+    const [viewLoadingId, setViewLoadingId] = useState(null)
     const [denyModal, setDenyModal] = useState(false)
     const [selectedEntry, setSelectedEntry] = useState(null)
     const [search, setSearch] = useState('')
@@ -90,12 +103,47 @@ const ExamApprovals = () => {
         return approvals.filter((item) => {
             const matchesStatus = !statusFilter || item.approvalStatus === statusFilter
             const matchesSearch = !query
-                || item.id.toLowerCase().includes(query)
+                || String(item.id).toLowerCase().includes(query)
                 || item.examName.toLowerCase().includes(query)
                 || item.classSection.toLowerCase().includes(query)
             return matchesStatus && matchesSearch
         })
     }, [approvals, search, statusFilter])
+
+    const openTimetable = async (entry) => {
+        if (!entry) return
+        // Prefer campus detail so timelines always match what Principal saved.
+        if (api) {
+            setViewLoadingId(entry.id)
+            try {
+                const exam = await getExamApi(entry.id)
+                setViewRecord(mapExamApiToTimetableRecord(exam))
+            } catch (error) {
+                if (Array.isArray(entry.timelines) && entry.timelines.length) {
+                    setViewRecord({
+                        id: entry.id,
+                        examName: entry.examName,
+                        className: entry.className,
+                        section: entry.section,
+                        timelines: entry.timelines,
+                    })
+                } else {
+                    toast.error(error?.message || 'Could not load exam timetable.')
+                }
+            } finally {
+                setViewLoadingId(null)
+            }
+            return
+        }
+        setViewRecord({
+            id: entry.id,
+            examName: entry.examName,
+            className: entry.className || entry.classSection,
+            section: entry.section || '',
+            timelines: entry.timelines || entry.modalTimelines || [],
+            ...entry,
+        })
+    }
 
     const handleApprove = async (id) => {
         const entry = approvals.find((item) => item.id === id)
@@ -301,11 +349,12 @@ const ExamApprovals = () => {
                                         <td className='px-2 py-4'>
                                             <button
                                                 type='button'
-                                                onClick={() => setTimeTableModal(true)}
-                                                className='bg-[#515DEF] text-white text-sm px-2 py-1.5 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center gap-x-2'
+                                                disabled={viewLoadingId === entry.id}
+                                                onClick={() => openTimetable(entry)}
+                                                className='bg-[#515DEF] text-white text-sm px-2 py-1.5 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center gap-x-2 disabled:opacity-60'
                                             >
                                                 <Eye size={16} />
-                                                View Timetable
+                                                {viewLoadingId === entry.id ? 'Loading…' : 'View Timetable'}
                                             </button>
                                         </td>
                                         <td className='px-2 py-4 rounded-e-lg'>
@@ -355,8 +404,25 @@ const ExamApprovals = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
-            <TimeTableModal timeTableModal={timeTableModal} setTimeTableModal={setTimeTableModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='exam-timetable-approvals'
+                rows={filteredApprovals.map((row) => ({
+                    examId: row.id,
+                    examName: row.examName,
+                    classSection: row.classSection,
+                    startDate: row.startDate,
+                    endDate: row.endDate,
+                    approvalStatus: row.approvalStatus,
+                }))}
+                exportDescription={<>You are exporting {filteredApprovals.length} record(s).</>}
+            />
+            <TimeTableModal
+                open={Boolean(viewRecord)}
+                onClose={() => setViewRecord(null)}
+                record={viewRecord}
+            />
             <DenyTimetableModal
                 open={denyModal}
                 onClose={() => {

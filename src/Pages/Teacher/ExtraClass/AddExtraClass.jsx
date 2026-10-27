@@ -1,11 +1,14 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import ExtraClassForm from './Components/ExtraClassForm'
-import { addExtraClass } from './extraClassData'
+import { addExtraClass, getExtraClassById, updateExtraClass } from './extraClassData'
 
 const AddExtraClass = ({ listPath = '/teacher/class/extra-class' }) => {
     const navigate = useNavigate()
+    const { id: editId } = useParams()
+    const isEdit = Boolean(editId)
+    const existing = isEdit ? getExtraClassById(editId) : null
     const [error, setError] = useState('')
     const [saving, setSaving] = useState(false)
 
@@ -26,9 +29,14 @@ const AddExtraClass = ({ listPath = '/teacher/class/extra-class' }) => {
         setError('')
         setSaving(true)
         try {
-            const record = await addExtraClass(values)
-            toast.success(`Extended class ${record.extraClassId} saved.`)
-            navigate(listPath, { state: { createdId: record.id, refresh: Date.now() }, replace: true })
+            if (isEdit) {
+                const record = await updateExtraClass(editId, values)
+                toast.success(`Extended class ${record?.extraClassId || editId} updated.`)
+            } else {
+                const record = await addExtraClass(values)
+                toast.success(`Extended class ${record.extraClassId} saved.`)
+            }
+            navigate(listPath, { state: { refresh: Date.now() }, replace: true })
         } catch (err) {
             setError(err?.message || 'Could not save extended class.')
             toast.error(err?.message || 'Could not save extended class.')
@@ -37,15 +45,32 @@ const AddExtraClass = ({ listPath = '/teacher/class/extra-class' }) => {
         }
     }
 
+    if (isEdit && !existing) {
+        return (
+            <section className='bg-white rounded-2xl shadow-md p-6'>
+                <h2 className='text-xl font-semibold text-black'>Extended class not found</h2>
+                <button
+                    type='button'
+                    onClick={() => navigate(listPath)}
+                    className='mt-4 text-sm text-[#515DEF] hover:underline cursor-pointer'
+                >
+                    Back to list
+                </button>
+            </section>
+        )
+    }
+
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4'>
-                <h2 className='text-xl font-semibold text-black'>Extended Class Information</h2>
+                <h2 className='text-xl font-semibold text-black'>
+                    {isEdit ? 'Edit Extended Class' : 'Extended Class Information'}
+                </h2>
                 <p className='text-sm text-[#667085] mt-1'>
                     Saved sessions are stored in the campus academics database (or local browser store when API mode is off).
                 </p>
                 {error ? <p className='text-sm text-[#B42318] mt-3'>{error}</p> : null}
-                <ExtraClassForm formId='extra-class-form' onSubmit={handleSubmit} />
+                <ExtraClassForm formId='extra-class-form' record={existing} onSubmit={handleSubmit} />
             </div>
 
             <div className='flex sm:justify-end justify-center gap-x-4 mt-6'>

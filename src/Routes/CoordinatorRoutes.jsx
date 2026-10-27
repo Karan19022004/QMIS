@@ -5,8 +5,9 @@ import MyAttendance from '../Pages/Coordinator/Attendance/MyAttendance'
 import ClassAttendance from '../Pages/Coordinator/Attendance/ClassAttendance'
 import ClassRoutine from '../Pages/Coordinator/ClassRoutine/ClassRoutine'
 import ExtraClass from '../Pages/Coordinator/ExtraClass/ExtraClass'
-import { BiometricAttendancePage, MyProfilePage, StudentAnalyticsPage } from '../Common/demoDomain/DemoScreens'
+import { BiometricAttendancePage, MyProfilePage } from '../Common/demoDomain/DemoScreens'
 import ExamSchedule from '../Pages/Teacher/StudentEvaluation/ExamSchedule/ExamSchedule'
+import PerformanceAnalytics from '../Pages/Teacher/StudentEvaluation/PerformanceAnalytics'
 import AddExtraClass from '../Pages/Coordinator/ExtraClass/AddExtraClass'
 import ViewExtraClass from '../Pages/Coordinator/ExtraClass/ViewExtraClass'
 import OnlineClass from '../Pages/Coordinator/OnlineClass/OnlineClass'
@@ -48,6 +49,9 @@ import LessonPlanGroupDetail from '../Common/LessonPlanApproval/Components/Lesso
 import AnnouncementList from '../Pages/Coordinator/Announcement/AnnouncementList'
 import ViewAnnouncement from '../Pages/Coordinator/Announcement/ViewAnnouncement'
 import MarkEntry from '../Pages/Coordinator/StudentEvaluation/MarkEntry/MarkEntry'
+import MarkEntryApprovalList from '../Common/MarkEntryApproval/MarkEntryApprovalList'
+import MarkEntryReviewPage from '../Common/MarkEntryApproval/MarkEntryReviewPage'
+import ResultSummary from '../Pages/Coordinator/MarksResults/ResultSummary/ResultSummary'
 import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 import { StudentStarRatingsRoutes } from '../Common/StudentStarRatings/StudentStarRatingsRoutes'
 import PendingPlacementList from '../Pages/Coordinator/StudentPlacement/PendingPlacementList'
@@ -69,9 +73,13 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/class/create-class-timetable" element={<CreateClassTimetable />} />
             <Route path="/coordinator/class/edit-class-timetable/:id" element={<CreateClassTimetable />} />
             <Route path="/coordinator/create-class-timetable" element={<Navigate to="/coordinator/class/create-class-timetable" replace />} />
-            <Route path="/coordinator/class/extra-class" element={<ExtraClass />} />
-            <Route path="/coordinator/class/extra-class/add" element={<AddExtraClass />} />
-            <Route path="/coordinator/class/extra-class/view/:id" element={<ViewExtraClass />} />
+            <Route
+                path="/coordinator/class/extra-class"
+                element={<ExtraClass listPath="/coordinator/class/extra-class" addPath="/coordinator/class/extra-class/add" viewPath="/coordinator/class/extra-class/view" editPath="/coordinator/class/extra-class/edit" canCreate />}
+            />
+            <Route path="/coordinator/class/extra-class/add" element={<AddExtraClass listPath="/coordinator/class/extra-class" />} />
+            <Route path="/coordinator/class/extra-class/edit/:id" element={<AddExtraClass listPath="/coordinator/class/extra-class" />} />
+            <Route path="/coordinator/class/extra-class/view/:id" element={<ViewExtraClass listPath="/coordinator/class/extra-class" />} />
             <Route path="/coordinator/class/online-class" element={<OnlineClass />} />
             <Route path="/coordinator/class/online-class/add" element={<AddOnlineClass />} />
             <Route path="/coordinator/class/online-class/view/:id" element={<ViewOnlineClass />} />
@@ -94,6 +102,15 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/unit-tests/add" element={<AddUnitTest />} />
             <Route path="/coordinator/unit-tests/view/:id" element={<ViewUnitTest />} />
             <Route path="/coordinator/student-evaluation/mark-entry" element={<MarkEntry />} />
+            <Route
+                path="/coordinator/student-evaluation/mark-entry-approval"
+                element={<MarkEntryApprovalList basePath="/coordinator/student-evaluation/mark-entry-approval" roleLabel="Coordinator" />}
+            />
+            <Route
+                path="/coordinator/student-evaluation/mark-entry-approval/review/:contextKey"
+                element={<MarkEntryReviewPage basePath="/coordinator/student-evaluation/mark-entry-approval" />}
+            />
+            <Route path="/coordinator/student-evaluation/result-summary" element={<ResultSummary />} />
             <Route path="/coordinator/user-management/students-list" element={<StudentsList />} />
             <Route path="/coordinator/user-management/students-list/view/:id" element={<ViewStudent />} />
             <Route path="/coordinator/user-management/students-list/view/:id/full" element={<ViewStudentFullDetails />} />
@@ -124,7 +141,7 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/escalation-management/add-escalation" element={<AddEscalation />} />
             <Route path="/coordinator/escalation-management/view/:id" element={<ViewEscalation />} />
             <Route path="/coordinator/student-evaluation/exam" element={<ExamSchedule />} />
-            <Route path="/coordinator/student-evaluation/analytics" element={<StudentAnalyticsPage />} />
+            <Route path="/coordinator/student-evaluation/analytics" element={<PerformanceAnalytics />} />
             <Route path="/coordinator/attendance/biometric" element={<BiometricAttendancePage />} />
             <Route path="/coordinator/my-profile" element={<MyProfilePage roleLabel="Coordinator" />} />
             <Route path="*" element={<Navigate to="/coordinator/dashboard" replace />} />

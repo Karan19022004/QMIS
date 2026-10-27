@@ -103,7 +103,10 @@ export function BiometricAttendancePage({ canOverride = false }) {
             <EntryClosureGate moduleName='Attendance' actor={actor} />
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h2 className='text-xl font-semibold'>Biometric attendance</h2>
-                <p className='text-sm text-[#667085] mt-1'>Source: ESSL · Last demo sync: {lastSync ? new Date(lastSync).toLocaleString() : 'Not synced'}. This is a simulated sync.</p>
+                <p className='text-sm text-[#667085] mt-1'>
+                    Source: ESSL · Two punches per day (morning + afternoon). Missing one half = Half Day.
+                    Last demo sync: {lastSync ? new Date(lastSync).toLocaleString() : 'Not synced'}. Live device import is still off until eSSL is reachable.
+                </p>
                 <button type='button' onClick={sync} disabled={loading || busy} className='mt-3 bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'>
                     {busy ? 'Working…' : 'Sync Biometric Data'}
                 </button>
@@ -116,24 +119,42 @@ export function BiometricAttendancePage({ canOverride = false }) {
             <div className='bg-white rounded-2xl shadow-md p-4 overflow-x-auto'>
                 <table className='w-full text-sm'>
                     <thead className='text-xs bg-[#EDEEF5]'>
-                        <tr>{['Person', 'Punch', 'Biometric status', 'Final status', 'Changed by', 'Reason', canOverride ? 'Override' : ''].filter(Boolean).map((label) => <th key={label} className='px-2 py-3 text-left'>{label}</th>)}</tr>
+                        <tr>
+                            {[
+                                'Person',
+                                'Morning check-in',
+                                'Morning check-out',
+                                'Morning status',
+                                'Afternoon check-in',
+                                'Afternoon check-out',
+                                'Afternoon status',
+                                'Day status',
+                                'Final status',
+                                canOverride ? 'Override' : '',
+                            ].filter(Boolean).map((label) => (
+                                <th key={label} className='px-2 py-3 text-left whitespace-nowrap'>{label}</th>
+                            ))}
+                        </tr>
                     </thead>
                     <tbody>
                         {(loading || rows.length === 0) && (
                             <tr>
-                                <td colSpan={canOverride ? 7 : 6} className='px-2 py-6 text-center text-[#667085]'>
+                                <td colSpan={canOverride ? 10 : 9} className='px-2 py-6 text-center text-[#667085]'>
                                     {loading ? 'Loading biometric records…' : 'No biometric punches recorded yet.'}
                                 </td>
                             </tr>
                         )}
                         {!loading && rows.map((row) => (
                             <tr key={row.id} className='border-b border-[#f2f4f7]'>
-                                <td className='px-2 py-3'>{row.person}</td>
-                                <td className='px-2 py-3'>{row.punchTime || '—'}</td>
-                                <td className='px-2 py-3'><StatusBadge status={row.biometricStatus} /></td>
+                                <td className='px-2 py-3 font-medium text-[#1E1E1E]'>{row.person}</td>
+                                <td className='px-2 py-3'>{row.morningCheckIn || '—'}</td>
+                                <td className='px-2 py-3'>{row.morningCheckOut || '—'}</td>
+                                <td className='px-2 py-3'><StatusBadge status={row.morningStatus || 'Absent'} /></td>
+                                <td className='px-2 py-3'>{row.afternoonCheckIn || '—'}</td>
+                                <td className='px-2 py-3'>{row.afternoonCheckOut || '—'}</td>
+                                <td className='px-2 py-3'><StatusBadge status={row.afternoonStatus || 'Absent'} /></td>
+                                <td className='px-2 py-3'><StatusBadge status={row.dayStatus || row.biometricStatus} /></td>
                                 <td className='px-2 py-3'><StatusBadge status={row.finalStatus} /></td>
-                                <td className='px-2 py-3'>{row.changedBy || '—'}</td>
-                                <td className='px-2 py-3'>{row.reason || '—'}</td>
                                 {canOverride && (
                                     <td className='px-2 py-3'>
                                         <div className='flex gap-1 flex-wrap'>

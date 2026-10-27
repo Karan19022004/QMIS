@@ -13,7 +13,7 @@ import SiblingFeesDrawer from './SiblingFeesDrawer'
 import PaymentHistoryDrawer from './PaymentHistoryDrawer'
 import PaymentLinkModal from './PaymentLinkModal'
 import ReceiptDetailsDrawer from './ReceiptDetailsDrawer'
-import CheckoutMockModal from './CheckoutMockModal'
+import RazorpayCheckoutModal from './RazorpayCheckoutModal'
 import EntryClosureGate from '../../../../Common/demoDomain/EntryClosureGate'
 import { entryBlocked } from '../../../../Common/demoDomain/governance'
 
@@ -38,6 +38,7 @@ const FeeCollectionTab = () => {
         getStudentSummary,
         collectFeePayment,
         generatePaymentLink,
+        confirmGatewayPayment,
         receipts,
         reprintReceipt,
         sendReceipt,
@@ -213,8 +214,10 @@ const FeeCollectionTab = () => {
                                         amount: totalAmount,
                                         installmentIds: selectedIds,
                                     })
-                                    if (created?.url) setLink(created)
+                                    if (created?.providerOrderId || created?.url) setLink(created)
                                     else toast.error('Could not generate a payment link.')
+                                } catch (error) {
+                                    toast.error(error?.message || 'Could not generate a payment link.')
                                 } finally {
                                     setLinkLoading(false)
                                 }
@@ -234,7 +237,7 @@ const FeeCollectionTab = () => {
                             }}
                             className='inline-flex items-center gap-2 text-sm border border-[#515DEF] text-[#515DEF] px-4 py-2 rounded-md cursor-pointer'
                         >
-                            <Smartphone size={16} /> Mock Card / UPI
+                            <Smartphone size={16} /> Pay with Razorpay
                         </button>
                     </div>
 
@@ -325,12 +328,27 @@ const FeeCollectionTab = () => {
                 posTerminals={posTerminals}
             />
             )}
-            <CheckoutMockModal
+            <RazorpayCheckoutModal
                 isOpen={checkoutOpen}
                 onClose={() => setCheckoutOpen(false)}
                 amount={totalAmount}
                 student={activeStudent}
-                onSuccess={(payload) => handleCollectResult(payload)}
+                createIntent={async () => {
+                    if (entryBlocked('Finance', 'Account Head')) {
+                        throw new Error('Finance entry is blocked.')
+                    }
+                    return generatePaymentLink({
+                        studentId: activeStudent.id,
+                        amount: totalAmount,
+                        installmentIds: selectedIds,
+                    })
+                }}
+                confirmPayment={(payload) => confirmGatewayPayment(payload)}
+                onPaid={(result) => {
+                    setSelectedIds([])
+                    setPartials({})
+                    if (result?.receipt) setReceipt(result.receipt)
+                }}
             />
             <SiblingFeesDrawer
                 isOpen={siblingsOpen}

@@ -54,9 +54,11 @@ const SomMatrixPage = () => {
         const apply = () => {
             const all = getAllEnrolledStudents()
             if (!assignments.ready) return
+            // Teachers are scoped to allocated classes; Principal/Coordinator/Admin see campus roster.
+            const campusWide = /\/(principal|coordinator|director|admin|super-admin)\b/.test(routeBase || '')
             const scoped = assignments.assignments.length
                 ? all.filter((student) => assignments.studentInScope(student))
-                : []
+                : (campusWide ? all : [])
             if (!cancelled) {
                 setScopedRows(scoped)
                 setLoadingStudents(false)
@@ -77,7 +79,7 @@ const SomMatrixPage = () => {
             cancelled = true
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when assignment hydrate settles
-    }, [assignments.ready, assignments.assignments.length])
+    }, [assignments.ready, assignments.assignments.length, routeBase])
 
     const [yearOptions, setYearOptions] = useState(() => {
         const current = new Date().getFullYear()

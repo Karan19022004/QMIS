@@ -1,11 +1,12 @@
 import { apiRequest } from './apiClient'
 
 /** @returns {Promise<Array<object>>} */
-export async function listAttendanceApi({ date, className, section, roster = false } = {}) {
+export async function listAttendanceApi({ date, className, section, session = 'FN', roster = false } = {}) {
     const qs = new URLSearchParams()
     if (date) qs.set('date', date)
     if (className) qs.set('className', className)
     if (section) qs.set('section', section)
+    if (session) qs.set('session', session)
     if (roster) qs.set('roster', 'true')
     const rows = await apiRequest(`/attendance?${qs}`)
     return Array.isArray(rows) ? rows : []
@@ -33,7 +34,7 @@ export async function upsertAttendanceApi(payload) {
     })
 }
 
-/** @returns {Promise<Record<string, string>>} P/A/H map */
+/** @returns {Promise<Record<string, string>>} P/A/H/HD map */
 export async function studentAttendanceCalendarApi(studentId, year, month) {
     return apiRequest(`/attendance/students/${studentId}/calendar?year=${year}&month=${month}`)
 }

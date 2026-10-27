@@ -18,6 +18,7 @@ def list_attendance_route(
     date_: date = Query(alias="date"),
     class_name: str | None = Query(default=None, alias="className"),
     section: str | None = Query(default=None),
+    session: str | None = Query(default="FN", description="FN=morning half, AN=afternoon half"),
     roster: bool = Query(default=False, description="Include unmarked enrolled students"),
     db: Session = Depends(get_db),
     user: User = Depends(require_permission("attendance.read")),
@@ -28,10 +29,20 @@ def list_attendance_route(
 
             fail(400, "validation_error", "className is required when roster=true.")
         return svc.roster_with_marks(
-            db, user, attendance_date=date_, class_name=class_name, section=section
+            db,
+            user,
+            attendance_date=date_,
+            class_name=class_name,
+            section=section,
+            session=session or "FN",
         )
     return svc.list_attendance(
-        db, user, attendance_date=date_, class_name=class_name, section=section
+        db,
+        user,
+        attendance_date=date_,
+        class_name=class_name,
+        section=section,
+        session=session,
     )
 
 

@@ -69,6 +69,7 @@ import {
     applyHrConcessionsApi,
     collectPaymentApi,
     decideApprovalApi,
+    gatewayConfirmApi,
     gatewayIntentApi,
     payMyFeesApi,
     pullFinanceState,
@@ -755,6 +756,7 @@ export const FinanceProvider = ({ children }) => {
                 }
             } catch (error) {
                 console.error(error)
+                throw error
             }
         }
         seq.current.link += 1
@@ -781,6 +783,91 @@ export const FinanceProvider = ({ children }) => {
         })
         return link
     }, [appendAudit, applyFinanceData, getStudentById])
+
+    const confirmGatewayPayment = useCallback(async (payload) => {
+        if (!(isApiFinanceEnabled() && apiHydratedRef.current)) {
+            return { success: false, errors: ['Finance API is required to confirm Razorpay payments.'] }
+        }
+        if (submittingRef.current) {
+            return { success: false, errors: ['A payment is already being processed.'] }
+        }
+        try {
+            submittingRef.current = true
+            const result = await gatewayConfirmApi(payload)
+            if (result?.state?.data) applyFinanceData(result.state.data)
+            else if (FINANCE_PORTAL_ROLES.has(role)) {
+                const scoped = await pullMyFeesState()
+                if (scoped?.data) applyFinanceData(scoped.data)
+            }
+            return {
+                success: Boolean(result?.success),
+                skipped: result?.skipped,
+                receipt: result?.receipt,
+                transaction: result?.transaction,
+                intent: result?.intent,
+            }
+        } catch (error) {
+            return { success: false, errors: [error.message || 'Gateway confirmation failed.'] }
+        } finally {
+            submittingRef.current = false
+        }
+    }, [applyFinanceData, role])
+
+    /** Recover when Razorpay showed Success but the ledger never got gateway-confirm.
+     * Tries every open link (not only the latest — a newer unpaid attempt can sit above a paid one).
+     */
+    const syncPendingGatewayPayment = useCallback(async (studentId) => {
+        const open = (paymentLinks || []).filter((link) => (
+            String(link.studentId) === String(studentId)
+            && String(link.gateway || '').toLowerCase() === 'razorpay'
+            && String(link.status || '').toUpperCase() !== 'PAID'
+            && link.providerOrderId
+        ))
+        if (!open.length) {
+            return { success: false, errors: ['No pending Razorpay order found for this student.'] }
+        }
+        let lastError = 'No captured Razorpay payment found for pending orders.'
+        for (const link of open) {
+            const result = await confirmGatewayPayment({
+                reference: link.reference,
+                linkId: link.id,
+                razorpay_order_id: link.providerOrderId,
+                syncFromProvider: true,
+            })
+            if (result?.success) return result
+            lastError = result?.errors?.[0] || lastError
+        }
+        return { success: false, errors: [lastError] }
+    }, [confirmGatewayPayment, paymentLinks])
+
+    /** Drop stale OPEN Razorpay links whose instalments are already settled (banner would never clear). */
+    const dismissStaleGatewayLinks = useCallback((studentId) => {
+        const sid = String(studentId || '')
+        setPaymentLinks((prev) => {
+            let changed = false
+            const next = (prev || []).map((link) => {
+                if (String(link.studentId) !== sid) return link
+                if (String(link.gateway || '').toLowerCase() !== 'razorpay') return link
+                if (String(link.status || '').toUpperCase() === 'PAID') return link
+                if (String(link.status || '').toUpperCase() === 'ABANDONED') return link
+                const ids = link.installmentIds || []
+                if (!ids.length) return link
+                const stillDue = ids.some((id) => {
+                    const row = hydratedInstallments.find((item) => item.id === id)
+                    return row && (Number(row.balanceAmount) || 0) > 0
+                })
+                if (stillDue) return link
+                changed = true
+                return {
+                    ...link,
+                    status: 'ABANDONED',
+                    abandonedAt: new Date().toISOString(),
+                    abandonReason: 'Instalments already settled; clearing stale checkout banner.',
+                }
+            })
+            return changed ? next : prev
+        })
+    }, [hydratedInstallments])
 
     const reprintReceipt = useCallback(({ receiptId, reason, reprintedBy = ACTOR_FINANCE_HEAD }) => {
         const receipt = receipts.find((item) => item.id === receiptId)
@@ -2103,6 +2190,9 @@ export const FinanceProvider = ({ children }) => {
         settleCheque,
         waiveFine,
         generatePaymentLink,
+        confirmGatewayPayment,
+        syncPendingGatewayPayment,
+        dismissStaleGatewayLinks,
         reprintReceipt,
         sendReceipt,
         decideApproval,
@@ -2176,6 +2266,9 @@ export const FinanceProvider = ({ children }) => {
         chartOfAccounts,
         cheques,
         collectFeePayment,
+        confirmGatewayPayment,
+        syncPendingGatewayPayment,
+        dismissStaleGatewayLinks,
         issueActivityFeeReceipt,
         concessions,
         dashboardMetrics,

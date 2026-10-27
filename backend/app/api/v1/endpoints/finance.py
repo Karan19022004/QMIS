@@ -97,8 +97,9 @@ def send_receipt_route(
 def gateway_intent_route(
     body: dict = Body(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_any("finance.collect", "finance.write")),
+    user: User = Depends(require_any("finance.collect", "finance.write", "finance.read")),
 ) -> dict:
+    """Account Head desk + parent/student portal (scoped inside the service)."""
     return actions.create_gateway_intent(db, user, body)
 
 
@@ -106,8 +107,9 @@ def gateway_intent_route(
 def gateway_confirm_route(
     body: dict = Body(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_any("finance.approve", "finance.write")),
+    user: User = Depends(require_any("finance.approve", "finance.write", "finance.read")),
 ) -> dict:
+    """Verify Razorpay signature and settle fees. Portal actors are scoped to linked students."""
     return actions.confirm_gateway_payment(db, user, body)
 
 

@@ -1,8 +1,16 @@
-export const ATTENDANCE_STATUSES = ['Present', 'Absent']
+export const ATTENDANCE_STATUSES = ['Present', 'Absent', 'Half Day']
+
+/** Morning (FN) = before noon; Afternoon (AN) = after noon. */
+export const ATTENDANCE_SESSIONS = [
+    { id: 'FN', label: 'Morning (FN)', hint: 'Morning → Afternoon' },
+    { id: 'AN', label: 'Afternoon (AN)', hint: 'Afternoon → Evening' },
+]
 
 export const statusBadgeColor = {
     Present: 'bg-[#4CAF5033] text-[#4CAF50]',
     Absent: 'bg-[#FF000033] text-[#FF0000]',
+    'Half Day': 'bg-[#FF980033] text-[#FF9800]',
+    Late: 'bg-[#FF980033] text-[#FF9800]',
 }
 
 export const inOutStatusBadgeColor = {

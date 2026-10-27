@@ -1,20 +1,30 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import React, { useEffect, useState } from 'react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
 import ExamTimelineEditor from './Components/ExamTimelineEditor'
 import {
     EXAM_STATUSES,
-    GRADES,
-    ROUTE_BASE,
     SECTIONS,
-    TEACHERS,
+    SUBJECTS as FALLBACK_SUBJECTS,
     addExamTimetable,
     defaultExamTimetableForm,
+    examRecordToForm,
     generateExamId,
+    getExamTimetableById,
+    getExamTimetableRoutes,
+    mapExamApiToTimetableRecord,
+    updateExamTimetable,
 } from './examinationTimetableData'
-import { canUseExamsApi, createExamApi, submitExamApi } from '../../../services/examsApi'
+import { EXAM_TYPE_OPTIONS } from '../../../Common/ExamSchedule/examScheduleData'
+import {
+    canUseClassDetailsApi,
+    listAcademicYears,
+    listSubjects,
+    loadClassDirectory,
+} from '../../../services/classDetailsApi'
+import { canUseExamsApi, createExamApi, getExamApi, submitExamApi, updateExamApi } from '../../../services/examsApi'
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
@@ -31,15 +41,119 @@ const toIsoDate = (value) => {
     return `${year}-${month}-${day}`
 }
 
+const completeTimelines = (timelines = []) =>
+    timelines.filter((row) => row.day && row.subject && row.startTime && row.endTime)
+
 const CreateExaminationTimetable = () => {
     const navigate = useNavigate()
+    const { pathname } = useLocation()
+    const { id: editId } = useParams()
+    const isEdit = Boolean(editId)
+    const { listPath } = getExamTimetableRoutes(pathname)
     const api = canUseExamsApi()
-    const [form, setForm] = useState(() => ({
-        ...defaultExamTimetableForm(),
-        examId: generateExamId(),
-    }))
+    const [form, setForm] = useState(() => {
+        if (editId) {
+            const existing = getExamTimetableById(editId)
+            if (existing) return examRecordToForm(existing)
+            return {
+                ...defaultExamTimetableForm(),
+                examId: editId,
+                examType: 'MIDTERM',
+            }
+        }
+        return {
+            ...defaultExamTimetableForm(),
+            examId: generateExamId(),
+            examType: 'MIDTERM',
+        }
+    })
     const [errors, setErrors] = useState([])
     const [saving, setSaving] = useState(false)
+    const [loadingRecord, setLoadingRecord] = useState(Boolean(isEdit && api && !getExamTimetableById(editId)))
+    const [classOptions, setClassOptions] = useState([])
+    const [sectionOptions, setSectionOptions] = useState(SECTIONS)
+    const [subjectOptions, setSubjectOptions] = useState(FALLBACK_SUBJECTS)
+
+    useEffect(() => {
+        if (!isEdit || !editId) return undefined
+        let cancelled = false
+
+        const applyRecord = (record) => {
+            if (cancelled || !record) return
+            const next = examRecordToForm(record)
+            setForm(next)
+            if (next.className) {
+                setClassOptions((prev) => (prev.includes(next.className) ? prev : [...prev, next.className]))
+            }
+            if (next.section) {
+                setSectionOptions((prev) => (prev.includes(next.section) ? prev : [...prev, next.section]))
+            }
+            const timelineSubjects = (next.timelines || []).map((row) => row.subject).filter(Boolean)
+            if (timelineSubjects.length) {
+                setSubjectOptions((prev) => [...new Set([...prev, ...timelineSubjects])])
+            }
+        }
+
+        const local = getExamTimetableById(editId)
+        if (local) {
+            applyRecord(local)
+            setLoadingRecord(false)
+        }
+
+        if (!api) {
+            if (!local) setErrors([`Exam timetable ${editId} was not found.`])
+            setLoadingRecord(false)
+            return undefined
+        }
+
+        setLoadingRecord(!local)
+        getExamApi(editId)
+            .then((exam) => {
+                if (cancelled) return
+                applyRecord(mapExamApiToTimetableRecord(exam))
+                setLoadingRecord(false)
+            })
+            .catch((err) => {
+                if (cancelled) return
+                if (!local) setErrors([err?.message || 'Could not load exam timetable.'])
+                setLoadingRecord(false)
+            })
+
+        return () => { cancelled = true }
+    }, [api, editId, isEdit])
+
+    useEffect(() => {
+        let cancelled = false
+        if (!canUseClassDetailsApi()) return undefined
+        Promise.all([listAcademicYears(), loadClassDirectory(), listSubjects()])
+            .then(([years, directory, subjects]) => {
+                if (cancelled) return
+                const currentYear = (years || []).find((y) => y.isCurrent)
+                const records = Array.isArray(directory?.records) ? directory.records : []
+                const active = records.filter((row) => row.isActive !== false)
+                const scoped = currentYear
+                    ? active.filter((row) => !row.academicYearId || row.academicYearId === currentYear.id)
+                    : active
+                setClassOptions((prev) => {
+                    const names = scoped.map((row) => row.className).filter(Boolean)
+                    return [...new Set([...names, ...prev])]
+                })
+                const sections = [...new Set(
+                    scoped.flatMap((row) => (row.sections || []).map((s) => s.name).filter(Boolean)),
+                )].sort()
+                if (sections.length) {
+                    setSectionOptions((prev) => [...new Set([...sections, ...prev])])
+                }
+                const subjectNames = (Array.isArray(subjects) ? subjects : [])
+                    .map((row) => row.name)
+                    .filter(Boolean)
+                if (subjectNames.length) setSubjectOptions(subjectNames)
+            })
+            .catch(() => {
+                /* keep hardcoded fallbacks */
+            })
+        return () => { cancelled = true }
+    }, [])
 
     const updateField = (key, value) => {
         setForm((current) => ({ ...current, [key]: value }))
@@ -49,11 +163,11 @@ const CreateExaminationTimetable = () => {
         const nextErrors = []
         if (!form.examName) nextErrors.push('Exam name is required.')
         if (!form.className) nextErrors.push('Class is required.')
-        if (!api && !form.section) nextErrors.push('Section is required.')
+        if (!form.examType) nextErrors.push('Exam type is required.')
         if (!form.startDate) nextErrors.push('Start date is required.')
         if (!form.endDate) nextErrors.push('End date is required.')
-        if (!api && !form.timelines.some((row) => row.day && row.subject && row.startTime && row.endTime)) {
-            nextErrors.push('Add at least one complete timeline row.')
+        if (!completeTimelines(form.timelines).length) {
+            nextErrors.push('Add at least one complete timeline row (day, subject, start and end time).')
         }
         setErrors(nextErrors)
         return nextErrors.length === 0
@@ -61,25 +175,40 @@ const CreateExaminationTimetable = () => {
 
     const handleSubmit = async () => {
         if (!validate()) return
+        const timelines = completeTimelines(form.timelines)
+        const publish = form.status === 'Published'
+        const payload = {
+            name: form.examName,
+            examType: form.examType || 'MIDTERM',
+            className: form.className,
+            section: form.section || '',
+            teacherName: '',
+            startDate: toIsoDate(form.startDate),
+            endDate: toIsoDate(form.endDate),
+            timelines,
+        }
         if (!api) {
-            addExamTimetable(form)
-            navigate(ROUTE_BASE)
+            if (isEdit) updateExamTimetable(editId, { ...form, timelines })
+            else addExamTimetable({ ...form, timelines })
+            navigate(listPath)
             return
         }
         setSaving(true)
         setErrors([])
         try {
-            const created = await createExamApi({
-                name: form.examName,
-                examType: 'MIDTERM',
-                className: form.className,
-                startDate: toIsoDate(form.startDate),
-                endDate: toIsoDate(form.endDate),
-            })
-            if (created?.id) {
-                await submitExamApi(created.id)
+            if (isEdit) {
+                // PUT /exams/:id updates schedule/details and reopens Director approval.
+                await updateExamApi(editId, payload)
+                // Keep a local mirror so offline list/edit still reflect the latest save.
+                updateExamTimetable(editId, { ...form, timelines })
+            } else {
+                const created = await createExamApi(payload)
+                // Draft → leave as campus draft. Published → submit for Director approval.
+                if (publish && created?.id) {
+                    await submitExamApi(created.id)
+                }
             }
-            navigate(ROUTE_BASE)
+            navigate(listPath)
         } catch (err) {
             setErrors([err?.message || 'Could not save exam to campus API.'])
         } finally {
@@ -87,15 +216,29 @@ const CreateExaminationTimetable = () => {
         }
     }
 
+    const gradeOptions = classOptions.length ? classOptions : ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']
+
+    if (loadingRecord) {
+        return (
+            <section className='bg-white rounded-2xl shadow-md p-6'>
+                <p className='text-sm text-[#667085]'>Loading exam timetable…</p>
+            </section>
+        )
+    }
+
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4 space-y-8'>
                 <div>
-                    <h2 className='text-xl font-semibold text-black'>Create Examination Timetable</h2>
+                    <h2 className='text-xl font-semibold text-black'>
+                        {isEdit ? 'Edit Examination Timetable' : 'Create Examination Timetable'}
+                    </h2>
                     <p className='text-sm text-[#667085] mt-1'>
-                        {api
-                            ? 'Creates a campus exam (POST /exams) and submits it for Director approval.'
-                            : 'Enter exam details once, then add multiple exam timelines using Add More.'}
+                        {isEdit
+                            ? 'Update exam details and subject timelines, then save.'
+                            : api
+                              ? 'Save as Draft to keep it unpublished, or Published to submit it for Director approval.'
+                              : 'Enter exam details once, then add multiple exam timelines using Add More. Status Draft/Published is saved on the list.'}
                     </p>
                 </div>
 
@@ -128,10 +271,23 @@ const CreateExaminationTimetable = () => {
                             />
                         </div>
                         <div className='flex flex-col gap-y-2'>
+                            <label htmlFor='exam-type' className='text-base font-medium text-[#1E1E1E]'>Exam Type:</label>
+                            <select
+                                id='exam-type'
+                                value={form.examType || 'MIDTERM'}
+                                onChange={(e) => updateField('examType', e.target.value)}
+                                className={selectClass}
+                            >
+                                {EXAM_TYPE_OPTIONS.map((option) => (
+                                    <option key={option.code} value={option.code}>{option.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className='flex flex-col gap-y-2'>
                             <label htmlFor='class' className='text-base font-medium text-[#1E1E1E]'>Class:</label>
                             <select id='class' value={form.className} onChange={(e) => updateField('className', e.target.value)} className={selectClass}>
                                 <option value=''>Select class</option>
-                                {GRADES.map((grade) => (
+                                {gradeOptions.map((grade) => (
                                     <option key={grade} value={grade}>{grade}</option>
                                 ))}
                             </select>
@@ -139,18 +295,9 @@ const CreateExaminationTimetable = () => {
                         <div className='flex flex-col gap-y-2'>
                             <label htmlFor='section' className='text-base font-medium text-[#1E1E1E]'>Section:</label>
                             <select id='section' value={form.section} onChange={(e) => updateField('section', e.target.value)} className={selectClass}>
-                                <option value=''>Select section</option>
-                                {SECTIONS.map((section) => (
+                                <option value=''>All / Select section</option>
+                                {sectionOptions.map((section) => (
                                     <option key={section} value={section}>{section}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className='flex flex-col gap-y-2'>
-                            <label htmlFor='teacher-name' className='text-base font-medium text-[#1E1E1E]'>Teacher Name:</label>
-                            <select id='teacher-name' value={form.teacherName} onChange={(e) => updateField('teacherName', e.target.value)} className={selectClass}>
-                                <option value=''>Select teacher</option>
-                                {TEACHERS.map((teacher) => (
-                                    <option key={teacher} value={teacher}>{teacher}</option>
                                 ))}
                             </select>
                         </div>
@@ -198,13 +345,15 @@ const CreateExaminationTimetable = () => {
                 <ExamTimelineEditor
                     timelines={form.timelines}
                     onChange={(timelines) => updateField('timelines', timelines)}
+                    subjects={subjectOptions}
+                    classSelected={Boolean(form.className)}
                 />
             </div>
 
             <div className='flex sm:justify-end justify-center gap-x-4 mt-6'>
                 <button
                     type='button'
-                    onClick={() => navigate(ROUTE_BASE)}
+                    onClick={() => navigate(listPath)}
                     className='bg-white text-[#515DEF] text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:bg-[#515DEF] hover:text-white hover:border-[#515DEF] transition-all duration-200 cursor-pointer md:w-auto w-full'
                 >
                     Discard Changes

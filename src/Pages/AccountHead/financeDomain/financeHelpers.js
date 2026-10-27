@@ -213,12 +213,19 @@ export const hydrateInstallment = (installment, { fineRule, asOfDate, paymentDat
     const recordedPaid = Number(installment.paidAmount) || 0
     const paidAmount = Math.min(recordedPaid, netAmount || recordedPaid)
     const balanceAmount = calculateFeeBalance({ netAmount, paidAmount })
+    // Zero balance always settles — never leave PARTIALLY_PAID with ₹0 due.
+    const settledNow = alreadySettled || balanceAmount <= 0
     const status = calculateFeeStatus({
         paidAmount,
         netAmount,
         dueDate: installment.dueDate,
         asOfDate,
-        forcedStatus: alreadySettled ? (installment.forcedStatus || FEE_INSTALLMENT_STATUSES.PAID) : installment.forcedStatus,
+        forcedStatus: settledNow
+            ? (installment.forcedStatus === FEE_INSTALLMENT_STATUSES.WAIVED
+                || installment.forcedStatus === FEE_INSTALLMENT_STATUSES.CANCELLED
+                ? installment.forcedStatus
+                : FEE_INSTALLMENT_STATUSES.PAID)
+            : installment.forcedStatus,
     })
 
     return {

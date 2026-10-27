@@ -120,6 +120,9 @@ export const normalizeAcademicYearLabel = (value) => {
 export const ROUTE_BASE_BY_PREFIX = {
     teacher: '/teacher/star-ratings',
     coordinator: '/coordinator/star-ratings',
+    principal: '/principal/star-ratings',
+    director: '/director/star-ratings',
+    admin: '/admin/star-ratings',
 }
 
 const buildSomRating = ({
@@ -421,5 +424,8 @@ export const getStarOfYear = (academicYear = '2025-2026') => {
 
 export const getRouteBaseFromPath = (pathname) => {
     if (pathname.startsWith('/coordinator')) return ROUTE_BASE_BY_PREFIX.coordinator
+    if (pathname.startsWith('/principal')) return ROUTE_BASE_BY_PREFIX.principal || '/principal/star-ratings'
+    if (pathname.startsWith('/director')) return ROUTE_BASE_BY_PREFIX.director || '/director/star-ratings'
+    if (pathname.startsWith('/admin')) return ROUTE_BASE_BY_PREFIX.admin || '/admin/star-ratings'
     return ROUTE_BASE_BY_PREFIX.teacher
 }

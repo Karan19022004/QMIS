@@ -33,7 +33,10 @@ import ViewSampleQuestion from '../Pages/Teacher/StudentDeliverables/SampleQuest
 import UnitTests from '../Pages/Teacher/UnitTests/UnitTests'
 import AddUnitTest from '../Pages/Teacher/UnitTests/AddUnitTest'
 import ViewUnitTest from '../Pages/Teacher/UnitTests/ViewUnitTest'
-import { BiometricAttendancePage, MyProfilePage, StudentAnalyticsPage } from '../Common/demoDomain/DemoScreens'
+import { BiometricAttendancePage, MyProfilePage } from '../Common/demoDomain/DemoScreens'
+import PerformanceAnalytics from '../Pages/Teacher/StudentEvaluation/PerformanceAnalytics'
+import ResultSummary from '../Pages/Teacher/MarksResults/ResultSummary/ResultSummary'
+import AddExamSchedule from '../Pages/Teacher/CreateExamSchedule/AddExamSchedule'
 import ExamSchedule from '../Pages/Teacher/StudentEvaluation/ExamSchedule/ExamSchedule'
 import EscalationList from '../Pages/Teacher/EscalationManagement/EscalationList'
 import AddEscalation from '../Pages/Teacher/EscalationManagement/AddEscalation'
@@ -64,6 +67,7 @@ const TeacherRoutes = () => {
             <Route path="/teacher/class/class-routine" element={<ClassRoutine />} />
             <Route path="/teacher/class/extra-class" element={<ExtraClass />} />
             <Route path="/teacher/class/extra-class/add" element={<AddExtraClass />} />
+            <Route path="/teacher/class/extra-class/edit/:id" element={<AddExtraClass />} />
             <Route path="/teacher/class/extra-class/view/:id" element={<ViewExtraClass />} />
             <Route path="/teacher/class/online-class" element={<OnlineClass />} />
             <Route path="/teacher/class/online-class/add" element={<AddOnlineClass />} />
@@ -87,6 +91,9 @@ const TeacherRoutes = () => {
             <Route path="/teacher/unit-tests/add" element={<AddUnitTest />} />
             <Route path="/teacher/unit-tests/view/:id" element={<ViewUnitTest />} />
             <Route path="/teacher/student-evaluation/mark-entry" element={<MarkEntry />} />
+            <Route path="/teacher/student-evaluation/result-summary" element={<ResultSummary />} />
+            <Route path="/teacher/examination/create-schedule" element={<AddExamSchedule />} />
+            <Route path="/teacher/examination/create-schedule/add" element={<AddExamSchedule />} />
             <Route path="/teacher/user-management/students-list" element={<StudentsList />} />
             <Route path="/teacher/user-management/students-list/view/:id" element={<ViewStudent />} />
             <Route path="/teacher/user-management/students-list/view/:id/full" element={<ViewStudentFullDetails />} />
@@ -114,7 +121,7 @@ const TeacherRoutes = () => {
             <Route path="/teacher/escalation-management/add-escalation" element={<AddEscalation />} />
             <Route path="/teacher/escalation-management/view/:id" element={<ViewEscalation />} />
             <Route path="/teacher/student-evaluation/exam" element={<ExamSchedule />} />
-            <Route path="/teacher/student-evaluation/analytics" element={<StudentAnalyticsPage />} />
+            <Route path="/teacher/student-evaluation/analytics" element={<PerformanceAnalytics />} />
             <Route path="/teacher/attendance/biometric" element={<BiometricAttendancePage canOverride />} />
             <Route path="/teacher/my-profile" element={<MyProfilePage roleLabel="Teacher" />} />
             <Route path="*" element={<Navigate to="/teacher/dashboard" replace />} />

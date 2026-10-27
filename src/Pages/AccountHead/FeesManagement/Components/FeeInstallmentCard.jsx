@@ -18,10 +18,16 @@ const FeeInstallmentCard = ({
     onPartialAmountChange,
     allowPartial,
 }) => {
+    const balance = Number(installment.balanceAmount) || 0
     const isPaid = installment.status === FEE_INSTALLMENT_STATUSES.PAID
         || installment.status === FEE_INSTALLMENT_STATUSES.WAIVED
         || installment.status === FEE_INSTALLMENT_STATUSES.CANCELLED
-    const disabled = isPaid || !installment.payable
+        || balance <= 0
+    const displayStatus = isPaid && installment.status !== FEE_INSTALLMENT_STATUSES.WAIVED
+        && installment.status !== FEE_INSTALLMENT_STATUSES.CANCELLED
+        ? FEE_INSTALLMENT_STATUSES.PAID
+        : installment.status
+    const disabled = isPaid || !installment.payable || balance <= 0
 
     return (
         <div className={`rounded-2xl border p-4 transition-colors ${
@@ -49,8 +55,8 @@ const FeeInstallmentCard = ({
                         )}
                     </span>
                 </label>
-                <span className={`px-2 py-1 rounded-lg text-xs font-semibold shrink-0 ${installmentStatusBadgeColor[installment.status]}`}>
-                    {installment.status.replaceAll('_', ' ')}
+                <span className={`px-2 py-1 rounded-lg text-xs font-semibold shrink-0 ${installmentStatusBadgeColor[displayStatus] || installmentStatusBadgeColor[installment.status]}`}>
+                    {String(displayStatus).replaceAll('_', ' ')}
                 </span>
             </div>
 

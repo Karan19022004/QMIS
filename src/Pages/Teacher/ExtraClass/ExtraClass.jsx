@@ -7,6 +7,7 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
+import { useEditRequestFlow } from '../../../Common/CommonComponents/useEditRequestFlow'
 import { EXTRA_CLASSES, SUBJECTS, CLASSES, SECTIONS } from './extraClassData'
 
 const ExtraClass = ({
@@ -14,11 +15,12 @@ const ExtraClass = ({
     listPath = '/teacher/class/extra-class',
     addPath = '/teacher/class/extra-class/add',
     viewPath = '/teacher/class/extra-class/view',
+    editPath = '/teacher/class/extra-class/edit',
 }) => {
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
     const [exportModal, setExportModal] = useState(false)
-    const [editRequestModal, setEditRequestModal] = useState(false)
+    const { editRequestModal, setEditRequestModal, requestEdit, confirmEditRequest } = useEditRequestFlow()
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
 
     return (
@@ -164,7 +166,11 @@ const ExtraClass = ({
                                             >
                                                 View
                                             </NavLink>
-                                            <button type='button' onClick={() => setEditRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>
+                                            <button
+                                                type='button'
+                                                onClick={() => requestEdit({ editTo: `${editPath}/${record.id}` })}
+                                                className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                            >
                                                 Edit
                                             </button>
                                             <button type='button' onClick={() => setDeleteRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>
@@ -203,7 +209,11 @@ const ExtraClass = ({
                 rows={Array.isArray(EXTRA_CLASSES) ? EXTRA_CLASSES : []}
                 exportDescription={<>You are exporting {Array.isArray(EXTRA_CLASSES) ? EXTRA_CLASSES.length : 0} record(s).</>}
             />
-            <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
+            <EditRequestModal
+                editRequestModal={editRequestModal}
+                setEditRequestModal={setEditRequestModal}
+                onConfirm={confirmEditRequest}
+            />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>
     )

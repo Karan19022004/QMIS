@@ -380,7 +380,12 @@ const ClassDetails = () => {
                                                     <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
                                                         <button
                                                             type='button'
-                                                            onClick={() => setEditRequestModal(true)}
+                                                            onClick={() => {
+                                                                // Prefer real edit when sections API is available; otherwise
+                                                                // privileged roles skip "Send Request to Super Admin".
+                                                                if (apiMode) setEditing(record)
+                                                                else setEditRequestModal(true)
+                                                            }}
                                                             className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
                                                         >
                                                             Edit

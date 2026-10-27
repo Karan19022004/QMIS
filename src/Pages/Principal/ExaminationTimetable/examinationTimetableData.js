@@ -2,6 +2,24 @@ const STORAGE_KEY = 'principal-examination-timetables'
 
 export const ROUTE_BASE = '/principal/examination-timetable'
 export const CREATE_ROUTE = '/principal/create-examination-timetable'
+export const EDIT_ROUTE = (id) => `/principal/edit-examination-timetable/${id}`
+
+export const getExamTimetableRoutes = (pathname = '') => {
+    if (String(pathname).startsWith('/director')) {
+        return {
+            listPath: '/director/examination-approvals',
+            createPath: '/director/create-examination-timetable',
+            editPath: (id) => `/director/edit-examination-timetable/${id}`,
+            canEdit: true,
+        }
+    }
+    return {
+        listPath: ROUTE_BASE,
+        createPath: CREATE_ROUTE,
+        editPath: EDIT_ROUTE,
+        canEdit: true,
+    }
+}
 
 export const EXAM_STATUSES = ['Draft', 'Published']
 export const APPROVAL_STATUSES = ['Pending', 'Approved', 'Denied']
@@ -67,22 +85,28 @@ const DEFAULT_EXAM_TIMETABLES = [
 
 /** Map campus GET /exams row into the Principal timetable list shape. */
 export const mapExamApiToTimetableRecord = (exam) => {
+    // Backend: draft | submitted | approved | denied
+    // UI Status: Draft = not published yet; Published = submitted or approved for use
     const statusRaw = String(exam.status || '').toLowerCase()
-    const status = statusRaw.includes('publish') || statusRaw === 'approved' ? 'Published' : 'Draft'
+    const status = statusRaw === 'draft' || !statusRaw ? 'Draft' : 'Published'
     const approvalStatus =
-        statusRaw.includes('pending') || statusRaw.includes('await')
+        statusRaw === 'draft' || !statusRaw
             ? 'Pending'
-            : statusRaw === 'approved' || statusRaw.includes('publish')
-              ? 'Approved'
-              : statusRaw.includes('reject') || statusRaw.includes('den')
-                ? 'Denied'
-                : 'Pending'
+            : statusRaw === 'submitted' || statusRaw.includes('pending') || statusRaw.includes('await')
+              ? 'Pending'
+              : statusRaw === 'approved' || statusRaw.includes('publish')
+                ? 'Approved'
+                : statusRaw.includes('reject') || statusRaw.includes('den')
+                  ? 'Denied'
+                  : 'Pending'
     return {
         id: String(exam.id),
         examName: exam.name || exam.examName || '',
+        examType: exam.examType || exam.exam_type || '',
+        academicYear: exam.academicYear || exam.academic_year || '',
         className: exam.className || exam.class_name || '',
         section: exam.section || '',
-        teacherName: '',
+        teacherName: exam.teacherName || exam.teacher_name || '',
         status,
         startDate: exam.startDate || exam.start_date || '',
         endDate: exam.endDate || exam.end_date || '',
@@ -141,6 +165,71 @@ export const addExamTimetable = (payload) => {
     }
     saveExamTimetables([record, ...getExamTimetables()])
     return record
+}
+
+export const updateExamTimetable = (id, payload) => {
+    const list = getExamTimetables()
+    const index = list.findIndex((item) => item.id === id)
+    if (index < 0) return null
+    const updated = {
+        ...list[index],
+        examName: payload.examName,
+        className: payload.className,
+        section: payload.section,
+        teacherName: payload.teacherName,
+        status: payload.status || list[index].status,
+        startDate: formatDisplayDate(payload.startDate),
+        endDate: formatDisplayDate(payload.endDate),
+        timelines: (payload.timelines || []).filter((row) => row.day && row.subject),
+    }
+    const next = [...list]
+    next[index] = updated
+    saveExamTimetables(next)
+    return updated
+}
+
+/** Parse stored exam dates (ISO, dd-mm-yyyy, dd/mm/yyyy, or Date) for DatePicker. */
+export const parseExamDate = (value) => {
+    if (!value) return null
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value
+    const text = String(value).trim()
+    if (!text) return null
+    const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (iso) {
+        const date = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]))
+        return Number.isNaN(date.getTime()) ? null : date
+    }
+    const dmy = text.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/)
+    if (dmy) {
+        const date = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]))
+        return Number.isNaN(date.getTime()) ? null : date
+    }
+    const fallback = new Date(text)
+    return Number.isNaN(fallback.getTime()) ? null : fallback
+}
+
+export const examRecordToForm = (record) => {
+    if (!record) return defaultExamTimetableForm()
+    const timelines = Array.isArray(record.timelines) ? record.timelines : []
+    return {
+        examId: record.id || record.examId || '',
+        examName: record.examName || record.name || '',
+        className: record.className || '',
+        section: record.section || '',
+        teacherName: record.teacherName || '',
+        examType: record.examType || 'MIDTERM',
+        status: record.status || 'Draft',
+        startDate: parseExamDate(record.startDate),
+        endDate: parseExamDate(record.endDate),
+        timelines: timelines.length
+            ? timelines.map((row) => ({
+                ...createTimelineRow(),
+                ...row,
+                id: row.id || createTimelineRow().id,
+                examDate: row.examDate || row.date || '',
+            }))
+            : [createTimelineRow()],
+    }
 }
 
 export const buildExamGridFromTimelines = (timelines = []) => {

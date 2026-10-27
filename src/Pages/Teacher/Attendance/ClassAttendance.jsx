@@ -7,11 +7,11 @@ import { listAttendanceApi, listMyAttendanceClassesApi, upsertAttendanceApi } fr
 import { isApiAttendanceEnabled } from '../../../services/apiClient'
 import {
     ATTENDANCE_LIST,
+    ATTENDANCE_SESSIONS,
     ATTENDANCE_STATUSES,
     CLASSES,
     SECTIONS,
     statusBadgeColor,
-    inOutStatusBadgeColor,
 } from './attendanceData'
 
 const toIsoDate = (value) => {
@@ -29,6 +29,7 @@ const ClassAttendance = () => {
     const [classFilter, setClassFilter] = useState('')
     const [sectionFilter, setSectionFilter] = useState('')
     const [statusFilter, setStatusFilter] = useState('')
+    const [sessionFilter, setSessionFilter] = useState('FN')
     const [search, setSearch] = useState('')
     const [rows, setRows] = useState(ATTENDANCE_LIST)
     const [loading, setLoading] = useState(false)
@@ -91,6 +92,7 @@ const ClassAttendance = () => {
             date,
             className: classFilter || undefined,
             section: sectionFilter || undefined,
+            session: sessionFilter || 'FN',
             roster: Boolean(classFilter),
         })
             .then((data) => {
@@ -120,6 +122,7 @@ const ClassAttendance = () => {
             date,
             className: classFilter || undefined,
             section: sectionFilter || undefined,
+            session: sessionFilter || 'FN',
             roster: Boolean(classFilter),
         })
             .then((data) => {
@@ -140,7 +143,7 @@ const ClassAttendance = () => {
         return () => {
             cancelled = true
         }
-    }, [api, selectedDate, classFilter, sectionFilter])
+    }, [api, selectedDate, classFilter, sectionFilter, sessionFilter])
 
     const displayRows = useMemo(() => {
         const query = search.trim().toLowerCase()
@@ -189,9 +192,11 @@ const ClassAttendance = () => {
                 date: toIsoDate(selectedDate),
                 className: classFilter,
                 section: sectionFilter || undefined,
-                marks,
+                session: sessionFilter || 'FN',
+                marks: marks.map((mark) => ({ ...mark, session: sessionFilter || 'FN' })),
             })
-            setSaveMessage(`Saved attendance for ${marks.length} student(s).`)
+            const half = sessionFilter === 'AN' ? 'afternoon' : 'morning'
+            setSaveMessage(`Saved ${half} attendance for ${marks.length} student(s).`)
             await reload()
         } catch (err) {
             setError(err.message || 'Failed to save attendance')
@@ -204,10 +209,13 @@ const ClassAttendance = () => {
         setClassFilter('')
         setSectionFilter('')
         setStatusFilter('')
+        setSessionFilter('FN')
         setSearch('')
         setSelectedDate(new Date())
         setSaveMessage('')
     }
+
+    const sessionMeta = ATTENDANCE_SESSIONS.find((item) => item.id === sessionFilter) || ATTENDANCE_SESSIONS[0]
 
     return (
         <section>
@@ -222,7 +230,10 @@ const ClassAttendance = () => {
                     </button>
                     {api && (
                         <div className='text-sm text-[#667085]'>
-                            <p>Select a class to load the roster, mark Present/Absent, then Save.</p>
+                            <p>
+                                Mark attendance twice a day — <strong>Morning (FN)</strong> and <strong>Afternoon (AN)</strong>.
+                                Missing one half counts as <strong>Half Day</strong> leave.
+                            </p>
                             {substituteDuties.map((duty) => (
                                 <p key={duty.id} className='text-[#515DEF]'>
                                     Substitute duty: {duty.className}-{duty.section}, {duty.period} ({duty.startTime}–{duty.endTime}) — available only during this period.
@@ -232,6 +243,20 @@ const ClassAttendance = () => {
                     )}
                 </div>
                 <div className='grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:mt-8 mt-2'>
+                    <div className='flex flex-col gap-y-2'>
+                        <label htmlFor='session-filter' className='text-base font-medium text-[#808080]'>Session</label>
+                        <select
+                            id='session-filter'
+                            value={sessionFilter}
+                            onChange={(e) => setSessionFilter(e.target.value)}
+                            className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'
+                        >
+                            {ATTENDANCE_SESSIONS.map((item) => (
+                                <option key={item.id} value={item.id}>{item.label}</option>
+                            ))}
+                        </select>
+                        <p className='text-xs text-[#808080]'>{sessionMeta.hint}</p>
+                    </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='search' className='text-base font-medium text-[#808080]'>Search</label>
                         <input
@@ -313,7 +338,9 @@ const ClassAttendance = () => {
             <div className='bg-white rounded-2xl shadow-md p-4 mt-8'>
                 <div className='flex justify-between items-center sm:flex-row flex-col gap-y-2 mb-4'>
                     <div>
-                        <h2 className='text-xl font-medium text-black'>Attendance List</h2>
+                        <h2 className='text-xl font-medium text-black'>
+                            Attendance List — {sessionMeta.label}
+                        </h2>
                         {saveMessage && <p className='text-sm text-[#027A48] mt-1'>{saveMessage}</p>}
                     </div>
                     <div className='flex flex-wrap gap-2'>
@@ -362,25 +389,26 @@ const ClassAttendance = () => {
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Student Name</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Class</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Section</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Time</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Attendance Status</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>In & out Status</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Session mark</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Day status</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>FN</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>AN</th>
                             </tr>
                         </thead>
                         <tbody>
                             {loading && (
                                 <tr>
-                                    <td colSpan={7} className='px-2 py-10 text-center text-[#667085]'>Loading attendance…</td>
+                                    <td colSpan={8} className='px-2 py-10 text-center text-[#667085]'>Loading attendance…</td>
                                 </tr>
                             )}
                             {!loading && error && (
                                 <tr>
-                                    <td colSpan={7} className='px-2 py-10 text-center text-red-500'>{error}</td>
+                                    <td colSpan={8} className='px-2 py-10 text-center text-red-500'>{error}</td>
                                 </tr>
                             )}
                             {!loading && !error && displayRows.length === 0 && (
                                 <tr>
-                                    <td colSpan={7} className='px-2 py-10 text-center text-[#667085]'>
+                                    <td colSpan={8} className='px-2 py-10 text-center text-[#667085]'>
                                         {api && !classFilter
                                             ? 'Select a class to load the roster and mark attendance.'
                                             : 'No attendance marks for this date.'}
@@ -388,12 +416,11 @@ const ClassAttendance = () => {
                                 </tr>
                             )}
                             {!loading && !error && displayRows.map((record) => (
-                                <tr key={record.id || record.studentId} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
+                                <tr key={`${record.studentId}-${record.session || sessionFilter}`} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg'>
                                     <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{record.admissionNumber || record.studentId}</td>
                                     <td className='px-2 py-4 font-medium text-[#1E1E1E]'>{record.studentName}</td>
                                     <td className='px-2 py-4'>{record.className}</td>
                                     <td className='px-2 py-4'>{record.section || '—'}</td>
-                                    <td className='px-2 py-4'>{record.time || '—'}</td>
                                     <td className='px-2 py-4'>
                                         {canEdit ? (
                                             <select
@@ -414,14 +441,22 @@ const ClassAttendance = () => {
                                             '—'
                                         )}
                                     </td>
-                                    <td className='px-2 py-4 rounded-e-lg'>
-                                        {!record.inOutStatus || record.inOutStatus === '—' ? (
-                                            '—'
-                                        ) : (
-                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${inOutStatusBadgeColor[record.inOutStatus] || ''}`}>
-                                                {record.inOutStatus}
+                                    <td className='px-2 py-4'>
+                                        {record.dayStatus ? (
+                                            <span className={`px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${statusBadgeColor[record.dayStatus] || ''}`}>
+                                                {record.dayStatus}
                                             </span>
-                                        )}
+                                        ) : '—'}
+                                    </td>
+                                    <td className='px-2 py-4 text-xs'>
+                                        {record.fn?.status || '—'}
+                                        {record.fn?.checkInTime ? ` · in ${record.fn.checkInTime}` : ''}
+                                        {record.fn?.checkOutTime ? ` · out ${record.fn.checkOutTime}` : ''}
+                                    </td>
+                                    <td className='px-2 py-4 text-xs rounded-e-lg'>
+                                        {record.an?.status || '—'}
+                                        {record.an?.checkInTime ? ` · in ${record.an.checkInTime}` : ''}
+                                        {record.an?.checkOutTime ? ` · out ${record.an.checkOutTime}` : ''}
                                     </td>
                                 </tr>
                             ))}
@@ -458,9 +493,11 @@ const ClassAttendance = () => {
                     studentName: r.studentName,
                     className: r.className,
                     section: r.section || '',
-                    time: r.time || '',
+                    session: r.session || sessionFilter,
                     attendanceStatus: r.attendanceStatus || '',
-                    inOutStatus: r.inOutStatus || '',
+                    dayStatus: r.dayStatus || '',
+                    fn: r.fn?.status || '',
+                    an: r.an?.status || '',
                 }))}
                 exportDescription={<>You are exporting {displayRows.length} record{displayRows.length === 1 ? '' : 's'}.</>}
             />

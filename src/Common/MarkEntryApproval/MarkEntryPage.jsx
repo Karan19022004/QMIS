@@ -42,6 +42,12 @@ import {
     updateMarksBatchEntriesApi,
 } from '../../services/examsApi'
 import { listStudentsApi, mapStudentListFromApi } from '../../services/studentsApi'
+import {
+    canUseClassDetailsApi,
+    listAcademicYears,
+    listSubjects,
+    loadClassDirectory,
+} from '../../services/classDetailsApi'
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-2.5 w-full bg-white'
@@ -109,6 +115,10 @@ const entriesPayloadFromSession = (session) =>
 
 const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     const api = canUseExamsApi()
+    const [yearOptions, setYearOptions] = useState(ACADEMIC_YEARS)
+    const [classOptions, setClassOptions] = useState(CLASSES)
+    const [sectionOptions, setSectionOptions] = useState(SECTIONS)
+    const [subjectOptions, setSubjectOptions] = useState(SUBJECTS)
     const [academicYear, setAcademicYear] = useState(ACADEMIC_YEARS[0])
     const [term, setTerm] = useState(TERMS[0])
     const [exam, setExam] = useState(EXAM_OPTIONS[0].name)
@@ -119,7 +129,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     const [subject, setSubject] = useState(() => SUBJECTS[0] || '')
     const [examDate, setExamDate] = useState(parseDisplayDate('15/07/2026'))
 
-    const catalogEmpty = !api && (CLASSES.length === 0 || SECTIONS.length === 0 || SUBJECTS.length === 0)
+    const catalogEmpty = !api && (classOptions.length === 0 || sectionOptions.length === 0 || subjectOptions.length === 0)
 
     const [session, setSession] = useState(null)
     const [loaded, setLoaded] = useState(false)
@@ -153,6 +163,42 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             cancelled = true
         }
     }, [api])
+
+    useEffect(() => {
+        if (!canUseClassDetailsApi()) return undefined
+        let cancelled = false
+        Promise.all([listAcademicYears(), loadClassDirectory(), listSubjects()])
+            .then(([years, directory, subjects]) => {
+                if (cancelled) return
+                const yearNames = (Array.isArray(years) ? years : []).map((row) => row.name).filter(Boolean)
+                if (yearNames.length) {
+                    setYearOptions(yearNames)
+                    setAcademicYear((current) => (yearNames.includes(current) ? current : yearNames[0]))
+                }
+                const records = Array.isArray(directory?.records) ? directory.records : []
+                const classNames = records.map((row) => row.className).filter(Boolean)
+                if (classNames.length) {
+                    setClassOptions(classNames)
+                    setClassName((current) => (classNames.includes(current) ? current : classNames[0]))
+                }
+                const sections = [...new Set(
+                    records.flatMap((row) => (row.sections || []).map((s) => s.name).filter(Boolean)),
+                )].sort()
+                if (sections.length) {
+                    setSectionOptions(sections)
+                    setSection((current) => (sections.includes(current) ? current : sections[0]))
+                }
+                const subjectNames = (Array.isArray(subjects) ? subjects : []).map((row) => row.name).filter(Boolean)
+                if (subjectNames.length) {
+                    setSubjectOptions(subjectNames)
+                    setSubject((current) => (subjectNames.includes(current) ? current : subjectNames[0]))
+                }
+            })
+            .catch(() => {
+                /* keep catalog / hardcoded fallbacks */
+            })
+        return () => { cancelled = true }
+    }, [])
 
     const stats = useMemo(() => {
         if (!session) return null
@@ -425,7 +471,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='academic-year' className='text-base font-medium text-[#808080]'>Academic Year</label>
                         <select id='academic-year' value={academicYear} onChange={(e) => setAcademicYear(e.target.value)} className={inputClass}>
-                            {ACADEMIC_YEARS.map((item) => (
+                            {yearOptions.map((item) => (
                                 <option key={item} value={item}>{item}</option>
                             ))}
                         </select>
@@ -473,7 +519,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                         <label htmlFor='class' className='text-base font-medium text-[#808080]'>Class</label>
                         <select id='class' value={className} onChange={(e) => setClassName(e.target.value)} className={inputClass}>
                             <option value=''>Select class</option>
-                            {CLASSES.map((item) => (
+                            {classOptions.map((item) => (
                                 <option key={item} value={item}>{formatClassLabel(item)}</option>
                             ))}
                         </select>
@@ -482,7 +528,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                         <label htmlFor='section' className='text-base font-medium text-[#808080]'>Section</label>
                         <select id='section' value={section} onChange={(e) => setSection(e.target.value)} className={inputClass}>
                             <option value=''>Select section</option>
-                            {SECTIONS.map((item) => (
+                            {sectionOptions.map((item) => (
                                 <option key={item} value={item}>{item}</option>
                             ))}
                         </select>
@@ -491,7 +537,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                         <label htmlFor='subject' className='text-base font-medium text-[#808080]'>Subject</label>
                         <select id='subject' value={subject} onChange={(e) => setSubject(e.target.value)} className={inputClass}>
                             <option value=''>Select subject</option>
-                            {SUBJECTS.map((item) => (
+                            {subjectOptions.map((item) => (
                                 <option key={item} value={item}>{item}</option>
                             ))}
                         </select>

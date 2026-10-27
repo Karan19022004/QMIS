@@ -23,6 +23,11 @@ export async function createExamApi(body) {
 }
 
 /** @returns {Promise<object>} */
+export async function updateExamApi(examId, body) {
+    return apiRequest(`/exams/${examId}`, { method: 'PUT', body })
+}
+
+/** @returns {Promise<object>} */
 export async function submitExamApi(examId) {
     return apiRequest(`/exams/${examId}/submit`, { method: 'POST' })
 }
@@ -66,10 +71,16 @@ export function mapExamFromApi(row) {
         id: String(row.id),
         name: row.name || '',
         examType: row.examType || row.exam_type || '',
+        examTypeName: row.examTypeName || row.exam_type_name || '',
         className: row.className || row.class_name || '',
+        section: row.section || '',
+        academicYear: row.academicYear || row.academic_year || '',
+        teacherName: row.teacherName || row.teacher_name || '',
         startDate: row.startDate || row.start_date || '',
         endDate: row.endDate || row.end_date || '',
         status: row.status || '',
+        approvalId: row.approvalId || row.approval_id || null,
+        timelines: Array.isArray(row.timelines) ? row.timelines : [],
         source: 'api',
     }
 }

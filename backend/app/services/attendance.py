@@ -19,7 +19,48 @@ from app.services.audit import write_audit
 from app.services.errors import fail
 from app.services.students import PORTAL_ROLES, ensure_staff_can_view_student, section_key, staff_student_filter
 
-ALLOWED_STATUS = {"Present", "Absent", "Late", "Holiday"}
+ALLOWED_STATUS = {"Present", "Absent", "Late", "Holiday", "Half Day"}
+ALLOWED_SESSIONS = {"FN", "AN"}  # FN = morning→noon, AN = afternoon→evening
+PRESENTISH = {"Present", "Late"}
+
+
+def normalize_session(value: str | None) -> str:
+    raw = str(value or "FN").strip().upper()
+    if raw in {"FN", "MORNING", "AM", "FORENOON", "1", "FIRST"}:
+        return "FN"
+    if raw in {"AN", "AFTERNOON", "PM", "EVENING", "2", "SECOND"}:
+        return "AN"
+    fail(400, "validation_error", "Session must be FN (morning) or AN (afternoon).")
+    return "FN"
+
+
+def derive_day_status(fn_status: str | None, an_status: str | None) -> str:
+    """Combine two half-day marks into the day result.
+
+    Missing one half (Absent while the other is Present, or Absent with the other unset)
+    counts as Half Day leave.
+    """
+    fn = (fn_status or "").strip()
+    an = (an_status or "").strip()
+    presents = sum(1 for s in (fn, an) if s in PRESENTISH)
+    absents = sum(1 for s in (fn, an) if s == "Absent")
+    if not fn and not an:
+        return ""
+    if presents == 2:
+        return "Present"
+    if absents == 2:
+        return "Absent"
+    if presents == 1 and absents == 1:
+        return "Half Day"
+    if presents == 1 and absents == 0:
+        return "Present"
+    if absents == 1 and presents == 0:
+        return "Half Day"
+    if fn == "Holiday" or an == "Holiday":
+        return "Holiday"
+    if fn == "Half Day" or an == "Half Day":
+        return "Half Day"
+    return fn or an
 
 
 def _class_list_scope(db: Session, actor: User, attendance_date: date):
@@ -88,7 +129,71 @@ def my_attendance_classes(db: Session, actor: User, on_date: date | None = None)
     return {"scoped": allowed is not None, "classes": classes, "substituteDuties": substitute}
 
 
-def _mark_out(row: StudentAttendance, student: Student | None = None) -> dict:
+def _session_slice(row: StudentAttendance | None) -> dict | None:
+    if row is None:
+        return None
+    return {
+        "id": str(row.id),
+        "status": row.status,
+        "inOutStatus": row.in_out_status or ("—" if row.status == "Absent" else ""),
+        "checkInTime": getattr(row, "check_in_time", None) or "",
+        "checkOutTime": getattr(row, "check_out_time", None) or "",
+        "time": row.updated_at.isoformat() if row.updated_at else row.created_at.isoformat(),
+    }
+
+
+def _pair_sessions(rows: list[StudentAttendance]) -> dict[UUID, dict[str, StudentAttendance]]:
+    paired: dict[UUID, dict[str, StudentAttendance]] = {}
+    for row in rows:
+        bucket = paired.setdefault(row.student_id, {})
+        bucket[normalize_session(getattr(row, "session", None) or "FN")] = row
+    return paired
+
+
+def _student_day_out(
+    student: Student,
+    *,
+    attendance_date: date,
+    class_name: str,
+    section: str,
+    fn_row: StudentAttendance | None,
+    an_row: StudentAttendance | None,
+    focus_session: str,
+) -> dict:
+    focus = fn_row if focus_session == "FN" else an_row
+    day = derive_day_status(
+        fn_row.status if fn_row else None,
+        an_row.status if an_row else None,
+    )
+    return {
+        "id": str(focus.id) if focus else None,
+        "studentId": str(student.id),
+        "studentName": student.full_name,
+        "admissionNumber": student.admission_number,
+        "className": student.class_name or class_name,
+        "section": student.section or section or "",
+        "rollNumber": student.roll_number if student.roll_number is not None else "",
+        "date": attendance_date.isoformat(),
+        "session": focus_session,
+        "sessionLabel": "Morning (FN)" if focus_session == "FN" else "Afternoon (AN)",
+        "time": (focus.updated_at or focus.created_at).isoformat() if focus else "",
+        "attendanceStatus": focus.status if focus else "",
+        "dayStatus": day,
+        "inOutStatus": (
+            focus.in_out_status or ("—" if focus.status == "Absent" else "")
+        ) if focus else "",
+        "checkInTime": (getattr(focus, "check_in_time", None) or "") if focus else "",
+        "checkOutTime": (getattr(focus, "check_out_time", None) or "") if focus else "",
+        "fn": _session_slice(fn_row),
+        "an": _session_slice(an_row),
+    }
+
+
+def _mark_out(row: StudentAttendance, student: Student | None = None, *, peer: StudentAttendance | None = None) -> dict:
+    """Flat mark for a single session row (list endpoint)."""
+    session = normalize_session(getattr(row, "session", None) or "FN")
+    fn_row = row if session == "FN" else (peer if peer and normalize_session(peer.session) == "FN" else None)
+    an_row = row if session == "AN" else (peer if peer and normalize_session(peer.session) == "AN" else None)
     name = student.full_name if student else ""
     admission = student.admission_number if student else ""
     return {
@@ -99,9 +204,19 @@ def _mark_out(row: StudentAttendance, student: Student | None = None) -> dict:
         "className": row.class_name,
         "section": row.section or "",
         "date": row.attendance_date.isoformat(),
+        "session": session,
+        "sessionLabel": "Morning (FN)" if session == "FN" else "Afternoon (AN)",
         "time": row.updated_at.isoformat() if row.updated_at else row.created_at.isoformat(),
         "attendanceStatus": row.status,
+        "dayStatus": derive_day_status(
+            fn_row.status if fn_row else None,
+            an_row.status if an_row else None,
+        ),
         "inOutStatus": row.in_out_status or ("—" if row.status == "Absent" else ""),
+        "checkInTime": getattr(row, "check_in_time", None) or "",
+        "checkOutTime": getattr(row, "check_out_time", None) or "",
+        "fn": _session_slice(fn_row),
+        "an": _session_slice(an_row),
     }
 
 
@@ -112,8 +227,10 @@ def list_attendance(
     attendance_date: date,
     class_name: str | None = None,
     section: str | None = None,
+    session: str | None = None,
 ) -> list[dict]:
     allowed = _class_list_scope(db, actor, attendance_date)
+    focus = normalize_session(session) if session else None
     stmt = select(StudentAttendance).where(
         StudentAttendance.campus_id == actor.campus_id,
         StudentAttendance.attendance_date == attendance_date,
@@ -130,7 +247,24 @@ def list_attendance(
     } if student_ids else {}
     if allowed is not None:
         rows = [r for r in rows if r.student_id in students and allowed(students[r.student_id])]
-    return [_mark_out(r, students.get(r.student_id)) for r in rows]
+    paired = _pair_sessions(rows)
+    out: list[dict] = []
+    for student_id, bucket in paired.items():
+        fn_row = bucket.get("FN")
+        an_row = bucket.get("AN")
+        if focus:
+            row = bucket.get(focus)
+            if row is None:
+                continue
+            peer = an_row if focus == "FN" else fn_row
+            out.append(_mark_out(row, students.get(student_id), peer=peer))
+        else:
+            # Prefer FN row as primary when listing both; still include day pairing.
+            primary = fn_row or an_row
+            peer = an_row if fn_row else None
+            if primary:
+                out.append(_mark_out(primary, students.get(student_id), peer=peer if peer and peer is not primary else (an_row if primary is fn_row else fn_row)))
+    return out
 
 
 def _class_matches(student_class: str | None, filter_class: str | None) -> bool:
@@ -161,14 +295,16 @@ def roster_with_marks(
     attendance_date: date,
     class_name: str,
     section: str | None = None,
+    session: str = "FN",
 ) -> list[dict]:
-    """Enrolled students for a class, merged with any marks for the date.
+    """Enrolled students for a class, merged with FN/AN marks for the date.
 
     Includes pending placement rows so Administrator Attendance can show "Not marked"
     before section/roll assignment — not only already-placed students.
     """
     from app.services.placement import repair_student_class_labels
 
+    focus = normalize_session(session)
     allowed = _class_list_scope(db, actor, attendance_date)
     repair_student_class_labels(db, actor.campus_id)
 
@@ -187,40 +323,35 @@ def roster_with_marks(
         StudentAttendance.campus_id == actor.campus_id,
         StudentAttendance.attendance_date == attendance_date,
     )
-    marks_all = db.scalars(marks_stmt).all()
-    marks = {
-        r.student_id: r
-        for r in marks_all
+    marks_all = [
+        r for r in db.scalars(marks_stmt).all()
         if _class_matches(r.class_name, class_name) and _section_matches(r.section, section)
-    }
+    ]
+    paired = _pair_sessions(marks_all)
     out: list[dict] = []
     for student in students:
-        mark = marks.get(student.id)
-        if mark:
-            out.append(_mark_out(mark, student))
-        else:
-            out.append(
-                {
-                    "id": None,
-                    "studentId": str(student.id),
-                    "studentName": student.full_name,
-                    "admissionNumber": student.admission_number,
-                    "className": student.class_name,
-                    "section": student.section or section or "",
-                    "rollNumber": student.roll_number if student.roll_number is not None else "",
-                    "date": attendance_date.isoformat(),
-                    "time": "",
-                    "attendanceStatus": "",
-                    "inOutStatus": "",
-                }
+        bucket = paired.get(student.id) or {}
+        out.append(
+            _student_day_out(
+                student,
+                attendance_date=attendance_date,
+                class_name=class_name,
+                section=section or "",
+                fn_row=bucket.get("FN"),
+                an_row=bucket.get("AN"),
+                focus_session=focus,
             )
+        )
     return out
 
 
 def _audited_values(row: StudentAttendance) -> dict:
     return {
         "status": row.status,
+        "session": getattr(row, "session", None) or "FN",
         "inOutStatus": row.in_out_status,
+        "checkInTime": getattr(row, "check_in_time", None),
+        "checkOutTime": getattr(row, "check_out_time", None),
         "className": row.class_name,
         "section": row.section,
         "markedBy": str(row.marked_by_user_id) if row.marked_by_user_id else None,
@@ -271,14 +402,16 @@ def upsert_attendance(db: Session, actor: User, payload: AttendanceUpsertIn) -> 
     class_name = payload.class_name.strip()
     if not class_name:
         fail(400, "validation_error", "Class is required.")
+    default_session = normalize_session(payload.session)
 
     allowed = _class_list_scope(db, actor, payload.date)
-    checked: list[tuple[object, Student, str]] = []
+    checked: list[tuple[object, Student, str, str]] = []
     # Validate every mark before writing any, so a rejected student cannot leave partial writes.
     for item in payload.marks:
         status = (item.status or "").strip()
         if status not in ALLOWED_STATUS:
             fail(400, "validation_error", f"Invalid status '{item.status}'. Use {sorted(ALLOWED_STATUS)}.")
+        session = normalize_session(item.session or default_session)
         student = db.get(Student, item.student_id)
         if student is None or student.campus_id != actor.campus_id:
             fail(404, "not_found", f"Student {item.student_id} not found.")
@@ -289,16 +422,17 @@ def upsert_attendance(db: Session, actor: User, payload: AttendanceUpsertIn) -> 
                 fail(403, "forbidden", "One or more students are outside your assigned classes.")
             if payload.section and student.section and section_key(payload.section) != section_key(student.section):
                 fail(400, "validation_error", f"Student {student.full_name} is not in section {payload.section}.")
-        checked.append((item, student, status))
+        checked.append((item, student, status, session))
 
     basis_for = _access_basis(db, actor, payload.date)
     results: list[StudentAttendance] = []
-    for item, student, status in checked:
+    for item, student, status, session in checked:
         row = db.scalar(
             select(StudentAttendance).where(
                 StudentAttendance.campus_id == actor.campus_id,
                 StudentAttendance.student_id == student.id,
                 StudentAttendance.attendance_date == payload.date,
+                StudentAttendance.session == session,
             )
         )
         if row is None:
@@ -307,10 +441,13 @@ def upsert_attendance(db: Session, actor: User, payload: AttendanceUpsertIn) -> 
                 campus_id=actor.campus_id,
                 student_id=student.id,
                 attendance_date=payload.date,
+                session=session,
                 class_name=class_name,
                 section=payload.section,
                 status=status,
                 in_out_status=item.in_out_status,
+                check_in_time=item.check_in_time,
+                check_out_time=item.check_out_time,
                 marked_by_user_id=actor.id,
             )
             db.add(row)
@@ -319,6 +456,8 @@ def upsert_attendance(db: Session, actor: User, payload: AttendanceUpsertIn) -> 
             previous = _audited_values(row)  # read from the persisted row before it is changed
             row.status = status
             row.in_out_status = item.in_out_status
+            row.check_in_time = item.check_in_time if item.check_in_time is not None else row.check_in_time
+            row.check_out_time = item.check_out_time if item.check_out_time is not None else row.check_out_time
             row.class_name = class_name
             row.section = payload.section
             row.marked_by_user_id = actor.id
@@ -332,10 +471,10 @@ def upsert_attendance(db: Session, actor: User, payload: AttendanceUpsertIn) -> 
         db,
         action="ATTENDANCE_UPSERT",
         entity_type="student_attendance",
-        entity_id=f"{class_name}:{payload.date.isoformat()}",
+        entity_id=f"{class_name}:{payload.date.isoformat()}:{default_session}",
         actor_id=actor.id,
         campus_id=actor.campus_id,
-        details=f"{len(payload.marks)} marks",
+        details=f"{len(payload.marks)} marks session={default_session}",
     )
     db.commit()
     for row in results:
@@ -347,7 +486,21 @@ def upsert_attendance(db: Session, actor: User, payload: AttendanceUpsertIn) -> 
             select(Student).where(Student.id.in_([r.student_id for r in results]))
         ).all()
     }
-    return [_mark_out(r, students.get(r.student_id)) for r in results]
+    # Attach peer session for dayStatus on the response.
+    peer_rows = db.scalars(
+        select(StudentAttendance).where(
+            StudentAttendance.campus_id == actor.campus_id,
+            StudentAttendance.attendance_date == payload.date,
+            StudentAttendance.student_id.in_([r.student_id for r in results]),
+        )
+    ).all()
+    paired = _pair_sessions(list(peer_rows))
+    out = []
+    for row in results:
+        bucket = paired.get(row.student_id) or {}
+        peer = bucket.get("AN" if normalize_session(row.session) == "FN" else "FN")
+        out.append(_mark_out(row, students.get(row.student_id), peer=peer))
+    return out
 
 
 def student_month_map(
@@ -380,5 +533,16 @@ def student_month_map(
             StudentAttendance.attendance_date < end,
         )
     ).all()
-    code = {"Present": "P", "Absent": "A", "Late": "P", "Holiday": "H"}
-    return {r.attendance_date.isoformat(): code.get(r.status, "P") for r in rows}
+    code = {"Present": "P", "Absent": "A", "Late": "P", "Holiday": "H", "Half Day": "HD"}
+    out: dict[str, str] = {}
+    by_date: dict[str, dict[str, StudentAttendance]] = {}
+    for row in rows:
+        bucket = by_date.setdefault(row.attendance_date.isoformat(), {})
+        bucket[normalize_session(getattr(row, "session", None) or "FN")] = row
+    for day_key, bucket in by_date.items():
+        day_status = derive_day_status(
+            bucket["FN"].status if bucket.get("FN") else None,
+            bucket["AN"].status if bucket.get("AN") else None,
+        )
+        out[day_key] = code.get(day_status, "P")
+    return out

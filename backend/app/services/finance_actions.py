@@ -866,7 +866,19 @@ def send_receipt(db: Session, actor: User, payload: dict) -> dict:
     return {"success": True, "receipt": receipt, "delivery": delivery, "state": saved}
 
 
+def _assert_gateway_student_access(db: Session, actor: User, student_id: str) -> None:
+    """Parents/students may only create or confirm intents for linked children / self."""
+    code = role_code_for(db, actor)
+    if code not in {"parent", "student"}:
+        return
+    allowed = fin._child_student_ids_for_actor(db, actor)
+    if not student_id or str(student_id) not in allowed:
+        fail(403, "forbidden", "You can only pay fees for your linked student.")
+
+
 def create_gateway_intent(db: Session, actor: User, payload: dict) -> dict:
+    student_id = str(payload.get("studentId") or "")
+    _assert_gateway_student_access(db, actor, student_id)
     state = fin.get_state(db, actor)
     data = dict(state["data"])
     links = list(data.get("paymentLinks") or [])
@@ -875,15 +887,23 @@ def create_gateway_intent(db: Session, actor: User, payload: dict) -> dict:
     seq["link"] += 1
     reference = f"PAY-{seq['link']:04d}"
     amount = float(payload.get("amount") or 0)
+    if amount < 1:
+        fail(400, "validation_error", "Amount must be at least ₹1 for online payment.")
     provider = payments.create_payment_intent(
         amount=amount,
         reference=reference,
-        student_id=payload.get("studentId"),
+        student_id=student_id or payload.get("studentId"),
     )
+    if str(provider.get("status") or "").upper() in {"FAILED", "NOT_CONFIGURED"}:
+        fail(
+            503 if provider.get("status") == "NOT_CONFIGURED" else 502,
+            str(provider.get("status") or "gateway_error").lower(),
+            provider.get("message") or "Could not create payment order.",
+        )
     link = {
         "id": f"LNK-{reference}",
         "reference": reference,
-        "studentId": payload.get("studentId"),
+        "studentId": student_id or payload.get("studentId"),
         "amount": amount,
         "installmentIds": payload.get("installmentIds") or [],
         "url": provider.get("url") or f"/student/payment/fees-payment?ref={reference}",
@@ -910,7 +930,9 @@ def create_gateway_intent(db: Session, actor: User, payload: dict) -> dict:
     data["paymentLinks"] = links
     data["auditLog"] = audit
     saved = _save(db, actor, data)
-    return {"success": True, "intent": link, "state": saved}
+    code = role_code_for(db, actor)
+    out_state = fin.get_my_fees(db, actor) if code in {"parent", "student"} else saved
+    return {"success": True, "intent": link, "state": out_state}
 
 
 def _settle_gateway_link(data: dict, link: dict, *, actor_email: str) -> dict | None:
@@ -1002,8 +1024,12 @@ def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
     link = next((row for row in links if row.get("reference") == reference or row.get("id") == payload.get("linkId")), None)
     if link is None:
         fail(404, "not_found", "Payment link not found.")
+    _assert_gateway_student_access(db, actor, str(link.get("studentId") or ""))
     if str(link.get("status") or "").upper() == "PAID":
-        return {"success": True, "skipped": True, "reason": "already_paid", "intent": link, "state": state}
+        # Portal actors get a scoped snapshot so the UI can refresh balances.
+        code = role_code_for(db, actor)
+        out_state = fin.get_my_fees(db, actor) if code in {"parent", "student"} else state
+        return {"success": True, "skipped": True, "reason": "already_paid", "intent": link, "state": out_state}
 
     from app.core.config import settings
 
@@ -1023,12 +1049,72 @@ def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
         order_id = payload.get("razorpay_order_id") or link.get("providerOrderId")
         payment_id = payload.get("razorpay_payment_id")
         signature = payload.get("razorpay_signature")
-        if not order_id or not payment_id or not signature:
+        sync_from_provider = bool(payload.get("syncFromProvider"))
+        if payment_id and signature and order_id:
+            if not payments.verify_razorpay_signature(order_id=order_id, payment_id=payment_id, signature=signature):
+                fail(400, "invalid_signature", "Razorpay signature verification failed.")
+            link["providerPaymentId"] = payment_id
+            link["confirmedVia"] = "signature"
+        elif sync_from_provider or (order_id and not payment_id):
+            # Checkout sometimes closes after Success without firing the JS handler.
+            # Recover by asking Razorpay whether this order was captured (server-side keys).
+            if not order_id:
+                fail(400, "validation_error", "razorpay_order_id is required to sync payment.")
+            captured = payments.fetch_captured_payment_for_order(order_id)
+            if not captured:
+                # Stale OPEN link after dues were already settled (or a newer unpaid attempt) —
+                # abandon so the student UI banner does not stick forever.
+                installments = list(data.get("installments") or [])
+                fine_rules = list(data.get("fineRules") or [])
+                as_of = datetime.now(timezone.utc).date()
+                ids = link.get("installmentIds") or []
+                still_due = False
+                for installment_id in ids:
+                    row = next((i for i in installments if i.get("id") == installment_id), None)
+                    if row is None:
+                        continue
+                    _, _, balance = _live_payable(row, fine_rules, as_of)
+                    if balance > 0.009:
+                        still_due = True
+                        break
+                if ids and not still_due:
+                    link["status"] = "ABANDONED"
+                    link["abandonedAt"] = _now()
+                    link["abandonReason"] = "Instalments already settled; no capture on this order."
+                    audit.insert(
+                        0,
+                        {
+                            "id": f"AUD-{uuid4().hex[:8]}",
+                            "performedAt": _now(),
+                            "performedBy": actor.email,
+                            "action": "PAYMENT_GATEWAY_ABANDONED",
+                            "entity": "PaymentLink",
+                            "entityId": link["id"],
+                            "newValue": order_id,
+                            "reason": link["abandonReason"],
+                        },
+                    )
+                    data["paymentLinks"] = links
+                    data["auditLog"] = audit
+                    saved = _save(db, actor, data)
+                    code = role_code_for(db, actor)
+                    out_state = fin.get_my_fees(db, actor) if code in {"parent", "student"} else saved
+                    return {
+                        "success": True,
+                        "skipped": True,
+                        "reason": "abandoned_stale",
+                        "intent": link,
+                        "state": out_state,
+                    }
+                fail(
+                    409,
+                    "payment_pending",
+                    "No captured Razorpay payment found for this order yet. Wait a moment and retry sync.",
+                )
+            link["providerPaymentId"] = captured.get("id")
+            link["confirmedVia"] = "provider_sync"
+        else:
             fail(400, "validation_error", "razorpay_order_id, razorpay_payment_id, and razorpay_signature are required.")
-        if not payments.verify_razorpay_signature(order_id=order_id, payment_id=payment_id, signature=signature):
-            fail(400, "invalid_signature", "Razorpay signature verification failed.")
-        link["providerPaymentId"] = payment_id
-        link["confirmedVia"] = "signature"
     else:
         fail(400, "validation_error", f"Unsupported gateway: {gateway}")
 
@@ -1062,11 +1148,14 @@ def confirm_gateway_payment(db: Session, actor: User, payload: dict) -> dict:
     saved = _save(db, actor, data)
     if settled:
         _notify_fee_paid(db, actor.campus_id, link.get("studentId"), settled["receipt"])
+    code = role_code_for(db, actor)
+    out_state = fin.get_my_fees(db, actor) if code in {"parent", "student"} else saved
     return {
         "success": True,
         "intent": link,
         "receipt": settled["receipt"] if settled else None,
-        "state": saved,
+        "transaction": settled["transaction"] if settled else None,
+        "state": out_state,
     }
 
 

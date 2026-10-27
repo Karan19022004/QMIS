@@ -1,18 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, ChevronLeft, ChevronRight, Download, Eye, Plus, EllipsisIcon } from 'lucide-react'
-import EditRequestModal from '../../../Common/CommonComponents/EditRequestModal'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import TimeTableModal from './Components/TimeTableModal'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import {
-    CREATE_ROUTE,
     approvalStatusColor,
     examStatusColor,
     getClassSectionLabel,
+    getExamTimetableRoutes,
     getExamTimetables,
     mapExamApiToTimetableRecord,
 } from './examinationTimetableData'
@@ -20,13 +19,14 @@ import { canUseExamsApi, listExamsApi } from '../../../services/examsApi'
 
 const ExaminationTimetableList = () => {
     const location = useLocation()
+    const navigate = useNavigate()
+    const { createPath, editPath, canEdit } = getExamTimetableRoutes(location.pathname)
     const api = canUseExamsApi()
     const [records, setRecords] = useState(() => (api ? [] : getExamTimetables()))
     const [loadError, setLoadError] = useState('')
     const [loading, setLoading] = useState(api)
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())
-    const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
     const [exportModal, setExportModal] = useState(false)
     const [selectedRecord, setSelectedRecord] = useState(null)
@@ -156,7 +156,7 @@ const ExaminationTimetableList = () => {
                     </div>
                     <div className='flex gap-x-2'>
                         <NavLink
-                            to={CREATE_ROUTE}
+                            to={createPath}
                             className='bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md hover:opacity-90 transition-all duration-200 cursor-pointer flex items-center gap-x-2'
                         >
                             <Plus size={16} />
@@ -229,9 +229,15 @@ const ExaminationTimetableList = () => {
                                                 <button type='button' className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>
                                                     View
                                                 </button>
-                                                <button type='button' onClick={() => setEditRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>
-                                                    Edit
-                                                </button>
+                                                {canEdit ? (
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => navigate(editPath(record.id))}
+                                                        className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                ) : null}
                                                 <button type='button' onClick={() => setDeleteRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>
                                                     Delete
                                                 </button>
@@ -260,7 +266,6 @@ const ExaminationTimetableList = () => {
                 </div>
             </div>
 
-            <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
             <ExportModal
                 exportModal={exportModal}

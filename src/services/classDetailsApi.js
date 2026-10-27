@@ -279,3 +279,27 @@ export const deleteClass = async (classId) => {
     await refreshClassCatalog()
     return deleted
 }
+
+const normalizeSubject = (row) => ({
+    id: String(row.id),
+    code: row.code || '',
+    name: row.name || '',
+})
+
+/** Campus subject masters (GET /masters/subjects). */
+export const listSubjects = async () => {
+    const rows = await apiRequest('/masters/subjects')
+    return (Array.isArray(rows) ? rows : []).map(normalizeSubject)
+}
+
+/** Create a campus subject (POST /masters/subjects). */
+export const createSubject = async ({ code, name }) => {
+    const saved = await apiRequest('/masters/subjects', {
+        method: 'POST',
+        body: {
+            code: String(code || '').trim().toUpperCase(),
+            name: String(name || '').trim(),
+        },
+    })
+    return normalizeSubject(saved)
+}

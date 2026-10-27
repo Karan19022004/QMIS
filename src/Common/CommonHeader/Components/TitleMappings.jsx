@@ -749,6 +749,7 @@
     "/principal/task-management/assign-tasks": "Assign Tasks List",
     "/principal/task-management/assign-tasks/add": "Assign Task",
     "/principal/task-management/my-tasks": "My Tasks",
+    "/principal/star-ratings/som-matrix": "Star of the Month",
     "/principal/star-ratings/star-of-month": "Star of the Month",
     "/principal/star-ratings/star-of-year": "Star of the Year",
     "/principal/star-ratings/add-ratings": "Add SOM Rating",

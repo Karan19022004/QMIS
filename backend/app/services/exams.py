@@ -129,10 +129,46 @@ def _get_type(db: Session, actor: User, type_id: UUID | None = None, code: str |
 # ------------------------------------------------------------------ exams
 
 
+def _normalize_schedule(
+    *,
+    timelines: list | None = None,
+    section: str | None = None,
+    teacher_name: str | None = None,
+) -> dict | None:
+    """Store subject day/time rows for the examination timetable UI."""
+    rows = []
+    for item in timelines or []:
+        if not isinstance(item, dict):
+            continue
+        subject = str(item.get("subject") or "").strip()
+        day = str(item.get("day") or "").strip()
+        start = str(item.get("startTime") or item.get("start_time") or "").strip()
+        end = str(item.get("endTime") or item.get("end_time") or "").strip()
+        if not (subject and day and start and end):
+            continue
+        rows.append(
+            {
+                "id": str(item.get("id") or ""),
+                "day": day,
+                "subject": subject,
+                "examDate": str(item.get("examDate") or item.get("exam_date") or "").strip(),
+                "startTime": start,
+                "endTime": end,
+            }
+        )
+    section_label = (section or "").strip() or None
+    teacher = (teacher_name or "").strip() or None
+    if not rows and not section_label and not teacher:
+        return None
+    return {"section": section_label or "", "teacherName": teacher or "", "timelines": rows}
+
+
 def _exam_out(db: Session, exam: Exam) -> dict:
     appr = _approval(db, exam.approval_id)
     etype = db.get(ExamType, exam.exam_type_id)
     appr_out = approvals._out(appr) if appr else None
+    schedule = exam.schedule if isinstance(exam.schedule, dict) else {}
+    timelines = schedule.get("timelines") if isinstance(schedule.get("timelines"), list) else []
     return {
         "id": str(exam.id),
         "name": exam.name,
@@ -140,6 +176,9 @@ def _exam_out(db: Session, exam: Exam) -> dict:
         "examTypeName": etype.name if etype else "",
         "className": exam.class_name,
         "academicYear": exam.academic_year or "",
+        "section": schedule.get("section") or "",
+        "teacherName": schedule.get("teacherName") or "",
+        "timelines": timelines,
         "startDate": exam.start_date.isoformat(),
         "endDate": exam.end_date.isoformat(),
         "status": _status(appr, final="approved"),
@@ -159,6 +198,9 @@ def create_exam(
     start_date,
     end_date,
     academic_year: str | None = None,
+    timelines: list | None = None,
+    section: str | None = None,
+    teacher_name: str | None = None,
 ) -> dict:
     if end_date < start_date:
         fail(400, "validation_error", "endDate cannot be before startDate.")
@@ -166,6 +208,7 @@ def create_exam(
     if not etype.active:
         fail(400, "validation_error", "Exam type is disabled.")
     year_label = (academic_year or "").strip() or None
+    schedule = _normalize_schedule(timelines=timelines, section=section, teacher_name=teacher_name)
     exam = Exam(
         campus_id=actor.campus_id,
         exam_type_id=etype.id,
@@ -174,6 +217,7 @@ def create_exam(
         academic_year=year_label,
         start_date=start_date,
         end_date=end_date,
+        schedule=schedule,
         created_by=actor.id,
     )
     db.add(exam)
@@ -248,6 +292,9 @@ def update_exam(
     start_date,
     end_date,
     academic_year: str | None = None,
+    timelines: list | None = None,
+    section: str | None = None,
+    teacher_name: str | None = None,
 ) -> dict:
     """Update campus exam fields and reopen Principal/Director approval."""
     if end_date < start_date:
@@ -265,6 +312,12 @@ def update_exam(
     exam.academic_year = (academic_year or "").strip() or None
     exam.start_date = start_date
     exam.end_date = end_date
+    if timelines is not None or section is not None or teacher_name is not None:
+        exam.schedule = _normalize_schedule(
+            timelines=timelines if timelines is not None else ((exam.schedule or {}).get("timelines") if isinstance(exam.schedule, dict) else []),
+            section=section if section is not None else ((exam.schedule or {}).get("section") if isinstance(exam.schedule, dict) else None),
+            teacher_name=teacher_name if teacher_name is not None else ((exam.schedule or {}).get("teacherName") if isinstance(exam.schedule, dict) else None),
+        )
     # Drop prior approval so save returns the timetable to Pending.
     exam.approval_id = None
     db.flush()

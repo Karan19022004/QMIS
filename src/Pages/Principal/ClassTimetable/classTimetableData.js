@@ -57,6 +57,16 @@ export const SUBJECTS = []
 export const TEACHERS = []
 
 export const getTimetableRoutes = (pathname = '') => {
+    if (String(pathname).startsWith('/admin')) {
+        return {
+            listPath: '/admin/class/timetable-list',
+            createPath: '/admin/class/add-timetable',
+            editPath: (id) => `/admin/class/edit-timetable/${id}`,
+            reviewer: 'Admin',
+            canApprove: false,
+            canEdit: true,
+        }
+    }
     if (String(pathname).startsWith('/coordinator')) {
         return {
             listPath: COORDINATOR_ROUTE_BASE,

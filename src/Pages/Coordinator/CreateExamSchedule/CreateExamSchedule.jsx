@@ -14,6 +14,7 @@ import {
     approvalBadgeColor,
     CLASSES,
 } from './createExamScheduleData'
+import { canUseClassDetailsApi, loadClassDirectory } from '../../../services/classDetailsApi'
 
 const CreateExamSchedule = () => {
     const location = useLocation()
@@ -24,10 +25,24 @@ const CreateExamSchedule = () => {
     const [editRequestModal, setEditRequestModal] = useState(false)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
     const [timeTableModal, setTimeTableModal] = useState(null)
+    const [classOptions, setClassOptions] = useState(CLASSES)
 
     useEffect(() => {
         setSchedules(getExamSchedules())
     }, [location.pathname])
+
+    useEffect(() => {
+        if (!canUseClassDetailsApi()) return undefined
+        let cancelled = false
+        loadClassDirectory()
+            .then((directory) => {
+                if (cancelled) return
+                const names = (directory?.records || []).map((row) => row.className).filter(Boolean)
+                if (names.length) setClassOptions(names)
+            })
+            .catch(() => {})
+        return () => { cancelled = true }
+    }, [])
 
     return (
         <section>
@@ -49,7 +64,7 @@ const CreateExamSchedule = () => {
                         <label htmlFor='class-filter' className='text-base font-medium text-[#808080]'>Class</label>
                         <select id='class-filter' className='text-sm font-normal text-[#808080] border border-[#D9D9D9] rounded-md px-2 py-2 w-full'>
                             <option value=''>All</option>
-                            {CLASSES.map((item) => (
+                            {classOptions.map((item) => (
                                 <option key={item} value={item}>Class {item}</option>
                             ))}
                         </select>

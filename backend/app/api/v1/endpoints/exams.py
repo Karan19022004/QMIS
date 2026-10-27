@@ -18,13 +18,25 @@ class ExamTypeIn(BaseModel):
     name: str = Field(min_length=1, max_length=80)
 
 
+class ExamTimelineIn(BaseModel):
+    id: str | None = None
+    day: str | None = None
+    subject: str | None = None
+    examDate: str | None = None
+    startTime: str | None = None
+    endTime: str | None = None
+
+
 class ExamIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     examType: str
     className: str = Field(min_length=1, max_length=40)
     academicYear: str | None = Field(default=None, max_length=40)
+    section: str | None = Field(default=None, max_length=40)
+    teacherName: str | None = Field(default=None, max_length=120)
     startDate: date
     endDate: date
+    timelines: list[ExamTimelineIn] | None = None
 
 
 class WeightIn(BaseModel):
@@ -83,6 +95,9 @@ def create_exam_route(
         start_date=body.startDate,
         end_date=body.endDate,
         academic_year=body.academicYear,
+        timelines=[row.model_dump() for row in (body.timelines or [])],
+        section=body.section,
+        teacher_name=body.teacherName,
     )
 
 
@@ -121,6 +136,9 @@ def update_exam_route(
         start_date=body.startDate,
         end_date=body.endDate,
         academic_year=body.academicYear,
+        timelines=[row.model_dump() for row in body.timelines] if body.timelines is not None else None,
+        section=body.section,
+        teacher_name=body.teacherName,
     )
 
 

@@ -49,6 +49,9 @@ import {
 } from '../Pages/Principal/StudentAllocation/PrincipalStudentPlacement'
 import CoordinatorGradeBands from '../Pages/Principal/CoordinatorGradeBands/CoordinatorGradeBands'
 import TransportApprovals from '../Pages/Principal/TransportApprovals/TransportApprovals'
+import MarkEntryApprovalList from '../Common/MarkEntryApproval/MarkEntryApprovalList'
+import MarkEntryReviewPage from '../Common/MarkEntryApproval/MarkEntryReviewPage'
+import { StudentStarRatingsRoutes } from '../Common/StudentStarRatings/StudentStarRatingsRoutes'
 
 const PrincipalRoutes = () => {
     return (
@@ -57,12 +60,24 @@ const PrincipalRoutes = () => {
             <Route path="/principal/attendance" element={<Navigate to="/principal/attendance/my-attendance" replace />} />
             <Route path="/principal/attendance/my-attendance" element={<MyAttendance />} />
             {TaskManagementRoutes({ basePath: '/principal' })}
-            <Route path="/principal/star-ratings/star-of-month" element={<StarRatings view="som" />} />
-            <Route path="/principal/star-ratings/star-of-year" element={<StarRatings view="soy" />} />
-            <Route path="/principal/star-ratings/add-ratings" element={<AddRatings />} />
-            <Route path="/principal/star-ratings-list" element={<Navigate to="/principal/star-ratings/star-of-month" replace />} />
+            {/* Staff star ratings (legacy Principal panel) */}
+            <Route path="/principal/star-ratings/staff/star-of-month" element={<StarRatings view="som" />} />
+            <Route path="/principal/star-ratings/staff/star-of-year" element={<StarRatings view="soy" />} />
+            <Route path="/principal/star-ratings/staff/add-ratings" element={<AddRatings />} />
+            {/* Student SOM/SOY — same campus APIs as Teacher/Coordinator */}
+            {StudentStarRatingsRoutes({ basePath: '/principal' })}
+            <Route path="/principal/star-ratings-list" element={<Navigate to="/principal/star-ratings/som-matrix" replace />} />
             <Route path="/principal/examination-timetable" element={<ExaminationTimetableList />} />
             <Route path="/principal/create-examination-timetable" element={<CreateExaminationTimetable />} />
+            <Route path="/principal/edit-examination-timetable/:id" element={<CreateExaminationTimetable />} />
+            <Route
+                path="/principal/mark-entry-approval"
+                element={<MarkEntryApprovalList basePath="/principal/mark-entry-approval" roleLabel="Principal" />}
+            />
+            <Route
+                path="/principal/mark-entry-approval/review/:contextKey"
+                element={<MarkEntryReviewPage basePath="/principal/mark-entry-approval" />}
+            />
             <Route path="/principal/class-timetable" element={<ClassTimetableList />} />
             <Route path="/principal/create-class-timetable" element={<CreateClassTimetable />} />
             <Route path="/principal/edit-class-timetable/:id" element={<CreateClassTimetable />} />
@@ -130,10 +145,12 @@ const PrincipalRoutes = () => {
                         listPath="/principal/class/extra-class"
                         addPath="/principal/class/extra-class/add"
                         viewPath="/principal/class/extra-class/view"
+                        editPath="/principal/class/extra-class/edit"
                     />
                 )}
             />
             <Route path="/principal/class/extra-class/add" element={<AddExtraClass listPath="/principal/class/extra-class" />} />
+            <Route path="/principal/class/extra-class/edit/:id" element={<AddExtraClass listPath="/principal/class/extra-class" />} />
             <Route path="/principal/class/extra-class/view/:id" element={<ViewExtraClass listPath="/principal/class/extra-class" />} />
             <Route path="*" element={<Navigate to="/principal/dashboard" replace />} />
         </ReactRoutes>

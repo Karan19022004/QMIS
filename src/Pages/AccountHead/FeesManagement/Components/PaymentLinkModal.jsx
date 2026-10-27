@@ -54,7 +54,7 @@ const PaymentLinkModal = ({ isOpen, onClose, link, onSend }) => {
                         </button>
                     </div>
                     <p className='text-xs text-[#808080] inline-flex items-center gap-1'>
-                        <Link2 size={12} /> Gateway checkout is mocked until a payment API is connected.
+                        <Link2 size={12} /> Student/parent opens fees payment and pays via Razorpay Checkout.
                     </p>
                 </div>
             </div>

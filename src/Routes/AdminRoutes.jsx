@@ -17,12 +17,15 @@ import EmployeesList from '../Pages/Admin/Attendance/Employees/EmployeesList'
 import ClassDetails from '../Pages/Admin/Class/ClassDetails/ClassDetails'
 import SubstituteDuties from '../Common/SubstituteDuties/SubstituteDuties'
 import AddClassDetails from '../Pages/Admin/Class/ClassDetails/AddClassDetails'
-import OnlineClass from '../Pages/Admin/Class/OnlineClass/OnlineClass'
-import AddOnlineClass from '../Pages/Admin/Class/OnlineClass/AddOnlineClass'
-import ExtendedClass from '../Pages/Admin/Class/ExtendedClass/ExtendedClass'
-import AddExtendedClass from '../Pages/Admin/Class/ExtendedClass/AddExtendedClass'
-import TimeTable from '../Pages/Admin/Class/Timetable/TimeTable'
-import AddTimeTable from '../Pages/Admin/Class/Timetable/AddTimeTable'
+import AcademicYears from '../Pages/Admin/Class/AcademicYears/AcademicYears'
+import OnlineClass from '../Pages/Teacher/OnlineClass/OnlineClass'
+import AddOnlineClass from '../Pages/Teacher/OnlineClass/AddOnlineClass'
+import ViewOnlineClass from '../Pages/Teacher/OnlineClass/ViewOnlineClass'
+import ExtendedClass from '../Pages/Teacher/ExtraClass/ExtraClass'
+import AddExtendedClass from '../Pages/Teacher/ExtraClass/AddExtraClass'
+import ViewExtraClass from '../Pages/Teacher/ExtraClass/ViewExtraClass'
+import TimeTable from '../Pages/Principal/ClassTimetable/ClassTimetableList'
+import AddTimeTable from '../Pages/Principal/ClassTimetable/CreateClassTimetable'
 import Subjects from '../Pages/Admin/Subjects/Subjects'
 import AddSubjects from '../Pages/Admin/Subjects/AddSubjects'
 import BookList from '../Pages/Admin/LibraryDetails/BookList/BookList'
@@ -98,7 +101,6 @@ const AdminRoutes = () => {
 
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/admin/dashboard" element={<Dashboard />} />
-            <Route path="*" element={<div>Admin Home</div>} />
 
             {/* Front Office */}
 
@@ -131,12 +133,37 @@ const AdminRoutes = () => {
             <Route path="/admin/class/class-details" element={<ClassDetails />} />
             <Route path="/admin/class/substitute-duty" element={<SubstituteDuties />} />
             <Route path="/admin/class/add-class-details" element={<AddClassDetails />} />
-            <Route path="/admin/class/online-class" element={<OnlineClass />} />
-            <Route path="/admin/class/add-online-class" element={<AddOnlineClass />} />
-            <Route path="/admin/class/extended-class" element={<ExtendedClass />} />
-            <Route path="/admin/class/add-extended-class" element={<AddExtendedClass />} />
+            <Route path="/admin/class/academic-years" element={<AcademicYears />} />
+            <Route
+                path="/admin/class/online-class"
+                element={(
+                    <OnlineClass
+                        listPath="/admin/class/online-class"
+                        addPath="/admin/class/add-online-class"
+                        viewPath="/admin/class/online-class/view"
+                    />
+                )}
+            />
+            <Route path="/admin/class/add-online-class" element={<AddOnlineClass listPath="/admin/class/online-class" />} />
+            <Route path="/admin/class/online-class/view/:id" element={<ViewOnlineClass listPath="/admin/class/online-class" />} />
+            <Route
+                path="/admin/class/extended-class"
+                element={(
+                    <ExtendedClass
+                        canCreate
+                        listPath="/admin/class/extended-class"
+                        addPath="/admin/class/add-extended-class"
+                        viewPath="/admin/class/extended-class/view"
+                        editPath="/admin/class/edit-extended-class"
+                    />
+                )}
+            />
+            <Route path="/admin/class/add-extended-class" element={<AddExtendedClass listPath="/admin/class/extended-class" />} />
+            <Route path="/admin/class/edit-extended-class/:id" element={<AddExtendedClass listPath="/admin/class/extended-class" />} />
+            <Route path="/admin/class/extended-class/view/:id" element={<ViewExtraClass listPath="/admin/class/extended-class" />} />
             <Route path="/admin/class/timetable-list" element={<TimeTable />} />
             <Route path="/admin/class/add-timetable" element={<AddTimeTable />} />
+            <Route path="/admin/class/edit-timetable/:id" element={<AddTimeTable />} />
             <Route path="/admin/class/subjects" element={<Subjects />} />
             <Route path="/admin/class/add-subjects" element={<AddSubjects />} />
 
@@ -256,6 +283,9 @@ const AdminRoutes = () => {
             <Route path='/admin/rbac/user-creation/add' element={<CreateUserPage />} />
             <Route path='/admin/rbac/user-creation/edit/:id' element={<EditUserPage />} />
             <Route path='/admin/rbac/roles' element={<RolesPage />} />
+
+            {/* Must be last — otherwise it can hide new admin pages like Academic Years */}
+            <Route path="*" element={<div>Admin Home</div>} />
         </ReactRoutes>
     )
 }

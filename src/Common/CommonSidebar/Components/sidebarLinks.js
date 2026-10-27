@@ -280,14 +280,17 @@ export const adminSidebarLinks = [
     {
         id: 4,
         title: "Class Details",
-        to: "/admin/class/class-details",
+        to: "#0",
         icon: ClipboardList,
-    },
-    {
-        id: "substitute-duty",
-        title: "Substitute Duty",
-        to: "/admin/class/substitute-duty",
-        icon: CalendarCheck,
+        subLinks: [
+            { icon: ClipboardList, title: "Class Details List", to: "/admin/class/class-details" },
+            { icon: CalendarDays, title: "Academic Years", to: "/admin/class/academic-years" },
+            { icon: BookOpen, title: "Subjects", to: "/admin/class/subjects" },
+            { icon: CalendarDays, title: "Class Timetable", to: "/admin/class/timetable-list" },
+            { icon: MonitorPlay, title: "Online Class", to: "/admin/class/online-class" },
+            { icon: UserPlus, title: "Extended Class", to: "/admin/class/extended-class" },
+            { icon: CalendarCheck, title: "Substitute Duty", to: "/admin/class/substitute-duty" },
+        ],
     },
     {
         id: 5,
@@ -1272,8 +1275,10 @@ export const teacherSidebarLinks = [
             { icon: UsersRound, title: "Parents List", to: "/teacher/user-management/parents-list" },
             { icon: FileText, title: "CA / RCT", to: "/teacher/unit-tests" },
             { icon: CalendarCheck, title: "Exam", to: "/teacher/student-evaluation/exam" },
+            { icon: CalendarDays, title: "Create Exam Schedule", to: "/teacher/examination/create-schedule" },
             { icon: CircleHelp, title: "Question Bank", to: "/teacher/student-deliverables/sample-questions" },
             { icon: ClipboardPen, title: "Mark Entry", to: "/teacher/student-evaluation/mark-entry" },
+            { icon: BarChart3, title: "Result Summary", to: "/teacher/student-evaluation/result-summary" },
             { icon: BarChart3, title: "Performance Analytics", to: "/teacher/student-evaluation/analytics" },
             { icon: Sparkles, title: "Home Fun", to: "/teacher/student-deliverables/home-fun" },
             { icon: BookOpenCheck, title: "Study Materials", to: "/teacher/student-deliverables/study-materials" },
@@ -1374,6 +1379,8 @@ export const coordinatorSidebarLinks = [
             { icon: CalendarCheck, title: "Exam", to: "/coordinator/student-evaluation/exam" },
             { icon: CircleHelp, title: "Question Bank", to: "/coordinator/student-deliverables/sample-questions" },
             { icon: ClipboardPen, title: "Mark Entry", to: "/coordinator/student-evaluation/mark-entry" },
+            { icon: ClipboardCheck, title: "Mark Entry Approval", to: "/coordinator/student-evaluation/mark-entry-approval" },
+            { icon: BarChart3, title: "Result Summary", to: "/coordinator/student-evaluation/result-summary" },
             { icon: BarChart3, title: "Performance Analytics", to: "/coordinator/student-evaluation/analytics" },
             { icon: HeartPulse, title: "Biometric Attendance", to: "/coordinator/attendance/biometric" },
             { icon: Sparkles, title: "Home Fun", to: "/coordinator/student-deliverables/home-fun" },
@@ -2270,8 +2277,9 @@ export const principalSidebarLinks = [
         to: "#0",
         icon: Star,
         subLinks: [
-            { icon: Star, title: "Star of the Month", to: "/principal/star-ratings/star-of-month" },
+            { icon: Star, title: "Star of the Month", to: "/principal/star-ratings/som-matrix" },
             { icon: Trophy, title: "Star of the Year", to: "/principal/star-ratings/star-of-year" },
+            { icon: Star, title: "Staff Star Ratings", to: "/principal/star-ratings/staff/star-of-month" },
         ],
     },
     {
@@ -2279,6 +2287,12 @@ export const principalSidebarLinks = [
         title: "Examination Timetable",
         to: "/principal/examination-timetable",
         icon: CalendarCheck,
+    },
+    {
+        id: "principal-mark-approval",
+        title: "Mark Entry Approval",
+        to: "/principal/mark-entry-approval",
+        icon: ClipboardCheck,
     },
     {
         id: 4,

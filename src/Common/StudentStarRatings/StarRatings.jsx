@@ -56,9 +56,11 @@ const StarRatings = ({ view = 'som' }) => {
         const apply = () => {
             const all = getStudentsList()
             if (!assignments.ready) return
+            // Teachers: allocated classes only. Principal/Coordinator/Admin: campus roster.
+            const campusWide = /\/(principal|coordinator|director|admin|super-admin)\b/.test(routeBase || '')
             const scoped = assignments.assignments.length
                 ? all.filter((student) => assignments.studentInScope(student))
-                : []
+                : (campusWide ? all : [])
             if (!cancelled) setScopedRows(scoped)
         }
         if (!isApiStudentsEnabled()) {
@@ -76,7 +78,7 @@ const StarRatings = ({ view = 'som' }) => {
             cancelled = true
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh when assignment hydrate settles
-    }, [assignments.ready, assignments.assignments.length, assignments.classSections?.join('|')])
+    }, [assignments.ready, assignments.assignments.length, assignments.classSections?.join('|'), routeBase])
 
     useEffect(() => {
         let cancelled = false

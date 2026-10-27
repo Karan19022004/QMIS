@@ -1,11 +1,11 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarClock, History, Smartphone } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useFinance } from '../../AccountHead/financeDomain/FinanceContext'
 import { DEFAULT_ACADEMIC_YEAR, FEE_INSTALLMENT_STATUSES } from '../../AccountHead/financeDomain/financeConstants'
 import { formatCurrency, groupInstallmentsByMonth, summarizeStudentFees } from '../../AccountHead/financeDomain/financeHelpers'
 import FeeInstallmentCard from '../../AccountHead/FeesManagement/Components/FeeInstallmentCard'
-import CheckoutMockModal from '../../AccountHead/FeesManagement/Components/CheckoutMockModal'
+import RazorpayCheckoutModal from '../../AccountHead/FeesManagement/Components/RazorpayCheckoutModal'
 import PaymentHistoryDrawer from '../../AccountHead/FeesManagement/Components/PaymentHistoryDrawer'
 import ReceiptDetailsDrawer from '../../AccountHead/FeesManagement/Components/ReceiptDetailsDrawer'
 import StudentFeeSummary from '../../AccountHead/FeesManagement/Components/StudentFeeSummary'
@@ -36,7 +36,11 @@ const FeesPayemnt = ({ feeScope = 'academic' }) => {
     const {
         students,
         getInstallmentsForStudent,
-        collectFeePayment,
+        generatePaymentLink,
+        confirmGatewayPayment,
+        syncPendingGatewayPayment,
+        dismissStaleGatewayLinks,
+        paymentLinks,
         receipts,
         reprintReceipt,
         sendReceipt,
@@ -68,8 +72,10 @@ const FeesPayemnt = ({ feeScope = 'academic' }) => {
     const [view, setView] = useState('pay')
     const [selectedIds, setSelectedIds] = useState([])
     const [checkoutOpen, setCheckoutOpen] = useState(false)
+    const [checkoutAmount, setCheckoutAmount] = useState(0)
     const [historyOpen, setHistoryOpen] = useState(false)
     const [receipt, setReceipt] = useState(null)
+    const checkoutRef = useRef(null)
 
     const installments = useMemo(() => {
         if (!student) return []
@@ -91,43 +97,166 @@ const FeesPayemnt = ({ feeScope = 'academic' }) => {
         ? 'Transport Fee only — school/tuition fees are under Academic Payment.'
         : 'Academic fees only — transport dues are under Transport Payment.'
 
+    const payableInstallments = useMemo(
+        () => installments.filter((row) => row.payable && (Number(row.balanceAmount) || 0) > 0),
+        [installments],
+    )
+
+    // Drop selections that are no longer payable (e.g. settled rows left checked).
+    useEffect(() => {
+        const allowed = new Set(payableInstallments.map((row) => row.id))
+        setSelectedIds((prev) => {
+            const next = prev.filter((id) => allowed.has(id))
+            return next.length === prev.length ? prev : next
+        })
+    }, [payableInstallments])
+
     const scheduleHint = useMemo(() => {
-        const open = installments.filter((row) => (
-            row.status !== FEE_INSTALLMENT_STATUSES.PAID
-            && row.status !== FEE_INSTALLMENT_STATUSES.WAIVED
-            && row.status !== FEE_INSTALLMENT_STATUSES.CANCELLED
-            && (Number(row.balanceAmount) || 0) > 0
-        ))
+        const open = payableInstallments
         if (!open.length) return null
         const today = new Date().toISOString().slice(0, 10)
         const sorted = [...open].sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || '')))
         const next = sorted.find((row) => (row.dueDate || '') >= today) || sorted[0]
         const overdue = open.filter((row) => row.dueDate && row.dueDate < today).length
         return { next, openCount: open.length, overdue }
-    }, [installments])
+    }, [payableInstallments])
 
     const allocations = selectedIds.map((id) => {
         const row = installments.find((item) => item.id === id)
-        return row ? { installmentId: id, amount: row.balanceAmount } : null
+        const amount = Number(row?.balanceAmount) || 0
+        if (!row || amount <= 0) return null
+        return { installmentId: id, amount }
     }).filter(Boolean)
     const totalAmount = allocations.reduce((sum, item) => sum + item.amount, 0)
 
-    const payNow = async (payload) => {
-        if (!student || entryBlocked('Finance', activeStudent?.name || 'Student')) return { success: false }
-        const result = await collectFeePayment({
-            studentId: student.id,
-            allocations,
-            ...payload,
-            collectedBy: student.name,
-        })
-        if (result?.success) {
-            setSelectedIds([])
-            if (result.receipt) setReceipt(result.receipt)
-        } else {
-            toast.error(result?.errors?.[0] || 'Payment failed.')
+    const openCheckout = () => {
+        if (!student || entryBlocked('Finance', activeStudent?.name || 'Student')) return
+        let ids = [...selectedIds]
+        let rows = allocations
+        let amount = totalAmount
+        // If nothing payable is selected, select all open dues so Pay Now uses the balance.
+        if (amount <= 0) {
+            if (!payableInstallments.length) {
+                toast.error('No outstanding balance to pay.')
+                return
+            }
+            ids = payableInstallments.map((row) => row.id)
+            rows = payableInstallments.map((row) => ({
+                installmentId: row.id,
+                amount: Number(row.balanceAmount) || 0,
+            }))
+            amount = rows.reduce((sum, item) => sum + item.amount, 0)
+            setSelectedIds(ids)
+            toast.info('Selected outstanding instalments for payment.')
         }
-        return result
+        if (amount < 1) {
+            toast.error('Select an unpaid instalment with a balance (₹1 or more).')
+            return
+        }
+        checkoutRef.current = {
+            studentId: student.id,
+            amount,
+            installmentIds: ids,
+        }
+        setCheckoutAmount(amount)
+        setCheckoutOpen(true)
     }
+
+    const createGatewayIntent = async () => {
+        if (!student || entryBlocked('Finance', activeStudent?.name || 'Student')) {
+            throw new Error('Payment is blocked for this student.')
+        }
+        const snap = checkoutRef.current
+        const amount = Number(snap?.amount) || 0
+        const installmentIds = snap?.installmentIds || []
+        if (amount < 1 || !installmentIds.length) {
+            throw new Error('Select an unpaid instalment with a balance before paying.')
+        }
+        return generatePaymentLink({
+            studentId: snap.studentId || student.id,
+            amount,
+            installmentIds,
+        })
+    }
+
+    const confirmGateway = async (payload) => confirmGatewayPayment(payload)
+
+    const handleGatewayPaid = (result) => {
+        checkoutRef.current = null
+        setCheckoutAmount(0)
+        setSelectedIds([])
+        if (result?.receipt) setReceipt(result.receipt)
+    }
+
+    const pendingGatewayLink = useMemo(() => {
+        if (!student) return null
+        // Nothing to sync-post if this student has no outstanding balance.
+        if ((Number(summary?.outstanding) || 0) <= 0) return null
+        return (paymentLinks || []).find((link) => {
+            if (String(link.studentId) !== String(student.id)) return false
+            if (String(link.gateway || '').toLowerCase() !== 'razorpay') return false
+            const status = String(link.status || '').toUpperCase()
+            if (status === 'PAID' || status === 'ABANDONED' || status === 'FAILED') return false
+            if (!link.providerOrderId) return false
+            const ids = link.installmentIds || []
+            if (!ids.length) return false
+            // Hide when every linked instalment is already settled.
+            const stillDue = ids.some((id) => {
+                const row = installments.find((item) => item.id === id)
+                return row && (Number(row.balanceAmount) || 0) > 0
+            })
+            return stillDue
+        }) || null
+    }, [installments, paymentLinks, student, summary?.outstanding])
+
+    const syncPendingPayment = async () => {
+        if (!student) return
+        const result = await syncPendingGatewayPayment(student.id)
+        dismissStaleGatewayLinks(student.id)
+        if (result?.success) {
+            if (result.reason === 'abandoned_stale' || result.skipped) {
+                toast.info('Cleared stale payment banner.')
+            } else {
+                toast.success(
+                    `Payment synced${result.receipt?.receiptNo ? `. Receipt ${result.receipt.receiptNo}` : ''}.`,
+                )
+            }
+            if (result.receipt) setReceipt(result.receipt)
+            setSelectedIds([])
+        } else {
+            dismissStaleGatewayLinks(student.id)
+            toast.error(result?.errors?.[0] || 'Could not sync payment.')
+        }
+    }
+
+    // Auto-clear stale OPEN Razorpay links (paid dues or captured orders) so the banner goes away.
+    useEffect(() => {
+        if (!student?.id) return undefined
+        const openLinks = (paymentLinks || []).filter((link) => (
+            String(link.studentId) === String(student.id)
+            && String(link.gateway || '').toLowerCase() === 'razorpay'
+            && !['PAID', 'ABANDONED', 'FAILED'].includes(String(link.status || '').toUpperCase())
+            && link.providerOrderId
+        ))
+        if (!openLinks.length) return undefined
+        let cancelled = false
+        ;(async () => {
+            const result = await syncPendingGatewayPayment(student.id)
+            if (cancelled) return
+            dismissStaleGatewayLinks(student.id)
+            if (result?.success && result.receipt) {
+                setReceipt(result.receipt)
+                toast.success(
+                    `Payment synced${result.receipt?.receiptNo ? `. Receipt ${result.receipt.receiptNo}` : ''}.`,
+                )
+                window.setTimeout(() => window.location.reload(), 400)
+            }
+        })().catch(() => {
+            if (!cancelled) dismissStaleGatewayLinks(student.id)
+        })
+        return () => { cancelled = true }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [student?.id, paymentLinks?.length])
 
     return (
         <section className='space-y-6'>
@@ -212,6 +341,20 @@ const FeesPayemnt = ({ feeScope = 'academic' }) => {
                             ))}
                         </div>
                     ))}
+                    {pendingGatewayLink && (
+                        <div className='bg-[#FFF8E1] border border-[#FF980033] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3'>
+                            <p className='text-sm text-[#E65100]'>
+                                Razorpay may have succeeded, but this page did not refresh. Sync to post the receipt.
+                            </p>
+                            <button
+                                type='button'
+                                onClick={syncPendingPayment}
+                                className='inline-flex items-center justify-center gap-2 bg-[#515DEF] text-white text-sm px-4 py-2 rounded-md cursor-pointer'
+                            >
+                                Sync paid receipt
+                            </button>
+                        </div>
+                    )}
                     <div className='bg-white rounded-2xl shadow-md p-4 flex items-center justify-between gap-3'>
                         <p className='font-semibold'>Total Amount {formatCurrency(totalAmount)}</p>
                         <div className='flex gap-2'>
@@ -220,8 +363,8 @@ const FeesPayemnt = ({ feeScope = 'academic' }) => {
                             </button>
                             <button
                                 type='button'
-                                disabled={!totalAmount}
-                                onClick={() => setCheckoutOpen(true)}
+                                disabled={!payableInstallments.length}
+                                onClick={openCheckout}
                                 className='inline-flex items-center gap-2 bg-[#FF9800] text-white px-4 py-2 rounded-md cursor-pointer disabled:opacity-50'
                             >
                                 <Smartphone size={16} /> Pay Now
@@ -243,12 +386,18 @@ const FeesPayemnt = ({ feeScope = 'academic' }) => {
                 </div>
             )}
 
-            <CheckoutMockModal
+            <RazorpayCheckoutModal
                 isOpen={checkoutOpen}
-                onClose={() => setCheckoutOpen(false)}
-                amount={totalAmount}
+                onClose={() => {
+                    setCheckoutOpen(false)
+                    setCheckoutAmount(0)
+                    checkoutRef.current = null
+                }}
+                amount={checkoutAmount || totalAmount}
                 student={student}
-                onSuccess={payNow}
+                createIntent={createGatewayIntent}
+                confirmPayment={confirmGateway}
+                onPaid={handleGatewayPaid}
             />
             <PaymentHistoryDrawer
                 isOpen={historyOpen}
