@@ -14,10 +14,8 @@ const classKey = (value) => String(value || '').trim().toLowerCase()
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 
-const isPublished = (row) => {
-    const status = String(row.approvalStatus || row.status || '').toLowerCase()
-    return !status || status === 'approved' || status === 'active'
-}
+/** TT-07: match API portal rule — only Approved timetables are published. */
+const isPublished = (row) => String(row?.approvalStatus || '').trim().toLowerCase() === 'approved'
 
 /**
  * A class's week is spread over several teacher-owned timetables, so collect the student's

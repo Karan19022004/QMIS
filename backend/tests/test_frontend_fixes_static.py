@@ -99,6 +99,62 @@ def test_teacher_roster_never_shows_demo_teachers_in_server_mode():
     assert "director" in code[code.index("export const isAllocatableTeacherRecord") : code.index("export const mapDirectoryRecordToTeacher")]
 
 
+def test_teacher_allocation_save_awaits_api_and_blocks_on_failed_hydrate():
+    """CA-01 / CA-05: no silent .catch; hydrate failure cannot wipe server rows."""
+    code = _code("Pages/Principal/TeacherAllocation/teacherAllocationData.js")
+    assert ".catch(() => {})" not in code
+    assert "await replaceAcademicsCollectionApi" in code
+    assert "canSaveTeacherAllocations" in code
+    assert "allocationHydrateStatus = 'error'" in code
+    assert "lastConfirmedServerAllocations" in code
+    assert "allocationHydrateStatus === 'ready'" in code
+    hydrate = code[code.index("export const hydrateTeacherAllocationsFromApi") : code.index("export const getAllocations")]
+    assert "apiMemoryAllocations = null" in hydrate
+    # Success path assigns cleaned rows; failure must not assign a fake empty array.
+    assert "apiMemoryAllocations = cleaned" in hydrate
+    fail_branch = hydrate[hydrate.index("catch (error)") :]
+    assert "apiMemoryAllocations = []" not in fail_branch
+    assert "apiMemoryAllocations = null" in fail_branch
+
+
+def test_teacher_allocation_api_mode_does_not_use_demo_allocations():
+    """CA-03: live API mode never returns DEMO_ALLOCATIONS as real saved rows."""
+    code = _code("Pages/Principal/TeacherAllocation/teacherAllocationData.js")
+    getter = code[code.index("export const getAllocations") : code.index("export const isUsingDemoAllocations")]
+    api_branch = getter[getter.index("if (usesApiMemory())") : getter.index("try {")]
+    assert "DEMO_ALLOCATIONS" not in api_branch
+    assert "return []" in api_branch
+    assert "isUsingDemoAllocations" in code
+    assert "Demo mode: allocation rows are local sample data only" in _code(
+        "Pages/Principal/TeacherAllocation/TeacherAllocationList.jsx"
+    )
+
+
+def test_class_timetable_save_awaits_api_and_blocks_on_failed_hydrate():
+    """TT-01 / TT-02: no silent .catch; hydrate failure cannot wipe server rows."""
+    code = _code("Pages/Principal/ClassTimetable/classTimetableData.js")
+    assert ".catch(() => {})" not in code
+    assert "await replaceAcademicsCollectionApi" in code
+    assert "canSaveClassTimetables" in code
+    assert "lastConfirmedServerTimetables" in code
+    hydrate = code[
+        code.index("export const hydrateClassTimetablesFromApi") : code.index("export const getClassTimetables")
+    ]
+    assert "apiMemoryTimetables = null" in hydrate
+    fail_branch = hydrate[hydrate.index("catch (error)") :]
+    assert "apiMemoryTimetables = []" not in fail_branch
+    assert "apiMemoryTimetables = null" in fail_branch
+
+
+def test_student_timetable_requires_approved_status():
+    """TT-07: student FE publication matches API (Approved only)."""
+    code = _code("Pages/Student/Class/TimeTableDetails.jsx")
+    assert "approvalStatus" in code
+    assert "status === 'approved'" in code or '=== "approved"' in code or "=== 'approved'" in code
+    assert "status === 'active'" not in code
+    assert "!status ||" not in code
+
+
 def test_shared_student_list_filters_are_applied_to_rows():
     code = _code("Common/UserDatabase/StudentDatabaseListView.jsx")
     for name in ("classFilter", "sectionFilter", "genderFilter", "statusFilter"):

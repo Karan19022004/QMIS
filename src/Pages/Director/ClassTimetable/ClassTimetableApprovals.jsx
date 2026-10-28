@@ -86,10 +86,11 @@ const ClassTimetableApprovals = () => {
         })
     }, [approvals, search, statusFilter, fromDate, toDate])
 
-    const handleApprove = (id) => {
-        const updated = decideClassTimetableApproval(id, 'Approved', 'Director')
-        if (!updated) {
-            toast.error('Could not approve this timetable.')
+    const handleApprove = async (id) => {
+        const result = await decideClassTimetableApproval(id, 'Approved', 'Director')
+        if (!result.success) {
+            toast.error((result.errors && result.errors[0]) || 'Could not approve this timetable.')
+            refresh()
             return
         }
         refresh()
@@ -101,11 +102,11 @@ const ClassTimetableApprovals = () => {
         setDenyModal(true)
     }
 
-    const handleDenyConfirm = (reason) => {
+    const handleDenyConfirm = async (reason) => {
         if (!selectedEntry) return
-        const updated = decideClassTimetableApproval(selectedEntry.id, 'Denied', 'Director', reason)
-        if (!updated) {
-            toast.error('Could not deny this timetable.')
+        const result = await decideClassTimetableApproval(selectedEntry.id, 'Denied', 'Director', reason)
+        if (!result.success) {
+            toast.error((result.errors && result.errors[0]) || 'Could not deny this timetable.')
         } else {
             toast.success('Class timetable denied.')
             refresh()

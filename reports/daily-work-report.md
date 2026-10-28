@@ -13,6 +13,9 @@ New days go at the top. Older days stay below so the history is in one file.
 **Status:** Academic/frontend work on `qmis/main`. Isolated browser UAT completed for admission→publish portals (SQLite `:8001` / Vite `:5181`). Not a live-school sign-off.
 
 ### Done
+- Module 2 Timetable **fix pass** (TT-01–TT-07): await save + hydrate gate; server subject/class/allocation + clash validation; coordinator cannot publish via PUT; student FE Approved-only; change-request UI left disabled (documented). Pytest academics **14**, access timetable **4**, static TT **6**; `vite build` PASS. **No live DB. Not committed/pushed. Browser UAT not run.**
+- Module 2 Timetable **audit only** → `docs/QMIS_Module2_Timetable_Audit.md` (prior).
+- Module 1 Class/Teacher Allocation fixes (CA-01–CA-05) from `docs/QMIS_Module1_Class_Teacher_Allocation_Audit.md`: await allocation save + toast/revert; sync `sections.class_teacher_user_id` on allocation PUT; hydrate gate so failed load cannot wipe collection; no demo allocations in API mode; campus-wide subject validation on PUT. Focused pytest + `vite build` green. **No live DB writes. Not committed/pushed. Principal browser UAT still separate.**
 - Phase 4–8 academic backend + shared approval screens pushed earlier today
 - User manual `docs/QMIS_Academic_Workflow_User_Manual.md` (v1.1.1) from code evidence
 - Isolated browser UAT: seeded **Uat Meera** (Grade 7-A); parent + student portals show **UAT Midterm G7 · Maths 46/50 · 92% · A+ · Pass**; parent API notification “Result published”; exam schedule lists approved exam

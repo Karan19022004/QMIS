@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Download, EllipsisIcon } from 'lucide-react'
+import { toast } from 'react-toastify'
 import mo_user from '../../../assets/images/no-profile.png'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
@@ -8,8 +9,11 @@ import RemoveAllocationModal from './Components/RemoveAllocationModal'
 import {
     ALLOCATION_STATUSES,
     allocationStatusColor,
+    canSaveTeacherAllocations,
     emptyTeacherAllocationFilters,
     filterTeacherAllocationRows,
+    getAllocationHydrateError,
+    getAllocationHydrateStatus,
     getDepartments,
     getGrades,
     getSubjects,
@@ -17,6 +21,7 @@ import {
     getTeacherRosterStatus,
     hydrateTeacherAllocationsFromApi,
     hydrateTeachersFromDirectory,
+    isUsingDemoAllocations,
     isUsingDemoTeacherRoster,
     removeTeacherAllocation,
     ROUTE_BASE,
@@ -34,7 +39,10 @@ const TeacherAllocationList = () => {
     const [entriesPerPage, setEntriesPerPage] = useState(10)
     const [removeTarget, setRemoveTarget] = useState(null)
     const [usingDemoRoster, setUsingDemoRoster] = useState(() => isUsingDemoTeacherRoster())
+    const [usingDemoAllocations, setUsingDemoAllocations] = useState(() => isUsingDemoAllocations())
     const [rosterStatus, setRosterStatus] = useState(() => (getTeacherRosterStatus() === 'idle' ? 'loading' : getTeacherRosterStatus()))
+    const [allocHydrateStatus, setAllocHydrateStatus] = useState(() => getAllocationHydrateStatus())
+    const [allocHydrateError, setAllocHydrateError] = useState(() => getAllocationHydrateError())
 
     const filteredRows = useMemo(() => filterTeacherAllocationRows(rows, filters), [rows, filters])
     const departments = getDepartments()
@@ -44,14 +52,21 @@ const TeacherAllocationList = () => {
     const refreshRows = () => {
         setRows(getTeacherAllocationRows())
         setUsingDemoRoster(isUsingDemoTeacherRoster())
+        setUsingDemoAllocations(isUsingDemoAllocations())
         setRosterStatus(getTeacherRosterStatus())
+        setAllocHydrateStatus(getAllocationHydrateStatus())
+        setAllocHydrateError(getAllocationHydrateError())
+    }
+
+    const reloadAllocations = async () => {
+        await hydrateTeacherAllocationsFromApi({ force: true })
+        await hydrateTeachersFromDirectory({ force: true })
+        refreshRows()
     }
 
     useEffect(() => {
         ;(async () => {
-            await hydrateTeacherAllocationsFromApi()
-            await hydrateTeachersFromDirectory({ force: true })
-            refreshRows()
+            await reloadAllocations()
         })()
         window.addEventListener(TEACHER_ALLOCATIONS_UPDATED_EVENT, refreshRows)
         return () => window.removeEventListener(TEACHER_ALLOCATIONS_UPDATED_EVENT, refreshRows)
@@ -63,10 +78,20 @@ const TeacherAllocationList = () => {
 
     const clearFilters = () => setFilters(emptyTeacherAllocationFilters)
 
-    const handleRemoveConfirm = () => {
+    const handleRemoveConfirm = async () => {
         if (!removeTarget) return
-        removeTeacherAllocation(removeTarget.employeeId)
+        if (!canSaveTeacherAllocations() && allocHydrateStatus !== 'idle') {
+            toast.error(allocHydrateError || 'Allocations are not ready. Retry loading first.')
+            return
+        }
+        const result = await removeTeacherAllocation(removeTarget.employeeId)
         setRemoveTarget(null)
+        if (!result.success) {
+            toast.error((result.errors && result.errors[0]) || 'Could not remove allocation.')
+            refreshRows()
+            return
+        }
+        toast.success('Allocation cleared.')
         refreshRows()
     }
 
@@ -85,8 +110,24 @@ const TeacherAllocationList = () => {
                 </p>
                 {usingDemoRoster ? (
                     <p className='text-sm text-[#B54708] bg-[#FFFAEB] border border-[#FEDF89] rounded-lg px-3 py-2 mb-4'>
-                        Showing demo teachers (TEA-1001…). Sign in with API enabled and ensure HR has Active
+                        Demo mode: showing sample teachers (TEA-1001…). Sign in with API enabled and ensure HR has Active
                         teachers — then refresh this page to allocate real employees.
+                    </p>
+                ) : null}
+                {usingDemoAllocations ? (
+                    <p className='text-sm text-[#B54708] bg-[#FFFAEB] border border-[#FEDF89] rounded-lg px-3 py-2 mb-4'>
+                        Demo mode: allocation rows are local sample data only (not saved to the server).
+                    </p>
+                ) : null}
+                {allocHydrateStatus === 'loading' ? (
+                    <p className='text-sm text-[#667085] mb-4'>Loading teacher allocations…</p>
+                ) : null}
+                {allocHydrateStatus === 'error' ? (
+                    <p className='text-sm text-[#B54708] bg-[#FFFAEB] border border-[#FEDF89] rounded-lg px-3 py-2 mb-4 flex flex-wrap items-center gap-3'>
+                        <span>{allocHydrateError || 'Teacher allocations could not be loaded. Saving is blocked until this succeeds.'}</span>
+                        <button type='button' onClick={() => void reloadAllocations()} className='text-[#515DEF] underline cursor-pointer'>
+                            Retry
+                        </button>
                     </p>
                 ) : null}
                 {!usingDemoRoster && rosterStatus === 'loading' ? (

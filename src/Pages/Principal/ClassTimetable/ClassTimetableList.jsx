@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { ChevronLeft, ChevronRight, Download, Eye, Plus, EllipsisIcon } from 'lucide-react'
 import { classKeysMatch, normalizeClassKey, normalizeSectionKey } from '../../../Common/Teacher/teacherAssignedClasses'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
@@ -16,6 +17,8 @@ import {
     getGradeOptions,
     getSectionOptions,
     getTimetableChangeRequests,
+    getTimetableHydrateError,
+    getTimetableHydrateStatus,
     getTimetableRoutes,
     hydrateClassTimetablesFromApi,
     loadAcademicYearOptions,
@@ -59,6 +62,8 @@ const ClassTimetableList = () => {
     const [statusFilter, setStatusFilter] = useState('')
     const [teacherFilter, setTeacherFilter] = useState('')
     const [page, setPage] = useState(1)
+    const [hydrateStatus, setHydrateStatus] = useState(() => getTimetableHydrateStatus())
+    const [hydrateError, setHydrateError] = useState(() => getTimetableHydrateError())
 
     const classOptions = useMemo(() => {
         const fromRecords = records.flatMap((item) => periodsOf(item).map((row) => row.className)).filter(Boolean)
@@ -86,10 +91,17 @@ const ClassTimetableList = () => {
     const refresh = () => {
         setRecords(getClassTimetables())
         setChanges(getTimetableChangeRequests())
+        setHydrateStatus(getTimetableHydrateStatus())
+        setHydrateError(getTimetableHydrateError())
+    }
+
+    const reloadTimetables = async () => {
+        await hydrateClassTimetablesFromApi({ force: true })
+        refresh()
     }
 
     useEffect(() => {
-        hydrateClassTimetablesFromApi().finally(refresh)
+        void reloadTimetables()
         loadAcademicYearOptions()
             .then((rows) => setAcademicYearOptions(Array.isArray(rows) ? rows : []))
             .catch(() => setAcademicYearOptions([]))
@@ -97,23 +109,39 @@ const ClassTimetableList = () => {
         return () => window.removeEventListener(CLASS_TIMETABLES_UPDATED_EVENT, refresh)
     }, [location.key])
 
-    const reviewChange = (id, approved) => {
+    const reviewChange = async (id, approved) => {
         if (!approved && !rejectReason.trim()) return
-        decideTimetableChangeRequest(id, approved, 'Principal', rejectReason.trim())
-        setChanges(getTimetableChangeRequests())
-        setRecords(getClassTimetables())
+        const result = await decideTimetableChangeRequest(id, approved, 'Principal', rejectReason.trim())
+        if (!result.success) {
+            toast.error((result.errors && result.errors[0]) || 'Could not update change request.')
+            refresh()
+            return
+        }
+        refresh()
         setRejectReason('')
+        toast.success(approved ? 'Change request approved.' : 'Change request rejected.')
     }
 
-    const reviewTimetable = (id, approved) => {
+    const reviewTimetable = async (id, approved) => {
         if (!canApprove) return
         if (!approved && !rejectReason.trim()) {
             window.alert('Enter a rejection reason above before denying.')
             return
         }
-        decideClassTimetableApproval(id, approved ? 'Approved' : 'Denied', reviewer, rejectReason.trim())
-        setRecords(getClassTimetables())
+        const result = await decideClassTimetableApproval(
+            id,
+            approved ? 'Approved' : 'Denied',
+            reviewer,
+            rejectReason.trim(),
+        )
+        if (!result.success) {
+            toast.error((result.errors && result.errors[0]) || 'Could not update timetable approval.')
+            refresh()
+            return
+        }
+        refresh()
         if (!approved) setRejectReason('')
+        toast.success(approved ? 'Class timetable approved.' : 'Class timetable denied.')
     }
 
     const filteredRecords = useMemo(() => {
@@ -251,6 +279,18 @@ const ClassTimetableList = () => {
                 </div>
             </div>
 
+            {hydrateStatus === 'loading' ? (
+                <p className='text-sm text-[#667085] mt-4'>Loading class timetables…</p>
+            ) : null}
+            {hydrateStatus === 'error' ? (
+                <p className='text-sm text-[#B54708] bg-[#FFFAEB] border border-[#FEDF89] rounded-lg px-3 py-2 mt-4 flex flex-wrap items-center gap-3'>
+                    <span>{hydrateError || 'Class timetables could not be loaded. Saving is blocked until this succeeds.'}</span>
+                    <button type='button' onClick={() => void reloadTimetables()} className='text-[#515DEF] underline cursor-pointer'>
+                        Retry
+                    </button>
+                </p>
+            ) : null}
+
             {canApprove ? (
             <div className='bg-white rounded-2xl shadow-md p-4 mt-8'>
                 <h2 className='text-xl font-medium text-black'>Timetable approval</h2>
@@ -355,7 +395,7 @@ const ClassTimetableList = () => {
                                         </td>
                                         <td className='px-2 py-4 rounded-e-lg'>
                                             <div className='flex items-center gap-2'>
-                                                {canApprove && record.approvalStatus === 'Pending' ? (
+                                                {canApprove && record.approvalStatus === 'Pending' && hydrateStatus !== 'error' ? (
                                                     <>
                                                         <button
                                                             type='button'

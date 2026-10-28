@@ -1,42 +1,26 @@
 # Testing report
 
 **Date:** 28 October 2026  
-**Branch:** local uncommitted work (not pushed)  
-**Context:** Prioritized stabilization — auth NullPool verify, ProTrack fallback guard, canteen persist hardening. **No live campus DB writes.**
+**Context:** Module 2 Class Timetable fixes (TT-01–TT-07). Isolated SQLite pytest only. **No live DB writes.**
 
-## Latest pytest
+## Suites
 
 | Suite | Result |
 |---|---|
-| Focused stabilization batch (auth stability + production-readiness static + canteen persist + finance assistant perms + admissions + principal/coordinator/teacher/parent/student portal APIs) | **32 passed** |
-| `test_sqlite_file_auth_stability` alone | **3 passed** |
-| ProTrack static + `test_protrack_proxy` + canteen persist (earlier same pass) | **6 passed** |
+| `tests/test_academics_collections.py` | **14 passed** |
+| Access phase2+3a `-k timetable` (`--import-mode=importlib`) | **4 passed** |
+| `tests/test_frontend_fixes_static.py` timetable-related | **6 passed** |
+| Frontend `npm run build` | **PASS** |
 
-## Isolated API (`:8001` file SQLite, NullPool)
+## Coverage notes
 
-| Check | Result |
-|---|---|
-| Concurrent `GET /auth/me` ×16 | **16/16 200** |
-| No token / bad password | **401 / 401** |
-| Masters years/classes | **200** |
-| Principal create admission | **403** (expected) |
-| Admin `/auth/me` | **200** |
+- TT-01/02: FE await save, hydrate null-on-error, `canSaveClassTimetables` gate (static + UI).
+- TT-03/04: API 422 on unknown subject / allocation miss / overlapping class or teacher periods; failed PUT leaves prior rows.
+- TT-05: Coordinator PUT with `Approved` forced to `Pending`.
+- TT-07: Student FE requires `approvalStatus === 'Approved'`.
+- TT-06: UI remains disabled; no new workflow invented.
 
-## Frontend build
+## Not run
 
-| Check | Result |
-|---|---|
-| `npm run build` | **PASS** (`✓ built`) |
-
-## Browser UAT
-
-| Check | Result |
-|---|---|
-| Full academic workflow (exam→marks→results→portals) | **NOT RUN** this pass (API/portal suites only) |
-| Prior same-day: Super Admin / Finance Assistant shells | **PASS** (see earlier testing-report notes) |
-
-## Notes
-
-- ProTrack `devicesList[0]` fallback is **absent** in current `useProtrackLive.js`; guarded by static tests.
-- Canteen `saveOrders` now throws unless `persistCampusJson` reports `success`.
-- Auth NullPool fix remains uncommitted; do not treat live Postgres as covered by this SQLite race.
+- Principal / Teacher / Student / Parent browser UAT
+- Live PostgreSQL

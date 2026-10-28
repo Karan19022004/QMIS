@@ -310,7 +310,8 @@ const emptyAllocation = () => ({
     mappings: [],
 })
 
-const DEFAULT_ALLOCATIONS = [
+/** Intentional offline demo only — never used when the academics API is expected. */
+const DEMO_ALLOCATIONS = [
     {
         employeeId: 'TEA-1001',
         status: 'Active',
@@ -322,47 +323,14 @@ const DEFAULT_ALLOCATIONS = [
             { id: 'MAP-002', className: 'Grade 10', section: 'A', subject: 'Mathematics' },
         ],
     },
-    {
-        employeeId: 'TEA-1002',
-        status: 'Active',
-        classTeacher: null,
-        teachingClasses: ['Grade 1', 'Grade 2', 'Grade 5'],
-        subjects: ['English', 'Tamil'],
-        mappings: [
-            { id: 'MAP-003', className: 'Grade 1', section: 'A', subject: 'English' },
-            { id: 'MAP-004', className: 'Grade 2', section: 'B', subject: 'English' },
-            { id: 'MAP-005', className: 'Grade 5', section: 'A', subject: 'Tamil' },
-        ],
-    },
-    {
-        employeeId: 'TEA-1003',
-        status: 'Not Allocated',
-        classTeacher: null,
-        teachingClasses: [],
-        subjects: [],
-        mappings: [],
-    },
-    {
-        employeeId: 'TEA-1004',
-        status: 'Not Allocated',
-        classTeacher: null,
-        teachingClasses: [],
-        subjects: [],
-        mappings: [],
-    },
-    {
-        employeeId: 'TEA-1005',
-        status: 'Inactive',
-        classTeacher: { academicYear: '2025–2026', className: 'Grade 8', section: 'B' },
-        teachingClasses: ['Grade 8'],
-        subjects: ['Social Science'],
-        mappings: [
-            { id: 'MAP-006', className: 'Grade 8', section: 'B', subject: 'Social Science' },
-        ],
-    },
 ]
 
 let apiMemoryAllocations = null
+// idle | loading | ready | error — server mode only. ready+[] means a valid empty collection.
+let allocationHydrateStatus = 'idle'
+let allocationHydrateError = ''
+let allocationSaveInFlight = false
+let lastConfirmedServerAllocations = null
 
 const usesApiMemory = () => canUseAcademicsApi()
 
@@ -377,21 +345,49 @@ const purgeBrowserCopies = () => {
 
 const cleanList = (rows) => (Array.isArray(rows) ? rows.map(stripAcademicsMeta) : [])
 
+export const getAllocationHydrateStatus = () => allocationHydrateStatus
+export const getAllocationHydrateError = () => allocationHydrateError
+export const isAllocationSaveInFlight = () => allocationSaveInFlight
+export const canSaveTeacherAllocations = () => {
+    if (!usesApiMemory()) return true
+    return allocationHydrateStatus === 'ready' && Array.isArray(apiMemoryAllocations) && !allocationSaveInFlight
+}
+
 export const clearTeacherAllocationMemory = () => {
     apiMemoryAllocations = null
+    lastConfirmedServerAllocations = null
+    allocationHydrateStatus = 'idle'
+    allocationHydrateError = ''
     emitUpdated()
 }
 
-export const hydrateTeacherAllocationsFromApi = async () => {
-    if (!canUseAcademicsApi()) return false
+export const hydrateTeacherAllocationsFromApi = async ({ force = false } = {}) => {
+    if (!canUseAcademicsApi()) {
+        allocationHydrateStatus = 'idle'
+        allocationHydrateError = ''
+        return false
+    }
+    if (!force && allocationHydrateStatus === 'ready' && Array.isArray(apiMemoryAllocations)) {
+        return true
+    }
+    allocationHydrateStatus = 'loading'
+    allocationHydrateError = ''
+    emitUpdated()
     try {
         const rows = await listAcademicsCollectionApi('teacher-allocations')
-        apiMemoryAllocations = cleanList(rows)
+        const cleaned = cleanList(Array.isArray(rows) ? rows : [])
+        apiMemoryAllocations = cleaned
+        lastConfirmedServerAllocations = cleaned.map((row) => ({ ...row }))
+        allocationHydrateStatus = 'ready'
+        allocationHydrateError = ''
         purgeBrowserCopies()
         emitUpdated()
         return true
-    } catch {
-        apiMemoryAllocations = []
+    } catch (error) {
+        // CA-05: do not treat a failed load as an empty collection (would wipe on save).
+        apiMemoryAllocations = null
+        allocationHydrateStatus = 'error'
+        allocationHydrateError = error?.message || 'Could not load teacher allocations from the server.'
         emitUpdated()
         return false
     }
@@ -399,7 +395,9 @@ export const hydrateTeacherAllocationsFromApi = async () => {
 
 export const getAllocations = () => {
     if (usesApiMemory()) {
-        return Array.isArray(apiMemoryAllocations) ? [...apiMemoryAllocations] : []
+        // CA-03: never surface demo rows as live allocations when API mode is on.
+        if (!Array.isArray(apiMemoryAllocations)) return []
+        return [...apiMemoryAllocations]
     }
     try {
         const stored = localStorage.getItem(STORAGE_KEY)
@@ -407,18 +405,54 @@ export const getAllocations = () => {
     } catch {
         /* ignore */
     }
-    return [...DEFAULT_ALLOCATIONS]
+    // Explicit offline demo only (API auth off).
+    return DEMO_ALLOCATIONS.map((row) => ({ ...row, mappings: [...(row.mappings || [])] }))
 }
 
-export const saveAllocations = (records) => {
+/** True when offline demo allocations are in use (API auth off). */
+export const isUsingDemoAllocations = () => !usesApiMemory()
+
+export const saveAllocations = async (records) => {
     const list = Array.isArray(records) ? records : []
     if (usesApiMemory()) {
+        if (!canSaveTeacherAllocations()) {
+            return {
+                success: false,
+                errors: [
+                    allocationHydrateStatus === 'error'
+                        ? (allocationHydrateError || 'Allocations have not loaded. Retry before saving.')
+                        : 'Wait for teacher allocations to finish loading before saving.',
+                ],
+            }
+        }
+        const previous = Array.isArray(lastConfirmedServerAllocations)
+            ? lastConfirmedServerAllocations.map((row) => ({ ...row }))
+            : []
+        allocationSaveInFlight = true
         apiMemoryAllocations = list
-        replaceAcademicsCollectionApi('teacher-allocations', cleanList(list)).catch(() => {})
         emitUpdated()
-        return
+        try {
+            const saved = await replaceAcademicsCollectionApi('teacher-allocations', cleanList(list))
+            const cleaned = cleanList(Array.isArray(saved) ? saved : list)
+            apiMemoryAllocations = cleaned
+            lastConfirmedServerAllocations = cleaned.map((row) => ({ ...row }))
+            allocationSaveInFlight = false
+            emitUpdated()
+            return { success: true, records: cleaned }
+        } catch (error) {
+            apiMemoryAllocations = previous
+            lastConfirmedServerAllocations = previous.map((row) => ({ ...row }))
+            allocationSaveInFlight = false
+            emitUpdated()
+            return {
+                success: false,
+                errors: [error?.message || 'Could not save teacher allocations. Changes were not kept.'],
+            }
+        }
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+    emitUpdated()
+    return { success: true, records: list }
 }
 
 export const getTeacherById = (employeeId) => {
@@ -557,12 +591,14 @@ export const validateAllocation = (payload, employeeId) => {
     return { valid: errors.length === 0, errors }
 }
 
-export const saveTeacherAllocation = (employeeId, payload) => {
+export const saveTeacherAllocation = async (employeeId, payload) => {
     const validation = validateAllocation(payload, employeeId)
     if (!validation.valid) return { success: false, errors: validation.errors }
 
+    const teacher = getTeacherById(employeeId)
     const record = {
         employeeId,
+        email: teacher?.email || '',
         status: payload.status || 'Active',
         classTeacher: payload.classTeacher?.className ? payload.classTeacher : null,
         teachingClasses: payload.teachingClasses ?? [],
@@ -580,17 +616,19 @@ export const saveTeacherAllocation = (employeeId, payload) => {
         updated.push(record)
     }
 
-    saveAllocations(updated)
+    const saved = await saveAllocations(updated)
+    if (!saved.success) return { success: false, errors: saved.errors || ['Save failed.'] }
     return { success: true, record }
 }
 
-export const removeTeacherAllocation = (employeeId) => {
+export const removeTeacherAllocation = async (employeeId) => {
     const allocations = getAllocations()
     const updated = allocations.map((item) =>
-        item.employeeId === employeeId ? { ...emptyAllocation(), employeeId } : item,
+        item.employeeId === employeeId ? { ...emptyAllocation(), employeeId, email: item.email || '' } : item,
     )
-    saveAllocations(updated)
-    return updated
+    const saved = await saveAllocations(updated)
+    if (!saved.success) return { success: false, errors: saved.errors || ['Remove failed.'], records: getAllocations() }
+    return { success: true, records: saved.records || updated }
 }
 
 export const createEmptyMappingRow = () => ({

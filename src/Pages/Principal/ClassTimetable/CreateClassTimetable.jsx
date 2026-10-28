@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import ClassTimelineEditor from './Components/ClassTimelineEditor'
 import {
     TERMS,
     addClassTimetable,
+    canSaveClassTimetables,
     classRecordToForm,
     defaultClassTimetableForm,
+    findTimetableConflicts,
     generateTimetableId,
     getClassTimetableById,
+    getTimetableHydrateError,
+    getTimetableHydrateStatus,
     getTimetableRoutes,
     hydrateClassTimetablesFromApi,
+    isTimetableSaveInFlight,
     loadAcademicYearOptions,
     loadClassTimetableTeacherOptions,
     updateClassTimetable,
@@ -43,53 +49,59 @@ const CreateClassTimetable = () => {
     const [loadingTeachers, setLoadingTeachers] = useState(true)
     const [loadingYears, setLoadingYears] = useState(true)
     const [recordLoading, setRecordLoading] = useState(isEdit)
+    const [hydrateOk, setHydrateOk] = useState(false)
+    const [hydrateError, setHydrateError] = useState('')
+    const [saving, setSaving] = useState(false)
 
-    useEffect(() => {
-        let cancelled = false
+    const load = async () => {
         setLoadingTeachers(true)
         setLoadingYears(true)
-        Promise.all([
-            hydrateClassTimetablesFromApi(),
+        setRecordLoading(isEdit)
+        const [allocOk, teacherRows, yearRows] = await Promise.all([
+            hydrateClassTimetablesFromApi({ force: true }),
             loadClassTimetableTeacherOptions({ viewerPath: pathname }),
             loadAcademicYearOptions(),
         ])
-            .then(([, teacherRows, yearRows]) => {
-                if (cancelled) return
-                setTeachers(teacherRows || [])
-                const years = Array.isArray(yearRows) ? yearRows : []
-                setAcademicYears(years)
-                const currentYear = years.find((y) => y.isCurrent)?.name || years[0]?.name || ''
-                if (isEdit) {
-                    const record = getClassTimetableById(editId)
-                    if (!record) {
-                        setErrors(['Class timetable not found.'])
-                    } else {
-                        const nextForm = classRecordToForm(record)
-                        // Keep saved year even if it is no longer in the masters list.
-                        if (nextForm.academicYear && !years.some((y) => y.name === nextForm.academicYear)) {
-                            setAcademicYears([{ id: nextForm.academicYear, name: nextForm.academicYear, isCurrent: false }, ...years])
-                        }
-                        setForm(nextForm)
-                    }
-                    setRecordLoading(false)
-                } else {
-                    setForm((current) => ({
-                        ...current,
-                        timetableId: current.timetableId || generateTimetableId(),
-                        academicYear: current.academicYear || currentYear,
-                    }))
-                    setRecordLoading(false)
+        setTeachers(teacherRows || [])
+        const years = Array.isArray(yearRows) ? yearRows : []
+        setAcademicYears(years)
+        const currentYear = years.find((y) => y.isCurrent)?.name || years[0]?.name || ''
+        const status = getTimetableHydrateStatus()
+        setHydrateOk(allocOk || status === 'ready' || status === 'idle')
+        setHydrateError(getTimetableHydrateError())
+        if (isEdit) {
+            const record = getClassTimetableById(editId)
+            if (!record) {
+                setErrors(['Class timetable not found.'])
+            } else {
+                const nextForm = classRecordToForm(record)
+                if (nextForm.academicYear && !years.some((y) => y.name === nextForm.academicYear)) {
+                    setAcademicYears([{ id: nextForm.academicYear, name: nextForm.academicYear, isCurrent: false }, ...years])
                 }
-            })
-            .finally(() => {
-                if (!cancelled) {
-                    setLoadingTeachers(false)
-                    setLoadingYears(false)
-                }
-            })
+                setForm(nextForm)
+            }
+        } else {
+            setForm((current) => ({
+                ...current,
+                timetableId: current.timetableId || generateTimetableId(),
+                academicYear: current.academicYear || currentYear,
+            }))
+        }
+        setRecordLoading(false)
+        setLoadingTeachers(false)
+        setLoadingYears(false)
+    }
+
+    useEffect(() => {
+        let cancelled = false
+        ;(async () => {
+            await load()
+            if (cancelled) return
+        })()
         return () => {
             cancelled = true
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isEdit, editId, pathname])
 
     const updateField = (key, value) => {
@@ -122,19 +134,44 @@ const CreateClassTimetable = () => {
         ))) {
             nextErrors.push('Add at least one complete timeline row (day, class, section, subject, and times).')
         }
+        nextErrors.push(
+            ...findTimetableConflicts(form.timelines, {
+                ownerTeacherId: form.ownerTeacherId,
+                ownerTeacherName: form.ownerTeacherName,
+            }),
+        )
         setErrors(nextErrors)
         return nextErrors.length === 0
     }
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!validate()) return
-        if (isEdit) {
-            updateClassTimetable(editId, form)
-        } else {
-            addClassTimetable({ ...form, createdByRole })
+        if (!canSaveClassTimetables() && getTimetableHydrateStatus() !== 'idle') {
+            const message = getTimetableHydrateError() || 'Timetables are not ready to save yet. Retry loading first.'
+            setErrors([message])
+            toast.error(message)
+            return
         }
-        navigate(listPath)
+        if (isTimetableSaveInFlight() || saving) return
+        setSaving(true)
+        try {
+            const result = isEdit
+                ? await updateClassTimetable(editId, form)
+                : await addClassTimetable({ ...form, createdByRole })
+            if (!result.success) {
+                const message = (result.errors && result.errors[0]) || 'Could not save timetable.'
+                setErrors(result.errors || [message])
+                toast.error(message)
+                return
+            }
+            toast.success(isEdit ? 'Class timetable updated.' : 'Class timetable submitted for approval.')
+            navigate(listPath)
+        } finally {
+            setSaving(false)
+        }
     }
+
+    const saveDisabled = recordLoading || saving || getTimetableHydrateStatus() === 'error'
 
     return (
         <section>
@@ -153,6 +190,18 @@ const CreateClassTimetable = () => {
                     {recordLoading && (
                         <p className='text-sm text-[#667085] mt-2'>Loading timetable…</p>
                     )}
+                    {!hydrateOk && hydrateError ? (
+                        <div className='mt-3 text-sm text-[#B54708] bg-[#FFFAEB] border border-[#FEDF89] rounded-lg px-3 py-2 flex flex-wrap items-center gap-3'>
+                            <span>{hydrateError}</span>
+                            <button
+                                type='button'
+                                onClick={() => void load()}
+                                className='text-[#515DEF] underline cursor-pointer'
+                            >
+                                Retry
+                            </button>
+                        </div>
+                    ) : null}
                 </div>
 
                 {errors.length > 0 && (
@@ -250,11 +299,11 @@ const CreateClassTimetable = () => {
                 </button>
                 <button
                     type='button'
-                    disabled={recordLoading}
-                    onClick={handleSubmit}
+                    disabled={saveDisabled}
+                    onClick={() => void handleSubmit()}
                     className='bg-[#515DEF] text-white text-sm text-center px-12 py-2 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer md:w-auto w-full disabled:opacity-60'
                 >
-                    {isEdit ? 'Save Changes' : 'Submit for Approval'}
+                    {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Submit for Approval'}
                 </button>
             </div>
         </section>

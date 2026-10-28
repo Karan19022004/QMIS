@@ -407,6 +407,12 @@ const DEFAULT_CLASS_TIMETABLES = []
 
 let apiMemoryTimetables = null
 let apiMemoryChanges = null
+// idle | loading | ready | error — server mode only. ready + [] is a valid empty campus.
+let timetableHydrateStatus = 'idle'
+let timetableHydrateError = ''
+let timetableSaveInFlight = false
+let lastConfirmedServerTimetables = null
+let lastConfirmedServerChanges = null
 
 const usesApiMemory = () => canUseAcademicsApi()
 
@@ -429,39 +435,72 @@ const purgeBrowserCopies = () => {
     }
 }
 
+export const getTimetableHydrateStatus = () => timetableHydrateStatus
+export const getTimetableHydrateError = () => timetableHydrateError
+export const isTimetableSaveInFlight = () => timetableSaveInFlight
+export const canSaveClassTimetables = () => {
+    if (!usesApiMemory()) return true
+    return (
+        timetableHydrateStatus === 'ready'
+        && Array.isArray(apiMemoryTimetables)
+        && Array.isArray(apiMemoryChanges)
+        && !timetableSaveInFlight
+    )
+}
+
 export const clearClassTimetableMemory = () => {
     apiMemoryTimetables = null
     apiMemoryChanges = null
+    lastConfirmedServerTimetables = null
+    lastConfirmedServerChanges = null
+    timetableHydrateStatus = 'idle'
+    timetableHydrateError = ''
     emitUpdated()
 }
 
 const cleanList = (rows) => (Array.isArray(rows) ? rows.map(stripAcademicsMeta) : [])
 
-const pushTimetables = (rows) => {
-    if (!usesApiMemory()) return
-    replaceAcademicsCollectionApi('class-timetables', cleanList(rows)).catch(() => {})
-}
+const cloneList = (rows) => (Array.isArray(rows) ? rows.map((row) => ({ ...row })) : [])
 
-const pushChanges = (rows) => {
-    if (!usesApiMemory()) return
-    replaceAcademicsCollectionApi('class-timetable-change-requests', cleanList(rows)).catch(() => {})
-}
-
-export const hydrateClassTimetablesFromApi = async () => {
-    if (!canUseAcademicsApi()) return false
+export const hydrateClassTimetablesFromApi = async ({ force = false } = {}) => {
+    if (!canUseAcademicsApi()) {
+        timetableHydrateStatus = 'idle'
+        timetableHydrateError = ''
+        return false
+    }
+    if (
+        !force
+        && timetableHydrateStatus === 'ready'
+        && Array.isArray(apiMemoryTimetables)
+        && Array.isArray(apiMemoryChanges)
+    ) {
+        return true
+    }
+    timetableHydrateStatus = 'loading'
+    timetableHydrateError = ''
+    emitUpdated()
     try {
         const [tts, changes] = await Promise.all([
             listAcademicsCollectionApi('class-timetables'),
             listAcademicsCollectionApi('class-timetable-change-requests'),
         ])
-        apiMemoryTimetables = cleanList(tts)
-        apiMemoryChanges = cleanList(changes)
+        const cleanedTt = cleanList(Array.isArray(tts) ? tts : [])
+        const cleanedCh = cleanList(Array.isArray(changes) ? changes : [])
+        apiMemoryTimetables = cleanedTt
+        apiMemoryChanges = cleanedCh
+        lastConfirmedServerTimetables = cloneList(cleanedTt)
+        lastConfirmedServerChanges = cloneList(cleanedCh)
+        timetableHydrateStatus = 'ready'
+        timetableHydrateError = ''
         purgeBrowserCopies()
         emitUpdated()
         return true
-    } catch {
-        apiMemoryTimetables = []
-        apiMemoryChanges = []
+    } catch (error) {
+        // TT-02: failed load must not look like a confirmed empty collection (would wipe on save).
+        apiMemoryTimetables = null
+        apiMemoryChanges = null
+        timetableHydrateStatus = 'error'
+        timetableHydrateError = error?.message || 'Could not load class timetables from the server.'
         emitUpdated()
         return false
     }
@@ -480,15 +519,45 @@ export const getClassTimetables = () => {
     return [...DEFAULT_CLASS_TIMETABLES]
 }
 
-export const saveClassTimetables = (records) => {
+export const saveClassTimetables = async (records) => {
     const list = Array.isArray(records) ? records : []
     if (usesApiMemory()) {
+        if (!canSaveClassTimetables()) {
+            return {
+                success: false,
+                errors: [
+                    timetableHydrateStatus === 'error'
+                        ? (timetableHydrateError || 'Timetables have not loaded. Retry before saving.')
+                        : 'Wait for class timetables to finish loading before saving.',
+                ],
+            }
+        }
+        const previous = cloneList(lastConfirmedServerTimetables)
+        timetableSaveInFlight = true
         apiMemoryTimetables = list
-        pushTimetables(list)
         emitUpdated()
-        return
+        try {
+            const saved = await replaceAcademicsCollectionApi('class-timetables', cleanList(list))
+            const cleaned = cleanList(Array.isArray(saved) ? saved : list)
+            apiMemoryTimetables = cleaned
+            lastConfirmedServerTimetables = cloneList(cleaned)
+            timetableSaveInFlight = false
+            emitUpdated()
+            return { success: true, records: cleaned }
+        } catch (error) {
+            apiMemoryTimetables = previous
+            lastConfirmedServerTimetables = cloneList(previous)
+            timetableSaveInFlight = false
+            emitUpdated()
+            return {
+                success: false,
+                errors: [error?.message || 'Could not save class timetables. Changes were not kept.'],
+            }
+        }
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+    emitUpdated()
+    return { success: true, records: list }
 }
 
 export const getClassTimetableById = (id) =>
@@ -506,7 +575,7 @@ export const generateTimetableId = () => {
 export const formatSubmittedDate = () =>
     new Date().toLocaleDateString('en-GB').replace(/\//g, '-')
 
-export const addClassTimetable = (payload) => {
+export const addClassTimetable = async (payload) => {
     const ownerName = payload.ownerTeacherName || ''
     const timelines = (payload.timelines || [])
         .filter((row) => row.day && row.subject && row.className && row.section)
@@ -530,8 +599,11 @@ export const addClassTimetable = (payload) => {
         approvalStatus: 'Pending',
         timelines,
     }
-    saveClassTimetables([record, ...getClassTimetables()])
-    return record
+    const saved = await saveClassTimetables([record, ...getClassTimetables()])
+    if (!saved.success) {
+        return { success: false, errors: saved.errors || ['Save failed.'], record: null }
+    }
+    return { success: true, record }
 }
 
 export const classRecordToForm = (record) => {
@@ -550,7 +622,7 @@ export const classRecordToForm = (record) => {
 }
 
 /** Update an existing class timetable; edits reset approval to Pending. */
-export const updateClassTimetable = (id, payload) => {
+export const updateClassTimetable = async (id, payload) => {
     const ownerName = payload.ownerTeacherName || ''
     const timelines = (payload.timelines || [])
         .filter((row) => row.day && row.subject && row.className && row.section)
@@ -561,7 +633,7 @@ export const updateClassTimetable = (id, payload) => {
     const first = timelines[0] || {}
     const list = getClassTimetables()
     const idx = list.findIndex((item) => String(item.id) === String(id))
-    if (idx < 0) return null
+    if (idx < 0) return { success: false, errors: ['Class timetable not found.'], record: null }
     const updated = {
         ...list[idx],
         className: first.className || list[idx].className || '',
@@ -578,8 +650,11 @@ export const updateClassTimetable = (id, payload) => {
     }
     const next = [...list]
     next[idx] = updated
-    saveClassTimetables(next)
-    return updated
+    const saved = await saveClassTimetables(next)
+    if (!saved.success) {
+        return { success: false, errors: saved.errors || ['Save failed.'], record: null }
+    }
+    return { success: true, record: updated }
 }
 
 // "09:00", "9:00 AM", "01:30 PM" → minutes since midnight (unparseable sorts last).
@@ -591,6 +666,49 @@ export const slotStartMinutes = (value) => {
     if (meridiem === 'PM' && hours < 12) hours += 12
     if (meridiem === 'AM' && hours === 12) hours = 0
     return hours * 60 + Number(match[2])
+}
+
+const slotEndMinutes = (value) => {
+    const mins = slotStartMinutes(value)
+    return mins === Number.MAX_SAFE_INTEGER ? Number.MAX_SAFE_INTEGER : mins
+}
+
+/** FE clash check for create/edit (room N/A — not in model). */
+export const findTimetableConflicts = (timelines = [], { ownerTeacherId = '', ownerTeacherName = '' } = {}) => {
+    const errors = []
+    const complete = (Array.isArray(timelines) ? timelines : []).filter(
+        (row) => row?.day && row?.className && row?.section && row?.subject && row?.startTime && row?.endTime,
+    )
+    for (let i = 0; i < complete.length; i += 1) {
+        for (let j = i + 1; j < complete.length; j += 1) {
+            const a = complete[i]
+            const b = complete[j]
+            if (String(a.day).toLowerCase() !== String(b.day).toLowerCase()) continue
+            const aStart = slotStartMinutes(a.startTime)
+            const aEnd = slotEndMinutes(a.endTime)
+            const bStart = slotStartMinutes(b.startTime)
+            const bEnd = slotEndMinutes(b.endTime)
+            if (aStart >= aEnd || bStart >= bEnd) continue
+            if (!(aStart < bEnd && bStart < aEnd)) continue
+            const sameClass = classKeysMatch(a.className, b.className)
+                && String(a.section).trim().toUpperCase() === String(b.section).trim().toUpperCase()
+            if (sameClass) {
+                errors.push(
+                    `Class conflict: ${a.className} ${a.section} has overlapping periods on ${a.day}.`,
+                )
+            }
+            const teacherA = String(a.teacher || ownerTeacherName || '').trim().toLowerCase()
+            const teacherB = String(b.teacher || ownerTeacherName || '').trim().toLowerCase()
+            const sameTeacher = Boolean(ownerTeacherId)
+                || (teacherA && teacherB && teacherA === teacherB)
+            if (sameTeacher) {
+                errors.push(
+                    `Teacher conflict: overlapping periods on ${a.day} (${a.startTime}–${a.endTime} / ${b.startTime}–${b.endTime}).`,
+                )
+            }
+        }
+    }
+    return [...new Set(errors)]
 }
 
 export const buildClassGridFromTimelines = (timelines = []) => {
@@ -667,18 +785,48 @@ export const getTimetableChangeRequests = () => {
     return readChangesLocal()
 }
 
-const saveChanges = (items) => {
+const saveChanges = async (items) => {
     const list = Array.isArray(items) ? items : []
     if (usesApiMemory()) {
+        if (!canSaveClassTimetables()) {
+            return {
+                success: false,
+                errors: [
+                    timetableHydrateStatus === 'error'
+                        ? (timetableHydrateError || 'Timetables have not loaded. Retry before saving.')
+                        : 'Wait for class timetables to finish loading before saving.',
+                ],
+            }
+        }
+        const previous = cloneList(lastConfirmedServerChanges)
+        timetableSaveInFlight = true
         apiMemoryChanges = list
-        pushChanges(list)
         emitUpdated()
-        return
+        try {
+            const saved = await replaceAcademicsCollectionApi('class-timetable-change-requests', cleanList(list))
+            const cleaned = cleanList(Array.isArray(saved) ? saved : list)
+            apiMemoryChanges = cleaned
+            lastConfirmedServerChanges = cloneList(cleaned)
+            timetableSaveInFlight = false
+            emitUpdated()
+            return { success: true, records: cleaned }
+        } catch (error) {
+            apiMemoryChanges = previous
+            lastConfirmedServerChanges = cloneList(previous)
+            timetableSaveInFlight = false
+            emitUpdated()
+            return {
+                success: false,
+                errors: [error?.message || 'Could not save timetable change requests.'],
+            }
+        }
     }
     localStorage.setItem(CHANGE_KEY, JSON.stringify(list))
+    emitUpdated()
+    return { success: true, records: list }
 }
 
-export const addTimetableChangeRequest = (payload) => {
+export const addTimetableChangeRequest = async (payload) => {
     const items = getTimetableChangeRequests()
     const record = {
         id: `TCR-${Date.now()}`,
@@ -698,40 +846,35 @@ export const addTimetableChangeRequest = (payload) => {
         reviewedAt: '',
         rejectionReason: '',
     }
-    saveChanges([record, ...items])
-    return record
+    const saved = await saveChanges([record, ...items])
+    if (!saved.success) return { success: false, errors: saved.errors || ['Save failed.'], record: null }
+    return { success: true, record }
 }
 
-const applyChangeToTimetable = (request) => {
+/**
+ * TT-06: Change-request UI is disabled. Keep this path from inventing years or
+ * auto-Approving — apply subject/teacher only onto an existing Pending/Approved row
+ * and leave status Pending for Principal/Director review.
+ */
+const applyChangeToTimetable = async (request) => {
     const timetables = getClassTimetables()
     const match = timetables.find((item) => (
         item.id === request.timetableId
         || (item.className === request.className && item.section === request.section)
     ))
+    if (!match) {
+        return { success: false, errors: ['No matching class timetable to update. Create one first.'] }
+    }
     const row = {
         id: `TL-${Date.now()}`,
         periodNumber: request.periodNumber || '1',
         day: request.day,
+        className: request.className || match.className,
+        section: request.section || match.section,
         subject: request.requestedSubject,
-        teacher: request.requestedTeacher || '—',
+        teacher: request.requestedTeacher || match.ownerTeacherName || '—',
         startTime: '09:00',
         endTime: '09:45',
-    }
-    if (!match) {
-        addClassTimetable({
-            className: request.className,
-            section: request.section,
-            academicYear: '2025-2026',
-            term: 'Term 1',
-            timelines: [row],
-        })
-        const created = getClassTimetables()[0]
-        if (created) {
-            saveClassTimetables(getClassTimetables().map((item) => (
-                item.id === created.id ? { ...item, approvalStatus: 'Approved' } : item
-            )))
-        }
-        return
     }
     const timelines = match.timelines.map((item) => (
         item.day === request.day && (!request.periodNumber || item.periodNumber === request.periodNumber)
@@ -739,19 +882,22 @@ const applyChangeToTimetable = (request) => {
             : item
     ))
     const changed = timelines.some((item, index) => item !== match.timelines[index])
-    saveClassTimetables(timetables.map((item) => (
+    const nextTimelines = changed ? timelines : [...timelines, row]
+    return saveClassTimetables(timetables.map((item) => (
         item.id === match.id
-            ? { ...item, timelines: changed ? timelines : [...timelines, row], approvalStatus: 'Approved' }
+            ? { ...item, timelines: nextTimelines, approvalStatus: 'Pending' }
             : item
     )))
 }
 
-/** Principal decides a submitted class timetable (Approve / Deny). */
-export const decideClassTimetableApproval = (id, approvalStatus, reviewer = 'Principal', rejectionReason = '') => {
+/** Principal / Director decides a submitted class timetable (Approve / Deny). */
+export const decideClassTimetableApproval = async (id, approvalStatus, reviewer = 'Principal', rejectionReason = '') => {
     const nextStatus = approvalStatus === 'Approved' ? 'Approved' : 'Denied'
     const list = getClassTimetables()
     const target = list.find((item) => item.id === id)
-    if (!target || target.approvalStatus !== 'Pending') return null
+    if (!target || target.approvalStatus !== 'Pending') {
+        return { success: false, errors: ['Only Pending timetables can be approved or denied.'], record: null }
+    }
     const updated = {
         ...target,
         approvalStatus: nextStatus,
@@ -759,15 +905,23 @@ export const decideClassTimetableApproval = (id, approvalStatus, reviewer = 'Pri
         reviewedAt: new Date().toISOString(),
         rejectionReason: nextStatus === 'Denied' ? rejectionReason : '',
     }
-    saveClassTimetables(list.map((item) => (item.id === id ? updated : item)))
-    return updated
+    const saved = await saveClassTimetables(list.map((item) => (item.id === id ? updated : item)))
+    if (!saved.success) return { success: false, errors: saved.errors || ['Save failed.'], record: null }
+    return { success: true, record: updated }
 }
 
-export const decideTimetableChangeRequest = (id, approved, reviewer, rejectionReason = '') => {
+export const decideTimetableChangeRequest = async (id, approved, reviewer, rejectionReason = '') => {
     const items = getTimetableChangeRequests()
     const target = items.find((item) => item.id === id)
-    if (!target || target.status !== 'Pending') return items
-    if (approved) applyChangeToTimetable(target)
+    if (!target || target.status !== 'Pending') {
+        return { success: false, errors: ['Change request not found or already decided.'], records: items }
+    }
+    if (approved) {
+        const applied = await applyChangeToTimetable(target)
+        if (!applied.success) {
+            return { success: false, errors: applied.errors || ['Could not apply change to timetable.'], records: items }
+        }
+    }
     const next = items.map((item) => (
         item.id === id
             ? {
@@ -779,6 +933,7 @@ export const decideTimetableChangeRequest = (id, approved, reviewer, rejectionRe
             }
             : item
     ))
-    saveChanges(next)
-    return next
+    const saved = await saveChanges(next)
+    if (!saved.success) return { success: false, errors: saved.errors || ['Save failed.'], records: items }
+    return { success: true, records: saved.records || next }
 }
