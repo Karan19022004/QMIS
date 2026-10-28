@@ -10,5 +10,8 @@ export const DEFAULT_STUDENT_PROFILE = {
     placementStatus: 'placed',
 }
 
-export const formatGradeSection = (student) =>
-    `Grade ${student.className} - ${student.section}`
+export const formatGradeSection = (student) => {
+    const className = String(student?.className ?? '').trim()
+    const label = /^(grade|class)\b/i.test(className) ? className : `Grade ${className}`
+    return student?.section ? `${label} - ${student.section}` : label
+}

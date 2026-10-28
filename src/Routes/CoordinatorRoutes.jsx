@@ -49,9 +49,10 @@ import LessonPlanGroupDetail from '../Common/LessonPlanApproval/Components/Lesso
 import AnnouncementList from '../Pages/Coordinator/Announcement/AnnouncementList'
 import ViewAnnouncement from '../Pages/Coordinator/Announcement/ViewAnnouncement'
 import MarkEntry from '../Pages/Coordinator/StudentEvaluation/MarkEntry/MarkEntry'
-import MarkEntryApprovalList from '../Common/MarkEntryApproval/MarkEntryApprovalList'
-import MarkEntryReviewPage from '../Common/MarkEntryApproval/MarkEntryReviewPage'
+import CoordinatorMarkEntryApproval from '../Pages/Coordinator/MarkEntryApproval/MarkEntryApproval'
+import CoordinatorMarkEntryReview from '../Pages/Coordinator/MarkEntryApproval/MarkEntryReview'
 import ResultSummary from '../Pages/Coordinator/MarksResults/ResultSummary/ResultSummary'
+import LessonPlanReview from '../Pages/Coordinator/LessonPlanReview/LessonPlanReview'
 import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 import { StudentStarRatingsRoutes } from '../Common/StudentStarRatings/StudentStarRatingsRoutes'
 import PendingPlacementList from '../Pages/Coordinator/StudentPlacement/PendingPlacementList'
@@ -102,13 +103,10 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/unit-tests/add" element={<AddUnitTest />} />
             <Route path="/coordinator/unit-tests/view/:id" element={<ViewUnitTest />} />
             <Route path="/coordinator/student-evaluation/mark-entry" element={<MarkEntry />} />
-            <Route
-                path="/coordinator/student-evaluation/mark-entry-approval"
-                element={<MarkEntryApprovalList basePath="/coordinator/student-evaluation/mark-entry-approval" roleLabel="Coordinator" />}
-            />
+            <Route path="/coordinator/student-evaluation/mark-entry-approval" element={<CoordinatorMarkEntryApproval />} />
             <Route
                 path="/coordinator/student-evaluation/mark-entry-approval/review/:contextKey"
-                element={<MarkEntryReviewPage basePath="/coordinator/student-evaluation/mark-entry-approval" />}
+                element={<CoordinatorMarkEntryReview />}
             />
             <Route path="/coordinator/student-evaluation/result-summary" element={<ResultSummary />} />
             <Route path="/coordinator/user-management/students-list" element={<StudentsList />} />
@@ -125,6 +123,10 @@ const CoordinatorRoutes = () => {
             <Route path="/coordinator/lesson-plan-approval/group/:teacherName/:subject" element={<LessonPlanGroupDetail />} />
             <Route path="/coordinator/lesson-plan/my-lesson-plan" element={<MyLessonPlan />} />
             <Route path="/coordinator/lesson-plan/my-lesson-plan/group/:teacherName/:subject" element={<LessonPlanGroupDetail />} />
+            <Route path="/coordinator/lesson-plan-review" element={<LessonPlanReview />} />
+            <Route path="/coordinator/lesson-plan-review/group/:teacherName/:subject" element={<LessonPlanGroupDetail />} />
+            <Route path="/coordinator/mark-entry-approval" element={<Navigate to="/coordinator/student-evaluation/mark-entry-approval" replace />} />
+            <Route path="/coordinator/mark-entry-approval/review/:contextKey" element={<Navigate to="/coordinator/student-evaluation/mark-entry-approval" replace />} />
             <Route path="/coordinator/student-allocation" element={<Navigate to="/coordinator/student-placement" replace />} />
             <Route path="/coordinator/student-allocation/allocate/:id" element={<Navigate to="/coordinator/student-placement" replace />} />
             <Route path="/coordinator/student-placement" element={<PendingPlacementList />} />

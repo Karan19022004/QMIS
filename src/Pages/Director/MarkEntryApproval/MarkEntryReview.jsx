@@ -1,8 +1,7 @@
-import React from 'react'
-import MarkEntryReviewPage from '../../../Common/MarkEntryApproval/MarkEntryReviewPage'
+import MarkApprovalReviewPage from '../../../Common/MarkEntryApproval/MarkApprovalReviewPage'
 
 const MarkEntryReview = () => (
-    <MarkEntryReviewPage basePath='/director/mark-entry-approval' />
+    <MarkApprovalReviewPage basePath='/director/mark-entry-approval' role='director' />
 )
 
 export default MarkEntryReview

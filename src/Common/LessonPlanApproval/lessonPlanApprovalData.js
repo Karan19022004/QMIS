@@ -13,6 +13,7 @@ import {
 const STORAGE_KEY = 'school-erp-lesson-plan-approvals'
 let apiCache = null
 let apiHydratePromise = null
+let apiHydrateKey = ''
 
 export const TEACHER_NAME = 'Mr. Anil Kumar'
 export const TEACHER_ROLE = 'Teacher'
@@ -82,20 +83,26 @@ export const saveLessonPlans = (plans) => {
 /** Hydrate lesson plans from GET /lesson-plans (mine by default for teacher portal). */
 export async function hydrateLessonPlansFromApi({ mine = true, status } = {}) {
     if (!canUseLessonPlansApi()) return getLessonPlans()
-    if (apiHydratePromise) return apiHydratePromise
-    apiHydratePromise = listLessonPlansApi({ mine, status })
+    const key = `${mine ? 'mine' : 'all'}|${status || ''}`
+    // Share an in-flight load only when it asks for the same list (a coordinator has both "mine" and review lists).
+    if (apiHydratePromise && apiHydrateKey === key) return apiHydratePromise
+    apiHydrateKey = key
+    const work = listLessonPlansApi({ mine, status })
         .then((rows) => {
-            apiCache = rows.map(mapLessonPlanFromApi)
-            return apiCache
+            const mapped = rows.map(mapLessonPlanFromApi)
+            // A newer request for a different list owns the cache; never overwrite it with an older answer.
+            if (apiHydratePromise === work) apiCache = mapped
+            return mapped
         })
         .catch(() => {
             apiCache = apiCache || []
             return apiCache
         })
         .finally(() => {
-            apiHydratePromise = null
+            if (apiHydratePromise === work) apiHydratePromise = null
         })
-    return apiHydratePromise
+    apiHydratePromise = work
+    return work
 }
 
 export const formatSubmittedAt = () => {

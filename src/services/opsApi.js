@@ -16,6 +16,13 @@ export const listOpsCollectionApi = (collection) => apiRequest(`/ops/${enc(colle
 export const upsertOpsItemApi = (collection, itemId, body) =>
     apiRequest(`/ops/${enc(collection)}/items/${enc(itemId)}`, { method: 'PUT', body })
 
+/** Any signed-in user raises one IT ticket; the server numbers it and records the requester. */
+export const raiseItTicketApi = (body) =>
+    apiRequest('/ops/it-support-tickets/raise', { method: 'POST', body })
+
+/** IT tickets raised by the signed-in user. */
+export const listMyItTicketsApi = () => apiRequest('/ops/it-support-tickets/mine')
+
 export const replaceOpsCollectionApi = (collection, items) =>
     apiRequest(`/ops/${enc(collection)}`, { method: 'PUT', body: items })
 

@@ -36,11 +36,14 @@ import {
     getMarksBatchApi,
     listExamsApi,
     listMarksBatchesApi,
+    listSectionNamesForClassApi,
     mapExamFromApi,
     mapMarksBatchFromApi,
+    reviseMarksBatchApi,
     submitMarksBatchApi,
     updateMarksBatchEntriesApi,
 } from '../../services/examsApi'
+import { batchStatusMessage, examEntryState, mapBatchStatus, needsRevision, pickLatestBatch } from './markEntryStatus'
 import { listStudentsApi, mapStudentListFromApi } from '../../services/studentsApi'
 import {
     canUseClassDetailsApi,
@@ -68,6 +71,7 @@ const parseDisplayDate = (value) => {
 }
 
 const getSubmitMessage = (session) => {
+    if (session?.source === 'api') return batchStatusMessage(session)
     if (!session || session.status !== 'submitted') return ''
     if (session.approvalStatus === 'Pending') {
         return 'Marks submitted to the Director for review. They will be visible to students only after approval.'
@@ -83,19 +87,14 @@ const getSubmitMessage = (session) => {
     return 'Marks have already been submitted for this examination.'
 }
 
-const mapBatchStatus = (batch) => {
-    const raw = String(batch?.status || 'draft').toLowerCase()
-    if (raw.includes('draft') || !batch) {
-        return { status: 'draft', approvalStatus: null }
-    }
-    if (raw.includes('publish') || raw === 'approved') {
-        return { status: 'submitted', approvalStatus: 'Approved' }
-    }
-    if (raw.includes('reject')) {
-        return { status: 'submitted', approvalStatus: 'Rejected' }
-    }
-    return { status: 'submitted', approvalStatus: 'Pending' }
-}
+const batchSessionFields = (batch) => ({
+    batchId: batch?.id || null,
+    version: batch?.version ?? null,
+    awaitingRole: batch?.awaitingRole || null,
+    awaitingEligibleApprover: Boolean(batch?.awaitingEligibleApprover),
+    rejectionReason: batch?.rejectionReason || '',
+    ...mapBatchStatus(batch),
+})
 
 const entriesPayloadFromSession = (session) =>
     session.students
@@ -117,13 +116,14 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     const api = canUseExamsApi()
     const [yearOptions, setYearOptions] = useState(ACADEMIC_YEARS)
     const [classOptions, setClassOptions] = useState(CLASSES)
-    const [sectionOptions, setSectionOptions] = useState(SECTIONS)
-    const [subjectOptions, setSubjectOptions] = useState(SUBJECTS)
     const [academicYear, setAcademicYear] = useState(ACADEMIC_YEARS[0])
     const [term, setTerm] = useState(TERMS[0])
     const [exam, setExam] = useState(EXAM_OPTIONS[0].name)
     const [examId, setExamId] = useState('')
     const [campusExams, setCampusExams] = useState([])
+    const [examsLoaded, setExamsLoaded] = useState(false)
+    const [apiSections, setApiSections] = useState({ forClass: '', names: [] })
+    const [apiSubjects, setApiSubjects] = useState([])
     const [className, setClassName] = useState(() => CLASSES[0] || '')
     const [section, setSection] = useState(() => SECTIONS[0] || '')
     const [subject, setSubject] = useState(() => SUBJECTS[0] || '')
@@ -150,6 +150,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                 if (cancelled) return
                 const mapped = rows.map(mapExamFromApi)
                 setCampusExams(mapped)
+                setExamsLoaded(true)
                 if (mapped.length > 0) {
                     setExamId((current) => current || mapped[0].id)
                     setExam((current) => (current === EXAM_OPTIONS[0].name ? mapped[0].name : current))
@@ -157,7 +158,10 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                 }
             })
             .catch(() => {
-                if (!cancelled) setCampusExams([])
+                if (!cancelled) {
+                    setCampusExams([])
+                    setExamsLoaded(true)
+                }
             })
         return () => {
             cancelled = true
@@ -185,12 +189,11 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     records.flatMap((row) => (row.sections || []).map((s) => s.name).filter(Boolean)),
                 )].sort()
                 if (sections.length) {
-                    setSectionOptions(sections)
                     setSection((current) => (sections.includes(current) ? current : sections[0]))
                 }
                 const subjectNames = (Array.isArray(subjects) ? subjects : []).map((row) => row.name).filter(Boolean)
                 if (subjectNames.length) {
-                    setSubjectOptions(subjectNames)
+                    setApiSubjects(subjectNames)
                     setSubject((current) => (subjectNames.includes(current) ? current : subjectNames[0]))
                 }
             })
@@ -210,9 +213,39 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
         return filterStudentsForTable(session.students, session.entries, { search, statusFilter })
     }, [session, search, statusFilter])
 
-    const isLocked = isSessionLocked(session)
+    const selectedExam = api ? campusExams.find((item) => item.id === examId) || null : null
+    const examClassName = selectedExam?.className || ''
+    const examState = api ? examEntryState(selectedExam) : { open: true, reason: '' }
+
+    useEffect(() => {
+        if (!api || !examClassName) return undefined
+        let cancelled = false
+        listSectionNamesForClassApi(examClassName)
+            .then((names) => {
+                if (cancelled) return
+                setApiSections({ forClass: examClassName, names })
+                setSection((current) => (names.includes(current) ? current : names[0] || ''))
+            })
+            .catch(() => {
+                if (!cancelled) setApiSections({ forClass: examClassName, names: [] })
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [api, examClassName])
+
+    const sectionOptions = api ? (apiSections.forClass === examClassName ? apiSections.names : []) : SECTIONS
+    const subjectOptions = api ? apiSubjects : SUBJECTS
+    const awaitingRevision = needsRevision(session)
+    const isLocked = isSessionLocked(session) || awaitingRevision
 
     const handleLoadStudents = async () => {
+        if (api && !examState.open) {
+            setSaveMessage(examState.reason)
+            setLoaded(false)
+            setSession(null)
+            return
+        }
         if (!className || !section || !subject) {
             setSaveMessage('Select class, section, and subject before entering marks.')
             setLoaded(false)
@@ -248,6 +281,10 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             setSaveMessage('Select a campus exam (approved schedule) before entering marks.')
             return
         }
+        if (selectedExam?.className && selectedExam.className !== className) {
+            setSaveMessage(`This exam is for ${selectedExam.className}. Marks can only be entered for that class.`)
+            return
+        }
 
         setLoading(true)
         setSaveMessage('')
@@ -264,15 +301,13 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     rollNumber: row.rollNumber || row.admissionNumber || '',
                     section: row.section || section,
                 }))
-            const match = batches
-                .map(mapMarksBatchFromApi)
-                .find((batch) => batch.subject === subject && (!batch.section || batch.section === section))
+            const match = pickLatestBatch(batches.map(mapMarksBatchFromApi), { subject, section })
             let batchDetail = match
             if (match?.id) {
                 batchDetail = mapMarksBatchFromApi(await getMarksBatchApi(match.id))
             }
             const context = {
-                academicYear,
+                academicYear: selectedExam?.academicYear || academicYear,
                 term,
                 exam,
                 examId,
@@ -292,12 +327,10 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     }
                 })
             }
-            const statusBits = mapBatchStatus(batchDetail)
             const nextSession = {
                 contextKey: buildContextKey(context),
                 ...context,
-                batchId: batchDetail?.id || null,
-                ...statusBits,
+                ...batchSessionFields(batchDetail),
                 entries,
                 students,
                 source: 'api',
@@ -344,7 +377,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     }
 
     const handleSaveDraft = async () => {
-        if (entryBlocked('Mark Entry', submittedByRole)) return
+        if (!api && entryBlocked('Mark Entry', submittedByRole)) return
         if (!session || isLocked) return
         if (!api || session.source !== 'api') {
             const saved = saveMarkEntrySession({ ...session, status: 'draft', approvalStatus: null })
@@ -374,9 +407,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             }
             setSession((current) => ({
                 ...current,
-                batchId: batch.id,
-                status: 'draft',
-                approvalStatus: null,
+                ...batchSessionFields(batch),
                 maxMarks: batch.maxMarks ?? current.maxMarks,
             }))
             setSaveMessage('Draft saved to campus marks batch. You can continue entering marks later.')
@@ -395,9 +426,22 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
         setSubmitModal(true)
     }
 
+    const handleRevise = async () => {
+        if (!awaitingRevision || !session?.batchId) return
+        try {
+            const revised = mapMarksBatchFromApi(await reviseMarksBatchApi(session.batchId))
+            const nextSession = { ...session, ...batchSessionFields(revised) }
+            setSession(nextSession)
+            setSubmitMessage('')
+            setSaveMessage(`Version ${revised.version} created as a draft with the same marks. Correct them, save and submit again.`)
+        } catch (err) {
+            setSaveMessage(err?.message || 'Could not revise this marks batch.')
+        }
+    }
+
     const handleConfirmSubmit = async () => {
-        if (entryBlocked('Mark Entry', submittedByRole)) return
-        if (!session) return
+        if (!api && entryBlocked('Mark Entry', submittedByRole)) return
+        if (!session || isLocked) return
         if (!api || session.source !== 'api') {
             const submitted = submitMarkEntrySession(session, { submittedByRole })
             setSession(submitted)
@@ -424,16 +468,15 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                 await updateMarksBatchEntriesApi(batchId, entries)
             }
             const submitted = mapMarksBatchFromApi(await submitMarksBatchApi(batchId))
-            const statusBits = mapBatchStatus(submitted)
-            setSession((current) => ({
-                ...current,
-                batchId,
-                ...statusBits,
+            const nextSession = {
+                ...session,
+                ...batchSessionFields(submitted),
                 submittedByRole,
-                submittedAt: new Date().toISOString(),
-            }))
+                submittedAt: submitted.submittedAt || new Date().toISOString(),
+            }
+            setSession(nextSession)
             setSubmitModal(false)
-            setSubmitMessage('Marks submitted for Director approval via campus API.')
+            setSubmitMessage(batchStatusMessage(nextSession))
             setSaveMessage('')
         } catch (err) {
             setSubmitModal(false)
@@ -443,11 +486,13 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
 
     return (
         <section className='space-y-6'>
-            <EntryClosureGate moduleName='Mark Entry' actor={submittedByRole} />
+            {!api && <EntryClosureGate moduleName='Mark Entry' actor={submittedByRole} />}
             <div>
                 <h1 className='text-2xl font-semibold text-black'>Mark Entry</h1>
                 <p className='text-sm text-[#667085] mt-1'>
-                    Enter examination marks for students. Submitted marks are sent to the Director for approval before publishing to students.
+                    {api
+                        ? 'Enter marks for an approved exam. Submitted marks go to the Coordinator, then the Principal, then the Director; students and parents see them only after the Director publishes them.'
+                        : 'Enter examination marks for students. Submitted marks are sent to the Director for approval before publishing to students.'}
                 </p>
             </div>
 
@@ -517,7 +562,17 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                     </div>
                     <div className='flex flex-col gap-y-2'>
                         <label htmlFor='class' className='text-base font-medium text-[#808080]'>Class</label>
-                        <select id='class' value={className} onChange={(e) => setClassName(e.target.value)} className={inputClass}>
+                        <select
+                            id='class'
+                            value={className}
+                            onChange={(e) => setClassName(e.target.value)}
+                            disabled={Boolean(selectedExam?.className)}
+                            title={selectedExam?.className ? 'Class comes from the selected exam' : undefined}
+                            className={`${inputClass} disabled:bg-[#F2F4F7]`}
+                        >
+                            {selectedExam?.className && !CLASSES.includes(selectedExam.className) ? (
+                                <option value={selectedExam.className}>{formatClassLabel(selectedExam.className)}</option>
+                            ) : null}
                             <option value=''>Select class</option>
                             {classOptions.map((item) => (
                                 <option key={item} value={item}>{formatClassLabel(item)}</option>
@@ -566,6 +621,17 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                         </button>
                     </div>
                 </div>
+                {api && selectedExam && !examState.open ? (
+                    <div className='mt-4 rounded-xl border border-[#FDBA74] bg-[#FFF7ED] px-4 py-3 text-sm text-[#9A3412]' role='status'>
+                        <p className='font-medium'>Mark entry is closed for {selectedExam.name}.</p>
+                        <p className='mt-1'>{examState.reason}</p>
+                    </div>
+                ) : null}
+                {api && examsLoaded && campusExams.length === 0 ? (
+                    <div className='mt-4 rounded-xl border border-[#FDBA74] bg-[#FFF7ED] px-4 py-3 text-sm text-[#9A3412]' role='status'>
+                        No exam schedules exist yet. Marks can be entered once the Principal creates an exam and the Director approves it.
+                    </div>
+                ) : null}
             </div>
 
             {loaded && session && (
@@ -575,7 +641,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                         <div className='rounded-xl border border-[#EEF0F6] bg-[#FAFBFD] p-4'>
                             <h3 className='text-lg font-semibold text-[#0C1E5B]'>{exam} Examination</h3>
                             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-3 mt-4 text-sm'>
-                                <p><span className='text-[#808080]'>Academic Year :</span> <span className='text-[#1E1E1E]'>{academicYear}</span></p>
+                                <p><span className='text-[#808080]'>Academic Year :</span> <span className='text-[#1E1E1E]'>{session.academicYear || academicYear}</span></p>
                                 <p><span className='text-[#808080]'>Term :</span> <span className='text-[#1E1E1E]'>{term}</span></p>
                                 <p><span className='text-[#808080]'>Class :</span> <span className='text-[#1E1E1E]'>{formatClassLabel(className)}</span></p>
                                 <p><span className='text-[#808080]'>Section :</span> <span className='text-[#1E1E1E]'>{section}</span></p>
@@ -765,6 +831,15 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                             </button>
                         </div>
                         <div className='flex flex-wrap gap-3'>
+                            {awaitingRevision ? (
+                                <button
+                                    type='button'
+                                    onClick={handleRevise}
+                                    className='bg-white text-[#980E0F] text-sm px-6 py-2.5 rounded-md border border-[#980E0F] hover:bg-[#FDF3F4] transition-all duration-200 cursor-pointer'
+                                >
+                                    Revise (new version)
+                                </button>
+                            ) : null}
                             <button
                                 type='button'
                                 onClick={handleSaveDraft}

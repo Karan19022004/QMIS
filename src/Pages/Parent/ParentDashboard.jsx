@@ -1,14 +1,46 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { CalendarDays, ClipboardCheck, UsersRound } from 'lucide-react'
 import { useActiveStudent } from '../../context/ActiveStudentContext'
 import { formatGradeSection } from '../Student/studentPortalConfig'
 import { getStudentResultSummary } from './parentStudentViewData'
 import { PARENT_ROUTE_PREFIX } from './parentPortalConfig'
+import { buildResultRows, buildResultSummary } from '../../Common/Results/studentResultsView'
+import { canUseResultsApi, getStudentResultsApi } from '../../services/resultsApi'
 
 const ParentDashboard = () => {
     const { activeStudent, isParentPortal } = useActiveStudent()
-    const summary = getStudentResultSummary(activeStudent.id)
+    const api = canUseResultsApi()
+    const [loaded, setLoaded] = useState({ studentId: null, payload: null })
+
+    useEffect(() => {
+        if (!api || !activeStudent?.id) return undefined
+        let active = true
+        const studentId = activeStudent.id
+        getStudentResultsApi(studentId)
+            .then((payload) => {
+                if (active) setLoaded({ studentId, payload })
+            })
+            .catch(() => {
+                if (active) setLoaded({ studentId, payload: null })
+            })
+        return () => {
+            active = false
+        }
+    }, [api, activeStudent?.id])
+
+    const local = getStudentResultSummary(activeStudent.id)
+    const payload = api && loaded.studentId === activeStudent?.id ? loaded.payload : null
+    const apiSummary = payload ? buildResultSummary(payload, buildResultRows(payload)) : null
+    const summary = apiSummary
+        ? {
+            examAppeared: apiSummary.examAppeared,
+            averagePercent: apiSummary.overallPercent ?? 0,
+            highestMark: apiSummary.highestMark,
+            highestSubject: apiSummary.highestSubject,
+            overallGrade: apiSummary.overallGrade,
+        }
+        : local
 
     const quickLinks = [
         {

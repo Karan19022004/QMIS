@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { ChevronDown, Ticket } from 'lucide-react'
+import { ChevronDown, ListChecks, Ticket } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import RaiseItTicketModal from '../../RaiseItTicket/RaiseItTicketModal'
+import MyItTicketsModal from '../../RaiseItTicket/MyItTicketsModal'
 import { FAKE_CREDENTIALS, ROLES, useAuth } from '../../../context/AuthContext'
 import { useOptionalParentChild } from '../../../context/ParentChildContext'
 import { getParentByEmail } from '../../../Pages/Parent/parentData'
@@ -17,6 +18,7 @@ const UserDropdown = () => {
 
     const [open, setOpen] = useState(false)
     const [ticketOpen, setTicketOpen] = useState(false)
+    const [myTicketsOpen, setMyTicketsOpen] = useState(false)
     const dropdownRef = useRef(null)
 
     const toggleDropdown = () => setOpen((prev) => !prev)
@@ -73,6 +75,18 @@ const UserDropdown = () => {
                             </li>
                             <li>
                                 <button
+                                    className='flex w-full items-center gap-2 text-left py-2 px-4 text-sm hover:bg-gray-100 cursor-pointer'
+                                    onClick={() => {
+                                        setMyTicketsOpen(true)
+                                        setOpen(false)
+                                    }}
+                                >
+                                    <ListChecks size={14} />
+                                    My IT Tickets
+                                </button>
+                            </li>
+                            <li>
+                                <button
                                     className='block w-full text-left py-2 px-4 text-sm hover:bg-gray-100 cursor-pointer'
                                     onClick={() => {
                                         logout()
@@ -88,6 +102,7 @@ const UserDropdown = () => {
                 )}
             </div>
             <RaiseItTicketModal open={ticketOpen} onClose={() => setTicketOpen(false)} />
+            {myTicketsOpen && <MyItTicketsModal onClose={() => setMyTicketsOpen(false)} />}
         </div>
     )
 }

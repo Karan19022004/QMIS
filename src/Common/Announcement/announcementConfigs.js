@@ -78,6 +78,11 @@ export const ANNOUNCEMENT_ROUTE_CONFIG = {
         view: '/stationery-store-manager/broadcast/view-broadcast',
         sentByDefault: 'Stationery Store Manager',
     },
+    transportmanager: {
+        list: '/transport-manager/broadcast',
+        view: '/transport-manager/broadcast/view-broadcast',
+        sentByDefault: 'Transport Manager',
+    },
     housekeepingmanager: {
         list: '/housekeeping-manager/broadcast',
         add: '/housekeeping-manager/broadcast/add-broadcast',

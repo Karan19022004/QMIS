@@ -439,6 +439,19 @@ def _teacher_display_name(db: Session, teacher: User | None) -> str:
     return ""
 
 
+def _denial_reason(db: Session, appr: ApprovalRequest | None) -> str:
+    if appr is None or appr.status != "denied":
+        return ""
+    from app.models import ApprovalEvent
+
+    event = db.scalar(
+        select(ApprovalEvent)
+        .where(ApprovalEvent.approval_id == appr.id, ApprovalEvent.action == "deny")
+        .order_by(ApprovalEvent.created_at.desc())
+    )
+    return (event.comment or "") if event else ""
+
+
 def _batch_out(db: Session, batch: MarksBatch, *, entries: bool = False) -> dict:
     appr = _approval(db, batch.approval_id)
     exam = db.get(Exam, batch.exam_id)
@@ -460,6 +473,9 @@ def _batch_out(db: Session, batch: MarksBatch, *, entries: bool = False) -> dict
         "awaitingRole": appr_out["awaitingRole"] if appr_out else None,
         "awaitingRoles": appr_out.get("awaitingRoles") if appr_out else [],
         "awaitingEligibleApprover": approvals.awaiting_eligible_approver(db, appr),
+        "academicYear": (exam.academic_year or "") if exam else "",
+        "submittedAt": appr.created_at.isoformat() if appr else None,
+        "rejectionReason": _denial_reason(db, appr),
     }
     if entries:
         rows = db.scalars(select(MarkEntry).where(MarkEntry.batch_id == batch.id)).all()
@@ -664,6 +680,126 @@ def revise_batch(db: Session, actor: User, batch_id: UUID) -> dict:
     return _batch_out(db, new, entries=True)
 
 
+def request_correction(db: Session, actor: User, batch_id: UUID, *, reason: str, entries: list[dict]) -> dict:
+    """Teacher proposes new marks for a published batch; Principal then Director must approve.
+
+    The original published version is left unchanged. Parents keep seeing it until the correction
+    is approved; ``_published_batches`` then prefers the newer approved version.
+    """
+    reason = (reason or "").strip()
+    if not reason:
+        fail(400, "validation_error", "A reason is required to request a marks correction.")
+    batch = _load_batch(db, actor, batch_id)
+    if batch.teacher_id != actor.id:
+        fail(403, "forbidden", "Only the owning teacher can request a correction.")
+    if _status(_approval(db, batch.approval_id), final="published") != "published":
+        fail(409, "conflict", "Only a published marks batch can be corrected.")
+    siblings = list(
+        db.scalars(
+            select(MarksBatch).where(
+                MarksBatch.exam_id == batch.exam_id,
+                MarksBatch.teacher_id == batch.teacher_id,
+                MarksBatch.subject == batch.subject,
+                MarksBatch.section == batch.section,
+            )
+        ).all()
+    )
+    for sibling in siblings:
+        if _status(_approval(db, sibling.approval_id), final="published") == "submitted":
+            fail(409, "conflict", "A correction or marks submission is already awaiting approval.")
+    if not entries:
+        fail(400, "validation_error", "Enter the corrected marks before requesting.")
+
+    exam = db.get(Exam, batch.exam_id)
+    next_version = max((s.version for s in siblings), default=batch.version) + 1
+    new = MarksBatch(
+        campus_id=batch.campus_id,
+        exam_id=batch.exam_id,
+        teacher_id=batch.teacher_id,
+        subject=batch.subject,
+        section=batch.section,
+        max_marks=batch.max_marks,
+        version=next_version,
+    )
+    db.add(new)
+    db.flush()
+    _apply_entries(db, actor, new, exam, entries)
+    write_audit(
+        db,
+        action="MARKS_CORRECTION_REQUESTED",
+        entity_type="marks_batch",
+        entity_id=str(new.id),
+        actor_id=actor.id,
+        campus_id=actor.campus_id,
+        details=f"from v{batch.version} reason={reason}",
+    )
+    # Commit the draft version first so approvals.submit (which commits) can attach to it.
+    db.commit()
+    appr = approvals.submit(
+        db,
+        actor,
+        entity_type="marks_correction",
+        entity_id=str(new.id),
+        title=f"Correction {exam.name} {batch.subject} {exam.class_name}",
+        chain=None,
+        internal=True,
+        comment=reason,
+    )
+    new = db.get(MarksBatch, new.id)
+    new.approval_id = UUID(appr["id"])
+    new.updated_at = utcnow()
+    db.commit()
+    return _batch_out(db, new, entries=True)
+
+
+def notify_parents_result_published(db: Session, batch_id: str | UUID) -> None:
+    """In-app notice to each linked parent when a marks batch becomes published. Idempotent per child."""
+    from app.models import Notification
+
+    try:
+        bid = UUID(str(batch_id))
+    except ValueError:
+        return
+    batch = db.get(MarksBatch, bid)
+    if batch is None:
+        return
+    exam = db.get(Exam, batch.exam_id)
+    if exam is None:
+        return
+    entries = list(db.scalars(select(MarkEntry).where(MarkEntry.batch_id == batch.id)).all())
+    if not entries:
+        return
+    students = {
+        s.id: s
+        for s in db.scalars(select(Student).where(Student.id.in_([e.student_id for e in entries]))).all()
+    }
+    for entry in entries:
+        student = students.get(entry.student_id)
+        if student is None or student.parent_user_id is None:
+            continue
+        entity_id = f"{batch.id}:{student.id}"
+        exists = db.scalar(
+            select(Notification).where(
+                Notification.campus_id == batch.campus_id,
+                Notification.user_id == student.parent_user_id,
+                Notification.entity_type == "result_published",
+                Notification.entity_id == entity_id,
+            )
+        )
+        if exists is not None:
+            continue
+        db.add(
+            Notification(
+                campus_id=batch.campus_id,
+                user_id=student.parent_user_id,
+                title="Result published",
+                body=f"{student.full_name}'s {exam.name} ({batch.subject}) result is now available.",
+                entity_type="result_published",
+                entity_id=entity_id,
+            )
+        )
+
+
 def get_batch(db: Session, actor: User, batch_id: UUID) -> dict:
     return _batch_out(db, _load_batch(db, actor, batch_id), entries=True)
 
@@ -685,37 +821,54 @@ def list_batches(db: Session, actor: User, *, exam_id: UUID | None, status: str 
 
 
 def _published_batches(db: Session, exam: Exam) -> list[MarksBatch]:
-    out = []
+    """Approved batches of the exam; when one teacher/subject/section has several approved versions
+    (a published batch plus an applied correction), only the newest counts."""
+    latest: dict[tuple, MarksBatch] = {}
     for b in db.scalars(select(MarksBatch).where(MarksBatch.exam_id == exam.id)).all():
         appr = _approval(db, b.approval_id)
-        if appr is not None and appr.status == "approved":
-            out.append(b)
-    return out
+        if appr is None or appr.status != "approved":
+            continue
+        key = (b.teacher_id, b.subject, b.section)
+        if key not in latest or b.version > latest[key].version:
+            latest[key] = b
+    return list(latest.values())
 
 
 def _exam_table(db: Session, exam: Exam) -> dict[UUID, dict]:
-    """student_id -> {subjects, total, maxTotal, percentage}; ranks added by caller."""
+    """student_id -> {subjects, total, maxTotal, percentage}; ranks added by caller.
+
+    Students are found through their published marks, not their current class, so an exam stays in a
+    student's history after promotion. ``_section`` is the section the marks were entered for.
+    """
     table: dict[UUID, dict] = {}
-    class_students = db.scalars(
-        select(Student).where(Student.campus_id == exam.campus_id, Student.class_name == exam.class_name)
-    ).all()
-    names = {s.id: s for s in class_students}
-    for batch in _published_batches(db, exam):
-        for e in db.scalars(select(MarkEntry).where(MarkEntry.batch_id == batch.id)).all():
-            stu = names.get(e.student_id)
-            if not stu:
-                continue
-            row = table.setdefault(
-                e.student_id,
-                {"studentId": str(e.student_id), "studentName": stu.full_name,
-                 "admissionNumber": stu.admission_number, "subjects": [], "total": 0.0, "maxTotal": 0.0},
-            )
-            row["subjects"].append(
-                {"subject": batch.subject, "marks": e.marks, "maxMarks": batch.max_marks, "absent": e.absent}
-            )
-            if not e.absent:
-                row["total"] += e.marks or 0.0
-                row["maxTotal"] += batch.max_marks
+    batches = _published_batches(db, exam)
+    entries = [
+        (batch, e)
+        for batch in batches
+        for e in db.scalars(select(MarkEntry).where(MarkEntry.batch_id == batch.id)).all()
+    ]
+    ids = {e.student_id for _, e in entries}
+    names = {
+        s.id: s
+        for s in db.scalars(select(Student).where(Student.campus_id == exam.campus_id, Student.id.in_(ids))).all()
+    } if ids else {}
+    for batch, e in entries:
+        stu = names.get(e.student_id)
+        if not stu:
+            continue
+        section = batch.section or (stu.section if stu.class_name == exam.class_name else "") or ""
+        row = table.setdefault(
+            e.student_id,
+            {"studentId": str(e.student_id), "studentName": stu.full_name,
+             "admissionNumber": stu.admission_number, "subjects": [], "total": 0.0, "maxTotal": 0.0,
+             "_section": section},
+        )
+        row["subjects"].append(
+            {"subject": batch.subject, "marks": e.marks, "maxMarks": batch.max_marks, "absent": e.absent}
+        )
+        if not e.absent:
+            row["total"] += e.marks or 0.0
+            row["maxTotal"] += batch.max_marks
     for row in table.values():
         row["percentage"] = round(row["total"] / row["maxTotal"] * 100, 2) if row["maxTotal"] else 0.0
         row["subjects"].sort(key=lambda s: s["subject"])
@@ -750,8 +903,15 @@ def exam_results(db: Session, actor: User, exam_id: UUID) -> dict:
         visible = {s.id for s in class_students if allowed(s)}
         if class_students and not visible:
             fail(403, "forbidden", "This exam's class is outside your assigned classes.")
-        table = {sid: row for sid, row in table.items() if sid in visible}
-    rows = sorted(table.values(), key=lambda r: (r["rank"], r["studentName"]))
+        # A promoted student's row is judged by the class and section the marks were entered for.
+        table = {
+            sid: row for sid, row in table.items()
+            if sid in visible or allowed(SimpleNamespace(class_name=exam.class_name, section=row["_section"]))
+        }
+    rows = [
+        {k: v for k, v in row.items() if not k.startswith("_")}
+        for row in sorted(table.values(), key=lambda r: (r["rank"], r["studentName"]))
+    ]
     return {
         "exam": _exam_out(db, exam),
         "publishedSubjects": sorted({b.subject for b in _published_batches(db, exam)}),
@@ -788,10 +948,17 @@ def student_results(db: Session, actor: User, student_id: UUID) -> dict:
     else:
         ensure_staff_can_view_student(db, actor, student, role)
 
+    # Exams come from the student's own marks, so earlier classes' results survive promotion.
+    exam_ids = set(
+        db.scalars(
+            select(MarksBatch.exam_id)
+            .join(MarkEntry, MarkEntry.batch_id == MarksBatch.id)
+            .where(MarksBatch.campus_id == actor.campus_id, MarkEntry.student_id == student.id)
+        ).all()
+    )
     exams = db.scalars(
-        select(Exam).where(Exam.campus_id == actor.campus_id, Exam.class_name == student.class_name)
-        .order_by(Exam.start_date)
-    ).all()
+        select(Exam).where(Exam.campus_id == actor.campus_id, Exam.id.in_(exam_ids)).order_by(Exam.start_date)
+    ).all() if exam_ids else []
     out_exams = []
     by_type: dict[UUID, list[float]] = {}
     for exam in exams:
@@ -799,9 +966,13 @@ def student_results(db: Session, actor: User, student_id: UUID) -> dict:
         if not row:
             continue
         etype = db.get(ExamType, exam.exam_type_id)
-        out_exams.append({"examId": str(exam.id), "examName": exam.name, "examType": etype.code, **{
+        out_exams.append({"examId": str(exam.id), "examName": exam.name, "examType": etype.code,
+                          "className": exam.class_name, "section": row["_section"],
+                          "academicYear": exam.academic_year or "", **{
             k: row[k] for k in ("subjects", "total", "maxTotal", "percentage", "rank")}})
-        by_type.setdefault(exam.exam_type_id, []).append(row["percentage"])
+        # The weighted final stays a current-class figure, as before promotion history was kept.
+        if exam.class_name == student.class_name:
+            by_type.setdefault(exam.exam_type_id, []).append(row["percentage"])
 
     weights = {
         w.exam_type_id: w.weight

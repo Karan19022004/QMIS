@@ -239,11 +239,13 @@ def test_attendance_page_has_no_hardcoded_figures():
 def test_biometric_saves_never_write_an_empty_list_before_loading():
     code = _code("Common/demoDomain/biometric.js")
     sync = code[code.index("export async function syncBiometricDemo") : code.index("export async function overrideAttendance")]
-    assert "await loadedRows()" in sync
+    assert "await persistRows()" in sync
+    assert "if (!loaded)" in sync
     assert "if (!rows.length)" in sync
     override = code[code.index("export async function overrideAttendance") :]
-    assert "await loadedRows()" in override
-    assert "rows.some((row) => row.id === id)" in override
+    assert "await persistRows()" in override
+    assert "if (!loaded)" in override
+    assert "row.id === id" in override
 
 
 def test_portal_profiles_keep_placement_status():
@@ -289,3 +291,325 @@ def test_notification_bell_links_only_to_existing_pages():
     code = _code("Common/CommonHeader/Components/UserNotifications.jsx")
     assert "NOTIFICATION_PAGE_SEGMENTS" in code
     assert "segment === 'dashboard'" in code
+
+
+# --- client review R29: IT Add Request really saves ----------------------------------------------------
+
+REQUEST_SCRIPT = """
+const path = require('path');
+const store = new Map();
+globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+globalThis.sessionStorage = { getItem: () => null, setItem: () => {}, removeItem: () => {} };
+globalThis.window = globalThis;
+globalThis.window.dispatchEvent = () => true;
+const data = require(path.join(process.env.QMIS_SRC, 'Pages/ITSupportManager/RequestsApprovals/requestsData.js'));
+(async () => {
+  const before = data.getRequests().length;
+  const missingType = data.validateRequestForm({ ...data.EMPTY_REQUEST_FORM, title: 't', description: 'd' });
+  const first = await data.addRequest({ ...data.EMPTY_REQUEST_FORM, requestTypeFull: 'License Renewal', title: ' Adobe renewal ',
+    description: 'Renew 10 seats', estimatedCost: 'Rs 50,000', quotationName: 'q.pdf', supportingNames: ['a.pdf'] }, { requestedBy: 'IT Desk' });
+  const second = await data.addRequest({ ...data.EMPTY_REQUEST_FORM, requestTypeFull: 'Hardware Purchase', title: 'Mice', description: 'Twenty' });
+  process.stdout.write(JSON.stringify({ before, missingType, first, second, after: data.getRequests().length,
+    found: data.getRequestById(first.record.requestId) }));
+})().catch((e) => { process.stderr.write(String((e && e.stack) || e)); process.exit(1); });
+"""
+
+
+@pytest.fixture(scope="module")
+def request_results(tmp_path_factory):
+    if not JITI:
+        pytest.skip("Node / jiti not available")
+    script = tmp_path_factory.mktemp("req") / "request_check.cjs"
+    script.write_text(REQUEST_SCRIPT, encoding="utf-8")
+    out = subprocess.run(
+        ["node", str(JITI_CLI), str(script)],
+        cwd=ROOT,
+        env={**os.environ, "QMIS_SRC": str(SRC)},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if out.returncode != 0:
+        pytest.fail(out.stderr[-2000:])
+    return json.loads(out.stdout)
+
+
+def test_it_add_request_saves_a_numbered_pending_request(request_results):
+    first = request_results["first"]
+    assert first["success"] is True
+    record = first["record"]
+    assert re.fullmatch(r"REQ-IT-\d{4}-\d{3}", record["requestId"])
+    assert record["title"] == "Adobe renewal" and record["requestType"] == "License"
+    assert record["approvalStatus"] == "Pending" and record["requestedBy"] == "IT Desk"
+    assert record["attachments"] == ["q.pdf", "a.pdf"]
+    assert request_results["after"] == request_results["before"] + 2
+    assert request_results["second"]["record"]["requestId"] != record["requestId"]
+    assert request_results["found"]["requestId"] == record["requestId"]
+
+
+def test_it_add_request_requires_a_type_title_and_description(request_results):
+    assert request_results["missingType"] == "Select a request type."
+
+
+def test_it_request_pages_save_and_read_saved_records():
+    add = _code("Pages/ITSupportManager/RequestsApprovals/AddRequest.jsx")
+    assert "await addRequest(form" in add and "setRequestModal(true)" in add
+    assert add.index("await addRequest(form") < add.index("setRequestModal(true)")
+    info = _code("Pages/ITSupportManager/RequestsApprovals/Components/RequestInfo.jsx")
+    assert "defaultValue" not in info and "value={form.title}" in info
+    view = _code("Pages/ITSupportManager/RequestsApprovals/ViewRequest.jsx")
+    assert "hydrateRequestsFromApi()" in view
+    data = _code("Pages/ITSupportManager/RequestsApprovals/requestsData.js")
+    assert "getRequests().find((entry) => entry.requestId === id)" in data
+    assert "REQUESTS.find(" not in data
+
+
+# --- academic Phase 1: Mark Entry follows the server workflow -------------------------------------------
+
+MARK_STATUS_SCRIPT = """
+const path = require('path');
+const s = require(path.join(process.env.QMIS_SRC, 'Common/MarkEntryApproval/markEntryStatus.js'));
+const out = {
+  statuses: ['draft', 'submitted', 'published', 'denied'].map((status) => s.mapBatchStatus({ status })),
+  none: s.mapBatchStatus(null),
+  exams: [null, { status: 'draft' }, { status: 'submitted', awaitingRole: 'director' }, { status: 'denied' }, { status: 'approved' }]
+    .map((exam) => s.examEntryState(exam)),
+  pending: s.batchStatusMessage({ source: 'api', status: 'submitted', approvalStatus: 'Pending', awaitingRole: 'principal' }),
+  stuck: s.batchStatusMessage({ source: 'api', status: 'submitted', approvalStatus: 'Pending', awaitingRole: 'coordinator', awaitingEligibleApprover: true }),
+  rejected: s.batchStatusMessage({ source: 'api', status: 'submitted', approvalStatus: 'Rejected', rejectionReason: 'Recheck Q3' }),
+  revise: [s.needsRevision({ source: 'api', status: 'submitted', approvalStatus: 'Rejected' }),
+           s.needsRevision({ source: 'api', status: 'submitted', approvalStatus: 'Pending' }),
+           s.needsRevision({ source: 'local', status: 'submitted', approvalStatus: 'Rejected' })],
+  latest: s.pickLatestBatch([{ id: 'v1', subject: 'Maths', section: 'A', version: 1 }, { id: 'v2', subject: 'Maths', section: 'A', version: 2 },
+    { id: 'sci', subject: 'Science', section: 'A', version: 3 }, { id: 'b', subject: 'Maths', section: 'B', version: 4 }], { subject: 'Maths', section: 'A' }).id,
+};
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+@pytest.fixture(scope="module")
+def mark_status(tmp_path_factory):
+    if not JITI:
+        pytest.skip("Node / jiti not available")
+    script = tmp_path_factory.mktemp("marks") / "mark_status.cjs"
+    script.write_text(MARK_STATUS_SCRIPT, encoding="utf-8")
+    out = subprocess.run(
+        ["node", str(JITI_CLI), str(script)],
+        cwd=ROOT,
+        env={**os.environ, "QMIS_SRC": str(SRC)},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if out.returncode != 0:
+        pytest.fail(out.stderr[-2000:])
+    return json.loads(out.stdout)
+
+
+def test_a_denied_batch_shows_as_rejected_not_pending(mark_status):
+    assert [s["approvalStatus"] for s in mark_status["statuses"]] == [None, "Pending", "Approved", "Rejected"]
+    assert mark_status["none"] == {"status": "draft", "approvalStatus": None}
+
+
+def test_entry_is_open_only_for_an_approved_exam_and_says_why_otherwise(mark_status):
+    states = mark_status["exams"]
+    assert [s["open"] for s in states] == [False, False, False, False, True]
+    assert "not been submitted" in states[1]["reason"]
+    assert "Director approves" in states[2]["reason"]
+    assert "not approved" in states[3]["reason"]
+
+
+def test_submitted_messages_name_the_current_step_and_the_rejection_reason(mark_status):
+    assert "Principal" in mark_status["pending"] and "Director publishes" in mark_status["pending"]
+    assert "administrator has been alerted" in mark_status["stuck"]
+    assert "Recheck Q3" in mark_status["rejected"] and "Revise" in mark_status["rejected"]
+    assert mark_status["revise"] == [True, False, False]
+    assert mark_status["latest"] == "v2"
+
+
+def test_mark_entry_page_uses_the_demo_closure_gate_only_without_the_server():
+    code = _code("Common/MarkEntryApproval/MarkEntryPage.jsx")
+    assert "{!api && <EntryClosureGate" in code
+    assert code.count("entryBlocked('Mark Entry'") == code.count("!api && entryBlocked('Mark Entry'") == 2
+    assert "if (api && !examState.open)" in code and "reviseMarksBatchApi(session.batchId)" in code
+    assert code.index("if (api && !examState.open)") < code.index("if (!className || !section || !subject)")
+    assert "listSectionNamesForClassApi(examClassName)" in code and "subjectOptions.map(" in code
+    assert "disabled={Boolean(selectedExam?.className)}" in code
+    assert "const mapBatchStatus" not in code  # the rules live in markEntryStatus.js
+    api = _code("services/examsApi.js")
+    assert "approvalId: row.approvalId" in api and "awaitingRole: row.awaitingRole" in api
+
+
+# --- academic Phase 2: approval screens for Coordinator / Principal / Director --------------------------
+
+STEP_SCRIPT = """
+const path = require('path');
+const s = require(path.join(process.env.QMIS_SRC, 'Common/Approvals/approvalStep.js'));
+const item = (o) => ({ approvalStatus: 'Pending', approvalId: 'A1', awaitingRole: 'coordinator', submitterEmail: 'teacher@qmis.edu', ...o });
+process.stdout.write(JSON.stringify({
+  roles: ['/coordinator/mark-entry-approval', '/principal/lesson-plan-approval/group/x/y', '/director/x', '/teacher/x', ''].map(s.approverRoleForPath),
+  mineStep: s.stepAction(item(), 'coordinator', 'coordinator@qmis.edu'),
+  otherStep: s.stepAction(item(), 'principal', 'principal@qmis.edu'),
+  own: s.stepAction(item({ submitterEmail: 'Coordinator@QMIS.edu' }), 'coordinator', 'coordinator@qmis.edu'),
+  decided: s.stepAction(item({ approvalStatus: 'Approved' }), 'coordinator', 'x@y'),
+  notSubmitted: s.stepAction(item({ approvalId: null }), 'coordinator', 'x@y'),
+  event: s.describeEvent({ actorRole: 'principal', action: 'deny', comment: 'Recheck' }),
+}));
+"""
+
+
+@pytest.fixture(scope="module")
+def step_results(tmp_path_factory):
+    if not JITI:
+        pytest.skip("Node / jiti not available")
+    script = tmp_path_factory.mktemp("step") / "step_check.cjs"
+    script.write_text(STEP_SCRIPT, encoding="utf-8")
+    out = subprocess.run(
+        ["node", str(JITI_CLI), str(script)],
+        cwd=ROOT,
+        env={**os.environ, "QMIS_SRC": str(SRC)},
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    if out.returncode != 0:
+        pytest.fail(out.stderr[-2000:])
+    return json.loads(out.stdout)
+
+
+def test_buttons_show_only_for_the_waiting_role_and_never_for_your_own_submission(step_results):
+    assert step_results["roles"] == ["coordinator", "principal", "director", "", ""]
+    assert step_results["mineStep"]["canAct"] is True
+    assert step_results["otherStep"] == {"canAct": False, "note": "Waiting for the Coordinator."}
+    assert step_results["own"]["canAct"] is False and "own submission" in step_results["own"]["note"]
+    assert step_results["decided"]["canAct"] is False and step_results["notSubmitted"]["canAct"] is False
+    assert step_results["event"] == "Principal rejected: Recheck"
+
+
+def test_coordinator_and_principal_have_marks_and_lesson_plan_approval_routes():
+    coordinator = _read("Routes/CoordinatorRoutes.jsx")
+    principal = _read("Routes/PrincipalRoutes.jsx")
+    for path in (
+        "/coordinator/student-evaluation/mark-entry-approval",
+        "/coordinator/student-evaluation/mark-entry-approval/review/:contextKey",
+        "/coordinator/lesson-plan-review",
+        "/coordinator/lesson-plan-review/group/:teacherName/:subject",
+    ):
+        assert f'path="{path}"' in coordinator, path
+    for path in (
+        "/principal/mark-entry-approval",
+        "/principal/mark-entry-approval/review/:contextKey",
+        "/principal/lesson-plan-approval",
+        "/principal/lesson-plan-approval/group/:teacherName/:subject",
+    ):
+        assert f'path="{path}"' in principal, path
+    sidebar = _read("Common/CommonSidebar/Components/sidebarLinks.js")
+    for path in (
+        "/coordinator/student-evaluation/mark-entry-approval",
+        "/coordinator/lesson-plan-review",
+        "/principal/mark-entry-approval",
+        "/principal/lesson-plan-approval",
+    ):
+        assert f'"{path}"' in sidebar, path
+
+
+def test_every_approver_uses_the_shared_role_aware_screens():
+    for role in ("Director", "Principal", "Coordinator"):
+        assert "MarkApprovalListPage" in _code(f"Pages/{role}/MarkEntryApproval/MarkEntryApproval.jsx")
+        assert "MarkApprovalReviewPage" in _code(f"Pages/{role}/MarkEntryApproval/MarkEntryReview.jsx")
+    review = _code("Common/MarkEntryApproval/MarkApprovalReviewPage.jsx")
+    assert "stepAction(session, role, email)" in review and "{action.canAct ? (" in review
+    assert "<ApprovalHistory approvalId={session.approvalId} />" in review
+    detail = _code("Common/LessonPlanApproval/Components/LessonPlanGroupDetail.jsx")
+    assert "'director-approval'" not in detail
+    assert "variant === 'approval' && actionFor(plan).canAct" in detail
+    assert "approvalStatus === 'Draft'" not in detail  # drafts never reach an approver
+    data = _code("Common/MarkEntryApproval/markEntryApprovalData.js")
+    assert "awaitingRole: batch.awaitingRole" in data and "submitterEmail: batch.teacherEmail" in data
+
+
+# --- academic Phase 3: real results and exam schedules for students and parents ------------------------
+
+RESULTS_SCRIPT = """
+const path = require('path');
+const v = require(path.join(process.env.QMIS_SRC, 'Common/Results/studentResultsView.js'));
+const s = require(path.join(process.env.QMIS_SRC, 'Common/Results/examScheduleView.js'));
+const payload = { exams: [
+  { examId: 'E1', examName: 'Midterm', examType: 'MIDTERM', total: 71, maxTotal: 100, percentage: 71,
+    subjects: [{ subject: 'Maths', marks: 41, maxMarks: 50, absent: false, remarks: 'Good' },
+               { subject: 'Science', marks: 30, maxMarks: 50, absent: false, remarks: '' },
+               { subject: 'English', marks: null, maxMarks: 50, absent: true }] },
+  { examId: 'E2', examName: 'Unit Test', examType: 'CA', total: 10, maxTotal: 40, percentage: 25,
+    subjects: [{ subject: 'Maths', marks: 10, maxMarks: 40, absent: false }] } ], weighted: null };
+const rows = v.buildResultRows(payload);
+const exams = [
+  { id: 'a', name: 'G7 approved', className: 'Grade 7', status: 'approved', startDate: '2026-11-20', endDate: '2026-11-24' },
+  { id: 'b', name: 'G7 pending', className: 'Grade 7', status: 'submitted', startDate: '2026-11-01', endDate: '2026-11-02' },
+  { id: 'c', name: 'G8 approved', className: 'Grade 8', status: 'approved', startDate: '2026-11-05', endDate: '2026-11-06' },
+  { id: 'd', name: 'VII approved', className: 'VII', status: 'approved', startDate: '2026-10-01', endDate: '2026-10-02' } ];
+process.stdout.write(JSON.stringify({
+  rows,
+  summary: v.buildResultSummary(payload, rows),
+  weighted: v.buildResultSummary({ ...payload, weighted: { finalPercentage: 62.5, complete: false } }, rows),
+  empty: v.buildResultSummary({ exams: [] }),
+  bands: v.bandCounts(rows).map((b) => [b.label, b.subjects]),
+  schedule: s.examRowsForStudent(exams, 'Grade 7').map((r) => r.examId),
+  inRange: [s.inDateRange('2026-11-20', new Date(2026, 10, 20), null), s.inDateRange('2026-11-20', null, new Date(2026, 10, 19))],
+}));
+"""
+
+
+@pytest.fixture(scope="module")
+def results_view(tmp_path_factory):
+    if not JITI:
+        pytest.skip("Node / jiti not available")
+    script = tmp_path_factory.mktemp("results") / "results_check.cjs"
+    script.write_text(RESULTS_SCRIPT, encoding="utf-8")
+    out = subprocess.run(
+        ["node", str(JITI_CLI), str(script)],
+        cwd=ROOT,
+        env={**os.environ, "QMIS_SRC": str(SRC)},
+        capture_output=True,
+        encoding="utf-8",
+        timeout=120,
+    )
+    if out.returncode != 0:
+        pytest.fail(out.stderr[-2000:])
+    return json.loads(out.stdout)
+
+
+def test_result_rows_use_the_existing_grade_and_pass_rules(results_view):
+    by_key = {(r["examName"], r["subject"]): r for r in results_view["rows"]}
+    maths = by_key[("Midterm", "Maths")]
+    assert (maths["percentage"], maths["grade"], maths["resultStatus"], maths["teacherRemarks"]) == ("82%", "A", "Pass", "Good")
+    assert by_key[("Midterm", "English")]["resultStatus"] == "Absent" and by_key[("Midterm", "English")]["grade"] == "—"
+    assert by_key[("Unit Test", "Maths")]["resultStatus"] == "Fail"  # 25% is below the 33% pass mark
+
+
+def test_summary_is_computed_from_published_marks_or_the_configured_weightage(results_view):
+    summary = results_view["summary"]
+    assert summary["examAppeared"] == 2
+    assert summary["overallPercent"] == round(81 / 140 * 100, 2) and summary["overallBasis"] == "All published marks"
+    assert summary["highestMark"] == "41/50" and summary["overallGrade"] == "C"  # 57.86 % under the existing bands
+    weighted = results_view["weighted"]
+    assert weighted["overallPercent"] == 62.5 and "not all exam types" in weighted["overallBasis"]
+    empty = results_view["empty"]
+    assert empty["overallPercent"] is None and empty["overallGrade"] == "—" and empty["highestMark"] == "—"
+    assert dict(results_view["bands"]) == {"Excellent": 0, "Very Good": 1, "Good": 1, "Need Improvement": 1}
+
+
+def test_schedule_shows_only_approved_exams_for_the_active_childs_class(results_view):
+    assert results_view["schedule"] == ["d", "a"]  # Grade 7 and "VII" are the same grade; earliest first
+    assert results_view["inRange"] == [True, False]
+
+
+def test_no_hardcoded_result_figures_or_demo_class_bypass_remain():
+    for rel in ("Pages/Student/Results/ResultDetails.jsx", "Pages/Teacher/StudentsList/ViewStudent.jsx"):
+        assert "80.25" not in _code(rel), rel
+    result = _code("Pages/Student/Results/ResultDetails.jsx")
+    assert "getStudentResultsApi" in result and "buildSummaryFromRows" in result
+    assert "subjects: 1, color" not in result
+    schedule = _code("Pages/Student/StudentEvaluation/ExamSchedule.jsx")
+    assert "loadMergedExamRecords()" in schedule and "filterPortalExams" in schedule
+    assert "Keep showing campus approved schedules" not in schedule
+    assert "<StudentResultDetails studentId={student.id || id} />" in _code("Pages/Teacher/StudentsList/ViewStudent.jsx")

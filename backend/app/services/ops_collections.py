@@ -296,6 +296,8 @@ def replace_records(db: Session, actor: User, collection: str, items: list) -> l
             if not _in_driver_scope(row, scope, collection)
         ]
         items = [*kept, *items]
+    if collection == IT_TICKETS:
+        items = _keep_raised_tickets(previous, items)
 
     db.execute(
         delete(OpsRecord).where(
@@ -335,6 +337,163 @@ def replace_records(db: Session, actor: User, collection: str, items: list) -> l
     from app.services.integrations.events import notify_saved_ops
     notify_saved_ops(db, actor, collection, previous, saved)
     return saved
+
+
+IT_TICKETS = "it-support-tickets"
+TICKET_CATEGORIES = {"Hardware", "Software", "Network", "Printer", "Other"}
+TICKET_PRIORITIES = {"Low", "Medium", "High", "Critical"}
+_REQUESTER_FIELDS = ("requesterUserId", "requesterEmail", "requesterName", "requesterRole", "raisedVia")
+
+
+def _keep_raised_tickets(previous: list[dict], items: list) -> list:
+    """A whole-list save by IT must not drop a ticket someone raised meanwhile, or change who raised it."""
+    stored = {str(row.get("id")): row for row in previous if row.get("requesterUserId")}
+    incoming: set[str] = set()
+    merged = []
+    for raw in items:
+        if not isinstance(raw, dict):
+            merged.append(raw)
+            continue
+        public_id = _public_id_for(IT_TICKETS, raw, "")
+        incoming.add(public_id)
+        origin = stored.get(public_id)
+        if origin is not None:
+            raw = {**raw, **{key: origin[key] for key in _REQUESTER_FIELDS if key in origin}}
+        merged.append(raw)
+    missing = [row for public_id, row in stored.items() if public_id not in incoming]
+    return [*merged, *missing]
+
+
+def _ticket_text(body: dict, key: str, *, limit: int, required: bool = False) -> str:
+    value = str(body.get(key) or "").strip()
+    if required and not value:
+        fail(422, "invalid_body", f"{key} is required.")
+    if len(value) > limit:
+        fail(422, "invalid_body", f"{key} can be at most {limit} characters.")
+    return value
+
+
+def _requester_name(db: Session, actor: User) -> str:
+    from app.models import HrEmployee
+
+    employee = db.scalar(select(HrEmployee).where(HrEmployee.user_id == actor.id))
+    if employee is not None:
+        label = f"{employee.first_name or ''} {employee.last_name or ''}".strip()
+        if label:
+            return label
+    return actor.email or "Staff"
+
+
+def raise_ticket(db: Session, actor: User, body: dict) -> dict:
+    """Any signed-in user raises ONE ticket; the server sets the number, requester and initial status."""
+    from sqlalchemy.exc import IntegrityError
+
+    from app.permissions.matrix import ALL_ROLES
+    from app.services.approvals import _notify
+    from app.services.audit import write_audit
+
+    if not isinstance(body, dict):
+        fail(422, "invalid_body", "Body must be a JSON object.")
+    subject = _ticket_text(body, "subject", limit=200, required=True)
+    description = _ticket_text(body, "description", limit=2000, required=True)
+    department = _ticket_text(body, "department", limit=80) or "General"
+    asset_id = _ticket_text(body, "assetId", limit=40)
+    attachment = _ticket_text(body, "attachmentName", limit=120)
+    category = str(body.get("issueType") or body.get("category") or "Hardware").strip()
+    priority = str(body.get("priority") or "Medium").strip()
+    if category not in TICKET_CATEGORIES:
+        fail(422, "invalid_body", f"Category must be one of: {', '.join(sorted(TICKET_CATEGORIES))}.")
+    if priority not in TICKET_PRIORITIES:
+        fail(422, "invalid_body", f"Priority must be one of: {', '.join(sorted(TICKET_PRIORITIES))}.")
+
+    role = _code(db, actor)
+    now = datetime.now(timezone.utc)
+    prefix = f"TKT-{now.year}-"
+    payload = {
+        "requesterUserId": str(actor.id),
+        "requesterEmail": actor.email or "",
+        "requesterName": _requester_name(db, actor),
+        "requesterRole": dict(ALL_ROLES).get(role, role),
+        "raisedVia": "self-service",
+        "department": department,
+        "location": department,
+        "issueType": category,
+        "priority": priority,
+        "assignedTo": "IT Queue",
+        "status": "Open",
+        "createdDate": now.date().isoformat(),
+        "createdAt": now.isoformat(),
+        "subject": subject,
+        "description": description,
+        "remarks": "",
+        "assetId": asset_id,
+        "attachmentName": attachment,
+        "outsideService": False,
+        "printerMaintenance": False,
+        "history": [{"at": now.isoformat(), "event": "Created", "note": subject}],
+    }
+    row = None
+    for _attempt in range(5):
+        taken = [
+            str(item.get("ticketId") or item.get("id") or "")
+            for item in _rows(db, actor, IT_TICKETS)
+        ]
+        serial = max(
+            (int(code[len(prefix):]) for code in taken if code.startswith(prefix) and code[len(prefix):].isdigit()),
+            default=0,
+        ) + 1
+        ticket_id = f"{prefix}{serial:04d}"
+        candidate = OpsRecord(
+            id=uuid.uuid4(),
+            campus_id=actor.campus_id,
+            collection=IT_TICKETS,
+            public_id=ticket_id,
+            body={**payload, "id": ticket_id, "ticketId": ticket_id},
+            created_by=actor.id,
+            updated_at=now,
+        )
+        try:
+            with db.begin_nested():
+                db.add(candidate)
+                db.flush()
+            row = candidate
+            break
+        except IntegrityError:
+            continue  # another requester took that number first: take the next one
+    if row is None:
+        fail(409, "code_conflict", "Could not number the ticket. Please try again.")
+    _notify(
+        db,
+        campus_id=actor.campus_id,
+        title=f"New IT ticket {row.public_id}: {subject[:80]}",
+        body=f"{priority} priority - raised by {payload['requesterRole']}.",
+        entity_type="it_ticket",
+        entity_id=row.public_id,
+        role_code="itsupportmanager",
+    )
+    write_audit(
+        db,
+        action="IT_TICKET_RAISED",
+        entity_type="it_ticket",
+        entity_id=row.public_id,
+        actor_id=actor.id,
+        campus_id=actor.campus_id,
+        details=f"{category}/{priority}",
+    )
+    db.commit()
+    db.refresh(row)
+    return _as_item(row)
+
+
+def my_tickets(db: Session, actor: User) -> list[dict]:
+    """Tickets this person raised, newest first; nobody else's."""
+    mine = str(actor.id)
+    rows = db.scalars(
+        select(OpsRecord)
+        .where(OpsRecord.campus_id == actor.campus_id, OpsRecord.collection == IT_TICKETS)
+        .order_by(OpsRecord.created_at.desc())
+    ).all()
+    return [_as_item(row) for row in rows if str((row.body or {}).get("requesterUserId") or "") == mine]
 
 
 _ITEM_UPSERT_COLLECTIONS = {"som-matrix", "som-config", "security-cameras"}

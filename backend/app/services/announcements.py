@@ -56,6 +56,11 @@ DEFAULT_AUDIENCE = [
     "gatekeepermanager",
     "gatekeeper",
     "admin",
+    "housekeepingmanager",
+    "stationerystoremanager",
+    "canteenmanager",
+    "itsupportmanager",
+    "transportmanager",
 ]
 SEE_ALL_ROLES = {"superadmin", "managing_director"}
 ROLE_NAMES = dict(ALL_ROLES)

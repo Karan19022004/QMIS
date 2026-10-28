@@ -31,6 +31,8 @@ import ViewTransportExpense from '../Pages/TransportManager/TransportExpenses/Vi
 import LeaveRequest from '../Pages/TransportManager/LeaveRequest/LeaveRequest'
 import ViewLeaveRequest from '../Pages/TransportManager/LeaveRequest/ViewLeaveRequest'
 import BuildingMaintenance from '../Pages/TransportManager/BuildingMaintenance/BuildingMaintenance'
+import AnnouncementList from '../Pages/TransportManager/Announcement/AnnouncementList'
+import ViewAnnouncement from '../Pages/TransportManager/Announcement/ViewAnnouncement'
 
 const TransportManagerRoutes = () => {
     return (

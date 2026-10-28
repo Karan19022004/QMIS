@@ -8,6 +8,23 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 28 October 2026 — Academic workflow + frontend merge onto main
+
+**Status:** Merged local academic/frontend work with `qmis/main` (kept main Result Details, Exam Schedule, dual-session biometric, timetable/attendance). Ready to push.
+
+### Done
+- Phase 4–8 academic backend (results after promotion, promotion guard, marks correction, parent in-app publish notices, E2E)
+- Coordinator / Principal / Director shared mark-approval and lesson-plan approval screens wired to main sidebar paths
+- IT self-service tickets (raise + My Tickets), Transport Manager announcements, ops announcements audience
+- Mark Entry subject loading uses class-details API (no broken allocation helpers after merge)
+- Static frontend checks aligned with main ResultDetails / ExamSchedule / biometric patterns
+
+### Still open
+- Client-review gaps outside this academic workflow (ops/transport/audit/HR, etc.)
+- WhatsApp Business API credentials still empty (email SMTP already in local `.env` only)
+
+---
+
 ## 27 October 2026 (evening) — Browser checks done, remaining items built
 
 **Status:** Every changed screen checked in the browser as each role (read-only). The remaining approved items are built. Database backed up and migration 0021 applied. Not committed or pushed.

@@ -1,4 +1,4 @@
-﻿import {
+import {
     LayoutDashboard,
     Users,
     BookOpen,
@@ -1356,6 +1356,7 @@ export const coordinatorSidebarLinks = [
             { icon: CalendarDays, title: "My Class Timetable", to: "/coordinator/class/class-routine" },
             { icon: CalendarDays, title: "Create Class Timetable", to: "/coordinator/class/class-timetable" },
             { icon: NotebookPen, title: "Lesson Plan", to: "/coordinator/lesson-plan-approval" },
+            { icon: ClipboardCheck, title: "Lesson Plan Review", to: "/coordinator/lesson-plan-review" },
             { icon: UserPlus, title: "Extended Class", to: "/coordinator/class/extra-class" },
             { icon: MonitorPlay, title: "Online Class", to: "/coordinator/class/online-class" },
         ],
@@ -1381,6 +1382,7 @@ export const coordinatorSidebarLinks = [
             { icon: ClipboardPen, title: "Mark Entry", to: "/coordinator/student-evaluation/mark-entry" },
             { icon: ClipboardCheck, title: "Mark Entry Approval", to: "/coordinator/student-evaluation/mark-entry-approval" },
             { icon: BarChart3, title: "Result Summary", to: "/coordinator/student-evaluation/result-summary" },
+            { icon: NotebookPen, title: "Lesson Plan Review", to: "/coordinator/lesson-plan-review" },
             { icon: BarChart3, title: "Performance Analytics", to: "/coordinator/student-evaluation/analytics" },
             { icon: HeartPulse, title: "Biometric Attendance", to: "/coordinator/attendance/biometric" },
             { icon: Sparkles, title: "Home Fun", to: "/coordinator/student-deliverables/home-fun" },
@@ -1512,6 +1514,12 @@ export const transportManagerSidebarLinks = [
         title: "Building Maintenance",
         to: "/transport-manager/building-maintenance",
         icon: Landmark,
+    },
+    {
+        id: 14,
+        title: "Announcement",
+        to: "/transport-manager/broadcast",
+        icon: Rss,
     },
 ];
 
@@ -2293,6 +2301,12 @@ export const principalSidebarLinks = [
         title: "Mark Entry Approval",
         to: "/principal/mark-entry-approval",
         icon: ClipboardCheck,
+    },
+    {
+        id: "principal-lesson-plan-approval",
+        title: "Lesson Plan Approval",
+        to: "/principal/lesson-plan-approval",
+        icon: NotebookPen,
     },
     {
         id: 4,

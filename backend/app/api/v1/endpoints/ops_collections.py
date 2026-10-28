@@ -29,6 +29,25 @@ def my_hostel_route(
     return svc.my_hostel(db, user)
 
 
+@router.post("/it-support-tickets/raise", status_code=201)
+def raise_ticket_route(
+    body: dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Any signed-in user raises one IT ticket; it is added without touching the IT team's list."""
+    return svc.raise_ticket(db, user, body)
+
+
+@router.get("/it-support-tickets/mine")
+def my_tickets_route(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[dict]:
+    """The tickets the signed-in user raised, with their status and history."""
+    return svc.my_tickets(db, user)
+
+
 @router.get("/{collection}")
 def list_route(
     collection: str,

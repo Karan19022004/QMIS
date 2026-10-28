@@ -6,6 +6,10 @@ import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRou
 import AddRatings from '../Pages/Principal/StarRatings/AddRatings'
 import ExaminationTimetableList from '../Pages/Principal/ExaminationTimetable/ExaminationTimetableList'
 import CreateExaminationTimetable from '../Pages/Principal/ExaminationTimetable/CreateExaminationTimetable'
+import PrincipalMarkEntryApproval from '../Pages/Principal/MarkEntryApproval/MarkEntryApproval'
+import PrincipalMarkEntryReview from '../Pages/Principal/MarkEntryApproval/MarkEntryReview'
+import PrincipalLessonPlanApproval from '../Pages/Principal/LessonPlanApproval/LessonPlanApproval'
+import LessonPlanGroupDetail from '../Common/LessonPlanApproval/Components/LessonPlanGroupDetail'
 import ClassTimetableList from '../Pages/Principal/ClassTimetable/ClassTimetableList'
 import CreateClassTimetable from '../Pages/Principal/ClassTimetable/CreateClassTimetable'
 import StudentDatabaseList from '../Pages/Principal/UserManagement/StudentDatabase/StudentsList'
@@ -70,14 +74,10 @@ const PrincipalRoutes = () => {
             <Route path="/principal/examination-timetable" element={<ExaminationTimetableList />} />
             <Route path="/principal/create-examination-timetable" element={<CreateExaminationTimetable />} />
             <Route path="/principal/edit-examination-timetable/:id" element={<CreateExaminationTimetable />} />
-            <Route
-                path="/principal/mark-entry-approval"
-                element={<MarkEntryApprovalList basePath="/principal/mark-entry-approval" roleLabel="Principal" />}
-            />
-            <Route
-                path="/principal/mark-entry-approval/review/:contextKey"
-                element={<MarkEntryReviewPage basePath="/principal/mark-entry-approval" />}
-            />
+            <Route path="/principal/mark-entry-approval" element={<PrincipalMarkEntryApproval />} />
+            <Route path="/principal/mark-entry-approval/review/:contextKey" element={<PrincipalMarkEntryReview />} />
+            <Route path="/principal/lesson-plan-approval" element={<PrincipalLessonPlanApproval />} />
+            <Route path="/principal/lesson-plan-approval/group/:teacherName/:subject" element={<LessonPlanGroupDetail />} />
             <Route path="/principal/class-timetable" element={<ClassTimetableList />} />
             <Route path="/principal/create-class-timetable" element={<CreateClassTimetable />} />
             <Route path="/principal/edit-class-timetable/:id" element={<CreateClassTimetable />} />

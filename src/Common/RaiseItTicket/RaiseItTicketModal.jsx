@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useAuth } from '../../context/AuthContext'
 import { ROLES } from '../../constants/roles'
-import { createTicket } from '../demoDomain/itTickets'
+import { IT_TICKETS_KEY, raiseTicket } from '../demoDomain/itTickets'
+import { usesCampusApiForKey } from '../../services/campusJsonStore'
 
 const ROLE_LABEL = {
     [ROLES.SUPER_ADMIN]: 'Super Admin',
@@ -37,6 +38,7 @@ export default function RaiseItTicketModal({ open, onClose }) {
         assetId: '',
         attachmentName: '',
     })
+    const [busy, setBusy] = useState(false)
 
     useEffect(() => {
         if (!open) return undefined
@@ -51,26 +53,35 @@ export default function RaiseItTicketModal({ open, onClose }) {
 
     const set = (key) => (event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))
 
-    const submit = (event) => {
+    const submit = async (event) => {
         event.preventDefault()
+        if (busy) return
         if (!form.subject.trim() || !form.description.trim()) {
             toast.error('Subject and description are required.')
             return
         }
-        const ticket = createTicket({
-            requesterName: name || email || 'Demo User',
-            requesterRole: ROLE_LABEL[role] || role || 'User',
-            department: form.department || 'General',
-            issueType: form.category,
-            subject: form.subject.trim(),
-            description: form.description.trim(),
-            priority: form.priority,
-            assetId: form.assetId,
-            attachmentName: form.attachmentName,
-        })
-        toast.success(`Ticket ${ticket.ticketId} sent to IT Support.`)
-        setForm({ category: 'Hardware', subject: '', description: '', priority: 'Medium', department: '', assetId: '', attachmentName: '' })
-        onClose()
+        setBusy(true)
+        try {
+            const ticket = await raiseTicket({
+                requesterName: name || email || 'Demo User',
+                requesterRole: ROLE_LABEL[role] || role || 'User',
+                requesterEmail: email || '',
+                department: form.department || 'General',
+                issueType: form.category,
+                subject: form.subject.trim(),
+                description: form.description.trim(),
+                priority: form.priority,
+                assetId: form.assetId,
+                attachmentName: form.attachmentName,
+            })
+            toast.success(`Ticket ${ticket.ticketId} sent to IT Support.`)
+            setForm({ category: 'Hardware', subject: '', description: '', priority: 'Medium', department: '', assetId: '', attachmentName: '' })
+            onClose()
+        } catch (error) {
+            toast.error(error?.message || 'The ticket could not be sent. Please try again.')
+        } finally {
+            setBusy(false)
+        }
     }
 
     return (
@@ -78,7 +89,11 @@ export default function RaiseItTicketModal({ open, onClose }) {
             <button type='button' className='absolute inset-0 bg-black/40' onClick={onClose} aria-label='Close' />
             <form onSubmit={submit} className='relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-lg p-5'>
                 <h3 className='text-lg font-semibold text-black'>Raise IT Ticket</h3>
-                <p className='text-xs text-[#667085] mt-1'>The same ticket appears immediately for the IT Support Manager in this browser.</p>
+                <p className='text-xs text-[#667085] mt-1'>
+                    {usesCampusApiForKey(IT_TICKETS_KEY)
+                        ? 'The ticket goes to the IT Support team. Track it under My IT Tickets.'
+                        : 'The same ticket appears immediately for the IT Support Manager in this browser.'}
+                </p>
                 <div className='grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4'>
                     <label className='text-sm flex flex-col gap-1'>Category
                         <select value={form.category} onChange={set('category')} className={inputClass}>{CATEGORIES.map((item) => <option key={item}>{item}</option>)}</select>
@@ -104,7 +119,9 @@ export default function RaiseItTicketModal({ open, onClose }) {
                 </div>
                 <div className='flex justify-end gap-3 mt-5'>
                     <button type='button' onClick={onClose} className='border border-[#515DEF] text-[#515DEF] px-4 py-2 rounded-md text-sm cursor-pointer'>Cancel</button>
-                    <button type='submit' className='bg-[#515DEF] text-white px-4 py-2 rounded-md text-sm cursor-pointer'>Submit Ticket</button>
+                    <button type='submit' disabled={busy} className='bg-[#515DEF] text-white px-4 py-2 rounded-md text-sm cursor-pointer disabled:opacity-60'>
+                        {busy ? 'Sending…' : 'Submit Ticket'}
+                    </button>
                 </div>
             </form>
         </div>

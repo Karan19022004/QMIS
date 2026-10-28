@@ -8,6 +8,7 @@ import {
     listMarksBatchesApi,
     mapMarksBatchFromApi,
 } from '../../services/examsApi'
+import { PASS_MARK_PERCENT, getGradeFromPercentage } from './gradeRules'
 
 export { CLASSES, SECTIONS, SUBJECTS }
 export { canUseExamsApi }
@@ -25,7 +26,7 @@ export const EXAM_OPTIONS = [
 export const STATUS_FILTERS = ['All', 'Pending', 'Entered', 'Absent']
 export const APPROVAL_STATUSES = ['Pending', 'Approved', 'Rejected']
 
-export const PASS_MARK_PERCENT = 33
+export { PASS_MARK_PERCENT, getGradeFromPercentage }
 
 const STORAGE_KEY = 'teacher-mark-entry-sessions'
 
@@ -44,22 +45,15 @@ const getEncouragementName = (studentId) => {
     return student?.name?.split(' ')[0] ?? 'Student'
 }
 
-export const formatClassLabel = (className) => `Grade ${className}`
+export const formatClassLabel = (className) => {
+    const text = String(className ?? '').trim()
+    return /^(grade|class)\b/i.test(text) ? text : `Grade ${text}`
+}
 
 export const approvalStatusColor = {
     Pending: 'bg-[#FF980033] text-[#FF9800]',
     Approved: 'bg-[#4CAF5033] text-[#4CAF50]',
     Rejected: 'bg-[#FF000033] text-[#FF0000]',
-}
-
-export const getGradeFromPercentage = (percentage) => {
-    if (percentage >= 90) return 'A+'
-    if (percentage >= 80) return 'A'
-    if (percentage >= 70) return 'B+'
-    if (percentage >= 60) return 'B'
-    if (percentage >= 50) return 'C'
-    if (percentage >= PASS_MARK_PERCENT) return 'D'
-    return 'F'
 }
 
 export const computeMarkEntry = ({ obtainedMarks, maxMarks, absent }) => {
@@ -179,20 +173,25 @@ export const mapMarksBatchToApprovalSession = (batch) => {
         section: batch.section || '',
         subject: batch.subject || '',
         term: '—',
-        academicYear: '—',
+        academicYear: batch.academicYear || '—',
         examDate: '—',
         maxMarks: batch.maxMarks ?? 100,
         status: 'submitted',
         approvalStatus,
+        awaitingRole: batch.awaitingRole || null,
+        awaitingEligibleApprover: Boolean(batch.awaitingEligibleApprover),
+        rejectionReason: batch.rejectionReason || '',
+        version: batch.version ?? 1,
         students,
         entries,
-        submittedByRole: batch.teacherEmail || 'Teacher',
+        submitterEmail: batch.teacherEmail || '',
+        submittedByRole: batch.teacherName || batch.teacherEmail || 'Teacher',
         submittedAt: batch.submittedAt || null,
         source: 'api',
     }
 }
 
-/** Director list: submitted / published / denied batches (not drafts). */
+/** Approver list (Coordinator / Principal / Director): submitted, published and denied batches, never drafts. */
 export async function hydrateMarkApprovalsFromApi() {
     if (!canUseExamsApi()) return getAllMarkSessions().filter((s) => s.status === 'submitted')
     const rows = await listMarksBatchesApi({})
@@ -230,11 +229,11 @@ export async function decideMarkApprovalViaApi(session, approvalStatus, rejectio
     if (decision === 'deny' && !String(rejectionReason || '').trim()) {
         return { success: false, message: 'A rejection reason is required.' }
     }
-    await decideApprovalApi(session.approvalId, {
+    const approval = await decideApprovalApi(session.approvalId, {
         decision,
         comment: rejectionReason || undefined,
     })
-    return { success: true }
+    return { success: true, approval }
 }
 
 export const getPendingMarkSessions = () =>
@@ -515,7 +514,13 @@ export const isSessionLocked = (session) =>
 
 export const getSessionStatusLabel = (session) => {
     if (session?.status !== 'submitted') return 'Draft'
-    if (session.approvalStatus === 'Pending') return 'Pending Director Approval'
+    if (session.approvalStatus === 'Pending') {
+        if (session.source === 'api') {
+            const who = String(session.awaitingRole || '')
+            return who ? `Pending ${who.charAt(0).toUpperCase()}${who.slice(1)} Approval` : 'Pending Approval'
+        }
+        return 'Pending Director Approval'
+    }
     if (session.approvalStatus === 'Approved') return 'Approved'
     if (session.approvalStatus === 'Rejected') return 'Rejected — Revise & Resubmit'
     return 'Submitted'

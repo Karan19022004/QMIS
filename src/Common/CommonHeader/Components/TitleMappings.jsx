@@ -1,4 +1,4 @@
-﻿export const singleTitleMapping = {
+export const singleTitleMapping = {
     "/dashboard": "Dashboard",
     "/admin/dashboard": "Dashboard",
     "/super-admin/dashboard": "Super Admin Dashboard",
@@ -484,6 +484,9 @@
     "/coordinator/leave-request/my-requests/add": "Apply Leave",
     "/coordinator/leave-request/received": "Received Leave Requests",
     "/coordinator/lesson-plan-approval": "Lesson Plan",
+    "/coordinator/lesson-plan-review": "Lesson Plan Review",
+    "/coordinator/mark-entry-approval": "Mark Entry Approval",
+    "/coordinator/mark-entry-approval/review/:contextKey": "Review Mark Entry",
     "/coordinator/lesson-plan-approval/add": "Add Lesson Plan",
     "/coordinator/lesson-plan/my-lesson-plan": "Lesson Plan",
     "/coordinator/student-allocation": "Student Allocation",
@@ -529,6 +532,7 @@
     "/transport-manager/request-approvals": "Request & Approvals",
     "/transport-manager/transport-expenses": "Transport Expenses",
     "/transport-manager/leave-request": "Leave Request",
+    "/transport-manager/broadcast": "Announcement",
 
 
     // ── Joint Director Role ───────────────────────────────────────────────────
@@ -754,6 +758,9 @@
     "/principal/star-ratings/star-of-year": "Star of the Year",
     "/principal/star-ratings/add-ratings": "Add SOM Rating",
     "/principal/examination-timetable": "Examination Timetable List",
+    "/principal/mark-entry-approval": "Mark Entry Approval",
+    "/principal/mark-entry-approval/review/:contextKey": "Review Mark Entry",
+    "/principal/lesson-plan-approval": "Lesson Plan Approval",
     "/principal/create-examination-timetable": "Create Examination Timetable",
     "/principal/class-timetable": "Class Timetable List",
     "/principal/create-class-timetable": "Create Class Timetable",

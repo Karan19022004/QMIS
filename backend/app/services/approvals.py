@@ -23,11 +23,14 @@ from app.services.audit import write_audit
 from app.services.errors import fail
 
 ACADEMIC_CHAIN = ["coordinator", "principal", "director"]
+# Published-mark corrections: teacher requests; Principal then Director authorize (no coordinator step).
+MARKS_CORRECTION_CHAIN = ["principal", "director"]
 
 # entity_type -> (roles allowed to submit, approver chain). chain None => caller supplies it.
 WORKFLOWS: dict[str, dict] = {
     "lesson_plan": {"submit": {"teacher", "coordinator"}, "chain": ACADEMIC_CHAIN},
     "marks_batch": {"submit": {"teacher", "coordinator"}, "chain": ACADEMIC_CHAIN},
+    "marks_correction": {"submit": {"teacher", "coordinator"}, "chain": MARKS_CORRECTION_CHAIN},
     "section_change": {"submit": {"teacher", "coordinator", "principal"}, "chain": ACADEMIC_CHAIN},
     "timetable": {"submit": {"principal", "coordinator"}, "chain": ["director"]},
     "exam_timetable": {"submit": {"principal", "coordinator"}, "chain": ["director"]},
@@ -43,7 +46,7 @@ WORKFLOWS: dict[str, dict] = {
 
 
 # Types backed by a domain record; only their own services may open an approval for them.
-DOMAIN_OWNED = {"lesson_plan", "marks_batch", "exam_timetable", "leave_request"}
+DOMAIN_OWNED = {"lesson_plan", "marks_batch", "marks_correction", "exam_timetable", "leave_request"}
 
 
 def _chain(row: ApprovalRequest) -> list[str]:
@@ -120,14 +123,14 @@ def _out(row: ApprovalRequest, events: list[ApprovalEvent] | None = None) -> dic
 
 
 # Records whose visibility depends on class/section (coordinator grade band and allocations).
-SCOPED_ENTITY_TYPES = {"marks_batch", "lesson_plan"}
+SCOPED_ENTITY_TYPES = {"marks_batch", "marks_correction", "lesson_plan"}
 # Approver roles that are limited to a class/section scope; every other chain role is campus-wide.
 SCOPED_APPROVER_ROLES = {"coordinator"}
 
 
 def _entity_visible(db: Session, actor: User, row: ApprovalRequest, role: str | None = None) -> bool:
     """Approvals for scoped records follow the record's own visibility."""
-    if row.entity_type == "marks_batch":
+    if row.entity_type in {"marks_batch", "marks_correction"}:
         from app.services.exams import marks_batch_visible_by_id
 
         return marks_batch_visible_by_id(db, actor, row.entity_id, role)
@@ -144,7 +147,7 @@ NO_APPROVER_ALERT_ROLE = "admin"
 
 def _entity_owner_id(db: Session, row: ApprovalRequest):
     """Author of the underlying record (may differ from the submitter), or None."""
-    if row.entity_type == "marks_batch":
+    if row.entity_type in {"marks_batch", "marks_correction"}:
         from app.models import MarksBatch
 
         model = MarksBatch
@@ -233,6 +236,7 @@ def submit(
     title: str | None,
     chain: list[str] | None,
     internal: bool = False,
+    comment: str | None = None,
 ) -> dict:
     wf = WORKFLOWS.get(entity_type)
     if not wf:
@@ -283,7 +287,8 @@ def submit(
     )
     db.add(row)
     db.flush()
-    _event(db, row, level=0, action="submit", actor=actor, role=role, comment=routing_note)
+    submit_comment = " | ".join(part for part in (routing_note, (comment or "").strip()) if part) or None
+    _event(db, row, level=0, action="submit", actor=actor, role=role, comment=submit_comment)
     label = title or f"{entity_type} {entity_id}"
     _notify_step(db, row, steps[0], title=f"Approval needed: {label}", body=f"Submitted by {actor.email} ({role}).")
     write_audit(
@@ -345,6 +350,10 @@ def decide(db: Session, actor: User, approval_id: UUID, *, decision: str, commen
             entity_type=row.entity_type,
             entity_id=row.entity_id,
         )
+        if row.entity_type in {"marks_batch", "marks_correction"}:
+            from app.services.exams import notify_parents_result_published
+
+            notify_parents_result_published(db, row.entity_id)
     write_audit(
         db,
         action=f"APPROVAL_{decision.upper()}",

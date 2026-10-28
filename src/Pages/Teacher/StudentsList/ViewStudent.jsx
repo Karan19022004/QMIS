@@ -1,9 +1,12 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams, NavLink } from 'react-router-dom'
 import { ArrowLeft, ChevronRight } from 'lucide-react'
 import { getStudentById } from './studentsListData'
+import { getStudentApi, mapStudentDetailFromApi } from '../../../services/studentsApi'
+import { getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
 import StudentAttendanceDetails from './Components/StudentAttendanceDetails'
-import StudentResultDetails from './Components/StudentResultDetails'
+// Server-backed published results (the server limits a teacher to their assigned students).
+import StudentResultDetails from '../../Coordinator/StudentsList/Components/StudentResultDetails'
 
 const Field = ({ label, value }) => (
     <div className='flex flex-col gap-y-1'>
@@ -17,7 +20,38 @@ const Field = ({ label, value }) => (
 const ViewStudent = () => {
     const { id } = useParams()
     const navigate = useNavigate()
-    const student = getStudentById(id)
+    const api = isApiAuthEnabled() && Boolean(getAccessToken())
+    // Server mode reads the student from the API (it limits a teacher to assigned students); demo mode uses the browser list.
+    const [loaded, setLoaded] = useState({ id: null, student: null })
+
+    useEffect(() => {
+        if (!api || !id) return undefined
+        let cancelled = false
+        getStudentApi(id)
+            .then((row) => {
+                if (cancelled) return
+                const detail = mapStudentDetailFromApi(row)
+                setLoaded({
+                    id,
+                    student: {
+                        ...detail,
+                        classSection: detail.classSection || [detail.className, detail.section].filter(Boolean).join('-'),
+                        rollNumber: row.rollNumber ?? '',
+                    },
+                })
+            })
+            .catch(() => {
+                if (!cancelled) setLoaded({ id, student: null })
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [api, id])
+
+    const loading = api && loaded.id !== id
+    const student = api ? loaded.student : getStudentById(id)
+
+    if (loading) return <p className='text-[#667085]'>Loading student…</p>
 
     return (
         <section className='space-y-6'>
@@ -40,7 +74,9 @@ const ViewStudent = () => {
                 <>
                     <div className='bg-white rounded-2xl shadow-md p-4'>
                         <div className='flex flex-wrap items-start gap-4 mb-6'>
-                            <img src={student.profile} alt={student.name} className='w-16 h-16 rounded-full object-cover' />
+                            {student.profile ? (
+                                <img src={student.profile} alt={student.name} className='w-16 h-16 rounded-full object-cover' />
+                            ) : null}
                             <div>
                                 <h1 className='text-2xl font-semibold text-black'>{student.name}</h1>
                                 <p className='text-sm text-[#667085] mt-1'>
@@ -76,7 +112,7 @@ const ViewStudent = () => {
 
                     <div>
                         <h2 className='text-xl font-semibold text-black mb-4'>Results</h2>
-                        <StudentResultDetails />
+                        <StudentResultDetails studentId={student.id || id} />
                     </div>
                 </>
             )}

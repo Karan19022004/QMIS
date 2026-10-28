@@ -1,5 +1,6 @@
 import { SUPPORT_TICKETS } from '../../Pages/ITSupportManager/SupportTickets/supportTicketsData'
 import { hydrateCampusKey, usesCampusApiForKey } from '../../services/campusJsonStore'
+import { listMyItTicketsApi, raiseItTicketApi, stripOpsMeta } from '../../services/opsApi'
 import { ensureSeed, loadJson, nextSerial, saveJson } from './storage'
 import { logActivity } from './activityLog'
 
@@ -120,4 +121,43 @@ export function ticketCounts() {
 export function readTicketsSafe() {
     const stored = loadJson(IT_TICKETS_KEY, null)
     return Array.isArray(stored) ? stored : getTickets()
+}
+
+/** Staff self-service: create a ticket (API when campus store is live, else local demo list). */
+export async function raiseTicket(input) {
+    if (usesCampusApiForKey(IT_TICKETS_KEY)) {
+        const row = stripOpsMeta(await raiseItTicketApi({
+            subject: input.subject,
+            description: input.description,
+            issueType: input.issueType || 'Hardware',
+            priority: input.priority || 'Medium',
+            department: input.department || 'General',
+            assetId: input.assetId || '',
+            attachmentName: input.attachmentName || '',
+            requesterName: input.requesterName || '',
+            requesterRole: input.requesterRole || '',
+            requesterEmail: input.requesterEmail || '',
+        }))
+        await hydrateTicketsFromApi()
+        notify()
+        return row
+    }
+    return createTicket(input)
+}
+
+/** Tickets raised by the signed-in user (API) or matching requester email/name (demo). */
+export async function listMyTickets({ email, name } = {}) {
+    if (usesCampusApiForKey(IT_TICKETS_KEY)) {
+        const rows = await listMyItTicketsApi()
+        return (Array.isArray(rows) ? rows : []).map(stripOpsMeta)
+    }
+    const needleEmail = String(email || '').trim().toLowerCase()
+    const needleName = String(name || '').trim().toLowerCase()
+    return getTickets().filter((ticket) => {
+        const ticketEmail = String(ticket.requesterEmail || '').trim().toLowerCase()
+        const ticketName = String(ticket.requesterName || '').trim().toLowerCase()
+        if (needleEmail && ticketEmail === needleEmail) return true
+        if (needleName && ticketName === needleName) return true
+        return false
+    })
 }

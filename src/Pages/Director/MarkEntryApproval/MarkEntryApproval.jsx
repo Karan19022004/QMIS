@@ -1,11 +1,7 @@
-import React from 'react'
-import MarkEntryApprovalList from '../../../Common/MarkEntryApproval/MarkEntryApprovalList'
+import MarkApprovalListPage from '../../../Common/MarkEntryApproval/MarkApprovalListPage'
 
 const MarkEntryApproval = () => (
-    <MarkEntryApprovalList
-        basePath='/director/mark-entry-approval'
-        roleLabel='Director'
-    />
+    <MarkApprovalListPage basePath='/director/mark-entry-approval' role='director' />
 )
 
 export default MarkEntryApproval

@@ -67,6 +67,11 @@ class EntriesIn(BaseModel):
     entries: list[EntryIn]
 
 
+class CorrectionIn(BaseModel):
+    reason: str = Field(min_length=1, max_length=500)
+    entries: list[EntryIn]
+
+
 # ---- exam types / exams -------------------------------------------------
 
 
@@ -232,6 +237,18 @@ def revise_batch_route(
     batch_id: UUID, db: Session = Depends(get_db), user: User = Depends(require_permission("marks.write"))
 ) -> dict:
     return svc.revise_batch(db, user, batch_id)
+
+
+@router.post("/marks-batches/{batch_id}/request-correction", status_code=201)
+def request_correction_route(
+    batch_id: UUID,
+    body: CorrectionIn,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("marks.write")),
+) -> dict:
+    return svc.request_correction(
+        db, user, batch_id, reason=body.reason, entries=[e.model_dump() for e in body.entries]
+    )
 
 
 # ---- student results (parents via their child) ------------------------------

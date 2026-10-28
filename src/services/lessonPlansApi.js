@@ -52,6 +52,7 @@ export function mapLessonPlanFromApi(row) {
         id: String(row.id),
         subject: row.subject || content.subject || '',
         submitterName: row.teacherEmail || row.teacherName || content.submitterName || '',
+        submitterEmail: row.teacherEmail || '',
         submitterRole: content.submitterRole || 'Teacher',
         className: row.className || '',
         section: row.section || '',
