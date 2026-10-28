@@ -21,6 +21,7 @@ New days go at the top. Older days stay below so the history is in one file.
 - Safe staff login provisioning (isolated only): `backend/app/services/staff_login_provision.py` + `backend/scripts/provision_queen_mira_staff_logins.py` create-missing-only accounts with unique temp passwords + `must_change_password`; demo `@qmis.edu` logins untouched. Isolated run created **100** accounts; handoff under `local/credentials/` (gitignored). Not run against live campus.
 - Staff Excel reconciliation: “122” sheet body rows = **120 staff + 1 blank + 1 repeated header**; hrSeed **120**; eligible **100** / directory-only **20**.
 - Live staff logins: backed up Postgres dump; created **100** missing EMP-QMIS accounts (unique temps, must-change); preserved **78** prior users; handoff `local/credentials/queen-mira-staff-logins-live.json` (gitignored). Directory-only 20 skipped. No commit/push.
+- Security fixes (uncommitted): junior enroll `_reject_junior_student_login` now uses the same resolved email/password/pending-hash as account creation; gateway intent/confirm and `pay-my-fees` no longer authorize via `finance.read` — new portal-only `finance.pay` on parent/student roles.
 
 ### Still open
 - Full click-through of every staff approval screen in the browser (chain was completed on the isolated API; portals verified in UI)
@@ -28,6 +29,7 @@ New days go at the top. Older days stay below so the history is in one file.
 - Client-review gaps outside this academic workflow
 - WhatsApp Business API credentials still empty (email SMTP in local `.env` only)
 - Live/already-seeded campus: replace HR employee collection with the new Queen Mira roster (hydrate does not overwrite)
+- Commit/push the enroll + finance.pay permission fixes when ready
 
 ---
 

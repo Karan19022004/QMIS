@@ -345,3 +345,33 @@ def test_older_junior_admission_with_a_saved_student_login_still_enrols_parent_o
     enrolled = client.post(f"/api/v1/admissions/{created.json()['id']}/enroll", json={}, headers=headers)
     assert enrolled.status_code == 200, enrolled.text
     assert enrolled.json()["student_created"] is False
+
+
+def test_junior_enroll_rejects_pending_student_hash_when_student_account_requested(
+    client, school_login_policy, monkeypatch,
+):
+    """Pending hash on the row must fail the same junior check as a payload password."""
+    from app.core.config import settings
+
+    headers = _login(client)
+    monkeypatch.setattr(settings, "student_login_min_grade", 1)
+    body = {
+        "first_name": "Hash",
+        "mobile_number": "9000000100",
+        "class_name": "Grade 4",
+        "parent_account_email": "parent.hash@example.com",
+        "parent_account_password": "Parent-Test-2026",
+        "student_account_email": "student.hash@example.com",
+        "student_account_password": "Student-Test-2026",
+    }
+    created = client.post("/api/v1/admissions", json=body, headers=headers)
+    assert created.status_code == 201, created.text
+    monkeypatch.setattr(settings, "student_login_min_grade", 6)
+    # Empty payload password but skip_student_account=False — pending hash is still login material.
+    rejected = client.post(
+        f"/api/v1/admissions/{created.json()['id']}/enroll",
+        json={"skip_student_account": False},
+        headers=headers,
+    )
+    assert rejected.status_code == 400, rejected.text
+    assert "parent login" in rejected.text

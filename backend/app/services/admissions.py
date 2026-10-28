@@ -427,10 +427,17 @@ def student_login_allowed(class_name: str | None) -> bool:
     return grade is None or grade >= settings.student_login_min_grade
 
 
-def _reject_junior_student_login(class_name: str | None, email: str | None, password: str | None) -> None:
+def _reject_junior_student_login(
+    class_name: str | None,
+    email: str | None,
+    password: str | None,
+    *,
+    password_hash: str | None = None,
+) -> None:
     from app.core.config import settings
 
-    if (email or "").strip() or (password or "").strip():
+    # Match account-creation resolution: plain password OR a saved pending hash counts as login material.
+    if (email or "").strip() or (password or "").strip() or (password_hash or "").strip():
         if not student_login_allowed(class_name):
             fail(400, "validation_error", JUNIOR_STUDENT_LOGIN_MESSAGE.format(min_grade=settings.student_login_min_grade))
 
@@ -665,7 +672,13 @@ def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: Enro
     student_password = (payload.student_account_password or "").strip() or None
     student_password_hash = (row.student_pending_password_hash or "").strip() or None
     if not payload.skip_student_account:
-        _reject_junior_student_login(row.class_name, payload.student_account_email, payload.student_account_password)
+        # Same resolved values as _ensure_student_user below (not payload-only).
+        _reject_junior_student_login(
+            row.class_name,
+            student_email,
+            student_password,
+            password_hash=student_password_hash,
+        )
     # Older admissions may still carry a student login for a junior class: enrol without it.
     skip_student = (
         payload.skip_student_account

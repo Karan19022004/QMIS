@@ -74,6 +74,7 @@ PERMISSIONS: list[tuple[str, str]] = [
     ("approvals.read", "View approval inbox and history"),
     ("notifications.read", "View own in-app notifications"),
     ("finance.read", "View finance fees, receipts, and books"),
+    ("finance.pay", "Pay own or linked student fees online (parent/student portal)"),
     ("finance.collect", "Collect fees and send receipts (operational)"),
     ("finance.write", "Change finance masters, fee structures, and snapshot config"),
     ("finance.approve", "Approve finance requests and apply Head-only actions"),
@@ -213,8 +214,9 @@ ROLE_PERMISSIONS.update(
                     "attendance.read",
                     "exams.read",
                     "academics.read",
-                    # Parent Academic Payment — scoped via GET /finance/my-fees (not full ledger write).
+                    # Parent Academic Payment — read fee status; pay via finance.pay (not collect/write).
                     "finance.read",
+                    "finance.pay",
                 ]
             )
         ),
@@ -228,6 +230,7 @@ ROLE_PERMISSIONS.update(
                     "exams.read",
                     "academics.read",
                     "finance.read",
+                    "finance.pay",
                 ]
             )
         ),

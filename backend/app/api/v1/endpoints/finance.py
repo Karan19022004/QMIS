@@ -69,7 +69,7 @@ def collect_payment_route(
 def pay_my_fees_route(
     body: dict = Body(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_permission("finance.read")),
+    user: User = Depends(require_permission("finance.pay")),
 ) -> dict:
     """Parent/student online payment for linked children / self (scoped)."""
     return actions.pay_my_fees(db, user, body)
@@ -97,9 +97,9 @@ def send_receipt_route(
 def gateway_intent_route(
     body: dict = Body(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_any("finance.collect", "finance.write", "finance.read")),
+    user: User = Depends(require_any("finance.collect", "finance.write", "finance.pay")),
 ) -> dict:
-    """Account Head desk + parent/student portal (scoped inside the service)."""
+    """Account Head desk (collect/write) + parent/student portal (finance.pay; scoped in service)."""
     return actions.create_gateway_intent(db, user, body)
 
 
@@ -107,9 +107,9 @@ def gateway_intent_route(
 def gateway_confirm_route(
     body: dict = Body(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_any("finance.approve", "finance.write", "finance.read")),
+    user: User = Depends(require_any("finance.approve", "finance.write", "finance.collect", "finance.pay")),
 ) -> dict:
-    """Verify Razorpay signature and settle fees. Portal actors are scoped to linked students."""
+    """Verify Razorpay signature and settle fees. Portal uses finance.pay; desk uses collect/write/approve."""
     return actions.confirm_gateway_payment(db, user, body)
 
 
