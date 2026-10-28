@@ -17,36 +17,6 @@ const takeSessionNotice = () => {
     }
 }
 
-/** Local demo seed accounts only — not for production. Click fills the form; edit here anytime. */
-const DEMO_TEST_LOGINS = [
-    { role: 'Super Admin', email: 'superadmin@qmis.edu', password: 'superadmin123' },
-    { role: 'Admin', email: 'admin@qmis.edu', password: 'admin123' },
-    { role: 'Director', email: 'director@qmis.edu', password: 'director123' },
-    { role: 'Principal', email: 'principal@qmis.edu', password: 'principal123' },
-    { role: 'Joint Director', email: 'jointdirector@qmis.edu', password: 'jd12345678' },
-    { role: 'Joint Director Assistant', email: 'jointdirectorassistant@qmis.edu', password: 'jda1234567' },
-    { role: 'Joint Director Audit', email: 'jointdirectoraudit@qmis.edu', password: 'jdaudit123' },
-    { role: 'Process Auditor', email: 'processauditor@qmis.edu', password: 'process123' },
-    { role: 'Quality Auditor', email: 'qualityauditor@qmis.edu', password: 'quality123' },
-    { role: 'Coordinator', email: 'coordinator@qmis.edu', password: 'coord123' },
-    { role: 'Teacher', email: 'teacher@qmis.edu', password: 'teacher123' },
-    { role: 'PRM (Admissions)', email: 'prm@qmis.edu', password: 'prm12345' },
-    { role: 'HR', email: 'hr@qmis.edu', password: 'hr12345' },
-    { role: 'Account Head (Finance)', email: 'accounthead@qmis.edu', password: 'accounts123' },
-    { role: 'Finance Assistant (limited)', email: 'finance.assistant@qmis.edu', password: 'finance123' },
-    { role: 'Librarian', email: 'librarian@qmis.edu', password: 'librarian123' },
-    { role: 'Transport Manager', email: 'transportmanager@qmis.edu', password: 'transport123' },
-    { role: 'Driver', email: 'driver@qmis.edu', password: 'driver123' },
-    { role: 'Gate Keeper', email: 'gatekeeper@qmis.edu', password: 'gatekeeper123' },
-    { role: 'Gate Keeper Manager', email: 'gatekeepermanager@qmis.edu', password: 'gkm1234567' },
-    { role: 'Canteen Manager', email: 'canteenmanager@qmis.edu', password: 'canteen123' },
-    { role: 'IT Support Manager', email: 'itsupportmanager@qmis.edu', password: 'itsupport123' },
-    { role: 'Stationery Store Manager', email: 'stationerystoremanager@qmis.edu', password: 'stationery123' },
-    { role: 'Housekeeping Manager', email: 'housekeepingmanager@qmis.edu', password: 'housekeeping123' },
-    { role: 'Parent', email: 'parent@qmis.edu', password: 'parent123' },
-    { role: 'Student', email: 'student@qmis.edu', password: 'student123' },
-]
-
 const SignIn = () => {
     const navigate = useNavigate()
     const location = useLocation()
@@ -61,13 +31,6 @@ const SignIn = () => {
     const [error, setError] = useState(takeSessionNotice)
     const [submitting, setSubmitting] = useState(false)
     const [showResetNote, setShowResetNote] = useState(false)
-    const [showDemoLogins, setShowDemoLogins] = useState(true)
-
-    const fillDemoLogin = (account) => {
-        setEmail(account.email)
-        setPassword(account.password)
-        setError('')
-    }
 
     const handleSubmit = async (e) => {
         e.preventDefault()
@@ -129,7 +92,9 @@ const SignIn = () => {
                     </div>
 
                     <h1 className="text-center text-2xl font-semibold tracking-tight text-[#1B2B4B] lg:text-left lg:text-[22px]">Login to your account</h1>
-                    <p className="mt-1.5 text-center text-sm text-[#5C6B82] lg:hidden">Sign in with your school email</p>
+                    <p className="mt-1.5 text-center text-sm text-[#5C6B82] lg:text-left">
+                        Sign in with your school email and password.
+                    </p>
 
                     {error && (
                         <p id="signin-error" role="alert" className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
@@ -141,13 +106,17 @@ const SignIn = () => {
                     <div className="relative mt-7">
                         <Mail size={16} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[#98A2B3]" />
                         <input
-                            type="email"
+                            type="text"
+                            inputMode="email"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
                             id="signin-email"
                             name="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             autoComplete="username"
-                            placeholder="Username or Email"
+                            placeholder="Email"
                             aria-invalid={Boolean(error)}
                             aria-describedby={error ? 'signin-error' : undefined}
                             className={fieldClass}
@@ -202,53 +171,6 @@ const SignIn = () => {
                         {submitting && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
                         {submitting ? 'Signing in…' : 'Login'}
                     </button>
-
-                    <div className="mt-8 border-t border-[#E8EEF4] pt-5">
-                        <button
-                            type="button"
-                            onClick={() => setShowDemoLogins((open) => !open)}
-                            className="flex w-full cursor-pointer items-center justify-between text-left text-sm font-medium text-[#1B2B4B]"
-                        >
-                            <span>Demo test logins</span>
-                            <span className="text-xs font-normal text-[#5C6B82]">
-                                {showDemoLogins ? 'Hide' : 'Show'}
-                            </span>
-                        </button>
-                        {showDemoLogins && (
-                            <div className="mt-3 space-y-2">
-                                <p className="text-xs leading-relaxed text-[#5C6B82]">
-                                    Demo accounts for local testing only. Click a role to fill email and password, then press Login.
-                                </p>
-                                <ul className="max-h-64 space-y-1.5 overflow-y-auto pr-1">
-                                    {DEMO_TEST_LOGINS.map((account) => (
-                                        <li key={account.email}>
-                                            <button
-                                                type="button"
-                                                onClick={() => fillDemoLogin(account)}
-                                                className="flex w-full cursor-pointer items-start justify-between gap-3 rounded-lg border border-[#E8EEF4] bg-[#F8FAFC] px-3 py-2.5 text-left transition hover:border-[#515DEF]/40 hover:bg-[#EEF1FF]"
-                                            >
-                                                <span className="min-w-0">
-                                                    <span className="block text-sm font-semibold text-[#1B2B4B]">
-                                                        {account.role}
-                                                    </span>
-                                                    <span className="mt-0.5 block truncate font-mono text-[11px] text-[#5C6B82]">
-                                                        {account.email}
-                                                    </span>
-                                                    <span className="mt-0.5 block font-mono text-[11px] text-[#24324A]">
-                                                        pw: {account.password}
-                                                    </span>
-                                                </span>
-                                                <span className="shrink-0 self-center rounded bg-white px-2 py-1 text-[11px] font-medium text-[#515DEF] ring-1 ring-[#E8EEF4]">
-                                                    Fill
-                                                </span>
-                                            </button>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
-
                 </form>
             </main>
         </div>

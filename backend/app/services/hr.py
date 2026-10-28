@@ -48,6 +48,7 @@ _ROLE_ALIASES = {
     "teacher": "teacher",
     "accounts": "accounthead",
     "accountant": "accounthead",
+    "accounthead": "accounthead",
     "hr": "hr",
     "driver": "driver",
     "principal": "principal",
@@ -55,6 +56,12 @@ _ROLE_ALIASES = {
     "coordinator": "coordinator",
     "director": "director",
     "security": "gatekeeper",
+    "prm": "prm",
+    "itsupportmanager": "itsupportmanager",
+    "jointdirector": "jointdirector",
+    "jointdirectoraudit": "jointdirectoraudit",
+    "qualityauditor": "qualityauditor",
+    "processauditor": "processauditor",
 }
 _INACTIVE = {"Inactive", "Relieved", "Terminated"}
 

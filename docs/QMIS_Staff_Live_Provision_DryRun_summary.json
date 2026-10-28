@@ -1,0 +1,20 @@
+{
+  "totals": {
+    "roster": 120,
+    "eligible": 100,
+    "directoryOnly": 20,
+    "invalidEligibleEmail": 0,
+    "liveUsersTotal": 78,
+    "liveEmpQmis": 0,
+    "liveEmpQmisLinked": 0,
+    "wouldPreserve": 0,
+    "wouldCreate": 100,
+    "unresolved": 0,
+    "directorySkipped": 20
+  },
+  "notes": [
+    "Isolated-test credentials are not valid on this database.",
+    "No passwords are included.",
+    "Live provisioning requires backup verification and --i-understand-live."
+  ]
+}

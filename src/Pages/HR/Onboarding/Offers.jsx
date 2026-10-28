@@ -102,7 +102,7 @@ const acceptOfferSideEffects = async (record, candidate) => {
     if (existing) {
         employeeId = existing.id
     } else {
-        employeeId = employeeId || nextId('EMP-2026', employees)
+        employeeId = employeeId || nextId('EMP-QMIS', employees)
         const draft = {
             id: employeeId,
             name: candidate.name,

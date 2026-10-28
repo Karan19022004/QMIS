@@ -8,20 +8,26 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
-## 28 October 2026 — Academic workflow + frontend merge onto main
+## 28 October 2026 — Academic workflow + isolated browser UAT
 
-**Status:** Merged local academic/frontend work with `qmis/main` (kept main Result Details, Exam Schedule, dual-session biometric, timetable/attendance). Ready to push.
+**Status:** Academic/frontend work on `qmis/main`. Isolated browser UAT completed for admission→publish portals (SQLite `:8001` / Vite `:5181`). Not a live-school sign-off.
 
 ### Done
-- Phase 4–8 academic backend (results after promotion, promotion guard, marks correction, parent in-app publish notices, E2E)
-- Coordinator / Principal / Director shared mark-approval and lesson-plan approval screens wired to main sidebar paths
-- IT self-service tickets (raise + My Tickets), Transport Manager announcements, ops announcements audience
-- Mark Entry subject loading uses class-details API (no broken allocation helpers after merge)
-- Static frontend checks aligned with main ResultDetails / ExamSchedule / biometric patterns
+- Phase 4–8 academic backend + shared approval screens pushed earlier today
+- User manual `docs/QMIS_Academic_Workflow_User_Manual.md` (v1.1.1) from code evidence
+- Isolated browser UAT: seeded **Uat Meera** (Grade 7-A); parent + student portals show **UAT Midterm G7 · Maths 46/50 · 92% · A+ · Pass**; parent API notification “Result published”; exam schedule lists approved exam
+- Confirmed frontend must target the isolated API URL (default `:8000` breaks mark-approval fetch)
+- Replaced HR dummy employees with **120 Queen Mira staff** from `docs/Staff Name mail id and phone no (1).xlsx` → `src/Pages/HR/domain/hrSeed.js` (`EMP-QMIS-*`), designation→RBAC role codes (director/principal/coordinator/teacher/librarian/prm/accounthead/hr/itsupportmanager/jointdirector/qualityauditor/processauditor; 20 directory-only). Cleared related demo lists (reports, performance, attendance samples, Principal Front Office & Librarians). New campuses hydrate this seed once; campuses that already seeded old demo staff keep the old API rows until HR replaces the roster.
+- Safe staff login provisioning (isolated only): `backend/app/services/staff_login_provision.py` + `backend/scripts/provision_queen_mira_staff_logins.py` create-missing-only accounts with unique temp passwords + `must_change_password`; demo `@qmis.edu` logins untouched. Isolated run created **100** accounts; handoff under `local/credentials/` (gitignored). Not run against live campus.
+- Staff Excel reconciliation: “122” sheet body rows = **120 staff + 1 blank + 1 repeated header**; hrSeed **120**; eligible **100** / directory-only **20**.
+- Live staff logins: backed up Postgres dump; created **100** missing EMP-QMIS accounts (unique temps, must-change); preserved **78** prior users; handoff `local/credentials/queen-mira-staff-logins-live.json` (gitignored). Directory-only 20 skipped. No commit/push.
 
 ### Still open
-- Client-review gaps outside this academic workflow (ops/transport/audit/HR, etc.)
-- WhatsApp Business API credentials still empty (email SMTP already in local `.env` only)
+- Full click-through of every staff approval screen in the browser (chain was completed on the isolated API; portals verified in UI)
+- Marks-correction teacher UI still missing
+- Client-review gaps outside this academic workflow
+- WhatsApp Business API credentials still empty (email SMTP in local `.env` only)
+- Live/already-seeded campus: replace HR employee collection with the new Queen Mira roster (hydrate does not overwrite)
 
 ---
 

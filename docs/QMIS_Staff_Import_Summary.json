@@ -1,0 +1,23 @@
+{
+  "employeeCount": 120,
+  "roleCounts": {
+    "director": 1,
+    "teacher": 68,
+    "coordinator": 7,
+    "principal": 1,
+    "librarian": 2,
+    "(directory only)": 20,
+    "jointdirector": 1,
+    "jointdirectoraudit": 1,
+    "prm": 4,
+    "accounthead": 6,
+    "hr": 3,
+    "qualityauditor": 2,
+    "itsupportmanager": 2,
+    "processauditor": 2
+  },
+  "source": "Staff Name mail id and phone no (1).xlsx",
+  "target": "src/Pages/HR/domain/hrSeed.js",
+  "idPrefix": "EMP-QMIS-",
+  "note": "Roles are RBAC codes. Empty role = directory only (no portal login until a role is set). Already-seeded campuses keep old API employees until HR replaces the roster."
+}

@@ -26,7 +26,7 @@ import AddAnnouncement from '../Pages/HR/Announcements/AddAnnouncement'
 import ViewAnnouncement from '../Pages/HR/Announcements/ViewAnnouncement'
 import { getEmployees, isHrRemoteReady } from '../Pages/HR/domain/hrStore'
 
-const FALLBACK_EMPLOYEE_ID = 'EMP-2026-001'
+const FALLBACK_EMPLOYEE_ID = 'EMP-QMIS-001'
 
 /** Resolve after HR hydrate — never touch the store at module load (eager App import). */
 const DefaultEmployeeProfileRedirect = () => {

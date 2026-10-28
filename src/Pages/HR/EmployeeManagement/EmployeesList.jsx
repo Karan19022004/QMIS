@@ -124,7 +124,7 @@ const EmployeesList = () => {
             setForm(null)
             return
         }
-        const id = nextId('EMP-2026', current)
+        const id = nextId('EMP-QMIS', current)
         if (current.some((row) => row.id === id)) return toast.error('Employee ID must be unique.')
         const draft = { ...payload, id }
         setSaving(true)

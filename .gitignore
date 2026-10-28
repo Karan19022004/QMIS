@@ -50,12 +50,25 @@ dist-ssr
 !REMAINING_MODULES_IMPLEMENTATION_REPORT.md
 !QMIS_ERP_DATABASE_SETUP_AND_WRITE_FLOW.md
 !QMIS_ERP_ACADEMIC_MODULE_USER_GUIDE_AND_FLOW_AUDIT.md
+!docs/QMIS_Staff_Reconciliation_Report.md
+!docs/QMIS_Staff_Live_Provision_DryRun.md
+!docs/QMIS_Staff_Live_Provision_Result.md
+!docs/QMIS_Academic_Workflow_User_Manual.md
+!local/credentials/README.md
 
 # Local credential / seed dumps must never be committed
 cred.txt
 **/cred.txt
 backend/login.json
 **/login.json
+local/credentials/*
+!local/credentials/README.md
+backend/local/
+# Staff / academic credential handoffs must never be committed
+docs/**/*Credentials*.xlsx
+docs/**/*credentials*.xlsx
+docs/Staff Name*.xlsx
+docs/__pycache__/
 
 # Python / FastAPI backend
 backend/.venv/
