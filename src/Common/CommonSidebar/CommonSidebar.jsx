@@ -8,8 +8,11 @@ import {
     getFilteredCoordinatorSidebarLinks,
     getFilteredTeacherSidebarLinks,
 } from '../RBAC/rolePermissionsData'
+import { useAuth } from '../../context/AuthContext'
+import { filterAccountHeadSidebarForRole } from '../../Pages/AccountHead/financeDomain/financeRoleAccess'
 
 const CommonSidebar = ({ sidebarHidden, toggleSidebar }) => {
+    const { role: authRole } = useAuth()
 
     const handleLinkClick = () => {
         if (window.innerWidth < 1024) {
@@ -38,7 +41,9 @@ const CommonSidebar = ({ sidebarHidden, toggleSidebar }) => {
         if (location.pathname.startsWith('/process-auditor')) return processAuditorSidebarLinks
         if (location.pathname.startsWith('/quality-auditor')) return qualityAuditorSidebarLinks
         if (location.pathname.startsWith('/hr')) return hrSidebarLinks
-        if (location.pathname.startsWith('/account-head')) return accountHeadSidebarLinks
+        if (location.pathname.startsWith('/account-head')) {
+            return filterAccountHeadSidebarForRole(accountHeadSidebarLinks, authRole)
+        }
         if (location.pathname.startsWith('/driver')) return driverSidebarLinks
         if (location.pathname.startsWith('/joint-director-audit')) return jointDirectorAuditSidebarLinks
         if (location.pathname.startsWith('/joint-director-assistant')) return jointDirectorAssistantSidebarLinks
@@ -49,7 +54,7 @@ const CommonSidebar = ({ sidebarHidden, toggleSidebar }) => {
         if (location.pathname.startsWith('/principal')) return principalSidebarLinks
         if (location.pathname.startsWith('/front-office')) return prmSidebarLinks
         return getFilteredAdminSidebarLinks()
-    }, [location.pathname]);
+    }, [location.pathname, authRole]);
 
     const toggleSubMenu = (id) => {
         setOpenMenus(prev => ({

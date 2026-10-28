@@ -80,6 +80,12 @@ import {
 } from '../../../services/financeApi'
 import { useAuth } from '../../../context/AuthContext'
 import { ROLES } from '../../../constants/roles'
+import {
+    FINANCE_LEDGER_ROLES as FINANCE_API_ROLES,
+    FINANCE_WRITE_ROLES,
+    canApproveFinance as roleCanApproveFinance,
+    canWriteFinance as roleCanWriteFinance,
+} from './financeRoleAccess'
 import { FLEET_VEHICLES } from '../TransportFinance/transportFinanceData'
 import { RECHARGE_RECORDS, USER_WALLETS } from '../WalletManagement/walletManagementData'
 import { stripDemoApprovals } from '../Approvals/approvalsData'
@@ -158,24 +164,10 @@ const createEmptyFinanceState = () => ({
 
 const apiMode = () => isApiFinanceEnabled()
 
-/** Roles that may call GET /finance/state (full campus ledger). */
-const FINANCE_API_ROLES = new Set([
-    ROLES.ACCOUNT_HEAD,
-    ROLES.ADMIN,
-    ROLES.SUPER_ADMIN,
-])
-
 /** Roles that load scoped fees via GET /finance/my-fees. */
 const FINANCE_PORTAL_ROLES = new Set([
     ROLES.PARENT,
     ROLES.STUDENT,
-])
-
-/** Roles allowed to PUT finance state (parents/students must never push the campus ledger). */
-const FINANCE_WRITE_ROLES = new Set([
-    ROLES.ACCOUNT_HEAD,
-    ROLES.ADMIN,
-    ROLES.SUPER_ADMIN,
 ])
 
 export const FinanceProvider = ({ children }) => {
@@ -1590,6 +1582,10 @@ export const FinanceProvider = ({ children }) => {
 
     /** Pull TM fleet / fuel / maintenance into finance snapshot and push when API is on. */
     const syncTransportOpsIntoFinance = useCallback(async ({ force = false } = {}) => {
+        // Finance Assistant (collect-only) must not pull ops or PUT /finance/state.
+        if (!FINANCE_WRITE_ROLES.has(role)) {
+            return { success: true, skipped: true, reason: 'read-only-role' }
+        }
         if (transportSyncInFlightRef.current) {
             return { success: true, skipped: true, reason: 'in-flight' }
         }
@@ -1722,7 +1718,7 @@ export const FinanceProvider = ({ children }) => {
         } finally {
             transportSyncInFlightRef.current = false
         }
-    }, [flushFinanceToApi, postAccounting])
+    }, [flushFinanceToApi, postAccounting, role])
 
     /** Create zero-balance wallets for finance students missing one; persist. */
     const ensureStudentWallets = useCallback(async () => {
@@ -1822,7 +1818,7 @@ export const FinanceProvider = ({ children }) => {
                             /* UI already shows cleaned list; retry on next save */
                         }
                     }
-                } else if (isStaffFinance) {
+                } else if (isStaffFinance && FINANCE_WRITE_ROLES.has(role)) {
                     const empty = createEmptyFinanceState()
                     applyFinanceData(empty)
                     const savedRemote = await pushFinanceState(empty)
@@ -1859,10 +1855,10 @@ export const FinanceProvider = ({ children }) => {
         }
     }, [approvals, financeStatus, flushFinanceToApi, role])
 
-    // After hydrate: pull TM expenses into OUT vouchers so Reports/Collections show expenditure.
+    // After hydrate: pull TM expenses into OUT vouchers (Account Head / admin write roles only).
     useEffect(() => {
         if (financeStatus !== 'ready') return
-        if (!FINANCE_WRITE_ROLES.has(role) && !FINANCE_API_ROLES.has(role)) return
+        if (!FINANCE_WRITE_ROLES.has(role)) return
         syncTransportOpsIntoFinance({ force: true }).catch(() => {})
         // eslint-disable-next-line react-hooks/exhaustive-deps -- once when finance becomes ready
     }, [financeStatus, role])
@@ -2245,6 +2241,8 @@ export const FinanceProvider = ({ children }) => {
             apiEnabled: isApiFinanceEnabled(),
             cacheOnly: isApiFinanceEnabled(),
         },
+        canWriteFinance: roleCanWriteFinance(role),
+        canApproveFinance: roleCanApproveFinance(role),
         cloneSeed: () => clone([]),
     }), [
         annualBudget,
@@ -2319,6 +2317,7 @@ export const FinanceProvider = ({ children }) => {
         financeStatus,
         financeError,
         lastSavedAt,
+        role,
     ])
 
     return (

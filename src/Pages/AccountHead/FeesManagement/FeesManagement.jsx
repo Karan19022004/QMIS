@@ -59,6 +59,7 @@ const FeeStructureTab = ({
     onEditStructure,
     onDeleteStructure,
     deletingId,
+    canWrite = true,
 }) => {
     const { feeStructures, feeCategories, students, installments, financePersistence } = useFinance()
     const [search, setSearch] = useState('')
@@ -248,14 +249,17 @@ const FeeStructureTab = ({
                             <th className={thClass}>Due Day</th>
                             <th className={thClass}>Mandatory</th>
                             <th className={thClass}>Status</th>
-                            <th className={`${thClass} rounded-e-lg`}>Actions</th>
+                            {canWrite && <th className={`${thClass} rounded-e-lg`}>Actions</th>}
                         </tr>
                     </thead>
                     <tbody>
                         {filteredStructures.length === 0 ? (
                             <tr>
-                                <td colSpan={10} className='px-2 py-10 text-center text-sm text-[#667085]'>
-                                    No fee structures in the campus snapshot yet. Define one above, or import enrolled students and bootstrap from Settings.
+                                <td colSpan={canWrite ? 10 : 9} className='px-2 py-10 text-center text-sm text-[#667085]'>
+                                    No fee structures in the campus snapshot yet.
+                                    {canWrite
+                                        ? ' Define one above, or import enrolled students and bootstrap from Settings.'
+                                        : ' Ask Account Head to configure fee structures.'}
                                 </td>
                             </tr>
                         ) : filteredStructures.map((row) => (
@@ -268,34 +272,36 @@ const FeeStructureTab = ({
                                 <td className={`${tdClass} font-semibold text-[#515DEF]`}>{formatCurrency(row.amount)}</td>
                                 <td className={tdClass}>{row.dueDayOfMonth ? `${row.dueDayOfMonth}` : '—'}</td>
                                 <td className={tdClass}>{row.mandatory ? 'Yes' : 'Optional'}</td>
-                                <td className={tdClass}>
+                                <td className={`${tdClass}${canWrite ? '' : ' rounded-e-lg'}`}>
                                     <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${feeStructureStatusBadgeColor[row.status] || 'bg-[#F2F4F7] text-[#667085]'}`}>
                                         {row.status}
                                     </span>
                                 </td>
-                                <td className={`${tdClass} rounded-e-lg`}>
-                                    <div className='flex items-center gap-2'>
-                                        <button
-                                            type='button'
-                                            onClick={() => onEditStructure?.(row)}
-                                            className='p-1.5 rounded-md hover:bg-[#EDEEF5] text-[#667085] hover:text-[#515DEF] cursor-pointer'
-                                            aria-label='Edit fee structure'
-                                            title='Edit'
-                                        >
-                                            <Pencil size={16} />
-                                        </button>
-                                        <button
-                                            type='button'
-                                            disabled={deletingId === row.id}
-                                            onClick={() => onDeleteStructure?.(row)}
-                                            className='p-1.5 rounded-md hover:bg-[#FF572214] text-[#667085] hover:text-[#FF5722] cursor-pointer disabled:opacity-50'
-                                            aria-label='Delete fee structure'
-                                            title='Delete'
-                                        >
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </div>
-                                </td>
+                                {canWrite && (
+                                    <td className={`${tdClass} rounded-e-lg`}>
+                                        <div className='flex items-center gap-2'>
+                                            <button
+                                                type='button'
+                                                onClick={() => onEditStructure?.(row)}
+                                                className='p-1.5 rounded-md hover:bg-[#EDEEF5] text-[#667085] hover:text-[#515DEF] cursor-pointer'
+                                                aria-label='Edit fee structure'
+                                                title='Edit'
+                                            >
+                                                <Pencil size={16} />
+                                            </button>
+                                            <button
+                                                type='button'
+                                                disabled={deletingId === row.id}
+                                                onClick={() => onDeleteStructure?.(row)}
+                                                className='p-1.5 rounded-md hover:bg-[#FF572214] text-[#667085] hover:text-[#FF5722] cursor-pointer disabled:opacity-50'
+                                                aria-label='Delete fee structure'
+                                                title='Delete'
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>
@@ -317,15 +323,33 @@ const FeeStructureTab = ({
 }
 
 const FeesManagement = () => {
-    const [activeTab, setActiveTab] = useState('fee-structure')
+    const {
+        defineFeeStructure,
+        addFeeCategory,
+        saveFeeCategories,
+        deleteFeeStructure,
+        canWriteFinance,
+    } = useFinance()
+    const visibleTabs = useMemo(
+        () => (canWriteFinance
+            ? FEE_TABS
+            : FEE_TABS.filter((tab) => tab.id !== 'concessions-waivers')),
+        [canWriteFinance],
+    )
+    const [activeTab, setActiveTab] = useState(() => (canWriteFinance ? 'fee-structure' : 'fee-collection'))
     const [exportModal, setExportModal] = useState(false)
     const [defineFeeModal, setDefineFeeModal] = useState(false)
     const [editingStructure, setEditingStructure] = useState(null)
     const [configureFeeModal, setConfigureFeeModal] = useState(false)
     const [deletingId, setDeletingId] = useState(null)
     const fileInputRef = useRef(null)
-    const { defineFeeStructure, addFeeCategory, saveFeeCategories, deleteFeeStructure } = useFinance()
     const [remindersBusy, setRemindersBusy] = useState(false)
+
+    useEffect(() => {
+        if (!visibleTabs.some((tab) => tab.id === activeTab)) {
+            setActiveTab(visibleTabs[0]?.id || 'fee-collection')
+        }
+    }, [activeTab, visibleTabs])
 
     const sendFeeReminders = async () => {
         if (!isApiFinanceEnabled()) {
@@ -461,7 +485,7 @@ const FeesManagement = () => {
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4'>
                     <h2 className='text-xl font-semibold text-black'>{activeTabLabel}</h2>
-                    {activeTab === 'fee-structure' && (
+                    {activeTab === 'fee-structure' && canWriteFinance && (
                         <div className='flex flex-wrap items-center gap-3'>
                             <button
                                 type='button'
@@ -519,7 +543,7 @@ const FeesManagement = () => {
                             </button>
                         </div>
                     )}
-                    {activeTab === 'concessions-waivers' && (
+                    {activeTab === 'concessions-waivers' && canWriteFinance && (
                         <div className='flex flex-wrap items-center gap-3'>
                             <button
                                 type='button'
@@ -596,7 +620,7 @@ const FeesManagement = () => {
                 </div>
 
                 <div className='flex gap-6 overflow-x-auto no-scrollbar mt-6 border-b border-[#F2F4F7]'>
-                    {FEE_TABS.map((tab) => (
+                    {visibleTabs.map((tab) => (
                         <button
                             key={tab.id}
                             type='button'
@@ -622,11 +646,12 @@ const FeesManagement = () => {
                     onEditStructure={openDefineModal}
                     onDeleteStructure={handleDeleteStructure}
                     deletingId={deletingId}
+                    canWrite={canWriteFinance}
                 />
             )}
 
             {activeTab === 'fee-collection' && <FeeCollectionTab />}
-            {activeTab === 'concessions-waivers' && (
+            {activeTab === 'concessions-waivers' && canWriteFinance && (
                 <ConcessionsWaiversTab exportModal={exportModal} setExportModal={setExportModal} />
             )}
             {activeTab === 'defaulters' && (
@@ -637,18 +662,20 @@ const FeesManagement = () => {
             )}
             {activeTab === 'activity-fees' && <ActivityFeesTab />}
 
-            {defineFeeModal && (
+            {defineFeeModal && canWriteFinance && (
                 <DefineFeeStructureModal
                     isOpen
                     editingStructure={editingStructure}
                     onClose={closeDefineModal}
                 />
             )}
-            <ConfigureFeeStructureModal
-                isOpen={configureFeeModal}
-                onClose={() => setConfigureFeeModal(false)}
-                onOpenDefine={() => openDefineModal(null)}
-            />
+            {canWriteFinance && (
+                <ConfigureFeeStructureModal
+                    isOpen={configureFeeModal}
+                    onClose={() => setConfigureFeeModal(false)}
+                    onOpenDefine={() => openDefineModal(null)}
+                />
+            )}
         </section>
     )
 }

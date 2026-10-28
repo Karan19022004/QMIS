@@ -2,27 +2,41 @@
 
 **Date:** 28 October 2026  
 **Branch:** local uncommitted work (not pushed)  
-**Context:** Junior enroll validation + gateway `finance.pay` permission fixes. **No live campus DB writes.**
+**Context:** Prioritized stabilization — auth NullPool verify, ProTrack fallback guard, canteen persist hardening. **No live campus DB writes.**
 
-## Latest pytest (related suites)
+## Latest pytest
 
 | Suite | Result |
 |---|---|
-| Junior enroll + pending-hash regression (`test_admissions` junior cases) | **8 passed** |
-| Parent `pay-my-fees` (`test_finance.py::test_parent_payment_is_confirmed_by_the_ledger`) | **passed** |
-| Combined admissions junior + parent pay | **9 passed** |
-| `test_finance_actions` gateway intent/confirm | **failed (env)** — `503 not_configured` (Razorpay / `INTEGRATIONS_MODE`); not a 403 permission failure |
+| Focused stabilization batch (auth stability + production-readiness static + canteen persist + finance assistant perms + admissions + principal/coordinator/teacher/parent/student portal APIs) | **32 passed** |
+| `test_sqlite_file_auth_stability` alone | **3 passed** |
+| ProTrack static + `test_protrack_proxy` + canteen persist (earlier same pass) | **6 passed** |
 
-Regression added: `test_junior_enroll_rejects_pending_student_hash_when_student_account_requested`.
-
-## Earlier same-day — staff provision
+## Isolated API (`:8001` file SQLite, NullPool)
 
 | Check | Result |
 |---|---|
-| Live create-missing EMP-QMIS | **100** created; **78** prior preserved (gitignored handoff) |
-| `tests/test_staff_login_provision.py` + reconciliation | **6 passed** (earlier) |
+| Concurrent `GET /auth/me` ×16 | **16/16 200** |
+| No token / bad password | **401 / 401** |
+| Masters years/classes | **200** |
+| Principal create admission | **403** (expected) |
+| Admin `/auth/me` | **200** |
+
+## Frontend build
+
+| Check | Result |
+|---|---|
+| `npm run build` | **PASS** (`✓ built`) |
+
+## Browser UAT
+
+| Check | Result |
+|---|---|
+| Full academic workflow (exam→marks→results→portals) | **NOT RUN** this pass (API/portal suites only) |
+| Prior same-day: Super Admin / Finance Assistant shells | **PASS** (see earlier testing-report notes) |
 
 ## Notes
 
-- Portal payment now requires `finance.pay`; `finance.read` remains view-only (`GET /finance/my-fees`).
-- Gateway stub failures under empty Razorpay keys are separate from the permission change.
+- ProTrack `devicesList[0]` fallback is **absent** in current `useProtrackLive.js`; guarded by static tests.
+- Canteen `saveOrders` now throws unless `persistCampusJson` reports `success`.
+- Auth NullPool fix remains uncommitted; do not treat live Postgres as covered by this SQLite race.

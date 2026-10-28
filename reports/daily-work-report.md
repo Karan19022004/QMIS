@@ -21,15 +21,23 @@ New days go at the top. Older days stay below so the history is in one file.
 - Safe staff login provisioning (isolated only): `backend/app/services/staff_login_provision.py` + `backend/scripts/provision_queen_mira_staff_logins.py` create-missing-only accounts with unique temp passwords + `must_change_password`; demo `@qmis.edu` logins untouched. Isolated run created **100** accounts; handoff under `local/credentials/` (gitignored). Not run against live campus.
 - Staff Excel reconciliation: “122” sheet body rows = **120 staff + 1 blank + 1 repeated header**; hrSeed **120**; eligible **100** / directory-only **20**.
 - Live staff logins: backed up Postgres dump; created **100** missing EMP-QMIS accounts (unique temps, must-change); preserved **78** prior users; handoff `local/credentials/queen-mira-staff-logins-live.json` (gitignored). Directory-only 20 skipped. No commit/push.
-- Security fixes (uncommitted): junior enroll `_reject_junior_student_login` now uses the same resolved email/password/pending-hash as account creation; gateway intent/confirm and `pay-my-fees` no longer authorize via `finance.read` — new portal-only `finance.pay` on parent/student roles.
+- Security fixes pushed as `6ac09cc`: junior enroll `_reject_junior_student_login` aligned with pending password hashes; gateway intent/confirm and `pay-my-fees` use portal-only `finance.pay` (not `finance.read`).
+- Academic browser UAT started on isolated SQLite `:8001` + Vite `:5181` (not live Postgres). Admin admissions shell PASS; API enroll/place for synthetic Uat Meera PASS; full exam→marks→results browser path **not completed**. Isolated API hit SQLite `/auth/me` InterfaceError and crashed — session “expired” in UI. Report: `reports/academic-workflow-browser-uat-2026-10-28.md`. **Not client sign-off.**
+- Diagnosed/fixed isolated file-SQLite auth stability: root cause was `StaticPool` sharing one connection across uvicorn’s sync threadpool (not UUID binding). File SQLite now uses `NullPool`; `:memory:` keeps `StaticPool`. Regression `tests/test_sqlite_file_auth_stability.py`. Browser re-check on `:8001`/`:5181`: login, `/auth/me`, refresh, hard-nav **PASS**; API stayed up. Full academic browser UAT **not** restarted. **Not committed/pushed.**
+- Remaining role portals audit: Super Admin / Admin / Account Head / Finance Assistant evidence-based status; Hostel Warden **MISSING by design** (no role in matrix/routes). Fixed Finance Assistant FE: include in ledger GET roles, hide Head-only nav/routes, skip ops sync PUT that caused false permission errors. Pytest finance/admin suites green; browser: assistant dashboard/collections + approvals redirect; superadmin dashboard. **Not committed/pushed.**
+- Stabilization pass: re-verified NullPool auth (3/3 + concurrent `/auth/me` 16/16 on `:8001`); confirmed ProTrack no longer uses `devicesList[0]` (static + proxy tests); hardened canteen `saveOrders` via `persistCampusJson` (success only after confirmed write). Academic full browser UAT still incomplete — API smoke only this pass. Hostel Warden + star-ratings REST left as decisions (not implemented). **Not committed/pushed.**
 
 ### Still open
+- Full academic browser UAT (masters→results→portals) on isolated DB after auth fix is accepted
+- Hostel Warden portal — pending explicit approval (docs: later/optional)
+- Star ratings shared REST persistence — plan only; still localStorage SoT
+- Deeper Admin/Super Admin CRUD browser walkthroughs beyond login + landing
 - Full click-through of every staff approval screen in the browser (chain was completed on the isolated API; portals verified in UI)
 - Marks-correction teacher UI still missing
 - Client-review gaps outside this academic workflow
 - WhatsApp Business API credentials still empty (email SMTP in local `.env` only)
 - Live/already-seeded campus: replace HR employee collection with the new Queen Mira roster (hydrate does not overwrite)
-- Commit/push the enroll + finance.pay permission fixes when ready
+- Commit/push auth NullPool + finance assistant + canteen persist hardening when ready
 
 ---
 

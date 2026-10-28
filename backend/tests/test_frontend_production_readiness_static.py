@@ -11,16 +11,20 @@ def _read(relative: str) -> str:
 
 def test_canteen_add_order_persists_before_success_modal():
     source = _read("Pages/CanteenManager/Orders/AddOrder.jsx")
+    orders_data = _read("Pages/CanteenManager/Orders/ordersData.js")
     assert "await saveOrders(" in source
     assert "hydrateOrdersFromApi" in source
     assert "setOrderModal(true)" in source
     # success modal only after a successful save
-    save_idx = source.index("const saved = await saveOrders")
+    save_idx = source.index("await saveOrders(")
     modal_idx = source.index("setOrderModal(true)")
     assert save_idx < modal_idx
     assert "could not be saved" in source
     # must not open success on bare click
     assert "onClick={() => setOrderModal(true)}" not in source
+    # Durable write path must use persistCampusJson (confirmed API/local write).
+    assert "persistCampusJson" in orders_data
+    assert "success" in orders_data
 
 
 def test_protrack_live_does_not_fall_back_to_first_device():

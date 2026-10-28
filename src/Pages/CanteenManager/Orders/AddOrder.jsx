@@ -42,14 +42,11 @@ const AddOrder = () => {
                 return
             }
             const existing = getOrders().filter((row) => row.orderId !== record.orderId && row.id !== record.id)
-            const saved = await saveOrders([record, ...existing])
-            if (!saved) {
-                toast.error('The order could not be saved. Check your connection and try again.')
-                return
-            }
+            // Success UI only after saveOrders confirms persistence (API replace or offline store).
+            await saveOrders([record, ...existing])
             setOrderModal(true)
         } catch (err) {
-            toast.error(err?.message || 'The order could not be saved.')
+            toast.error(err?.message || 'The order could not be saved. Check your connection and try again.')
         } finally {
             setSaving(false)
         }
