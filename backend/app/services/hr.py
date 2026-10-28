@@ -46,9 +46,11 @@ LIST_COLLECTIONS: dict[str, str] = {
 _KNOWN_ROLES = {code for code, _ in ALL_ROLES}
 _ROLE_ALIASES = {
     "teacher": "teacher",
-    "accounts": "accounthead",
-    "accountant": "accounthead",
+    "accounts": "accountassistant",
+    "accountant": "accountassistant",
+    "accountassistant": "accountassistant",
     "accounthead": "accounthead",
+    "financemanager": "financemanager",
     "hr": "hr",
     "driver": "driver",
     "principal": "principal",
@@ -57,6 +59,7 @@ _ROLE_ALIASES = {
     "director": "director",
     "security": "gatekeeper",
     "prm": "prm",
+    "pro": "pro",
     "itsupportmanager": "itsupportmanager",
     "jointdirector": "jointdirector",
     "jointdirectoraudit": "jointdirectoraudit",

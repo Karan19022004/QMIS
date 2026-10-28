@@ -25,8 +25,8 @@ STATUSES = (
 REASON_MAX = 2000
 TRANSFER_MAX = 200
 REMARKS_MAX = 1000
-_TC_FORWARDERS = {"prm", "admin", "superadmin", "managing_director"}
-_TC_CAMPUS_READERS = {"prm", "admin", "superadmin", "managing_director", "principal", "director"}
+_TC_FORWARDERS = {"prm", "pro", "admin", "superadmin", "managing_director"}
+_TC_CAMPUS_READERS = {"prm", "pro", "admin", "superadmin", "managing_director", "principal", "director"}
 
 
 def _has(db: Session, actor: User, code: str) -> bool:

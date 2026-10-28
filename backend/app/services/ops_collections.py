@@ -135,7 +135,7 @@ def _writers_for(collection: str) -> set[str]:
         if collection in _TRANSPORT_PRINCIPAL_WRITE:
             writers |= {"principal", "director"}
         if collection in _TRANSPORT_FINANCE_WRITE:
-            writers |= {"accounthead", "finance_assistant"}
+            writers |= {"accounthead", "financemanager", "finance_assistant", "accountassistant"}
         return writers
     if collection.startswith("canteen-"):
         return _CANTEEN
@@ -163,16 +163,16 @@ def _writers_for(collection: str) -> set[str]:
 def _readers_for(collection: str) -> set[str]:
     writers = _writers_for(collection)
     if collection.startswith("gate-"):
-        return writers | {"prm", "principal", "director"}
+        return writers | {"prm", "pro", "principal", "director"}
     if collection.startswith("transport-"):
-        # Account Head needs routes/drivers/vehicles for Transport Finance dropdowns.
-        return writers | {"principal", "director", "jointdirector", "accounthead"}
+        # Finance roles need routes/drivers/vehicles for Transport Finance dropdowns.
+        return writers | {"principal", "director", "jointdirector", "accounthead", "financemanager", "accountassistant"}
     if collection.startswith("jd-"):
         return writers | {"jointdirectoraudit", "principal", "director"}
     if collection == "biometric-attendance":
         return writers | {"parent", "student"}
     if collection.startswith("hostel-"):
-        return writers | {"principal", "director", "accounthead"}
+        return writers | {"principal", "director", "accounthead", "financemanager"}
     # Teachers/coordinators need library issues/members to show Books Borrowed.
     if collection.startswith("library-"):
         return writers | {"principal", "director", "jointdirector", "teacher", "coordinator"}

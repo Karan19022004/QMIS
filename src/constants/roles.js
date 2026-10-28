@@ -5,6 +5,7 @@ export const ROLES = {
     PARENT: 'parent',
     LIBRARIAN: 'librarian',
     PRM: 'prm',
+    PRO: 'pro',
     GATEKEEPER: 'gatekeeper',
     GATEKEEPER_MANAGER: 'gatekeepermanager',
     DIRECTOR: 'director',
@@ -23,6 +24,8 @@ export const ROLES = {
     QUALITY_AUDITOR: 'qualityauditor',
     HR: 'hr',
     ACCOUNT_HEAD: 'accounthead',
+    FINANCE_MANAGER: 'financemanager',
+    ACCOUNT_ASSISTANT: 'accountassistant',
     FINANCE_ASSISTANT: 'finance_assistant',
     DRIVER: 'driver',
 }

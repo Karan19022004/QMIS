@@ -107,9 +107,9 @@ const App = () => {
     return withSuspense(<LibrarianLayout />);
   }
 
-  if (role === ROLES.PRM) {
+  if (role === ROLES.PRM || role === ROLES.PRO) {
     if (!pathname.startsWith("/front-office")) {
-      return <Navigate to={ROLE_HOME_PATHS[ROLES.PRM]} replace />;
+      return <Navigate to={ROLE_HOME_PATHS[role] ?? ROLE_HOME_PATHS[ROLES.PRM]} replace />;
     }
     return withSuspense(<PRMLayout />);
   }
@@ -212,7 +212,12 @@ const App = () => {
     return withSuspense(<HRLayout />);
   }
 
-  if (role === ROLES.ACCOUNT_HEAD || role === ROLES.FINANCE_ASSISTANT) {
+  if (
+    role === ROLES.ACCOUNT_HEAD
+    || role === ROLES.FINANCE_MANAGER
+    || role === ROLES.ACCOUNT_ASSISTANT
+    || role === ROLES.FINANCE_ASSISTANT
+  ) {
     if (!pathname.startsWith("/account-head")) {
       return <Navigate to={ROLE_HOME_PATHS[role] ?? ROLE_HOME_PATHS[ROLES.ACCOUNT_HEAD]} replace />;
     }

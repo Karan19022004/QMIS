@@ -48,6 +48,7 @@ DEFAULT_AUDIENCE = [
     "director",
     "principal",
     "prm",
+    "pro",
     "teacher",
     "coordinator",
     "librarian",

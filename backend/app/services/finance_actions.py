@@ -20,7 +20,9 @@ from app.services.integrations import notify, payments
 _TRANSPORT_FEE_ROLES = {
     "transportmanager",
     "accounthead",
+    "financemanager",
     "finance_assistant",
+    "accountassistant",
     "admin",
     "superadmin",
     "managing_director",

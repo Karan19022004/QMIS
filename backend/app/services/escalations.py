@@ -34,6 +34,7 @@ ESCALATES_TO = {
     "gatekeeper": "gatekeepermanager",
     "gatekeepermanager": "prm",
     "prm": "director",
+    "pro": "director",
     "student": "teacher",
     "teacher": "coordinator",
     "coordinator": "principal",
@@ -52,9 +53,10 @@ NON_STAFF = {"student", "parent"}
 TASK_HIERARCHY = {
     "superadmin": ("admin",),
     "admin": ("director",),
-    "director": ("principal", "prm"),
+    "director": ("principal", "prm", "pro"),
     "principal": ("coordinator", "teacher", "librarian"),
     "prm": ("gatekeepermanager",),
+    "pro": ("gatekeepermanager",),
     "gatekeepermanager": ("gatekeeper",),
 }
 TASK_PRIORITIES = ["High", "Medium", "Low"]

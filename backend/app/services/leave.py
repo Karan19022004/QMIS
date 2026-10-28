@@ -47,6 +47,7 @@ DEPT_HEAD = {
     "director": "admin",
     "jointdirector": "director",
     "prm": "director",
+    "pro": "director",
     "gatekeeper": "gatekeepermanager",
     "gatekeepermanager": "director",
     "driver": "transportmanager",

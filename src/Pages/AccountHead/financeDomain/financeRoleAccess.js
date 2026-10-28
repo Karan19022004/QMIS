@@ -3,6 +3,8 @@ import { ROLES } from '../../../constants/roles'
 /** Campus ledger GET /finance/state (requires finance.collect or finance.write). */
 export const FINANCE_LEDGER_ROLES = new Set([
     ROLES.ACCOUNT_HEAD,
+    ROLES.FINANCE_MANAGER,
+    ROLES.ACCOUNT_ASSISTANT,
     ROLES.FINANCE_ASSISTANT,
     ROLES.ADMIN,
     ROLES.SUPER_ADMIN,
@@ -11,13 +13,15 @@ export const FINANCE_LEDGER_ROLES = new Set([
 /** PUT /finance/state and other finance.write actions. */
 export const FINANCE_WRITE_ROLES = new Set([
     ROLES.ACCOUNT_HEAD,
+    ROLES.FINANCE_MANAGER,
     ROLES.ADMIN,
     ROLES.SUPER_ADMIN,
 ])
 
-/** finance.approve — Account Head (and campus admins) only. */
+/** finance.approve — Finance Head roles (and campus admins) only. */
 export const FINANCE_APPROVE_ROLES = new Set([
     ROLES.ACCOUNT_HEAD,
+    ROLES.FINANCE_MANAGER,
     ROLES.ADMIN,
     ROLES.SUPER_ADMIN,
 ])
@@ -66,7 +70,7 @@ export const FINANCE_ASSISTANT_FEE_TAB_IDS = new Set([
  * Head-only: approvals, settings, vouchers, budget, MFP, admission referrals.
  */
 export function filterAccountHeadSidebarForRole(links, role) {
-    if (role !== ROLES.FINANCE_ASSISTANT) return links
+    if (role !== ROLES.FINANCE_ASSISTANT && role !== ROLES.ACCOUNT_ASSISTANT) return links
     const allowedTitles = new Set([
         'Dashboard',
         'Fees Management',

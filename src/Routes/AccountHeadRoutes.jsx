@@ -20,7 +20,10 @@ import { isFinanceHeadOnlyPath } from '../Pages/AccountHead/financeDomain/financ
 const HeadOnlyOr = ({ children }) => {
     const { role } = useAuth()
     const { pathname } = useLocation()
-    if (role === ROLES.FINANCE_ASSISTANT && isFinanceHeadOnlyPath(pathname)) {
+    if (
+        (role === ROLES.FINANCE_ASSISTANT || role === ROLES.ACCOUNT_ASSISTANT)
+        && isFinanceHeadOnlyPath(pathname)
+    ) {
         return <Navigate to="/account-head/dashboard" replace />
     }
     return children

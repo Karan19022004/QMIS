@@ -50,6 +50,7 @@ export const FAKE_CREDENTIALS = {
     [ROLES.PARENT]: { email: 'parent@qmis.edu' },
     [ROLES.LIBRARIAN]: { email: 'librarian@qmis.edu' },
     [ROLES.PRM]: { email: 'prm@qmis.edu' },
+    [ROLES.PRO]: { email: 'pro@qmis.edu' },
     [ROLES.GATEKEEPER]: { email: 'gatekeeper@qmis.edu' },
     [ROLES.GATEKEEPER_MANAGER]: { email: 'gatekeepermanager@qmis.edu' },
     [ROLES.DIRECTOR]: { email: 'director@qmis.edu' },
@@ -68,6 +69,8 @@ export const FAKE_CREDENTIALS = {
     [ROLES.QUALITY_AUDITOR]: { email: 'qualityauditor@qmis.edu' },
     [ROLES.HR]: { email: 'hr@qmis.edu' },
     [ROLES.ACCOUNT_HEAD]: { email: 'accounthead@qmis.edu' },
+    [ROLES.FINANCE_MANAGER]: { email: 'financemanager@qmis.edu' },
+    [ROLES.ACCOUNT_ASSISTANT]: { email: 'accountassistant@qmis.edu' },
     [ROLES.FINANCE_ASSISTANT]: { email: 'finance.assistant@qmis.edu' },
     [ROLES.DRIVER]: { email: 'driver@qmis.edu' },
 }
@@ -79,6 +82,7 @@ export const ROLE_HOME_PATHS = {
     [ROLES.PARENT]: '/parent/select-child',
     [ROLES.LIBRARIAN]: '/librarian/book-management/book-list',
     [ROLES.PRM]: '/front-office/admission-enquiry',
+    [ROLES.PRO]: '/front-office/admission-enquiry',
     [ROLES.GATEKEEPER]: '/gate-keeper/dashboard',
     [ROLES.GATEKEEPER_MANAGER]: '/gatekeeper-manager/assign-duty-list',
     [ROLES.DIRECTOR]: '/director/broadcast',
@@ -97,6 +101,8 @@ export const ROLE_HOME_PATHS = {
     [ROLES.QUALITY_AUDITOR]: '/quality-auditor/dashboard',
     [ROLES.HR]: '/hr/dashboard',
     [ROLES.ACCOUNT_HEAD]: '/account-head/dashboard',
+    [ROLES.FINANCE_MANAGER]: '/account-head/dashboard',
+    [ROLES.ACCOUNT_ASSISTANT]: '/account-head/dashboard',
     [ROLES.FINANCE_ASSISTANT]: '/account-head/dashboard',
     [ROLES.DRIVER]: '/driver/vehicle-management/vehicle-details',
 }

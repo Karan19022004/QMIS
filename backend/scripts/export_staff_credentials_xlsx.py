@@ -34,14 +34,19 @@ _ROLE_LABELS = {
     "principal": "Principal",
     "director": "Director",
     "prm": "PRM",
+    "pro": "PRO",
     "hr": "HR",
     "accounthead": "Account Head",
+    "financemanager": "Finance Manager",
+    "accountassistant": "Account Assistant",
+    "finance_assistant": "Finance Assistant",
     "librarian": "Librarian",
     "itsupportmanager": "IT Support Manager",
     "processauditor": "Process Auditor",
     "qualityauditor": "Quality Auditor",
     "jointdirector": "Joint Director",
     "jointdirectoraudit": "Joint Director Audit",
+    "superadmin": "Super Admin",
 }
 
 _DESIGNATION_GUIDE = [

@@ -1,4 +1,4 @@
-"""25 frontend roles plus Managing Director and Finance Assistant."""
+"""Frontend portal roles plus Managing Director and finance/PRO variants."""
 
 FRONTEND_ROLES: list[tuple[str, str]] = [
     ("superadmin", "Super Admin"),
@@ -7,6 +7,7 @@ FRONTEND_ROLES: list[tuple[str, str]] = [
     ("parent", "Parent"),
     ("librarian", "Librarian"),
     ("prm", "PRM"),
+    ("pro", "PRO"),
     ("gatekeeper", "Gate Keeper"),
     ("gatekeepermanager", "Gate Keeper Manager"),
     ("director", "Director"),
@@ -25,6 +26,8 @@ FRONTEND_ROLES: list[tuple[str, str]] = [
     ("qualityauditor", "Quality Auditor"),
     ("hr", "HR"),
     ("accounthead", "Account Head"),
+    ("financemanager", "Finance Manager"),
+    ("accountassistant", "Account Assistant"),
     ("driver", "Driver"),
 ]
 
@@ -176,8 +179,24 @@ ROLE_PERMISSIONS.update(
                 ]
             )
         ),
+        # PRO shares front-office admissions portal with PRM (separate login role).
+        "pro": list(
+            dict.fromkeys(
+                [
+                    *_ADMISSIONS,
+                    "hr.self",
+                    "hr.employees.read",
+                    "frontoffice.read",
+                    "frontoffice.write",
+                ]
+            )
+        ),
         "accounthead": list(_FINANCE_HEAD),
+        # Finance Manager = full finance head portal (separate from Account Head demo).
+        "financemanager": list(_FINANCE_HEAD),
         "finance_assistant": list(_FINANCE_ASSISTANT),
+        # Account Assistant = collect/ops finance (staff sheet Accountants / Trainees).
+        "accountassistant": list(_FINANCE_ASSISTANT),
         # Staff UIS + class attendance (P1-5 / Y-1)
         "teacher": list(_STAFF_ACADEMIC),
         # hr.employees.read: campus teacher directory for Class Timetable / allocations (read-only).
@@ -300,11 +319,11 @@ for _code, _perms in ROLE_PERMISSIONS.items():
 
 # TC requests: parents and front office file them; PRM forwards; administrators decide.
 # Super Admin / Managing Director already hold every permission.
-_TC_FILERS = {"parent", "student", "prm", "admin"}
-_TC_FORWARDERS = {"prm", "admin"}
+_TC_FILERS = {"parent", "student", "prm", "pro", "admin"}
+_TC_FORWARDERS = {"prm", "pro", "admin"}
 _TC_DECIDERS = {"admin"}
 for _code, _perms in ROLE_PERMISSIONS.items():
-    if _code in {"admin", "superadmin", "managing_director", "prm", "parent", "student"} and "tc.read" not in _perms:
+    if _code in {"admin", "superadmin", "managing_director", "prm", "pro", "parent", "student"} and "tc.read" not in _perms:
         _perms.append("tc.read")
     if _code in _TC_FILERS and "tc.write" not in _perms:
         _perms.append("tc.write")
@@ -338,7 +357,7 @@ for _code, _perms in ROLE_PERMISSIONS.items():
 # - Principal + Director read-only — matches front_office service _READERS.
 # - Gate Keeper / Manager may read+write gate-pass collections (service also gates by role).
 for _code, _perms in ROLE_PERMISSIONS.items():
-    if _code in {"admin", "prm"}:
+    if _code in {"admin", "prm", "pro"}:
         for _p in ("frontoffice.read", "frontoffice.write"):
             if _p not in _perms:
                 _perms.append(_p)
