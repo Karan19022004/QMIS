@@ -1,0 +1,97 @@
+name: Deploy to AWS ECS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # GitHub OIDC -> AWS role (no stored AWS keys)
+  contents: read
+
+concurrency:
+  group: deploy-ecs
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ap-south-1
+  AWS_ROLE_ARN: arn:aws:iam::626357443497:role/qmis-github-deploy
+  ECS_CLUSTER: qmis-erp
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.vars.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: vars
+        run: echo "tag=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push backend
+        run: |
+          IMG=${{ steps.ecr.outputs.registry }}/qmis-backend:${{ steps.vars.outputs.tag }}
+          docker build -t "$IMG" backend
+          docker push "$IMG"
+
+      - name: Build and push frontend
+        run: |
+          IMG=${{ steps.ecr.outputs.registry }}/qmis-frontend:${{ steps.vars.outputs.tag }}
+          docker build -t "$IMG" -f Dockerfile.frontend .
+          docker push "$IMG"
+
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1          # backend first, then frontend
+      matrix:
+        app: [backend, frontend]
+    steps:
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get current task definition
+        run: |
+          aws ecs describe-task-definition --task-definition qmis-${{ matrix.app }} \
+            --query taskDefinition > taskdef.json
+
+      - id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: taskdef.json
+          container-name: ${{ matrix.app }}
+          image: ${{ steps.ecr.outputs.registry }}/qmis-${{ matrix.app }}:${{ needs.build-push.outputs.tag }}
+
+      - name: Deploy and wait for healthy
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render.outputs.task-definition }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          service: qmis-${{ matrix.app }}
+          wait-for-service-stability: true
+          wait-for-minutes: 10
+
+  smoke-test:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check site and API
+        run: |
+          U=http://qmis-erp-alb-1734592549.ap-south-1.elb.amazonaws.com
+          curl -fsS "$U/health"
+          curl -fsS -o /dev/null -w "frontend %{http_code}\n" "$U/"
