@@ -1,20 +1,30 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ExamScheduleForm from './Components/ExamScheduleForm'
 import { addExamSchedule } from './createExamScheduleData'
 
 const AddExamSchedule = () => {
     const navigate = useNavigate()
+    const [error, setError] = useState('')
 
     const handleSave = async (values) => {
-        await addExamSchedule(values)
-        navigate('/teacher/student-evaluation/exam')
+        setError('')
+        try {
+            await addExamSchedule(values)
+            navigate('/teacher/student-evaluation/exam')
+        } catch (err) {
+            setError(err?.message || 'Could not create exam schedule.')
+        }
     }
 
     return (
         <section>
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h2 className='text-xl font-semibold text-black'>Create Exam Schedule Information</h2>
+                <p className='mt-2 text-sm text-[#667085]'>
+                    Campus create/submit needs Principal or Coordinator permission. Teachers should use the Principal timetable workflow.
+                </p>
+                {error ? <p className='mt-3 rounded-md border border-[#FDA29B] bg-[#FEF3F2] px-3 py-2 text-sm text-[#B42318]'>{error}</p> : null}
                 <ExamScheduleForm onSubmit={handleSave} />
             </div>
 

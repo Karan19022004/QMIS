@@ -1,6 +1,22 @@
-export const CLASS_OPTIONS = ['6th', '7th', '8th', '9th', '10th', '11th', '12th']
+﻿import { getClasses, getSections } from '../../../../Common/RBAC/academicsCatalogData'
+import { getAccessToken, isApiAuthEnabled } from '../../../../services/apiClient'
+import { liveArray } from '../../../../Common/RBAC/liveArray'
 
-export const SECTION_OPTIONS = ['A', 'B', 'C', 'D']
+const DEMO_CLASS_OPTIONS = ['6th', '7th', '8th', '9th', '10th', '11th', '12th']
+const DEMO_SECTION_OPTIONS = ['A', 'B', 'C', 'D']
+const apiCatalogMode = () => isApiAuthEnabled() && Boolean(getAccessToken())
+
+export const CLASS_OPTIONS = liveArray(() => {
+    const fromCatalog = getClasses()
+    if (fromCatalog.length) return fromCatalog
+    return apiCatalogMode() ? [] : DEMO_CLASS_OPTIONS
+})
+
+export const SECTION_OPTIONS = liveArray(() => {
+    const fromCatalog = getSections()
+    if (fromCatalog.length) return fromCatalog
+    return apiCatalogMode() ? [] : DEMO_SECTION_OPTIONS
+})
 
 export const statusBadgeColor = {
     Present: 'bg-[#4CAF5033] text-[#4CAF50]',

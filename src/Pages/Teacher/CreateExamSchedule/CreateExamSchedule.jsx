@@ -55,6 +55,10 @@ const CreateExamSchedule = () => {
 
     return (
         <section>
+            <p className='mb-3 rounded-md border border-[#FEC84B] bg-[#FFFAEB] px-3 py-2 text-sm text-[#93370D]'>
+                Official examination timetables are created by the Principal or Coordinator and approved by the Director.
+                Teachers can view campus schedules here; create/submit requires <span className='font-medium'>exams.write</span>.
+            </p>
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <div className='flex justify-between md:items-center sm:items-stretch md:flex-row sm:flex-col flex-col gap-y-4'>
                     <button type='button' className='bg-[#515DEF] text-white uppercase text-sm px-6 py-1.5 border border-[#515DEF] rounded-lg hover:opacity-90 transition-all duration-200 cursor-pointer'>

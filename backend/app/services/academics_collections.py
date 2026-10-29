@@ -358,21 +358,9 @@ def _campus_subject_names(db: Session, campus_id: UUID) -> set[str]:
 
 def _campus_class_section_index(db: Session, campus_id: UUID) -> dict[str, set[str]]:
     """class_key → set of section_keys for active classes/sections."""
-    index: dict[str, set[str]] = {}
-    classes = db.scalars(
-        select(SchoolClass).where(SchoolClass.campus_id == campus_id, SchoolClass.is_active.is_(True))
-    ).all()
-    for school_class in classes:
-        key = class_key(school_class.name)
-        sections = db.scalars(
-            select(Section).where(
-                Section.campus_id == campus_id,
-                Section.class_id == school_class.id,
-                Section.is_active.is_(True),
-            )
-        ).all()
-        index.setdefault(key, set()).update(section_key(s.name) for s in sections)
-    return index
+    from app.services.class_section_catalog import campus_class_section_index
+
+    return campus_class_section_index(db, campus_id)
 
 
 def _list_teacher_allocation_bodies(db: Session, campus_id: UUID) -> list[dict]:

@@ -31,6 +31,7 @@ import { clearActivitiesMemory } from '../Common/Activities/activitiesData'
 import { clearTcRequestMemory } from '../Common/TcRequest/tcRequestData'
 import { clearEmployeeDocumentsMemory } from '../Pages/Admin/Documents/EmployeeDocuments/employeeDocumentsData'
 import { clearStudentDocumentsMemory } from '../Pages/Admin/Documents/StudentDocuments/studentDocumentsData'
+import { ensureClassCatalogHydrated } from '../services/classDetailsApi'
 
 export { ROLES }
 
@@ -194,6 +195,8 @@ export const AuthProvider = ({ children }) => {
                     return
                 }
                 setMustChangePassword(Boolean(me.must_change_password))
+                // Warm Class Details for Principal/Coordinator/Teacher section dropdowns.
+                ensureClassCatalogHydrated()
             })
             .catch((error) => {
                 // 401 already ends the session via SESSION_EXPIRED_EVENT; keep the session on network errors.
@@ -249,6 +252,10 @@ export const AuthProvider = ({ children }) => {
             if (createdUser) {
                 setActiveCreatedUserSession(createdUser)
             }
+        }
+
+        if (isApiAuthEnabled() && getAccessToken()) {
+            ensureClassCatalogHydrated()
         }
 
         return { success: true, role: expectedRole, mustChangePassword: Boolean(nextMustChange) }

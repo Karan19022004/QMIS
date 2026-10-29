@@ -1,8 +1,10 @@
+import { getClassDetails, getClasses } from '../../../Common/RBAC/academicsCatalogData'
+import { getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
+import { liveArray } from '../../../Common/RBAC/liveArray'
 import { getTransportRows, hydrateTransportRows, saveTransportRows, nextPrefixedId } from '../transportCampus'
 import { getRoutes } from '../RouteManagement/routeManagementData'
 
-/** @deprecated Prefer live class/section from academics catalog */
-export const CLASS_SECTIONS = [
+const DEMO_CLASS_SECTIONS = [
     'Grade 6 - A',
     'Grade 7 - B',
     'Grade 8 - A',
@@ -11,6 +13,35 @@ export const CLASS_SECTIONS = [
     'Grade 11 - B',
     'Grade 12 - A',
 ]
+
+const apiCatalogMode = () => isApiAuthEnabled() && Boolean(getAccessToken())
+
+/** Filter labels "Class - Section" from Admin Class Details (API mode). */
+export const getClassSectionFilterOptions = () => {
+    const details = getClassDetails()
+    if (details.length) {
+        const labels = []
+        details.forEach((row) => {
+            const className = String(row.className || '').trim()
+            if (!className) return
+            const sections = Array.isArray(row.sections) ? row.sections : []
+            if (!sections.length) {
+                labels.push(className)
+                return
+            }
+            sections.forEach((section) => {
+                const name = String(section?.name || section || '').trim()
+                if (name) labels.push(`${className} - ${name}`)
+            })
+        })
+        return [...new Set(labels)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    }
+    const classes = getClasses()
+    if (classes.length) return [...classes]
+    return apiCatalogMode() ? [] : [...DEMO_CLASS_SECTIONS]
+}
+
+export const CLASS_SECTIONS = liveArray(getClassSectionFilterOptions)
 
 export const FEES_STRUCTURES = ['Yearly', 'Half Yearly', 'Quarterly', 'Monthly']
 

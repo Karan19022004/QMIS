@@ -6,7 +6,6 @@ import { Calendar } from 'lucide-react'
 import ExamTimelineEditor from './Components/ExamTimelineEditor'
 import {
     EXAM_STATUSES,
-    SECTIONS,
     SUBJECTS as FALLBACK_SUBJECTS,
     addExamTimetable,
     defaultExamTimetableForm,
@@ -18,12 +17,9 @@ import {
     updateExamTimetable,
 } from './examinationTimetableData'
 import { EXAM_TYPE_OPTIONS } from '../../../Common/ExamSchedule/examScheduleData'
-import {
-    canUseClassDetailsApi,
-    listAcademicYears,
-    listSubjects,
-    loadClassDirectory,
-} from '../../../services/classDetailsApi'
+import ClassCatalogStatus from '../../../Common/RBAC/ClassCatalogStatus'
+import { useClassCatalogOptions } from '../../../Common/RBAC/useClassCatalogOptions'
+import { canUseClassDetailsApi, listSubjects } from '../../../services/classDetailsApi'
 import { canUseExamsApi, createExamApi, getExamApi, submitExamApi, updateExamApi } from '../../../services/examsApi'
 
 const inputClass =
@@ -70,9 +66,10 @@ const CreateExaminationTimetable = () => {
     const [errors, setErrors] = useState([])
     const [saving, setSaving] = useState(false)
     const [loadingRecord, setLoadingRecord] = useState(Boolean(isEdit && api && !getExamTimetableById(editId)))
-    const [classOptions, setClassOptions] = useState([])
-    const [sectionOptions, setSectionOptions] = useState(SECTIONS)
     const [subjectOptions, setSubjectOptions] = useState(FALLBACK_SUBJECTS)
+    const catalog = useClassCatalogOptions(form.className)
+    const classOptions = catalog.classes
+    const sectionOptions = catalog.sections
 
     useEffect(() => {
         if (!isEdit || !editId) return undefined
@@ -82,12 +79,6 @@ const CreateExaminationTimetable = () => {
             if (cancelled || !record) return
             const next = examRecordToForm(record)
             setForm(next)
-            if (next.className) {
-                setClassOptions((prev) => (prev.includes(next.className) ? prev : [...prev, next.className]))
-            }
-            if (next.section) {
-                setSectionOptions((prev) => (prev.includes(next.section) ? prev : [...prev, next.section]))
-            }
             const timelineSubjects = (next.timelines || []).map((row) => row.subject).filter(Boolean)
             if (timelineSubjects.length) {
                 setSubjectOptions((prev) => [...new Set([...prev, ...timelineSubjects])])
@@ -125,38 +116,27 @@ const CreateExaminationTimetable = () => {
     useEffect(() => {
         let cancelled = false
         if (!canUseClassDetailsApi()) return undefined
-        Promise.all([listAcademicYears(), loadClassDirectory(), listSubjects()])
-            .then(([years, directory, subjects]) => {
+        listSubjects()
+            .then((subjects) => {
                 if (cancelled) return
-                const currentYear = (years || []).find((y) => y.isCurrent)
-                const records = Array.isArray(directory?.records) ? directory.records : []
-                const active = records.filter((row) => row.isActive !== false)
-                const scoped = currentYear
-                    ? active.filter((row) => !row.academicYearId || row.academicYearId === currentYear.id)
-                    : active
-                setClassOptions((prev) => {
-                    const names = scoped.map((row) => row.className).filter(Boolean)
-                    return [...new Set([...names, ...prev])]
-                })
-                const sections = [...new Set(
-                    scoped.flatMap((row) => (row.sections || []).map((s) => s.name).filter(Boolean)),
-                )].sort()
-                if (sections.length) {
-                    setSectionOptions((prev) => [...new Set([...sections, ...prev])])
-                }
                 const subjectNames = (Array.isArray(subjects) ? subjects : [])
                     .map((row) => row.name)
                     .filter(Boolean)
                 if (subjectNames.length) setSubjectOptions(subjectNames)
             })
             .catch(() => {
-                /* keep hardcoded fallbacks */
+                /* keep subject fallbacks */
             })
         return () => { cancelled = true }
     }, [])
 
     const updateField = (key, value) => {
-        setForm((current) => ({ ...current, [key]: value }))
+        setForm((current) => {
+            if (key === 'className' && value !== current.className) {
+                return { ...current, className: value, section: '' }
+            }
+            return { ...current, [key]: value }
+        })
     }
 
     const validate = () => {
@@ -216,7 +196,12 @@ const CreateExaminationTimetable = () => {
         }
     }
 
-    const gradeOptions = classOptions.length ? classOptions : ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']
+    const gradeOptions = classOptions.length
+        ? classOptions
+        : (form.className ? [form.className] : [])
+    const sectionSelectOptions = sectionOptions.length
+        ? sectionOptions
+        : (form.section ? [form.section] : [])
 
     if (loadingRecord) {
         return (
@@ -251,6 +236,8 @@ const CreateExaminationTimetable = () => {
                         </ul>
                     </div>
                 )}
+
+                <ClassCatalogStatus status={catalog.status} error={catalog.error} onRetry={catalog.reload} />
 
                 <div>
                     <h3 className='text-lg font-semibold text-black mb-4'>Examination Information</h3>
@@ -296,7 +283,7 @@ const CreateExaminationTimetable = () => {
                             <label htmlFor='section' className='text-base font-medium text-[#1E1E1E]'>Section:</label>
                             <select id='section' value={form.section} onChange={(e) => updateField('section', e.target.value)} className={selectClass}>
                                 <option value=''>All / Select section</option>
-                                {sectionOptions.map((section) => (
+                                {sectionSelectOptions.map((section) => (
                                     <option key={section} value={section}>{section}</option>
                                 ))}
                             </select>

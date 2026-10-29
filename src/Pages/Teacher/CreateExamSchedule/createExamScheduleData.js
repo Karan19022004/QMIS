@@ -313,23 +313,42 @@ export const addExamSchedule = async (payload) => {
         }))
 
     if (canUseExamsApi()) {
-        const created = await createExamApi({
-            name: payload.examName,
-            examType: 'MIDTERM',
-            className: String(payload.className || '').startsWith('Grade')
-                ? payload.className
-                : `Grade ${payload.className}`,
-            section: payload.section || '',
-            teacherName: payload.teacherName || '',
-            startDate: toIsoDate(payload.examDate),
-            endDate: toIsoDate(payload.endDate),
-            timelines,
-        })
+        // Official exam create/submit requires exams.write (Principal/Coordinator). Teachers
+        // keep a read-only schedule view; do not pretend a local draft is campus-approved.
+        let created
+        try {
+            created = await createExamApi({
+                name: payload.examName,
+                examType: 'MIDTERM',
+                className: String(payload.className || '').startsWith('Grade')
+                    ? payload.className
+                    : `Grade ${payload.className}`,
+                section: payload.section || '',
+                teacherName: payload.teacherName || '',
+                startDate: toIsoDate(payload.examDate),
+                endDate: toIsoDate(payload.endDate),
+                timelines,
+            })
+        } catch (err) {
+            const message = String(err?.message || '')
+            if (/403|forbidden|permission|not allowed/i.test(message)) {
+                throw new Error(
+                    'Teachers cannot create the official examination timetable. Ask the Principal or Coordinator (exams.write).',
+                )
+            }
+            throw err
+        }
         if (created?.id) {
             try {
                 await submitExamApi(created.id)
-            } catch {
-                /* create succeeded; submit may need exams.write */
+            } catch (err) {
+                const message = String(err?.message || '')
+                if (/403|forbidden|permission|not allowed/i.test(message)) {
+                    throw new Error(
+                        'Exam was created but could not be submitted for Director approval. A Principal or Coordinator must submit it.',
+                    )
+                }
+                /* create succeeded; leave draft for staff with exams.write */
             }
         }
         const record = mapCampusExamToSchedule({

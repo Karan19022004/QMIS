@@ -44,12 +44,26 @@ def w():
         _ok(c.put("/api/v1/students/coordinator-grade-bands", headers=h["principal"],
                   json={"userId": uid["coordinator@qmis.edu"], "gradeFrom": 1, "gradeTo": 12}))
 
+        sections = {}
+
+        def section_id(cls, name="A"):
+            if cls in sections:
+                return sections[cls]
+            school = _ok(c.post("/api/v1/masters/classes", json={"name": cls}, headers=h["admin"]), 201)
+            sec = _ok(c.post("/api/v1/masters/sections", json={
+                "class_id": school["id"], "name": name,
+                "class_teacher_user_id": uid["teacher@qmis.edu"]}, headers=h["admin"]), 201)
+            sections[cls] = sec["id"]
+            return sections[cls]
+
         def enroll(first, cls, parent):
             adm = _ok(c.post("/api/v1/admissions", headers=h["admin"], json={
                 "first_name": first, "last_name": "Results", "mobile_number": "9000088888",
                 "class_name": cls, "parent_account_email": parent}), 201)
-            return str(_ok(c.post(f"/api/v1/admissions/{adm['id']}/enroll", headers=h["admin"], json={
+            sid = str(_ok(c.post(f"/api/v1/admissions/{adm['id']}/enroll", headers=h["admin"], json={
                 "parent_account_email": parent, "parent_account_password": PW}))["student_id"])
+            _ok(c.post(f"/api/v1/students/{sid}/place", json={"sectionId": section_id(cls)}, headers=h["principal"]))
+            return sid
 
         mine = enroll("Asha", "Grade 7", "p3.parent.asha@example.com")
         other = enroll("Bilal", "Grade 8", "p3.parent.bilal@example.com")

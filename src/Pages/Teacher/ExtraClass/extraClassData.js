@@ -9,6 +9,7 @@ import {
     getSections as getCatalogSections,
     getSubjects as getCatalogSubjects,
 } from '../../../Common/RBAC/academicsCatalogData'
+import { getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
 import { CLASSES as FALLBACK_CLASSES, SECTIONS as FALLBACK_SECTIONS, SUBJECTS as FALLBACK_SUBJECTS } from '../AssignedClass/assignedClassData'
 
 export const STORAGE_KEY = 'campus-extra-classes'
@@ -85,19 +86,24 @@ const normalizeRecord = (raw) => {
     }
 }
 
+const apiCatalogMode = () => isApiAuthEnabled() && Boolean(getAccessToken())
+
 export const getClasses = () => {
     const fromCatalog = getCatalogClasses().map((item) => String(item || '').trim()).filter(Boolean)
-    return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_CLASSES]
+    if (fromCatalog.length) return [...new Set(fromCatalog)]
+    return apiCatalogMode() ? [] : [...FALLBACK_CLASSES]
 }
 
 export const getSections = () => {
     const fromCatalog = getCatalogSections().map((item) => String(item || '').trim().toUpperCase()).filter(Boolean)
-    return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_SECTIONS]
+    if (fromCatalog.length) return [...new Set(fromCatalog)]
+    return apiCatalogMode() ? [] : [...FALLBACK_SECTIONS]
 }
 
 export const getSubjects = () => {
     const fromCatalog = getCatalogSubjects().map((item) => String(item || '').trim()).filter(Boolean)
-    return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_SUBJECTS]
+    if (fromCatalog.length) return [...new Set(fromCatalog)]
+    return apiCatalogMode() ? [] : [...FALLBACK_SUBJECTS]
 }
 
 /** @deprecated Prefer getClasses / getSections / getSubjects */
