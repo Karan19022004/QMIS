@@ -8,6 +8,51 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 29 October 2026 — Fix missing `exams.schedule` + academic workflow gap fixes
+
+**Status:** Local Postgres `exams.schedule` fixed earlier today. End-to-end audit written; approved gaps implemented. Evening: `:5173`→`:8000` UAT + closure pass. Later: **audit only** for dynamic class/section + leave/permission (implementation blocked on A1/A2/AEP/NA + leave policy questions). Full ERP Phase 1 audit written — **no** broad fixes, accounts, or permission changes. No commit/push/deploy.
+
+### Done
+- Traced root cause: `Exam.schedule` is JSON nullable in the ORM; migration `0022_exam_schedule_json` already existed but local `qmis_erp` (localhost:5432) was stuck at `0021_referrals_notif_reads`, so `GET /api/v1/marks-batches` raised `UndefinedColumn: column exams.schedule does not exist`.
+- No duplicate migration created. Confirmed target (host localhost, db `qmis_erp`, port 5432) then ran `alembic upgrade head` → applied `0022` (+ `0023` attendance dual-session on the same chain). Re-upgrade is a no-op.
+- Post-check: `exams.schedule` JSON nullable; **3** exam rows intact with `schedule` NULL. Live `:8000` `GET /marks-batches` → **200**; `/exams` and `/exam-types` → **200**.
+- Mark-entry related pytest **16 passed**; full suite **644 passed / 9 failed** (failures unrelated to schedule); `npm run build` **PASS**.
+- Read-only E2E audit → `docs/QMIS_End_to_End_Academic_Examination_Results_Audit.md`.
+- Gap fixes (see `docs/QMIS_Academic_Workflow_Gap_Fix_Report.md`): marks require section placement + class/section match; Teacher correction UI wired to API; publish commits before parent notify (failure cannot roll back); optional email/WhatsApp via existing `notify_event`; no new admission-approval FSM (SOP); schedule round-trip + isolation tests. Focused pytest **25 passed**; frontend build **PASS**.
+- Browser UAT on isolated `:8001` + Vite `:5173` (earlier): placement gate, parent published results (43/50 after correction), schedule persistence, Principal→Director correction API. Academic-year label equivalence (`2026-27` ≡ `2026 - 2027`) without rewriting stored labels. Regression **29 passed**; build **PASS**.
+- **Postgres `:8000` verification:** `.env`/`.env.local` → `:8000`; health OK; schedule persist via API; dedicated `PG8000` UAT students/exam; browser Principal exam modal, Teacher Mark Entry (placed-only after class-teacher assign), Parent Exam Result 43/50 Maths; correction Principal→Director API; parent blocked from principal routes. No new workflow code fixes. Focused pytest **11 passed**; `npm run build` **PASS**.
+- **Closure pass:** Connection exhaustion traced to **pgAdmin ≈90–92** Postgres connections (app `:8000` holds 5; `:8001` uses SQLite). No sessions terminated (needs ops approval). Did **not** invent Maths subject — used existing **English** master. Teacher correction UI click path **PASS** (38→40). Principal UI briefly `Failed to fetch`; Principal→Director decide completed via API; English published **40**, Maths **43** untouched. Alembic local **`0023_attendance_dual_session`**; `exams.schedule` JSON confirmed. Sign-off: substantially passed, pending pgAdmin clearance + Principal/Director approve-button UI. Report: `docs/QMIS_Academic_Workflow_Gap_Fix_Report.md`.
+- **Class/section + leave/permission audit:** `docs/QMIS_Class_Section_Leave_Permission_Audit.md`. Sections already CRUD via Admin Class Details; FE still hardcodes A/B/C. Values A1/A2/AEP/NA **not** evidenced as section names — **stopped** before seeding. Leave already has Permission ≤2h, Casual+Personal ≤2 days/month, multi-month + overlap tests; gaps (half-day, start/end time, cancel, configurable policy) flagged — **not invented**.
+- **Full Role/Module/Workflow Audit (Phase 1):** `docs/QMIS_Full_Role_Module_Workflow_Audit.md` — sections A–G (role inventory from `matrix.py` / Auth / sidebars; module inventory across API+FE+ops collections; inter-role workflows; defect register F-001–F-018; dependency map; P0–P3 plan; verification summary). Hostel Warden documented as missing (**GAP**); Digital Marketing excluded from portal roles. Browser UAT **not** claimed this pass.
+- **Section name update in Admin Class Details:** Edit Sections modal had existing section names locked read-only and omitted `name` from PATCH payload. Enabled editable section names; saves via existing `PATCH /masters/sections/{id}` (server still blocks rename when the section is in use).
+- **Sections reflect across roles:** Login hydrates Class Details catalog; Principal exam TT / Teacher exam schedule / Teacher allocation / class timetable / attendance / student allocation / FO re-enrollment / online & extra class dropdowns read live masters (no A/B/C fallback in API mode). Class-scoped section lists via `getSectionsForClass`.
+- **Global class/section catalog consistency:** Inventory + gap fixes in `docs/QMIS_Class_Section_Catalog_Consistency_Audit.md`. Backend exam create/update validates active masters (`class_section_catalog.py`). Wired Attendance History, Transport list filter, Mark Entry API failure (no silent A/B/C), lesson-plan Grade label fix, catalog error/retry UI. Focused pytest **12 passed**; `npm run build` **PASS**. Browser UAT not claimed. Feature branch PR: https://github.com/Karan19022004/QMIS/pull/1 (not merged pending approval).
+- **Finance ↔ Academic integration audit (audit-only):** `docs/QMIS_Finance_Academic_Integration_Audit.md`. Enroll does not auto-create fee demands; Account Head defines structures then generates installments. Finance student mirror hardcodes year `2026-2027` and blank section (**P0/P1**). Focused finance pytest **15 passed / 3 failed** (Razorpay NOT_CONFIGURED); `npm run build` **PASS**. No finance code fixes this pass.
+- **FA-01 (Finance year/section mirror):** Removed hardcoded `academicYear: "2026-2027"` / `section: ""` from `_enrolled_students`. Year from `AcademicYear.name` via `academic_year_id` (empty if missing); section from placement / `Section.name` (empty if unplaced). Five focused tests added; suite **34 passed / 3 failed** (same Razorpay FA-05 failures); `npm run build` **PASS**. No schema/migrations; FA-02+ not started. Not committed.
+- **Super Admin / Admin workflow audit + ASA-01:** Evidence matrix in `docs/QMIS_Admin_SuperAdmin_Workflow_Audit.md`. Codes `superadmin`/`admin` share full matrix grant; differences are creatable roles + portal UX; no cross-campus API. **P0 ASA-01:** HR staff/portal APIs could mint privileged logins — now gated by `creatable_roles_for`. Tests **55 passed**; `npm run build` **PASS**. Not committed.
+- **ASA-02:** Super Admin User Creation edit/deactivate now uses `PATCH /admin/users/{id}` (status) with API-first success; view loads via API. Module checkboxes remain local preview (ASA-03). Tests **65 passed**; `npm run build` **PASS**. ASA-03/04 planned only in audit §13. Not committed.
+- **ASA-03:** Audited module checkboxes — no per-user grant API/schema. Quarantined preview (disabled checkboxes, warning, full Admin sidebar under API auth, AuthContext clears local module session). No fake persistence / no migration. Tests **46 passed**; build **PASS**. Real grants still need product decision. Not committed.
+- **ASA-04 (per audit §13):** Super Admin Approvals — Activity decide via `POST /activities/{id}/approval`; demo finance/HR/etc. seeds hidden/refused under API auth. Static **14 passed**; activity approve API **1 passed**; `npm run build` **PASS**. Not committed.
+- **Browser UAT ASA-02 + ASA-04 only:** On `:5173`→`:8000` with disposable admin + `ACT-CUL-006`. Deactivate/reactivate after PATCH; simulated fetch failure kept status honest; Admin/teacher PATCH **403**; Approvals approve via `POST /activities/{id}/approval`, failure path clean, pending counts live-only, demo seeds hidden. Fixed User Creation export crash (`getPermissionCount` → `getAdminAccessLabel`). `:5181`→`:8001` blocked by CORS. Audit §14 updated. Not committed.
+- **Crash-fix verification only:** Confirmed list/export uses `getAdminAccessLabel`; remaining `getPermissionCount` defs unused (not call-site bugs). Pytest **69** + static **12** + `npm run build` **PASS**. Browser: list/Export OK; created `uat.crashfix.admin@qmis.edu` (ADM-0004) with Full Admin server label; Admin/teacher restrictions + ASA-04 Approved smoke OK. Audit §15. Not committed.
+
+### Still open
+- ASA-03 persistence (product decision + schema approval) or remove preview entirely
+- ASA-04 additional approval domains (§10 Q5)
+- ASA-05+ (user-list filter, biometric writers, local password fallback)
+- FA-02+ finance demand automation / gateway stub / snapshot concurrency — after partner answers
+- Accept full audit plan + answer clarification blockers (class taxonomy, leave half-day/holidays, Hostel Warden, finance/PRO portal split, prod Alembic) before broad fixes
+- Browser UAT for catalog consistency across Admin → Principal/Coord/Teacher/Transport; admissions free-text class validation still incremental
+- Full-suite 9 failures (attendance session shape, Razorpay config, frontend static demo chips / subjects route) — pre-existing / out of scope for this schema fix
+- Leftover unused `exams.slots` column still present on local Postgres (not mapped by ORM; not removed)
+- Optional Exam.academic_year → AcademicYear FK (product decision)
+- Subject masters: only English on campus; approved seed also expects Mathematics (`MAT`) — Admin curriculum decision, not UAT invent
+- pgAdmin connection-slot exhaustion (ops approval to close pgAdmin / idle tools)
+- Principal/Director Mark Entry Approval **decide** buttons not browser-clicked this pass (API used after Failed to fetch)
+- Commit/push when ready; production migration scheduling separate
+
+---
+
 ## 28 October 2026 — Academic workflow + isolated browser UAT
 
 **Status:** Academic/frontend work on `qmis/main`. Isolated browser UAT completed for admission→publish portals (SQLite `:8001` / Vite `:5181`). Not a live-school sign-off.

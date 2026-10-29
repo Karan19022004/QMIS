@@ -6,9 +6,11 @@ import {
     createEmptyMappingRow,
     defaultAllocationForm,
     getGrades,
-    getSections,
+    getSectionsForClass,
     getSubjects,
+    hydrateClassCatalogForAllocation,
 } from '../teacherAllocationData'
+import { CLASS_CATALOG_UPDATED_EVENT } from '../../../../Common/RBAC/academicsCatalogData'
 
 const inputClass =
     'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full bg-white'
@@ -37,24 +39,37 @@ const TeacherAllocationForm = ({
     showStatus = true,
 }) => {
     const [formState, setFormState] = useState(() => initialValues ?? defaultAllocationForm())
+    const [catalogTick, setCatalogTick] = useState(0)
     const grades = getGrades()
-    const sections = getSections()
     const subjects = getSubjects()
+    void catalogTick
 
     useEffect(() => {
         setFormState(initialValues ?? defaultAllocationForm())
     }, [initialValues])
+
+    useEffect(() => {
+        hydrateClassCatalogForAllocation()
+        const refresh = () => setCatalogTick((value) => value + 1)
+        window.addEventListener(CLASS_CATALOG_UPDATED_EVENT, refresh)
+        return () => window.removeEventListener(CLASS_CATALOG_UPDATED_EVENT, refresh)
+    }, [])
 
     const updateField = (key, value) => {
         setFormState((current) => ({ ...current, [key]: value }))
     }
 
     const updateClassTeacher = (key, value) => {
-        setFormState((current) => ({
-            ...current,
-            classTeacher: { ...current.classTeacher, [key]: value },
-        }))
+        setFormState((current) => {
+            const next = { ...current.classTeacher, [key]: value }
+            if (key === 'className' && value !== current.classTeacher?.className) {
+                next.section = ''
+            }
+            return { ...current, classTeacher: next }
+        })
     }
+
+    const classTeacherSections = getSectionsForClass(formState.classTeacher?.className || '')
 
     const toggleArrayValue = (key, value) => {
         setFormState((current) => {
@@ -92,9 +107,13 @@ const TeacherAllocationForm = ({
     const updateMapping = (index, key, value) => {
         setFormState((current) => ({
             ...current,
-            mappings: current.mappings.map((row, rowIndex) =>
-                rowIndex === index ? { ...row, [key]: value } : row,
-            ),
+            mappings: current.mappings.map((row, rowIndex) => {
+                if (rowIndex !== index) return row
+                if (key === 'className' && value !== row.className) {
+                    return { ...row, className: value, section: '' }
+                }
+                return { ...row, [key]: value }
+            }),
         }))
     }
 
@@ -193,8 +212,10 @@ const TeacherAllocationForm = ({
                                 onChange={(e) => updateClassTeacher('section', e.target.value)}
                                 className={selectClass}
                             >
-                                <option value=''>--Select--</option>
-                                {sections.map((section) => (
+                                <option value=''>
+                                    {formState.classTeacher?.className ? '--Select--' : 'Select class first'}
+                                </option>
+                                {classTeacherSections.map((section) => (
                                     <option key={section} value={section}>{section}</option>
                                 ))}
                             </select>
@@ -315,9 +336,12 @@ const TeacherAllocationForm = ({
                                                 value={row.section}
                                                 onChange={(e) => updateMapping(index, 'section', e.target.value)}
                                                 className={selectClass}
+                                                disabled={!row.className}
                                             >
-                                                <option value=''>--Select--</option>
-                                                {sections.map((section) => (
+                                                <option value=''>
+                                                    {row.className ? '--Select--' : 'Select class first'}
+                                                </option>
+                                                {getSectionsForClass(row.className).map((section) => (
                                                     <option key={section} value={section}>{section}</option>
                                                 ))}
                                             </select>

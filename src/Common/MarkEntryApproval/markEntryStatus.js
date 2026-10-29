@@ -46,7 +46,7 @@ export const batchStatusMessage = (session) => {
             : 'Submitted and locked. Students and parents see marks only after final approval.'
     }
     if (session.approvalStatus === 'Approved') {
-        return 'Approved and published. Published marks cannot be edited here.'
+        return 'Approved and published. Use Request correction to propose changes (Principal → Director). Students keep seeing the published marks until the correction is approved.'
     }
     if (session.approvalStatus === 'Rejected') {
         return session.rejectionReason
@@ -59,6 +59,10 @@ export const batchStatusMessage = (session) => {
 /** A rejected server batch must be revised into a new version before it can change. */
 export const needsRevision = (session) =>
     session?.source === 'api' && session.status === 'submitted' && session.approvalStatus === 'Rejected'
+
+/** Published campus batch (API) — teacher may open a correction request, not edit in place. */
+export const isPublishedBatch = (session) =>
+    session?.source === 'api' && session.status === 'submitted' && session.approvalStatus === 'Approved'
 
 /** The newest version for this subject and section among the teacher's batches. */
 export const pickLatestBatch = (batches, { subject, section }) =>

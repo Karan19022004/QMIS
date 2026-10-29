@@ -1,4 +1,4 @@
-# Logs
+﻿# Logs
 logs
 *.log
 npm-debug.log*
@@ -56,6 +56,11 @@ dist-ssr
 !docs/QMIS_Staff_Live_Provision_DryRun.md
 !docs/QMIS_Staff_Live_Provision_Result.md
 !docs/QMIS_Academic_Workflow_User_Manual.md
+!docs/QMIS_Class_Section_Catalog_Consistency_Audit.md
+!docs/QMIS_Full_Role_Module_Workflow_Audit.md
+!docs/QMIS_Class_Section_Leave_Permission_Audit.md
+!docs/QMIS_End_to_End_Academic_Examination_Results_Audit.md
+!docs/QMIS_Academic_Workflow_Gap_Fix_Report.md
 !local/credentials/README.md
 
 # Local credential / seed dumps must never be committed

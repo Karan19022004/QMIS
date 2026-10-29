@@ -11,10 +11,12 @@ import {
 } from '../../../Common/RBAC/academicsCatalogData'
 import { liveArray } from '../../../Common/RBAC/liveArray'
 import { CLASS_LEVEL_OPTIONS } from '../../Admin/Class/ClassDetails/classDetailsOptions'
+import { getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
 
 const FALLBACK_CLASSES = [...CLASS_LEVEL_OPTIONS]
 const FALLBACK_SECTIONS = ['A', 'B', 'C']
 const FALLBACK_SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Science', 'Computer Science']
+const apiCatalogMode = () => isApiAuthEnabled() && Boolean(getAccessToken())
 
 export const STORAGE_KEY = 'campus-online-classes'
 export const ONLINE_CLASSES_UPDATED_EVENT = 'schoolerp-online-classes-updated'
@@ -79,17 +81,20 @@ const normalizeRecord = (raw) => {
 
 export const getClasses = () => {
     const fromCatalog = getCatalogClasses().map((item) => String(item || '').trim()).filter(Boolean)
-    return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_CLASSES]
+    if (fromCatalog.length) return [...new Set(fromCatalog)]
+    return apiCatalogMode() ? [] : [...FALLBACK_CLASSES]
 }
 
 export const getSections = () => {
     const fromCatalog = getCatalogSections().map((item) => String(item || '').trim().toUpperCase()).filter(Boolean)
-    return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_SECTIONS]
+    if (fromCatalog.length) return [...new Set(fromCatalog)]
+    return apiCatalogMode() ? [] : [...FALLBACK_SECTIONS]
 }
 
 export const getSubjects = () => {
     const fromCatalog = getCatalogSubjects().map((item) => String(item || '').trim()).filter(Boolean)
-    return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_SUBJECTS]
+    if (fromCatalog.length) return [...new Set(fromCatalog)]
+    return apiCatalogMode() ? [] : [...FALLBACK_SUBJECTS]
 }
 
 export const CLASSES = liveArray(getClasses)

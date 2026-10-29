@@ -207,6 +207,9 @@ def create_exam(
     etype = _get_type(db, actor, code=exam_type)
     if not etype.active:
         fail(400, "validation_error", "Exam type is disabled.")
+    from app.services.class_section_catalog import require_active_class_section
+
+    require_active_class_section(db, actor.campus_id, class_name, section)
     year_label = (academic_year or "").strip() or None
     schedule = _normalize_schedule(timelines=timelines, section=section, teacher_name=teacher_name)
     exam = Exam(
@@ -305,6 +308,14 @@ def update_exam(
     etype = _get_type(db, actor, code=exam_type)
     if not etype.active:
         fail(400, "validation_error", "Exam type is disabled.")
+
+    prior_section = (
+        (exam.schedule or {}).get("section") if isinstance(exam.schedule, dict) else None
+    )
+    next_section = section if section is not None else prior_section
+    from app.services.class_section_catalog import require_active_class_section
+
+    require_active_class_section(db, actor.campus_id, class_name, next_section)
 
     exam.exam_type_id = etype.id
     exam.name = name.strip()
@@ -536,13 +547,23 @@ def _load_batch(db: Session, actor: User, batch_id: UUID) -> MarksBatch:
 
 
 def _apply_entries(db: Session, actor: User, batch: MarksBatch, exam: Exam, entries: list[dict]) -> None:
+    """Bind marks only to campus student UUIDs that match the exam class / batch section.
+
+    Requires section placement so pending enrollments cannot receive marks. Class and section
+    comparisons use normalized keys (same helpers as placement). Existing published rows are
+    never rewritten here — callers only replace entries on draft / correction drafts.
+    """
+    from app.models.academics import AcademicYear
+    from app.services.academic_year_labels import academic_years_equivalent
+    from app.services.students import class_key, section_key
+
     if not entries:
         fail(400, "validation_error", "At least one entry is required.")
     ids = []
     for e in entries:
         try:
             ids.append(UUID(str(e["studentId"])))
-        except ValueError:
+        except (ValueError, KeyError, TypeError):
             fail(400, "validation_error", "Invalid studentId.")
     if len(set(ids)) != len(ids):
         fail(400, "validation_error", "Duplicate student in entries.")
@@ -552,10 +573,49 @@ def _apply_entries(db: Session, actor: User, batch: MarksBatch, exam: Exam, entr
             select(Student).where(Student.campus_id == actor.campus_id, Student.id.in_(ids))
         ).all()
     }
+    if len(students) != len(set(ids)):
+        missing = [str(sid) for sid in ids if sid not in students]
+        fail(400, "validation_error", f"Unknown student id(s) on this campus: {', '.join(missing[:5])}.")
+
+    exam_class = class_key(exam.class_name)
+    batch_section = section_key(batch.section) if batch.section else ""
+    exam_year_label = (exam.academic_year or "").strip()
+    year_by_id: dict = {}
+    if exam_year_label:
+        year_ids = {s.academic_year_id for s in students.values() if s.academic_year_id}
+        if year_ids:
+            year_by_id = {
+                y.id: y
+                for y in db.scalars(select(AcademicYear).where(AcademicYear.id.in_(year_ids))).all()
+            }
+
     for e, sid in zip(entries, ids):
-        stu = students.get(sid)
-        if not stu or stu.class_name != exam.class_name:
-            fail(400, "validation_error", f"Student {sid} is not enrolled in {exam.class_name}.")
+        stu = students[sid]
+        if (stu.placement_status or "") != "placed":
+            fail(
+                400,
+                "validation_error",
+                f"{stu.full_name} must be section-placed before marks can be entered.",
+            )
+        if class_key(stu.class_name) != exam_class:
+            fail(400, "validation_error", f"{stu.full_name} is not enrolled in {exam.class_name}.")
+        if batch_section and section_key(stu.section) != batch_section:
+            fail(
+                400,
+                "validation_error",
+                f"{stu.full_name} is in section {stu.section or '—'}, not {batch.section}.",
+            )
+        if exam_year_label and stu.academic_year_id:
+            ay = year_by_id.get(stu.academic_year_id)
+            if ay is not None:
+                same = academic_years_equivalent(exam_year_label, ay.name)
+                # None => unsupported / ambiguous label — do not invent a rejection.
+                if same is False:
+                    fail(
+                        400,
+                        "validation_error",
+                        f"{stu.full_name} is in academic year {ay.name}, not {exam_year_label}.",
+                    )
         absent = bool(e.get("absent"))
         marks = e.get("marks")
         if absent:
@@ -753,8 +813,14 @@ def request_correction(db: Session, actor: User, batch_id: UUID, *, reason: str,
 
 
 def notify_parents_result_published(db: Session, batch_id: str | UUID) -> None:
-    """In-app notice to each linked parent when a marks batch becomes published. Idempotent per child."""
-    from app.models import Notification
+    """In-app (and optional email/WhatsApp) notice when marks publish. Never raises to callers.
+
+    External channels use ``notify_event`` (mocked or live per settings). Missing provider
+    credentials stay unconfigured and are reported in the delivery result — they must not
+    alter publication state (caller commits publication before invoking this helper).
+    """
+    from app.models import Guardian, Notification
+    from app.services.integrations.notify import notify_event
 
     try:
         bid = UUID(str(batch_id))
@@ -773,11 +839,25 @@ def notify_parents_result_published(db: Session, batch_id: str | UUID) -> None:
         s.id: s
         for s in db.scalars(select(Student).where(Student.id.in_([e.student_id for e in entries]))).all()
     }
+    parent_ids = {s.parent_user_id for s in students.values() if s.parent_user_id}
+    parents = {
+        u.id: u for u in db.scalars(select(User).where(User.id.in_(parent_ids))).all()
+    } if parent_ids else {}
+    phones: dict = {}
+    if students:
+        for g in db.scalars(
+            select(Guardian).where(Guardian.student_id.in_(list(students.keys())))
+        ).all():
+            if g.phone and g.student_id not in phones:
+                phones[g.student_id] = g.phone
+
     for entry in entries:
         student = students.get(entry.student_id)
         if student is None or student.parent_user_id is None:
             continue
         entity_id = f"{batch.id}:{student.id}"
+        title = "Result published"
+        body = f"{student.full_name}'s {exam.name} ({batch.subject}) result is now available."
         exists = db.scalar(
             select(Notification).where(
                 Notification.campus_id == batch.campus_id,
@@ -786,17 +866,25 @@ def notify_parents_result_published(db: Session, batch_id: str | UUID) -> None:
                 Notification.entity_id == entity_id,
             )
         )
-        if exists is not None:
-            continue
-        db.add(
-            Notification(
-                campus_id=batch.campus_id,
-                user_id=student.parent_user_id,
-                title="Result published",
-                body=f"{student.full_name}'s {exam.name} ({batch.subject}) result is now available.",
-                entity_type="result_published",
-                entity_id=entity_id,
+        if exists is None:
+            db.add(
+                Notification(
+                    campus_id=batch.campus_id,
+                    user_id=student.parent_user_id,
+                    title=title,
+                    body=body,
+                    entity_type="result_published",
+                    entity_id=entity_id,
+                )
             )
+        parent = parents.get(student.parent_user_id)
+        # Best-effort external channels; notify_event never raises and never retries duplicates.
+        notify_event(
+            event_key=f"result_published:{entity_id}",
+            subject=title,
+            body=body,
+            email=(parent.email if parent else None),
+            phone=phones.get(student.id),
         )
 
 

@@ -1,10 +1,13 @@
-import {
+﻿import {
     createFrontOfficeItem,
     frontOfficeApiOn,
     hydrateFrontOfficeCollection,
     peekFrontOfficeCollection,
     updateFrontOfficeItem,
 } from '../frontOfficeStore'
+import { getClasses, getSections } from '../../../Common/RBAC/academicsCatalogData'
+import { getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
+import { liveArray } from '../../../Common/RBAC/liveArray'
 
 const STORAGE_KEY = 'front-office-student-re-enrollment'
 const FO_COLLECTION = 'student-re-enrollments'
@@ -14,8 +17,20 @@ export const ADD_ROUTE = '/front-office/student-re-enrollment/add'
 
 export const STATUS_OPTIONS = ['Pending', 'Approved', 'Rejected', 'Re-Enrolled']
 
-export const GRADES = ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']
-export const SECTIONS = ['A', 'B', 'C']
+const DEMO_GRADES = ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']
+const DEMO_SECTIONS = ['A', 'B', 'C']
+const apiCatalogMode = () => isApiAuthEnabled() && Boolean(getAccessToken())
+
+export const GRADES = liveArray(() => {
+    const fromCatalog = getClasses()
+    if (fromCatalog.length) return fromCatalog
+    return apiCatalogMode() ? [] : DEMO_GRADES
+})
+export const SECTIONS = liveArray(() => {
+    const fromCatalog = getSections()
+    if (fromCatalog.length) return fromCatalog
+    return apiCatalogMode() ? [] : DEMO_SECTIONS
+})
 export const ACADEMIC_YEARS = ['2024-2025', '2025-2026', '2026-2027']
 export const ORIGINAL_TC_OPTIONS = ['Yes', 'No']
 

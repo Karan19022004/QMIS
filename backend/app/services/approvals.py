@@ -10,6 +10,7 @@ Doc rules implemented:
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime
 from uuid import UUID
 
@@ -21,6 +22,8 @@ from app.models import ApprovalEvent, ApprovalRequest, Notification, Notificatio
 from app.models.base import utcnow
 from app.services.audit import write_audit
 from app.services.errors import fail
+
+log = logging.getLogger(__name__)
 
 ACADEMIC_CHAIN = ["coordinator", "principal", "director"]
 # Published-mark corrections: teacher requests; Principal then Director authorize (no coordinator step).
@@ -325,6 +328,7 @@ def decide(db: Session, actor: User, approval_id: UUID, *, decision: str, commen
     row.updated_at = utcnow()
     label = row.title or f"{row.entity_type} {row.entity_id}"
 
+    publish_batch_id = None
     if decision == "deny":
         row.status = "denied"
         _notify(
@@ -350,10 +354,9 @@ def decide(db: Session, actor: User, approval_id: UUID, *, decision: str, commen
             entity_type=row.entity_type,
             entity_id=row.entity_id,
         )
+        # Parent result notice runs AFTER commit so delivery failure cannot undo publication.
         if row.entity_type in {"marks_batch", "marks_correction"}:
-            from app.services.exams import notify_parents_result_published
-
-            notify_parents_result_published(db, row.entity_id)
+            publish_batch_id = row.entity_id
     write_audit(
         db,
         action=f"APPROVAL_{decision.upper()}",
@@ -365,6 +368,19 @@ def decide(db: Session, actor: User, approval_id: UUID, *, decision: str, commen
     )
     db.commit()
     db.refresh(row)
+    if publish_batch_id:
+        try:
+            from app.services.exams import notify_parents_result_published
+
+            notify_parents_result_published(db, publish_batch_id)
+            db.commit()
+        except Exception:
+            db.rollback()
+            log.exception(
+                "result_publish_notify_failed approval_id=%s batch_id=%s",
+                row.id,
+                publish_batch_id,
+            )
     return _out(row)
 
 

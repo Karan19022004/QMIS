@@ -13,12 +13,20 @@ import {
     getStudentTransports,
     hydrateStudentTransportsFromApi,
 } from './studentTransportData'
+import { ensureClassCatalogHydrated } from '../../../services/classDetailsApi'
+import { CLASS_CATALOG_UPDATED_EVENT } from '../../../Common/RBAC/academicsCatalogData'
 
 const StudentTransport = () => {
     const [studentTransports, setStudentTransports] = useState(() => getStudentTransports())
+    const [catalogTick, setCatalogTick] = useState(0)
     useEffect(() => {
         hydrateStudentTransportsFromApi().finally(() => setStudentTransports(getStudentTransports()))
+        ensureClassCatalogHydrated()
+        const refresh = () => setCatalogTick((value) => value + 1)
+        window.addEventListener(CLASS_CATALOG_UPDATED_EVENT, refresh)
+        return () => window.removeEventListener(CLASS_CATALOG_UPDATED_EVENT, refresh)
     }, [])
+    void catalogTick
 
     const [fromDate, setFromDate] = useState(new Date())
     const [toDate, setToDate] = useState(new Date())

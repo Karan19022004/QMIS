@@ -1,5 +1,16 @@
 const STORAGE_KEY = 'schoolerp-academics-catalog'
 
+/** Fired after Class Details from the API are mirrored so open screens can refresh dropdowns. */
+export const CLASS_CATALOG_UPDATED_EVENT = 'schoolerp-class-catalog-updated'
+
+const emitClassCatalogUpdated = () => {
+    try {
+        window.dispatchEvent(new CustomEvent(CLASS_CATALOG_UPDATED_EVENT))
+    } catch {
+        /* ignore */
+    }
+}
+
 const emptyCatalog = () => ({
     classes: [],
     sections: [],
@@ -7,6 +18,8 @@ const emptyCatalog = () => ({
     assignments: [],
     classDetails: [],
 })
+
+const classKey = (value) => String(value || '').trim().toLowerCase().replace(/^(grade|class)\s+/, '')
 
 const loadCatalog = () => {
     try {
@@ -65,6 +78,21 @@ export const getClassDetails = () => loadCatalog().classDetails
 
 export const getClassDetailsById = (id) =>
     getClassDetails().find((item) => item.id === id) ?? null
+
+/**
+ * Active section names for one class from the mirrored Class Details catalog.
+ * Falls back to the flat campus section list when the class is not in the catalog yet.
+ */
+export const getSectionsForClass = (className) => {
+    const key = classKey(className)
+    if (!key) return getSections()
+    const detail = getClassDetails().find((item) => classKey(item.className) === key)
+    if (!detail) return getSections()
+    const names = (detail.sections || [])
+        .map((section) => String(section?.name || '').trim().toUpperCase())
+        .filter(Boolean)
+    return [...new Set(names)].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+}
 
 const syncClassAndSectionLists = (catalog) => {
     const classSet = new Set(catalog.classes)
@@ -218,7 +246,13 @@ export const mirrorApiClassDetails = (records) => {
     })
 
     syncClassAndSectionLists(catalog)
-    if (JSON.stringify(catalog) !== before) saveCatalog(catalog)
+    if (JSON.stringify(catalog) !== before) {
+        saveCatalog(catalog)
+        emitClassCatalogUpdated()
+    } else {
+        // Still notify listeners so a late-mounted screen after login hydrate can re-read.
+        emitClassCatalogUpdated()
+    }
 }
 
 export const removeClassDetails = (id) => {

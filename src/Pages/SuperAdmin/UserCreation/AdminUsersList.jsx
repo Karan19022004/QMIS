@@ -6,9 +6,9 @@ import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
     ADMIN_USER_STATUSES,
     filterAdminUsers,
+    getAdminAccessLabel,
     getAdminUserSummary,
     getAllAdminUsers,
-    getPermissionCount,
     hydrateAdminUsersFromApi,
     ROUTE_BASE,
     statusBadgeColor,
@@ -151,7 +151,7 @@ const AdminUsersList = () => {
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Name</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Email</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Role</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Permissions</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Server access</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Status</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Actions</th>
                             </tr>
@@ -180,7 +180,7 @@ const AdminUsersList = () => {
                                                 Administrator
                                             </span>
                                         </td>
-                                        <td className='px-2 py-4'>{getPermissionCount(user.permissions)} modules</td>
+                                        <td className='px-2 py-4 text-xs'>{getAdminAccessLabel()}</td>
                                         <td className='px-2 py-4'>
                                             <span className={`inline-flex px-2 py-1 rounded-lg text-xs font-semibold ${statusBadgeColor[user.status]}`}>
                                                 {user.status}
@@ -231,7 +231,7 @@ const AdminUsersList = () => {
                     name: row.name,
                     email: row.email,
                     role: row.roleLabel || 'Administrator',
-                    permissions: `${getPermissionCount(row.permissions)} modules`,
+                    permissions: getAdminAccessLabel(row),
                     status: row.status,
                 }))}
                 exportDescription={<>You are exporting {filteredRecords.length} record(s).</>}

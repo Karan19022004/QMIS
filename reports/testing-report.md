@@ -1,26 +1,36 @@
 # Testing report
 
-**Date:** 28 October 2026  
-**Context:** Module 2 Class Timetable fixes (TT-01–TT-07). Isolated SQLite pytest only. **No live DB writes.**
+**Date:** 29 October 2026  
+**Context:** User Creation crash-fix verification (`getAdminAccessLabel`). Local Vite `:5173` → API `:8000`. No production writes. Not committed/pushed.
 
-## Suites
+## Latest — Crash-fix verification
 
-| Suite | Result |
+| Suite / check | Result |
 |---|---|
-| `tests/test_academics_collections.py` | **14 passed** |
-| Access phase2+3a `-k timetable` (`--import-mode=importlib`) | **4 passed** |
-| `tests/test_frontend_fixes_static.py` timetable-related | **6 passed** |
-| Frontend `npm run build` | **PASS** |
+| `pytest tests/test_admin_users.py tests/test_admin_employee_directory.py tests/test_frontend_admin_users_static.py tests/test_frontend_superadmin_approvals_static.py -q --import-mode=importlib` | **69 passed** |
+| `pytest tests/test_frontend_admin_users_static.py` (incl. export label guard) | **12 passed** |
+| `npm run build` | **PASS** (`BUILD_EXIT=0`) |
+| Browser list + Export modal (no `getPermissionCount` crash) | **PASS** |
+| Browser create `uat.crashfix.admin@qmis.edu` → list/view labels | **PASS** |
+| Admin cannot create/manage admin; teacher PATCH 403 | **PASS** (API) |
+| ASA-04 `ACT-CUL-006` still Approved | **PASS** (API smoke) |
+
+## Prior same day — Browser UAT ASA-02 / ASA-04
+
+| Suite / check | Result |
+|---|---|
+| ASA-02 deactivate / reactivate / failure handling | **PASS** (browser; audit §14) |
+| ASA-04 activity approve + demo quarantine | **PASS** (browser; audit §14) |
+| Isolated `:5181`→`:8001` login | **BLOCKED** (CORS) |
 
 ## Coverage notes
 
-- TT-01/02: FE await save, hydrate null-on-error, `canSaveClassTimetables` gate (static + UI).
-- TT-03/04: API 422 on unknown subject / allocation miss / overlapping class or teacher periods; failed PUT leaves prior rows.
-- TT-05: Coordinator PUT with `Approved` forced to `Pending`.
-- TT-07: Student FE requires `approvalStatus === 'Approved'`.
-- TT-06: UI remains disabled; no new workflow invented.
+- Crash path: Export/list no longer calls unbound `getPermissionCount`.
+- Unused exports of `getPermissionCount` remain in `adminUsersData.js` / `rolePermissionsData.js` (not broken call sites).
+- Disposable admins `uat.asa02.admin@qmis.edu` and `uat.crashfix.admin@qmis.edu` left Active.
 
-## Not run
+## Not run / blockers
 
-- Principal / Teacher / Student / Parent browser UAT
-- Live PostgreSQL
+- Full browser re-run of ASA-02/ASA-04 decide flows (already §14).
+- Product confirmation for non-activity approval domains (§10 Q5).
+- ASA-05+.

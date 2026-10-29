@@ -1,6 +1,7 @@
 import {
     getClasses as getCatalogClasses,
     getSections as getCatalogSections,
+    getSectionsForClass as getCatalogSectionsForClass,
     getSubjects as getCatalogSubjects,
 } from '../../../Common/RBAC/academicsCatalogData'
 import {
@@ -44,15 +45,18 @@ export const getGradeOptions = () => {
     const classes = getCatalogClasses()
     return classes.length ? classes : getAllocationGrades()
 }
-export const getSectionOptions = () => {
-    const sections = getCatalogSections()
-    return sections.length ? sections : ['A', 'B', 'C', 'D']
+export const getSectionOptions = (className = '') => {
+    if (className) {
+        const forClass = getCatalogSectionsForClass(className)
+        if (forClass.length) return forClass
+    }
+    return getCatalogSections()
 }
 export const getSubjectOptions = () => getCatalogSubjects()
 
 /** @deprecated Prefer getGradeOptions / getSectionOptions / getSubjectOptions */
 export const GRADES = []
-export const SECTIONS = ['A', 'B', 'C', 'D']
+export const SECTIONS = []
 export const SUBJECTS = []
 export const TEACHERS = []
 
@@ -192,8 +196,8 @@ export const getSectionsForTimetableTeacher = (employeeId, className = '') => {
         .map((item) => item.section)
         .filter(Boolean)
     if (sections.length) return [...new Set(sections)].sort((a, b) => a.localeCompare(b))
-    // Class allocated without section detail — fall back to catalog sections.
-    return getSectionOptions()
+    // Class allocated without section detail — fall back to Admin Class Details for that class.
+    return getSectionOptions(className)
 }
 
 /** Apply class selection on a timeline row: map section + subject from teacher allocation. */

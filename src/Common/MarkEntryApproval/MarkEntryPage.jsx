@@ -39,11 +39,19 @@ import {
     listSectionNamesForClassApi,
     mapExamFromApi,
     mapMarksBatchFromApi,
+    requestMarksCorrectionApi,
     reviseMarksBatchApi,
     submitMarksBatchApi,
     updateMarksBatchEntriesApi,
 } from '../../services/examsApi'
-import { batchStatusMessage, examEntryState, mapBatchStatus, needsRevision, pickLatestBatch } from './markEntryStatus'
+import {
+    batchStatusMessage,
+    examEntryState,
+    isPublishedBatch,
+    mapBatchStatus,
+    needsRevision,
+    pickLatestBatch,
+} from './markEntryStatus'
 import { listStudentsApi, mapStudentListFromApi } from '../../services/studentsApi'
 import {
     canUseClassDetailsApi,
@@ -115,21 +123,27 @@ const entriesPayloadFromSession = (session) =>
 const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     const api = canUseExamsApi()
     const [yearOptions, setYearOptions] = useState(ACADEMIC_YEARS)
-    const [classOptions, setClassOptions] = useState(CLASSES)
+    const [classOptions, setClassOptions] = useState(() => (api ? [] : CLASSES))
     const [academicYear, setAcademicYear] = useState(ACADEMIC_YEARS[0])
     const [term, setTerm] = useState(TERMS[0])
+    const [correctionMode, setCorrectionMode] = useState(false)
+    const [correctionReason, setCorrectionReason] = useState('')
+    const [correctionModal, setCorrectionModal] = useState(false)
     const [exam, setExam] = useState(EXAM_OPTIONS[0].name)
     const [examId, setExamId] = useState('')
     const [campusExams, setCampusExams] = useState([])
     const [examsLoaded, setExamsLoaded] = useState(false)
     const [apiSections, setApiSections] = useState({ forClass: '', names: [] })
     const [apiSubjects, setApiSubjects] = useState([])
-    const [className, setClassName] = useState(() => CLASSES[0] || '')
-    const [section, setSection] = useState(() => SECTIONS[0] || '')
-    const [subject, setSubject] = useState(() => SUBJECTS[0] || '')
+    const [className, setClassName] = useState(() => (api ? '' : (CLASSES[0] || '')))
+    const [section, setSection] = useState(() => (api ? '' : (SECTIONS[0] || '')))
+    const [subject, setSubject] = useState(() => (api ? '' : (SUBJECTS[0] || '')))
     const [examDate, setExamDate] = useState(parseDisplayDate('15/07/2026'))
+    const [catalogError, setCatalogError] = useState('')
 
-    const catalogEmpty = !api && (classOptions.length === 0 || sectionOptions.length === 0 || subjectOptions.length === 0)
+    const catalogEmpty = api
+        ? Boolean(catalogError) || (examsLoaded && classOptions.length === 0)
+        : (classOptions.length === 0 || SECTIONS.length === 0 || SUBJECTS.length === 0)
 
     const [session, setSession] = useState(null)
     const [loaded, setLoaded] = useState(false)
@@ -171,6 +185,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     useEffect(() => {
         if (!canUseClassDetailsApi()) return undefined
         let cancelled = false
+        setCatalogError('')
         Promise.all([listAcademicYears(), loadClassDirectory(), listSubjects()])
             .then(([years, directory, subjects]) => {
                 if (cancelled) return
@@ -181,24 +196,25 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                 }
                 const records = Array.isArray(directory?.records) ? directory.records : []
                 const classNames = records.map((row) => row.className).filter(Boolean)
+                setClassOptions(classNames)
                 if (classNames.length) {
-                    setClassOptions(classNames)
                     setClassName((current) => (classNames.includes(current) ? current : classNames[0]))
                 }
-                const sections = [...new Set(
-                    records.flatMap((row) => (row.sections || []).map((s) => s.name).filter(Boolean)),
-                )].sort()
-                if (sections.length) {
-                    setSection((current) => (sections.includes(current) ? current : sections[0]))
-                }
                 const subjectNames = (Array.isArray(subjects) ? subjects : []).map((row) => row.name).filter(Boolean)
+                setApiSubjects(subjectNames)
                 if (subjectNames.length) {
-                    setApiSubjects(subjectNames)
                     setSubject((current) => (subjectNames.includes(current) ? current : subjectNames[0]))
                 }
+                if (!classNames.length) {
+                    setCatalogError('No active classes in Class Details. Ask an Admin to configure classes and sections.')
+                }
             })
-            .catch(() => {
-                /* keep catalog / hardcoded fallbacks */
+            .catch((err) => {
+                if (cancelled) return
+                // API mode: never fall back to hardcoded A/B/C — surface the failure.
+                setClassOptions([])
+                setApiSubjects([])
+                setCatalogError(err?.message || 'Could not load classes and sections from the server.')
             })
         return () => { cancelled = true }
     }, [])
@@ -237,9 +253,12 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     const sectionOptions = api ? (apiSections.forClass === examClassName ? apiSections.names : []) : SECTIONS
     const subjectOptions = api ? apiSubjects : SUBJECTS
     const awaitingRevision = needsRevision(session)
-    const isLocked = isSessionLocked(session) || awaitingRevision
+    const published = isPublishedBatch(session)
+    const isLocked = (isSessionLocked(session) || awaitingRevision) && !correctionMode
 
     const handleLoadStudents = async () => {
+        setCorrectionMode(false)
+        setCorrectionReason('')
         if (api && !examState.open) {
             setSaveMessage(examState.reason)
             setLoaded(false)
@@ -295,7 +314,11 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             ])
             const students = studentRows
                 .map(mapStudentListFromApi)
-                .filter((row) => !row.section || row.section === section || row.section === '—')
+                .filter((row) => {
+                    const placed = String(row.placementStatus || '').toLowerCase() === 'placed'
+                    const sectionMatch = String(row.section || '').trim() === String(section || '').trim()
+                    return placed && sectionMatch
+                })
                 .map((row) => ({
                     ...row,
                     rollNumber: row.rollNumber || row.admissionNumber || '',
@@ -418,9 +441,14 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
     }
 
     const handleSubmitClick = () => {
-        if (!session || !stats || isLocked) return
+        if (!session || !stats) return
+        if (isLocked && !correctionMode) return
         if (stats.pending > 0) {
             setIncompleteModal(true)
+            return
+        }
+        if (correctionMode) {
+            setCorrectionModal(true)
             return
         }
         setSubmitModal(true)
@@ -432,6 +460,7 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
             const revised = mapMarksBatchFromApi(await reviseMarksBatchApi(session.batchId))
             const nextSession = { ...session, ...batchSessionFields(revised) }
             setSession(nextSession)
+            setCorrectionMode(false)
             setSubmitMessage('')
             setSaveMessage(`Version ${revised.version} created as a draft with the same marks. Correct them, save and submit again.`)
         } catch (err) {
@@ -439,9 +468,55 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
         }
     }
 
+    const handleStartCorrection = () => {
+        if (!published || !session?.batchId) return
+        setCorrectionMode(true)
+        setCorrectionReason('')
+        setSaveMessage('Correction mode: edit marks, then submit the correction for Principal → Director approval.')
+        setSubmitMessage('')
+    }
+
+    const handleConfirmCorrection = async () => {
+        if (!correctionMode || !session?.batchId) return
+        const reason = String(correctionReason || '').trim()
+        if (!reason) {
+            setSaveMessage('Enter a reason for the marks correction.')
+            return
+        }
+        const entries = entriesPayloadFromSession(session)
+        if (!entries.length) {
+            setSaveMessage('Enter corrected marks (or mark absent) before requesting a correction.')
+            return
+        }
+        try {
+            const corrected = mapMarksBatchFromApi(
+                await requestMarksCorrectionApi(session.batchId, { reason, entries }),
+            )
+            const nextSession = {
+                ...session,
+                ...batchSessionFields(corrected),
+                submittedByRole,
+                submittedAt: corrected.submittedAt || new Date().toISOString(),
+            }
+            setSession(nextSession)
+            setCorrectionMode(false)
+            setCorrectionModal(false)
+            setCorrectionReason('')
+            setSubmitMessage(batchStatusMessage(nextSession))
+            setSaveMessage(`Correction v${corrected.version} submitted. Principal then Director must approve before parents see the new marks.`)
+        } catch (err) {
+            setSaveMessage(err?.message || 'Could not request marks correction.')
+        }
+    }
+
     const handleConfirmSubmit = async () => {
         if (!api && entryBlocked('Mark Entry', submittedByRole)) return
         if (!session || isLocked) return
+        if (correctionMode) {
+            setSubmitModal(false)
+            setCorrectionModal(true)
+            return
+        }
         if (!api || session.source !== 'api') {
             const submitted = submitMarkEntrySession(session, { submittedByRole })
             setSession(submitted)
@@ -498,9 +573,12 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
 
             {catalogEmpty && (
                 <div className='bg-white rounded-2xl shadow-md p-6 border border-[#EDEEF5]'>
-                    <h2 className='text-lg font-semibold text-[#0C1E5B]'>No classes or subjects yet</h2>
+                    <h2 className='text-lg font-semibold text-[#0C1E5B]'>
+                        {catalogError ? 'Class catalog unavailable' : 'No classes or subjects yet'}
+                    </h2>
                     <p className='text-sm text-[#667085] mt-2'>
-                        Ask an Administrator to create classes and sections under Class Details, subjects under RBAC, and students under User Creation before using Mark Entry.
+                        {catalogError
+                            || 'Ask an Administrator to create classes and sections under Class Details, subjects under RBAC, and students under User Creation before using Mark Entry.'}
                     </p>
                 </div>
             )}
@@ -840,10 +918,19 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                                     Revise (new version)
                                 </button>
                             ) : null}
+                            {published && !correctionMode ? (
+                                <button
+                                    type='button'
+                                    onClick={handleStartCorrection}
+                                    className='bg-white text-[#980E0F] text-sm px-6 py-2.5 rounded-md border border-[#980E0F] hover:bg-[#FDF3F4] transition-all duration-200 cursor-pointer'
+                                >
+                                    Request correction
+                                </button>
+                            ) : null}
                             <button
                                 type='button'
                                 onClick={handleSaveDraft}
-                                disabled={isLocked}
+                                disabled={isLocked || published}
                                 className='bg-white text-[#515DEF] text-sm px-6 py-2.5 rounded-md border border-[#515DEF] hover:bg-[#515DEF0D] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
                             >
                                 Save Draft
@@ -851,10 +938,10 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                             <button
                                 type='button'
                                 onClick={handleSubmitClick}
-                                disabled={isLocked}
+                                disabled={isLocked && !correctionMode}
                                 className='bg-[#515DEF] text-white text-sm px-6 py-2.5 rounded-md border border-[#515DEF] hover:opacity-90 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed'
                             >
-                                Submit for Approval
+                                {correctionMode ? 'Submit correction' : 'Submit for Approval'}
                             </button>
                         </div>
                     </div>
@@ -876,6 +963,41 @@ const MarkEntryPage = ({ submittedByRole = 'Teacher' }) => {
                 stats={stats}
                 examLabel={`${exam} — ${formatClassLabel(className)} Section ${section} — ${subject}`}
             />
+            {correctionModal ? (
+                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4'>
+                    <div className='w-full max-w-md rounded-lg bg-white p-5 shadow-lg'>
+                        <h3 className='text-lg font-semibold text-[#0C1E5B]'>Request marks correction</h3>
+                        <p className='mt-2 text-sm text-[#475467]'>
+                            Principal then Director must approve. Parents keep seeing published marks until then.
+                        </p>
+                        <label className='mt-4 block text-sm font-medium text-[#344054]'>
+                            Reason
+                            <textarea
+                                className={`${inputClass} mt-1 min-h-[96px]`}
+                                value={correctionReason}
+                                onChange={(event) => setCorrectionReason(event.target.value)}
+                                placeholder='Why do these marks need correction?'
+                            />
+                        </label>
+                        <div className='mt-4 flex justify-end gap-2'>
+                            <button
+                                type='button'
+                                className='rounded-md border border-[#D0D5DD] px-4 py-2 text-sm'
+                                onClick={() => setCorrectionModal(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type='button'
+                                className='rounded-md bg-[#515DEF] px-4 py-2 text-sm text-white'
+                                onClick={handleConfirmCorrection}
+                            >
+                                Submit correction
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </section>
     )
 }

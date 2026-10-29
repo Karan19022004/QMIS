@@ -9,10 +9,12 @@ import { apiRequest, getAccessToken, isApiAuthEnabled } from '../../../services/
 import {
     getClasses as getCatalogClasses,
     getSections as getCatalogSections,
+    getSectionsForClass as getCatalogSectionsForClass,
     getSubjects as getCatalogSubjects,
 } from '../../../Common/RBAC/academicsCatalogData'
 import { liveArray } from '../../../Common/RBAC/liveArray'
 import { CLASS_LEVEL_OPTIONS } from '../../Admin/Class/ClassDetails/classDetailsOptions'
+import { ensureClassCatalogHydrated } from '../../../services/classDetailsApi'
 
 export const STORAGE_KEY = 'principal-teacher-allocation'
 export const TEACHER_ALLOCATIONS_UPDATED_EVENT = 'schoolerp-teacher-allocations-updated'
@@ -44,6 +46,8 @@ const FALLBACK_SUBJECTS = [
     'Computer Science',
 ]
 
+const apiCatalogMode = () => isApiAuthEnabled() && Boolean(getAccessToken())
+
 const normalizeGradeLabel = (value) => {
     const text = String(value || '').trim()
     if (!text) return ''
@@ -52,16 +56,27 @@ const normalizeGradeLabel = (value) => {
     return text
 }
 
-/** Live class list from Admin Class Details / academics catalog (fallback seed grades). */
+/** Live class list from Admin Class Details / academics catalog (fallback seed grades offline only). */
 export const getGrades = () => {
     const fromCatalog = getCatalogClasses().map(normalizeGradeLabel).filter(Boolean)
-    return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_GRADES]
+    if (fromCatalog.length) return [...new Set(fromCatalog)]
+    return apiCatalogMode() ? [] : [...FALLBACK_GRADES]
 }
 
 export const getSections = () => {
     const fromCatalog = getCatalogSections().map((item) => String(item || '').trim().toUpperCase()).filter(Boolean)
-    return fromCatalog.length ? [...new Set(fromCatalog)] : [...FALLBACK_SECTIONS]
+    if (fromCatalog.length) return [...new Set(fromCatalog)]
+    return apiCatalogMode() ? [] : [...FALLBACK_SECTIONS]
 }
+
+export const getSectionsForClass = (className) => {
+    const fromCatalog = getCatalogSectionsForClass(className)
+    if (fromCatalog.length) return fromCatalog
+    return apiCatalogMode() ? [] : [...FALLBACK_SECTIONS]
+}
+
+/** Prefetch Class Details so allocation dropdowns match Admin. */
+export const hydrateClassCatalogForAllocation = () => ensureClassCatalogHydrated()
 
 let masterSubjects = []
 

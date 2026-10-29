@@ -161,7 +161,7 @@ def portal_employees(db: Session, actor: User) -> list[dict]:
 
 def create_staff(db: Session, actor: User, item: dict) -> dict:
     role_title = str(item.get("role") or "").strip()
-    if _role_code(role_title) is None:
+    if _assert_actor_may_assign_portal_role(db, actor, role_title) is None:
         fail(422, "role_required", "Pick a role from the fixed list.")
     email = str(item.get("email") or "").lower().strip()
     if not email:
@@ -234,7 +234,7 @@ def replace_portal_employees(db: Session, actor: User, items: list[dict]) -> lis
         _apply_portal(row, item, existing=previous is not None)
         db.flush()
         _provision_user(db, actor, row)
-        _sync_user_role(db, row)
+        _sync_user_role(db, actor, row)
         _remember_assignment(db, actor, row, previous)
         _sync_login_active(db, row)
     for existing in list_employees(db, actor):
@@ -598,6 +598,33 @@ def _role_code(title: str) -> str | None:
     return _ROLE_ALIASES.get(compact)
 
 
+def _assert_actor_may_assign_portal_role(db: Session, actor: User, role_title: str) -> str | None:
+    """Map a portal role title and enforce the same creatable-role rules as Admin user management.
+
+    Privileged codes (admin, superadmin, hr, finance, parent, …) must not be minted or
+    escalated onto through HR staffing. Unrecognised titles return ``None`` (no login link).
+    """
+    from app.services.admin_users import creatable_roles_for
+
+    code = _role_code(role_title)
+    if code is None:
+        return None
+    allowed = set(creatable_roles_for(role_code_for(db, actor)))
+    if code not in allowed:
+        fail(
+            403,
+            "forbidden",
+            f"Portal role '{code}' cannot be assigned from HR. Use Administrator user management for allowed staff roles only.",
+        )
+    return code
+
+
+def _portal_role_allowed_for_actor(db: Session, actor: User, code: str) -> bool:
+    from app.services.admin_users import creatable_roles_for
+
+    return code in set(creatable_roles_for(role_code_for(db, actor)))
+
+
 def _is_locked(collection: str, body: dict) -> bool:
     status = str(body.get("status") or body.get("paymentStatus") or "")
     if collection == "payroll-months" and status.lower() in {"paid", "finalized"}:
@@ -698,12 +725,19 @@ def _provision_user(db: Session, actor: User, row: HrEmployee) -> str | None:
     code = _role_code(row.role_title or "")
     if code is None:
         return None
-    role = db.scalar(select(Role).where(Role.code == code))
-    if role is None:
-        return None
     existing = db.scalar(select(User).where(User.email == row.email))
     if existing is not None:
         row.user_id = existing.id
+        return None
+    # Creating a *new* login must follow Admin creatable-role rules (ASA-01).
+    if not _portal_role_allowed_for_actor(db, actor, code):
+        fail(
+            403,
+            "forbidden",
+            f"Portal role '{code}' cannot be assigned from HR. Use Administrator user management for allowed staff roles only.",
+        )
+    role = db.scalar(select(Role).where(Role.code == code))
+    if role is None:
         return None
     temporary = generate_temporary_password()
     user = User(
@@ -737,18 +771,36 @@ def _provision_user(db: Session, actor: User, row: HrEmployee) -> str | None:
     return temporary
 
 
-def _sync_user_role(db: Session, row: HrEmployee) -> None:
+def _sync_user_role(db: Session, actor: User, row: HrEmployee) -> None:
+    """Keep linked login role aligned with the HR title when the actor may assign that role.
+
+    Bulk portal saves re-post every employee, including seed rows that already hold privileged
+    roles. Re-saving those titles is a no-op. Escalating a login *to* a non-creatable role fails.
+    """
     if row.user_id is None:
         return
     code = _role_code(row.role_title or "")
-    role = db.scalar(select(Role).where(Role.code == code)) if code else None
+    if code is None:
+        return
     user = db.get(User, row.user_id)
     locked = {
         settings.admin_seed_email.lower(),
         settings.hr_seed_email.lower(),
         settings.director_seed_email.lower(),
     }
-    if role is None or user is None or (user.email or "").lower() in locked:
+    if user is None or (user.email or "").lower() in locked:
+        return
+    current = role_code_for(db, user)
+    if code == current:
+        return
+    if not _portal_role_allowed_for_actor(db, actor, code):
+        fail(
+            403,
+            "forbidden",
+            f"Portal role '{code}' cannot be assigned from HR. Use Administrator user management for allowed staff roles only.",
+        )
+    role = db.scalar(select(Role).where(Role.code == code))
+    if role is None:
         return
     user.role_id = role.id
 

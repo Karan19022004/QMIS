@@ -1,3 +1,7 @@
+import { getClasses, getSections, getSectionsForClass } from '../../../Common/RBAC/academicsCatalogData'
+import { getAccessToken, isApiAuthEnabled } from '../../../services/apiClient'
+import { liveArray } from '../../../Common/RBAC/liveArray'
+
 const STORAGE_KEY = 'principal-examination-timetables'
 
 export const ROUTE_BASE = '/principal/examination-timetable'
@@ -24,8 +28,24 @@ export const getExamTimetableRoutes = (pathname = '') => {
 export const EXAM_STATUSES = ['Draft', 'Published']
 export const APPROVAL_STATUSES = ['Pending', 'Approved', 'Denied']
 
-export const GRADES = ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']
-export const SECTIONS = ['A', 'B', 'C']
+const DEMO_GRADES = ['Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12']
+const DEMO_SECTIONS = ['A', 'B', 'C']
+const apiCatalogMode = () => isApiAuthEnabled() && Boolean(getAccessToken())
+
+export const getGradeOptions = () => {
+    const fromCatalog = getClasses()
+    if (fromCatalog.length) return fromCatalog
+    return apiCatalogMode() ? [] : DEMO_GRADES
+}
+
+export const getSectionOptions = (className = '') => {
+    const fromCatalog = className ? getSectionsForClass(className) : getSections()
+    if (fromCatalog.length) return fromCatalog
+    return apiCatalogMode() ? [] : DEMO_SECTIONS
+}
+
+export const GRADES = liveArray(getGradeOptions)
+export const SECTIONS = liveArray(() => getSectionOptions())
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 export const SUBJECTS = ['Tamil', 'English', 'Science', 'Social', 'EVS', 'Hindi', 'French', 'Maths', 'GK']
 export const TEACHERS = ['Mr. Ravi Kumar', 'Ms. Anitha Verma', 'Dr. Suresh Menon', 'Mr. Karthik Selvan', 'Mrs. Priya Nair']
