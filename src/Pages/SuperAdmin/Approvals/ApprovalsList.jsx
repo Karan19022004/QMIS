@@ -7,14 +7,16 @@ import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
 import {
     APPROVAL_STATUSES,
+    DEMO_APPROVAL_SEEDS_NOTICE,
     categoryBadgeColor,
     filterApprovalRequests,
     formatAmount,
     getAllApprovalRequests,
     getApprovalSummary,
     hydrateApprovalsFromApi,
+    includeDemoApprovalSeeds,
+    liveApprovalCategories,
     priorityBadgeColor,
-    REQUEST_CATEGORIES,
     ROUTE_BASE,
     statusBadgeColor,
 } from './approvalsData'
@@ -79,8 +81,13 @@ const ApprovalsList = () => {
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h1 className='text-xl font-semibold text-black'>Approvals</h1>
                 <p className='text-sm text-[#667085] mt-2'>
-                    Central inbox for Super Admin — pending activity approvals (cultural / sports / competitions), plus finance, data changes, HR, procurement, budget, and policy requests.
+                    {includeDemoApprovalSeeds()
+                        ? 'Live Activity Approvals plus demo sample rows (finance/HR/procurement/etc.). Only Activity Approvals are decided on the server.'
+                        : 'Live Activity Approvals only (cultural / sports / competitions). Demo finance/HR/procurement samples are hidden under API auth (ASA-04).'}
                 </p>
+                {!includeDemoApprovalSeeds() && (
+                    <p className='text-xs text-[#92400E] mt-2'>{DEMO_APPROVAL_SEEDS_NOTICE}</p>
+                )}
             </div>
 
             <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-6'>
@@ -117,7 +124,7 @@ const ApprovalsList = () => {
                     >
                         All Categories
                     </button>
-                    {REQUEST_CATEGORIES.map((item) => (
+                    {liveApprovalCategories().map((item) => (
                         <button
                             key={item}
                             type='button'
@@ -253,9 +260,16 @@ const ApprovalsList = () => {
                                         <td className='px-2 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{request.requestId}</td>
                                         <td className='px-2 py-4'>{request.requestDate}</td>
                                         <td className='px-2 py-4'>
-                                            <span className={`inline-flex px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap ${categoryBadgeColor[request.category] ?? categoryBadgeColor['Finance Request']}`}>
-                                                {request.category}
-                                            </span>
+                                            <div className='flex flex-col gap-1'>
+                                                <span className={`inline-flex px-2 py-1 rounded-lg text-xs font-semibold whitespace-nowrap w-fit ${categoryBadgeColor[request.category] ?? categoryBadgeColor['Finance Request']}`}>
+                                                    {request.category}
+                                                </span>
+                                                {(request.isDemo || request.source === 'demo') && (
+                                                    <span className='inline-flex px-2 py-0.5 rounded text-[10px] font-semibold w-fit bg-[#F59E0B33] text-[#92400E]'>
+                                                        Demo
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className='px-2 py-4 max-w-xs'>{request.title}</td>
                                         <td className='px-2 py-4'>{request.requestedBy}</td>

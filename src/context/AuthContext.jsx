@@ -241,11 +241,17 @@ export const AuthProvider = ({ children }) => {
         clearActiveCreatedUserSession()
 
         if (expectedRole === ROLES.ADMIN) {
-            const createdAdminUser = createdAdmin || getAdminUserByEmail(normalizedEmail)
-            if (createdAdminUser && !createdAdminUser.isSystem) {
-                setActiveAdminSession(createdAdminUser)
-            } else {
+            // ASA-03: with API auth, do not apply Super Admin checkbox previews as access control.
+            // Local sessionStorage module filters are not an authorization boundary.
+            if (isApiAuthEnabled()) {
                 clearActiveAdminSession()
+            } else {
+                const createdAdminUser = createdAdmin || getAdminUserByEmail(normalizedEmail)
+                if (createdAdminUser && !createdAdminUser.isSystem) {
+                    setActiveAdminSession(createdAdminUser)
+                } else {
+                    clearActiveAdminSession()
+                }
             }
         } else {
             clearActiveAdminSession()

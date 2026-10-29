@@ -6,7 +6,25 @@ import {
     formatUserDateOfBirth,
     validateUserCreationForm,
 } from '../../../Common/RBAC/createdUsersData'
-import { canUseAdminUsersApi, createAdminUserApi, listAdminUsersApi } from '../../../services/adminUsersApi'
+import { isApiAuthEnabled } from '../../../services/apiClient'
+import {
+    canUseAdminUsersApi,
+    createAdminUserApi,
+    getAdminUserApi,
+    listAdminUsersApi,
+    resetAdminUserPasswordApi,
+    updateAdminUserApi,
+} from '../../../services/adminUsersApi'
+
+/**
+ * ASA-03: Super Admin module checkboxes are NOT server access control.
+ * Live auth grants every `admin` the full matrix `_ADMIN` permission codes.
+ * There is no per-user module-grant API or table. Do not invent semantics.
+ */
+export const MODULE_PERMISSIONS_PREVIEW_ONLY = true
+
+export const MODULE_PERMISSIONS_NOTICE =
+    'Preview only — not access control. Administrator logins receive the full Admin role on the server. Per-module grants need a product decision and schema before they can be enforced.'
 
 const STORAGE_KEY = 'schoolerp-super-admin-admin-users'
 const ACTIVE_ADMIN_KEY = 'schoolerp_active_admin_user'
@@ -226,6 +244,15 @@ export const createAdminUser = (payload) => {
     return { success: true, user: nextUser }
 }
 
+const _mergeMappedIntoStore = (mapped) => {
+    const records = loadAdminUsers().filter(
+        (row) => row.userId !== mapped.userId && row.id !== mapped.id,
+    )
+    records.unshift(mapped)
+    saveAdminUsers(records)
+    return mapped
+}
+
 /** Prefer the shared admin-users API so Super Admin creates the same accounts Admin RBAC uses. */
 export const createAdminUserViaApi = async (payload) => {
     if (!canUseAdminUsersApi()) return createAdminUser(payload)
@@ -240,6 +267,7 @@ export const createAdminUserViaApi = async (payload) => {
             email: payload.email?.trim(),
             gender: payload.gender || 'Male',
             mobileNumber: payload.mobileNumber?.trim() || '',
+            status: payload.status === 'Inactive' ? 'Inactive' : 'Active',
             password: payload.password?.trim() || undefined,
             details: {
                 username: payload.username?.trim() || '',
@@ -251,12 +279,81 @@ export const createAdminUserViaApi = async (payload) => {
             success: true,
             user: fromAdminUsersApi(created),
             temporaryPassword: created.temporaryPassword,
+            persistedOnServer: true,
         }
     } catch (error) {
         return { success: false, message: error?.message || 'Could not create admin user.' }
     }
 }
 
+/** Load one Administrator from the API (staff code or UUID). Authoritative for view/edit. */
+export const fetchAdminUserViaApi = async (staffCodeOrId) => {
+    if (!canUseAdminUsersApi()) return getAdminUserById(staffCodeOrId)
+
+    await hydrateAdminUsersFromApi().catch(() => null)
+    let mirrored = getAdminUserById(staffCodeOrId)
+    const serverId = mirrored?.userId || staffCodeOrId
+    try {
+        const apiUser = await getAdminUserApi(serverId)
+        // ASA-03: display full Admin role map; never rehydrate local checkbox state as grants.
+        return _mergeMappedIntoStore(fromAdminUsersApi(apiUser))
+    } catch {
+        return mirrored || getAdminUserById(staffCodeOrId)
+    }
+}
+
+/**
+ * Persist status (activate / deactivate) via PATCH /admin/users/{id}.
+ * Module-permission payloads are ignored (ASA-03 — no server grant model).
+ * Success is returned only after the backend confirms the status write.
+ */
+export const updateAdminUserViaApi = async (user, payload) => {
+    if (!canUseAdminUsersApi()) {
+        return updateAdminUser(user?.id, payload)
+    }
+    if (!user?.userId) {
+        return {
+            success: false,
+            message: 'User is missing a server id. Refresh the list and try again.',
+        }
+    }
+
+    const nextStatus = payload.status === 'Inactive' ? 'Inactive' : 'Active'
+    try {
+        const updated = await updateAdminUserApi(user.userId, { status: nextStatus })
+        await hydrateAdminUsersFromApi().catch(() => null)
+        const mapped = fromAdminUsersApi(updated)
+        // Do not write checkbox state as if it were authoritative access control.
+        mapped.permissions = buildFullPermissions()
+        _mergeMappedIntoStore(mapped)
+
+        // API-mode Admin sessions must not use local module filters as an authz boundary.
+        if (isApiAuthEnabled()) {
+            clearActiveAdminSession()
+        }
+
+        return { success: true, user: mapped, persistedOnServer: true }
+    } catch (error) {
+        return { success: false, message: error?.message || 'Could not update administrator.' }
+    }
+}
+
+export const resetAdminUserPasswordViaApi = async (user) => {
+    if (!canUseAdminUsersApi()) {
+        return { success: false, message: 'Admin user API is not available.' }
+    }
+    if (!user?.userId) {
+        return { success: false, message: 'User is missing a server id. Refresh the list and try again.' }
+    }
+    try {
+        const result = await resetAdminUserPasswordApi(user.userId)
+        return { success: true, temporaryPassword: result.temporaryPassword, persistedOnServer: true }
+    } catch (error) {
+        return { success: false, message: error?.message || 'Could not reset password.' }
+    }
+}
+
+/** Local-only fallback when the admin-users API flag/session is off. */
 export const updateAdminUser = (id, payload) => {
     const records = loadAdminUsers()
     const index = records.findIndex((user) => user.id === id)
@@ -289,7 +386,7 @@ export const updateAdminUser = (id, payload) => {
         setActiveAdminSession(records[index])
     }
 
-    return { success: true, user: records[index] }
+    return { success: true, user: records[index], persistedOnServer: false }
 }
 
 export const getAdminUserSummary = (records) => ({
@@ -342,6 +439,12 @@ export const getActiveAdminSession = () => {
 }
 
 export const getFilteredAdminSidebarLinks = () => {
+    // ASA-03: never treat Super Admin module checkboxes as authorization when API auth is on.
+    // Backend `admin` role already has the full permission matrix.
+    if (isApiAuthEnabled() || MODULE_PERMISSIONS_PREVIEW_ONLY) {
+        return adminSidebarLinks
+    }
+
     const session = getActiveAdminSession()
     if (!session?.permissions) return adminSidebarLinks
 
@@ -351,6 +454,9 @@ export const getFilteredAdminSidebarLinks = () => {
         return Boolean(session.permissions[module.key])
     })
 }
+
+/** List/detail label for the Permissions column — must not imply per-module server grants. */
+export const getAdminAccessLabel = () => 'Full Admin role (server)'
 
 export const DEFAULT_ADMIN_FORM = {
     name: '',

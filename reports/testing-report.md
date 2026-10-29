@@ -1,61 +1,36 @@
 # Testing report
 
 **Date:** 29 October 2026  
-**Context:** Academic workflow gap fixes + `:5173`→`:8000` Postgres UAT + closure pass; class/section+leave audit; **Phase 1 full ERP audit** (static inventory only — no new pytest this final pass). No production writes. Not committed/pushed.
+**Context:** User Creation crash-fix verification (`getAdminAccessLabel`). Local Vite `:5173` → API `:8000`. No production writes. Not committed/pushed.
 
-## Suites — closure pass (late evening)
+## Latest — Crash-fix verification
 
-| Suite | Result |
+| Suite / check | Result |
 |---|---|
-| Read-only connection diagnostics | **ROOT CAUSE:** pgAdmin ≈90–92 conns; uvicorn `:8000` = 5; `:8001` = 0 to Postgres. No terminate/limit change |
-| Subject masters investigation | Campus = English only; default seed includes Mathematics — **no insert** |
-| Teacher correction UI (English 38→40) | **PASS** (browser click path) |
-| Principal→Director correction decide | **PASS (API)** after Principal UI `Failed to fetch` |
-| Alembic / `exams.schedule` | Local **`0023_attendance_dual_session`**; schedule JSON nullable **YES** |
-| Sign-off | **Substantially passed** — pending pgAdmin clearance + Principal/Director approve-button UI |
+| `pytest tests/test_admin_users.py tests/test_admin_employee_directory.py tests/test_frontend_admin_users_static.py tests/test_frontend_superadmin_approvals_static.py -q --import-mode=importlib` | **69 passed** |
+| `pytest tests/test_frontend_admin_users_static.py` (incl. export label guard) | **12 passed** |
+| `npm run build` | **PASS** (`BUILD_EXIT=0`) |
+| Browser list + Export modal (no `getPermissionCount` crash) | **PASS** |
+| Browser create `uat.crashfix.admin@qmis.edu` → list/view labels | **PASS** |
+| Admin cannot create/manage admin; teacher PATCH 403 | **PASS** (API) |
+| ASA-04 `ACT-CUL-006` still Approved | **PASS** (API smoke) |
 
-## Suites — Postgres `:8000` verification (evening)
+## Prior same day — Browser UAT ASA-02 / ASA-04
 
-| Suite | Result |
+| Suite / check | Result |
 |---|---|
-| Env: Vite API base + browser login to `:8000` | **PASS** |
-| Dedicated PG8000 API + browser workflow | **PASS** (see gap-fix report) |
-| Focused association + year + notify + correction (`--import-mode=importlib`) | **11 passed** |
-| Frontend `npm run build` | **PASS** |
-
-## Suites — earlier same day
-
-| Suite | Result |
-|---|---|
-| Isolated `:8001` browser UAT + year labels | **29 passed** + checklist evidence |
-| Gap-fix focused academic | **25 passed** (superseded counts) |
-| Schedule migration + mark-entry modules | **16 passed**; full suite **644 passed / 9 failed** (unrelated; not re-run) |
+| ASA-02 deactivate / reactivate / failure handling | **PASS** (browser; audit §14) |
+| ASA-04 activity approve + demo quarantine | **PASS** (browser; audit §14) |
+| Isolated `:5181`→`:8001` login | **BLOCKED** (CORS) |
 
 ## Coverage notes
 
-- Teacher correction UI verified on English published batch; Maths 43 preserved.
-- Connection pressure can cause intermittent browser `Failed to fetch` on approval screens.
-- Local migration head includes schedule (`0022`) and attendance dual-session (`0023`).
-
-## Suites — Phase 1 full ERP audit (late)
-
-| Suite | Result |
-|---|---|
-| Static role/permission/API/FE inventory | **Done** → `docs/QMIS_Full_Role_Module_Workflow_Audit.md` |
-| Full pytest / browser UAT for ops finance library gate etc. | **Not run** (audit-only Phase 1) |
-
-## Suites — Class/section catalog consistency
-
-| Suite | Result |
-|---|---|
-| Inventory + gap doc | `docs/QMIS_Class_Section_Catalog_Consistency_Audit.md` |
-| `pytest tests/test_exams.py tests/test_class_details_api.py -q --import-mode=importlib` | **12 passed** (includes unknown class/section + inactive section + teacher masters 403) |
-| `npm run build` | **PASS** |
-| Browser UAT Admin→all roles catalog | **Not run** |
+- Crash path: Export/list no longer calls unbound `getPermissionCount`.
+- Unused exports of `getPermissionCount` remain in `adminUsersData.js` / `rolePermissionsData.js` (not broken call sites).
+- Disposable admins `uat.asa02.admin@qmis.edu` and `uat.crashfix.admin@qmis.edu` left Active.
 
 ## Not run / blockers
 
-- Terminating pgAdmin / changing `max_connections` (needs explicit approval).
-- Production `alembic upgrade` (must be scheduled separately).
-- Full Principal/Director approve-button browser clicks under healthy connection budget.
-- Creating Mathematics master without Admin curriculum confirmation.
+- Full browser re-run of ASA-02/ASA-04 decide flows (already §14).
+- Product confirmation for non-activity approval domains (§10 Q5).
+- ASA-05+.

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.models import Admission, FinanceRecord, FinancialYear, Student, User
+from app.models import AcademicYear, Admission, FinanceRecord, FinancialYear, Section, Student, User
 from app.services.audit import write_audit
 from app.services.errors import fail
 
@@ -184,8 +184,41 @@ def _attach_financial_year_meta(db: Session, actor: User, data: dict) -> dict:
     return data
 
 
+def _section_label_for_student(student: Student, sections_by_id: dict) -> str:
+    """Section display name from placement; empty when the student is not yet placed."""
+    label = (student.section or "").strip()
+    if label:
+        return label
+    if student.section_id:
+        row = sections_by_id.get(student.section_id)
+        if row is not None:
+            return (row.name or "").strip()
+    return ""
+
+
+def _academic_year_label_for_student(student: Student, years_by_id: dict) -> str:
+    """Academic-year display label from the student's FK; empty when unset (never fabricate)."""
+    if not student.academic_year_id:
+        return ""
+    year = years_by_id.get(student.academic_year_id)
+    if year is None:
+        return ""
+    return (year.name or "").strip()
+
+
 def _enrolled_students(db: Session, campus_id) -> list[dict]:
     students = db.scalars(select(Student).where(Student.campus_id == campus_id)).all()
+    year_ids = {s.academic_year_id for s in students if s.academic_year_id}
+    section_ids = {s.section_id for s in students if s.section_id}
+    years_by_id = {
+        y.id: y
+        for y in db.scalars(select(AcademicYear).where(AcademicYear.id.in_(year_ids))).all()
+    } if year_ids else {}
+    sections_by_id = {
+        s.id: s
+        for s in db.scalars(select(Section).where(Section.id.in_(section_ids))).all()
+    } if section_ids else {}
+
     rows: list[dict] = []
     for student in students:
         admission = None
@@ -205,8 +238,8 @@ def _enrolled_students(db: Session, campus_id) -> list[dict]:
                 "applicationNo": "",
                 "registerNo": "",
                 "className": student.class_name,
-                "section": "",
-                "academicYear": "2026-2027",
+                "section": _section_label_for_student(student, sections_by_id),
+                "academicYear": _academic_year_label_for_student(student, years_by_id),
                 "dateOfBirth": admission.date_of_birth.isoformat() if admission and admission.date_of_birth else "",
                 "bloodGroup": (admission.blood_group if admission else "") or "",
                 "fatherName": (admission.father_name if admission else "") or "",

@@ -392,3 +392,108 @@ def test_creatable_roles_for_admin(client):
         "stationerystoremanager",
         "housekeepingmanager",
     }
+
+
+# --- ASA-02: Super Admin edit / deactivate Administrator accounts -----------------------
+
+
+def test_superadmin_can_deactivate_and_reactivate_an_admin_with_persistence(client):
+    """ASA-02: status changes go through PATCH /admin/users and survive a fresh GET."""
+    _ensure_superadmin()
+    headers = _login(client, SUPER_EMAIL, SUPER_PASSWORD)
+    created = _create(
+        client,
+        headers,
+        email="asa02.admin@qmis.edu",
+        role="admin",
+        firstName="Campus",
+        lastName="Admin",
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    admin_id = body["id"]
+    temp = body["temporaryPassword"]
+    assert body["role"] == "admin"
+    assert client.post("/api/v1/auth/login", json={"email": "asa02.admin@qmis.edu", "password": temp}).status_code == 200
+
+    off = client.patch(f"{USERS}/{admin_id}", json={"status": "Inactive"}, headers=headers)
+    assert off.status_code == 200, off.text
+    assert off.json()["status"] == "Inactive"
+
+    again = client.get(f"{USERS}/{admin_id}", headers=headers)
+    assert again.status_code == 200, again.text
+    assert again.json()["status"] == "Inactive"
+    assert client.post("/api/v1/auth/login", json={"email": "asa02.admin@qmis.edu", "password": temp}).status_code in (
+        400,
+        401,
+        403,
+    )
+
+    on = client.patch(f"{USERS}/{admin_id}", json={"status": "Active"}, headers=headers)
+    assert on.status_code == 200 and on.json()["status"] == "Active"
+    assert client.get(f"{USERS}/{admin_id}", headers=headers).json()["status"] == "Active"
+    assert client.post("/api/v1/auth/login", json={"email": "asa02.admin@qmis.edu", "password": temp}).status_code == 200
+
+
+def test_campus_admin_and_teacher_cannot_deactivate_an_administrator(client):
+    """ASA-02 unauthorized: only Super Admin may manage the admin role via /admin/users."""
+    _ensure_superadmin()
+    super_headers = _login(client, SUPER_EMAIL, SUPER_PASSWORD)
+    created = _create(
+        client,
+        super_headers,
+        email="asa02.protected@qmis.edu",
+        role="admin",
+        firstName="Protected",
+        lastName="Admin",
+    ).json()
+    admin_id = created["id"]
+
+    campus_admin = _admin(client)
+    teacher = _login(client, *TEACHER)
+    for headers in (campus_admin, teacher):
+        denied = client.patch(f"{USERS}/{admin_id}", json={"status": "Inactive"}, headers=headers)
+        assert denied.status_code == 403, denied.text
+    assert client.get(f"{USERS}/{admin_id}", headers=super_headers).json()["status"] == "Active"
+
+
+def test_other_campus_superadmin_cannot_manage_this_campus_admin(client):
+    """ASA-02 campus isolation: foreign campus actor gets 404, not a cross-tenant write."""
+    import uuid
+
+    from app.models import Campus
+
+    _ensure_superadmin()
+    home = _login(client, SUPER_EMAIL, SUPER_PASSWORD)
+    created = _create(
+        client,
+        home,
+        email="asa02.home.admin@qmis.edu",
+        role="admin",
+        firstName="Home",
+        lastName="Admin",
+    ).json()
+    admin_id = created["id"]
+
+    with SessionLocal() as db:
+        tag = uuid.uuid4().hex[:8]
+        other = Campus(code=f"ASA02{tag}"[:32], name=f"Other ASA02 {tag}", city="Elsewhere")
+        db.add(other)
+        db.flush()
+        role = db.scalar(select(Role).where(Role.code == "superadmin"))
+        email = f"asa02.foreign.{tag}@qmis.edu"
+        db.add(
+            User(
+                campus_id=other.id,
+                role_id=role.id,
+                email=email,
+                password_hash=hash_password(SUPER_PASSWORD),
+                is_active=True,
+            )
+        )
+        db.commit()
+
+    foreign = _login(client, email, SUPER_PASSWORD)
+    assert client.get(f"{USERS}/{admin_id}", headers=foreign).status_code == 404
+    assert client.patch(f"{USERS}/{admin_id}", json={"status": "Inactive"}, headers=foreign).status_code == 404
+    assert client.get(f"{USERS}/{admin_id}", headers=home).json()["status"] == "Active"
