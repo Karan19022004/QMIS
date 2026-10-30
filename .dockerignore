@@ -1,0 +1,16 @@
+.git
+.github
+node_modules
+dist
+backend
+docs
+reports
+local
+erp complete documentation
+.archify
+.cursor
+.env
+.env.*
+*.md
+*.pdf
+_*.txt
