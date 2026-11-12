@@ -154,7 +154,14 @@ const SupportTicketsList = ({
                     <span className='inline-flex items-center gap-2'><ChevronLeft size={16} /><ChevronRight size={16} /></span>
                 </div>
             </div>
-            {exportModal && <ExportModal exportModal={exportModal} setExportModal={setExportModal} />}
+            {exportModal && <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='supportticketslist'
+                title='SupportTicketsList'
+                rows={Array.isArray(filtered) ? filtered : []}
+                exportDescription={<>You are exporting {Array.isArray(filtered) ? filtered.length : 0} record(s).</>}
+            />}
         </section>
     )
 }

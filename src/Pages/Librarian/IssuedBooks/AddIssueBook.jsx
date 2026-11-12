@@ -1,30 +1,51 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { getLibraryBooks, hydrateLibraryFromApi, issueLibraryBook } from '../libraryData'
+import {
+    getLibraryBooks,
+    getLibraryMembers,
+    hydrateLibraryFromApi,
+    issueLibraryBook,
+} from '../libraryData'
 
 const inputClass = 'text-sm text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-3 py-3 w-full'
 
 const AddIssueBook = () => {
     const navigate = useNavigate()
     const [books, setBooks] = useState([])
+    const [members, setMembers] = useState([])
     const [bookId, setBookId] = useState('')
-    const [memberName, setMemberName] = useState('')
+    const [memberId, setMemberId] = useState('')
     const [issueDate, setIssueDate] = useState('')
     const [dueDate, setDueDate] = useState('')
     const [error, setError] = useState('')
     const [saving, setSaving] = useState(false)
 
     useEffect(() => {
-        hydrateLibraryFromApi().finally(() => setBooks(getLibraryBooks().filter((row) => Number(row.available) > 0)))
+        hydrateLibraryFromApi().finally(() => {
+            setBooks(getLibraryBooks().filter((row) => Number(row.available) > 0))
+            setMembers(getLibraryMembers().filter((row) => row.status !== 'Inactive'))
+        })
     }, [])
+
+    const selectedMember = members.find((row) => row.id === memberId)
+    const limitHint = selectedMember
+        ? (String(selectedMember.role || '').toLowerCase().includes('student') ? 'Limit: 1 book' : 'Limit: 5 books')
+        : ''
 
     const save = async () => {
         setSaving(true)
         setError('')
         try {
             await hydrateLibraryFromApi()
-            const result = issueLibraryBook({ bookId, memberName, issueDate, dueDate })
+            const result = issueLibraryBook({
+                bookId,
+                memberId,
+                memberName: selectedMember?.name,
+                memberRole: selectedMember?.role,
+                issueDate,
+                dueDate,
+            })
             if (!result.success) {
                 setError(result.message)
                 return
@@ -51,8 +72,16 @@ const AddIssueBook = () => {
                             ))}
                         </select>
                     </label>
-                    <label className='text-sm text-[#344054]'>Member name
-                        <input className={inputClass} value={memberName} onChange={(event) => setMemberName(event.target.value)} />
+                    <label className='text-sm text-[#344054]'>Member
+                        <select className={inputClass} value={memberId} onChange={(event) => setMemberId(event.target.value)}>
+                            <option value=''>Select member</option>
+                            {members.map((member) => (
+                                <option key={member.id} value={member.id}>
+                                    {member.name} · {member.role}{member.className ? ` · ${member.className}${member.section || ''}` : ''}
+                                </option>
+                            ))}
+                        </select>
+                        {limitHint ? <span className='text-xs text-[#667085]'>{limitHint}</span> : null}
                     </label>
                     <label className='text-sm text-[#344054]'>Issue date
                         <input type='date' className={inputClass} value={issueDate} onChange={(event) => setIssueDate(event.target.value)} />
@@ -62,6 +91,7 @@ const AddIssueBook = () => {
                     </label>
                 </div>
                 {books.length === 0 && <p className='text-sm text-[#667085]'>No available copies. Add a book first.</p>}
+                {members.length === 0 && <p className='text-sm text-[#667085]'>No members in the catalogue. Add members first.</p>}
                 {error && <p className='text-sm text-red-600' role='alert'>{error}</p>}
             </div>
             <div className='flex justify-end gap-3'>

@@ -217,7 +217,14 @@ const CreateExamSchedule = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='createexamschedule'
+                title='CreateExamSchedule'
+                rows={Array.isArray(schedules) ? schedules : []}
+                exportDescription={<>You are exporting {Array.isArray(schedules) ? schedules.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
             <ExamTimeTableModal

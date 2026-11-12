@@ -208,7 +208,19 @@ const Reports = () => {
                 </ReportTableSection>
             )}
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="stationery-reports"
+                title="Stationery Reports"
+                rows={[
+                    ...reports.stockMovement.filter(matches),
+                    ...reports.consumption.filter(matches),
+                    ...reports.expense.filter(matches),
+                    ...reports.lowStock.filter(matches),
+                ]}
+                exportDescription={<>You are exporting the currently filtered stationery report rows.</>}
+            />
         </section>
     )
 }

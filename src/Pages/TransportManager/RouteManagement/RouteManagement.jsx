@@ -206,7 +206,14 @@ const RouteManagement = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='routemanagement'
+                title='RouteManagement'
+                rows={Array.isArray(routes) ? routes : []}
+                exportDescription={<>You are exporting {Array.isArray(routes) ? routes.length : 0} record(s).</>}
+            />
             <DeleteRequestModal
                 deleteRequestModal={deleteModal}
                 setDeleteRequestModal={setDeleteModal}

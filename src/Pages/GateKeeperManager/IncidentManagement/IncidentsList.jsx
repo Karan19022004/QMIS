@@ -161,7 +161,14 @@ const IncidentsList = () => {
             </div>
 
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='incidentslist'
+                title='IncidentsList'
+                rows={Array.isArray(incidents) ? incidents : []}
+                exportDescription={<>You are exporting {Array.isArray(incidents) ? incidents.length : 0} record(s).</>}
+            />
 
         </section>
     )

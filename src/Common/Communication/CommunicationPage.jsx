@@ -57,13 +57,22 @@ const CommunicationPage = ({ roleKey }) => {
                     .then(([me, rows, people]) => {
                         setSelf({
                             id: String(me.id),
+                            employeeId: me.employee_id || me.employeeId || '',
                             name: me.full_name || me.email,
                             role: me.role_name || me.role,
                             department: '',
                             avatarColor: roleConfig.currentUser.avatarColor,
                         })
+                        const selfIds = new Set(
+                            [me.id, me.employee_id, me.employeeId]
+                                .filter(Boolean)
+                                .map((value) => String(value)),
+                        )
                         setConversations(rows)
-                        setDirectory(people)
+                        setDirectory(
+                            (people || []).filter((person) => !selfIds.has(String(person.id || ''))
+                                && !selfIds.has(String(person.employeeId || ''))),
+                        )
                     })
                     .catch(() => {
                         setError('Failed to load conversations. Please try again.')

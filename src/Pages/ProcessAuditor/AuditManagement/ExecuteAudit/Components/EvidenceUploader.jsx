@@ -69,10 +69,10 @@ const EvidenceUploader = ({ evidence, onChange, showUrlInput: controlledShowUrl,
         <div className='space-y-1.5'>
             <div className='flex items-center gap-1.5 flex-wrap'>
                 <IconButton icon={Camera} active={slotActive('photo')} title='Upload Photo' busy={busyField === 'photo'}>
-                    <input type='file' accept='image/*' className='hidden' onChange={(e) => handleFile('photo', e)} />
+                    <input type='file' accept='image/png,image/jpeg,image/*,.png,.jpg,.jpeg' className='hidden' onChange={(e) => handleFile('photo', e)} />
                 </IconButton>
                 <IconButton icon={FileText} active={slotActive('file')} title='Upload File' busy={busyField === 'file'}>
-                    <input type='file' accept='.pdf,.doc,.docx' className='hidden' onChange={(e) => handleFile('file', e)} />
+                    <input type='file' accept='.pdf,.doc,.docx,.png,image/png,image/*,application/pdf' className='hidden' onChange={(e) => handleFile('file', e)} />
                 </IconButton>
                 <IconButton icon={Video} active={slotActive('video')} title='Upload Video' busy={busyField === 'video'}>
                     <input type='file' accept='video/*' className='hidden' onChange={(e) => handleFile('video', e)} />

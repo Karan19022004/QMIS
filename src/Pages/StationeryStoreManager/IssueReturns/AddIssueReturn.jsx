@@ -53,7 +53,8 @@ const AddIssueReturn = () => {
             }
             const available = Number(item.availableQuantity) || 0
             let nextQty = available
-            if (activityType === 'Issue') {
+            const outbound = activityType === 'Issue' || activityType === 'Given'
+            if (outbound) {
                 if (qty > available) {
                     toast.error(`Cannot issue ${qty} of ${line.itemName}. Only ${available} available. Raise a purchase instead.`)
                     return false
@@ -95,12 +96,12 @@ const AddIssueReturn = () => {
                 quantity: Number(line.quantity),
                 remarks: form.remarks,
                 purpose: form.purpose,
-                status: activityType === 'Return' ? 'Returned' : 'Issued',
-                issueDate: activityType === 'Issue' ? formatDisplayDate(form.issueDate) : '—',
-                returnDate: activityType === 'Return' ? formatDisplayDate(form.returnDate) : '—',
+                status: activityType === 'Return' ? 'Returned' : activityType === 'Receiving' ? 'Received' : 'Issued',
+                issueDate: (activityType === 'Issue' || activityType === 'Given') ? formatDisplayDate(form.issueDate) : '—',
+                returnDate: (activityType === 'Return' || activityType === 'Receiving') ? formatDisplayDate(form.returnDate) : '—',
                 availableStock: item?.availableQuantity ?? null,
                 originalIssueRef: activityType === 'Return' ? form.originalIssueRef : null,
-                condition: activityType === 'Return' ? (form.condition || 'Good') : null,
+                condition: (activityType === 'Return' || activityType === 'Receiving') ? (form.condition || 'Good') : null,
                 returnable: Boolean(form.returnable),
                 expectedReturnDate: form.expectedReturnDate || '',
                 requestId: form.requestId || null,
@@ -127,6 +128,7 @@ const AddIssueReturn = () => {
             toast.error('Original Issue Reference is required for returns.')
             return
         }
+        // Receiving (inbound / audit quantities) does not need an original issue reference.
 
         setSaving(true)
         try {

@@ -74,6 +74,10 @@ def seed_reference_data(db: Session) -> None:
         db.flush()
         _seed_demo_parent_student_link(db, campus)
         _ensure_demo_staff_hr_links(db, campus)
+        # Demo calendar holidays/exams for local UAT (not auto-seeded on every list).
+        from app.services.calendar import ensure_defaults as ensure_calendar_defaults
+
+        ensure_calendar_defaults(db, campus.id)
     if created_campus:
         write_audit(
             db,

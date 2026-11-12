@@ -416,7 +416,14 @@ const RequestApprovals = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='requestapprovals'
+                title='RequestApprovals'
+                rows={Array.isArray(filteredFuel) ? filteredFuel : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredFuel) ? filteredFuel.length : 0} record(s).</>}
+            />
         </section>
     )
 }

@@ -110,16 +110,14 @@ def test_request_decide_approve_and_reject_permissions(client):
     teacher = _login(client, settings.teacher_seed_email, settings.teacher_seed_password)
 
     put = client.put(
-        "/api/v1/ops/stationery-requests",
-        json=[
-            {
-                "id": "REQ-SS-TEST-1",
-                "requestId": "REQ-SS-TEST-1",
-                "title": "Pens",
-                "status": "Pending",
-                "requestedByEmail": "teacher@example.com",
-            }
-        ],
+        "/api/v1/ops/stationery-requests/items/REQ-SS-TEST-1",
+        json={
+            "id": "REQ-SS-TEST-1",
+            "requestId": "REQ-SS-TEST-1",
+            "title": "Pens",
+            "status": "Pending",
+            "requestedByEmail": "teacher@example.com",
+        },
         headers=store,
     )
     assert put.status_code == 200, put.text

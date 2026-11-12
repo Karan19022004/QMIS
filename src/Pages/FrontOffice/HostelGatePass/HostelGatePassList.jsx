@@ -15,11 +15,16 @@ import {
     finalStatusBadgeColor,
     formatOutTimeForDisplay,
     getHostelGatePasses,
+    getHostelPrincipalApproval,
     hydrateHostelGatePassesFromApi,
 } from './hostelGatePassData'
 import { frontOfficeApiOn } from '../frontOfficeStore'
+import { canShowDeleteOption } from '../../../Common/CommonComponents/approvalGates'
+import { useAuth } from '../../../context/AuthContext'
 
 const HostelGatePassList = () => {
+    const { role } = useAuth() || {}
+    const showDelete = canShowDeleteOption(role)
     const location = useLocation()
     const [fromDate, setFromDate] = useState(null)
     const [toDate, setToDate] = useState(null)
@@ -190,7 +195,7 @@ const HostelGatePassList = () => {
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Out Date</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Return Date</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Parent Approval</th>
-                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Warden Approval</th>
+                                <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Principal Approval</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'>Status</th>
                                 <th className='px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg'>Actions</th>
                             </tr>
@@ -226,8 +231,8 @@ const HostelGatePassList = () => {
                                             </span>
                                         </td>
                                         <td className='px-2 py-4'>
-                                            <span className={`font-medium whitespace-nowrap ${approvalStatusColor[record.wardenApproval] ?? ''}`}>
-                                                {record.wardenApproval}
+                                            <span className={`font-medium whitespace-nowrap ${approvalStatusColor[getHostelPrincipalApproval(record)] ?? ''}`}>
+                                                {getHostelPrincipalApproval(record)}
                                             </span>
                                         </td>
                                         <td className='px-2 py-4'>
@@ -249,13 +254,15 @@ const HostelGatePassList = () => {
                                                 >
                                                     Edit
                                                 </NavLink>
-                                                <button
-                                                    type='button'
-                                                    onClick={() => handleDelete(record.id)}
-                                                    className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                >
-                                                    Delete
-                                                </button>
+                                                {showDelete ? (
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => handleDelete(record.id)}
+                                                        className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                ) : null}
                                             </Dropdown>
                                         </td>
                                     </tr>

@@ -22,6 +22,13 @@ export const ASSIGNMENT_HIERARCHY = {
     [ROLES.PRINCIPAL]: [ROLES.COORDINATOR, ROLES.TEACHER, ROLES.LIBRARIAN],
     [ROLES.PRM]: [ROLES.GATEKEEPER_MANAGER],
     [ROLES.GATEKEEPER_MANAGER]: [ROLES.GATEKEEPER],
+    // Ops / audit managers that already have Task Management view (#51)
+    [ROLES.HOUSEKEEPING_MANAGER]: [ROLES.GATEKEEPER],
+    [ROLES.MAINTENANCE_MANAGER]: [ROLES.GATEKEEPER],
+    [ROLES.TRANSPORT_MANAGER]: [ROLES.DRIVER],
+    [ROLES.STATIONERY_STORE_MANAGER]: [ROLES.PRM],
+    [ROLES.PROCESS_AUDITOR]: [ROLES.TEACHER],
+    [ROLES.QUALITY_AUDITOR]: [ROLES.TEACHER],
 }
 
 /** Roles that can only view/update tasks assigned to them (no assign-tasks access) */
@@ -34,7 +41,7 @@ export const VIEW_ONLY_ROLES = [
     ROLES.JOINT_DIRECTOR,
     ROLES.JOINT_DIRECTOR_ASSISTANT,
     ROLES.JOINT_DIRECTOR_AUDIT,
-    ROLES.HOUSEKEEPING_MANAGER,
+    ROLES.DRIVER,
 ]
 
 export const ROLE_LABELS = {
@@ -53,6 +60,12 @@ export const ROLE_LABELS = {
     [ROLES.GATEKEEPER_MANAGER]: 'Gate Keeper Manager',
     [ROLES.GATEKEEPER]: 'Gate Keeper',
     [ROLES.HOUSEKEEPING_MANAGER]: 'Housekeeping Manager',
+    [ROLES.MAINTENANCE_MANAGER]: 'Maintenance Manager',
+    [ROLES.TRANSPORT_MANAGER]: 'Transport Manager',
+    [ROLES.STATIONERY_STORE_MANAGER]: 'Stationery Store Manager',
+    [ROLES.PROCESS_AUDITOR]: 'Process Auditor',
+    [ROLES.QUALITY_AUDITOR]: 'Quality Auditor',
+    [ROLES.DRIVER]: 'Driver',
 }
 
 export const ROUTE_BASE_BY_ROLE = {
@@ -71,6 +84,12 @@ export const ROUTE_BASE_BY_ROLE = {
     [ROLES.GATEKEEPER_MANAGER]: '/gatekeeper-manager',
     [ROLES.GATEKEEPER]: '/gate-keeper',
     [ROLES.HOUSEKEEPING_MANAGER]: '/housekeeping-manager',
+    [ROLES.MAINTENANCE_MANAGER]: '/maintenance-manager',
+    [ROLES.TRANSPORT_MANAGER]: '/transport-manager',
+    [ROLES.STATIONERY_STORE_MANAGER]: '/stationery-store-manager',
+    [ROLES.PROCESS_AUDITOR]: '/process-auditor',
+    [ROLES.QUALITY_AUDITOR]: '/quality-auditor',
+    [ROLES.DRIVER]: '/driver',
 }
 
 /** Demo user id per role for filtering "my tasks" */
@@ -90,6 +109,12 @@ export const DEMO_USER_ID_BY_ROLE = {
     [ROLES.GATEKEEPER_MANAGER]: 'GKM-001',
     [ROLES.GATEKEEPER]: 'GK-001',
     [ROLES.HOUSEKEEPING_MANAGER]: 'HKM-001',
+    [ROLES.MAINTENANCE_MANAGER]: 'MM-001',
+    [ROLES.TRANSPORT_MANAGER]: 'TM-001',
+    [ROLES.STATIONERY_STORE_MANAGER]: 'SSM-001',
+    [ROLES.PROCESS_AUDITOR]: 'PA-001',
+    [ROLES.QUALITY_AUDITOR]: 'QA-001',
+    [ROLES.DRIVER]: 'DRV-001',
 }
 
 export const USERS_BY_ROLE = {
@@ -121,6 +146,16 @@ export const USERS_BY_ROLE = {
         { id: 'TCH-002', name: 'Priya Sharma' },
         { id: 'TCH-003', name: 'Arjun Menon' },
     ],
+    [ROLES.DRIVER]: [
+        { id: 'DRV-001', name: 'Demo Driver' },
+        { id: 'DRV-002', name: 'Kumar V.' },
+    ],
+    [ROLES.HOUSEKEEPING_MANAGER]: [{ id: 'HKM-001', name: 'Housekeeping Manager' }],
+    [ROLES.MAINTENANCE_MANAGER]: [{ id: 'MM-001', name: 'Maintenance Manager' }],
+    [ROLES.TRANSPORT_MANAGER]: [{ id: 'TM-001', name: 'Transport Manager' }],
+    [ROLES.STATIONERY_STORE_MANAGER]: [{ id: 'SSM-001', name: 'Stationery Store Manager' }],
+    [ROLES.PROCESS_AUDITOR]: [{ id: 'PA-001', name: 'Process Auditor' }],
+    [ROLES.QUALITY_AUDITOR]: [{ id: 'QA-001', name: 'Quality Auditor' }],
 }
 
 export const getRoleLabel = (roleKey) => ROLE_LABELS[roleKey] ?? roleKey

@@ -253,10 +253,21 @@ def marks(w):
             "entries": [{"studentId": sid, "marks": m} for sid, m in entries]}), 201)
         return _ok(c.post(f"/api/v1/marks-batches/{b['id']}/submit", headers=h["teacher"]))
 
+    # Teacher is class teacher of 5A; allocate subject teaching for 5B and 8A as well.
+    _allocate(
+        w,
+        [
+            {"className": "Grade 5", "section": "A", "subject": "Mathematics"},
+            {"className": "Grade 5", "section": "A", "subject": "Science"},
+            {"className": "Grade 5", "section": "B", "subject": "Science"},
+            {"className": "Grade 8", "section": "A", "subject": "Mathematics"},
+        ],
+    )
     e5, e8 = approved_exam("Grade 5"), approved_exam("Grade 8")
     return {
         "g5": submitted_batch(e5, "Mathematics", "A", [(s["a"], 77), (s["b"], 58)]),
-        "g5_mixed": submitted_batch(e5, "Science", "A", [(s["a"], 70), (s["c"], 66)]),
+        # Chirag is placed in Grade 5B — keep section accurate so batch create stays valid.
+        "g5_mixed": submitted_batch(e5, "Science", "B", [(s["c"], 66)]),
         "g8": submitted_batch(e8, "Mathematics", "A", [(s["d"], 91)]),
         "e5": e5, "e8": e8,
     }

@@ -26,11 +26,13 @@ import PendingActionsReport from '../Pages/ProcessAuditor/Reports/ActionsReports
 import ClosedActionsReport from '../Pages/ProcessAuditor/Reports/ActionsReports/ClosedActionsReport'
 import { AuditComponentsPage, SharedDeviationsPage } from '../Common/demoDomain/WorkflowScreens'
 import CommunicationPage from '../Common/Communication/CommunicationPage'
+import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 
 const ProcessAuditorRoutes = () => {
     return (
         <ReactRoutes>
             <Route path="/process-auditor/dashboard" element={<Dashboard />} />
+            {TaskManagementRoutes({ basePath: '/process-auditor' })}
 
             <Route path="/process-auditor/audit-management/my-audits" element={<MyAudits />} />
             <Route path="/process-auditor/audit-management/my-audits/view/:id" element={<ViewMyAudit />} />

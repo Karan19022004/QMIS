@@ -132,7 +132,14 @@ const TaskManagement = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="director-tasks"
+                title="Director Task Management"
+                rows={ASSIGNED_TASKS}
+                exportDescription={<>You are exporting {ASSIGNED_TASKS.length} assigned task(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>

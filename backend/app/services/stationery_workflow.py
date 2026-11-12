@@ -157,8 +157,11 @@ def record_issue_return(db: Session, actor: User, body: dict) -> dict:
         fail(422, "invalid_body", "Body must be a JSON object.")
 
     activity = str(body.get("activityType") or "Issue").strip()
-    if activity not in {"Issue", "Return"}:
-        fail(422, "invalid_body", "activityType must be Issue or Return.")
+    # Receiving = inbound stock (audit/dept return-to-store); Issue = Given outbound.
+    if activity not in {"Issue", "Return", "Receiving", "Given"}:
+        fail(422, "invalid_body", "activityType must be Issue, Given, Return, or Receiving.")
+    if activity == "Given":
+        activity = "Issue"
 
     client_key = str(body.get("clientRequestId") or body.get("idempotencyKey") or "").strip()
     if client_key:
@@ -186,6 +189,7 @@ def record_issue_return(db: Session, actor: User, body: dict) -> dict:
     original_ref = str(body.get("originalIssueRef") or "").strip()
     if activity == "Return" and not original_ref:
         fail(422, "invalid_body", "originalIssueRef is required for returns.")
+    # Receiving does not require an original issue reference (inbound from audit/dept).
 
     request_id = str(body.get("requestId") or "").strip()
     material_pass_id = str(body.get("materialGatePassId") or "").strip()
@@ -260,12 +264,18 @@ def record_issue_return(db: Session, actor: User, body: dict) -> dict:
             "quantity": quantity,
             "remarks": str(body.get("remarks") or ""),
             "purpose": str(body.get("purpose") or ""),
-            "status": "Returned" if activity == "Return" else "Issued",
+            "status": (
+                "Returned" if activity == "Return"
+                else "Received" if activity == "Receiving"
+                else "Issued"
+            ),
             "issueDate": body.get("issueDate") or (_now().date().isoformat() if activity == "Issue" else "—"),
-            "returnDate": body.get("returnDate") or (_now().date().isoformat() if activity == "Return" else "—"),
+            "returnDate": body.get("returnDate") or (
+                _now().date().isoformat() if activity in {"Return", "Receiving"} else "—"
+            ),
             "availableStock": next_qty,
             "originalIssueRef": original_ref if activity == "Return" else None,
-            "condition": condition if activity == "Return" else None,
+            "condition": condition if activity in {"Return", "Receiving"} else None,
             "returnable": bool(body.get("returnable")),
             "expectedReturnDate": body.get("expectedReturnDate") or "",
             "requestId": request_id or None,

@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'react-toastify'
 import TcNocHistory from '../../../Common/TcRequest/TcNocHistory'
+import { resolveTcNocManager } from '../../../Common/TcRequest/managerNocConfig'
 import {
     decideTcNocViaApi,
     getTcRequestById,
@@ -21,6 +22,8 @@ const Field = ({ label, value }) => (
 const ViewTcNoc = () => {
     const { id } = useParams()
     const navigate = useNavigate()
+    const location = useLocation()
+    const manager = resolveTcNocManager(location.pathname)
     const [request, setRequest] = useState(() => getTcRequestById(id))
     const [remarks, setRemarks] = useState('')
     const [busy, setBusy] = useState(false)
@@ -40,8 +43,8 @@ const ViewTcNoc = () => {
     }, [id])
 
     const myNoc = useMemo(
-        () => (request?.nocs || []).find((n) => n.roleCode === 'transportmanager') || null,
-        [request],
+        () => (request?.nocs || []).find((n) => n.roleCode === manager.roleCode) || null,
+        [request, manager.roleCode],
     )
     const canDecide = request?.status === 'Pending Manager NOCs' && myNoc?.status === 'Pending'
 
@@ -55,7 +58,7 @@ const ViewTcNoc = () => {
         try {
             const updated = await decideTcNocViaApi(id, decision, remarks)
             setRequest(updated)
-            toast.success(decision === 'approve' ? 'Transport NOC approved.' : 'Transport NOC rejected.')
+            toast.success(decision === 'approve' ? `${manager.label} NOC approved.` : `${manager.label} NOC rejected.`)
         } catch (error) {
             toast.error(error?.message || 'Could not save NOC decision.')
         } finally {
@@ -67,7 +70,7 @@ const ViewTcNoc = () => {
         <section className='space-y-6'>
             <button
                 type='button'
-                onClick={() => navigate('/transport-manager/tc-noc')}
+                onClick={() => navigate(manager.basePath)}
                 className='inline-flex items-center gap-2 text-sm text-[#515DEF] border border-[#515DEF] rounded-md px-4 py-2 hover:bg-[#515DEF] hover:text-white transition-colors cursor-pointer'
             >
                 <ArrowLeft size={18} />
@@ -86,7 +89,7 @@ const ViewTcNoc = () => {
                             </span>
                         </div>
                         <p className='text-sm text-[#667085] mt-2'>
-                            Transport Manager NOC · {request.studentName} · {request.classSection}
+                            {manager.label} NOC · {request.studentName} · {request.classSection}
                         </p>
                     </div>
 
@@ -106,7 +109,7 @@ const ViewTcNoc = () => {
 
                     {canDecide ? (
                         <div className='bg-white rounded-2xl shadow-md p-4'>
-                            <h2 className='text-xl font-semibold text-black mb-4'>Record Transport NOC</h2>
+                            <h2 className='text-xl font-semibold text-black mb-4'>Record {manager.label} NOC</h2>
                             <div className='flex flex-col gap-y-2 mb-4'>
                                 <label htmlFor='noc-remarks' className='text-base font-medium text-[#808080]'>Remarks</label>
                                 <textarea

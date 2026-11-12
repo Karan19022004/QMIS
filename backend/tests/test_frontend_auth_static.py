@@ -81,19 +81,14 @@ def test_hr_and_finance_use_the_signed_in_token_and_never_log_in_themselves():
 
 
 def test_sign_in_page_demo_chips_fill_only_and_do_not_auto_login():
-    """Local demo chips may fill the form; they must not auto-submit or replace typed login."""
+    """Sign-in must not embed demo account chips or auto-login helpers."""
     text = _read("Pages/Authentication/SignIn.jsx")
-    # Password field starts empty — chips only fill on click.
+    # Password field starts empty.
     assert "useState('')" in text or 'useState("")' in text
     assert re.search(r"const \[password,\s*setPassword\]\s*=\s*useState\(['\"]['\"]\)", text)
-    # Fill helper exists for DEMO_TEST_LOGINS, but never calls login APIs itself.
-    assert "DEMO_TEST_LOGINS" in text
-    assert "fillDemoLogin" in text
-    assert "setPassword(account.password)" in text
-    fill_fn = text[text.index("const fillDemoLogin") : text.index("const handleSubmit")]
-    assert "loginWithCredentials" not in fill_fn
-    assert "apiLogin" not in fill_fn
-    # Legacy auto-login account tables stay gone.
+    # Demo fill chips / tables stay removed (typed credentials only).
+    assert "DEMO_TEST_LOGINS" not in text
+    assert "fillDemoLogin" not in text
     assert "DEMO_ACCOUNTS" not in text and "API_ACCOUNTS" not in text
     # Actual auth still goes through the typed form submit path.
     assert "loginWithCredentials(email, password)" in text

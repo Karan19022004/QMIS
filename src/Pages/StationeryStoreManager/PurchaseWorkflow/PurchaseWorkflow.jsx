@@ -21,6 +21,7 @@ const PurchaseWorkflow = () => {
     const [amount, setAmount] = useState('')
     const [minor, setMinor] = useState(true)
     const [busyId, setBusyId] = useState('')
+    const [receiveQty, setReceiveQty] = useState({})
 
     const refresh = () => setRows(getStationeryProcurement())
 
@@ -82,17 +83,18 @@ const PurchaseWorkflow = () => {
     const receiveGoods = async (row) => {
         setBusyId(row.id)
         try {
+            const quantity = Math.max(1, Number(receiveQty[row.id] ?? row.quantity ?? 1) || 1)
             const result = await receiveStationeryGoods(row.id, {
                 grnId: `GRN-${row.id}`,
                 itemName: row.title,
-                quantity: 1,
+                quantity,
             })
             if (result?.success === false) {
                 toast.error(result.message || 'Goods receipt failed. Link inventory item lines before GRN.')
                 return
             }
             refresh()
-            toast.success('Goods receipt recorded.')
+            toast.success(`Goods receipt recorded (${quantity} qty).`)
         } finally {
             setBusyId('')
         }
@@ -154,14 +156,24 @@ const PurchaseWorkflow = () => {
                                             Advance
                                         </button>
                                         {['PO_APPROVED', 'PO_RAISED'].includes(String(row.status || '').toUpperCase()) && (
-                                            <button
-                                                type='button'
-                                                disabled={busyId === row.id}
-                                                onClick={() => receiveGoods(row)}
-                                                className='text-[#4CAF50] text-xs cursor-pointer disabled:opacity-50'
-                                            >
-                                                Receive GRN
-                                            </button>
+                                            <div className='inline-flex items-center gap-2'>
+                                                <input
+                                                    type='number'
+                                                    min='1'
+                                                    value={receiveQty[row.id] ?? row.quantity ?? 1}
+                                                    onChange={(event) => setReceiveQty((prev) => ({ ...prev, [row.id]: event.target.value }))}
+                                                    className='w-16 border border-[#D9D9D9] rounded px-1 py-0.5 text-xs'
+                                                    aria-label='Receive quantity'
+                                                />
+                                                <button
+                                                    type='button'
+                                                    disabled={busyId === row.id}
+                                                    onClick={() => receiveGoods(row)}
+                                                    className='text-[#4CAF50] text-xs cursor-pointer disabled:opacity-50'
+                                                >
+                                                    Receive GRN
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </td>

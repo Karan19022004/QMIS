@@ -202,7 +202,14 @@ const AssetsInventoryOverview = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='assetsinventoryoverview'
+                title='AssetsInventoryOverview'
+                rows={Array.isArray(filteredItems) ? filteredItems : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredItems) ? filteredItems.length : 0} record(s).</>}
+            />
         </section>
     )
 }

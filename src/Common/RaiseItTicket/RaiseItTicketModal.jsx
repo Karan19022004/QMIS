@@ -156,8 +156,19 @@ export default function RaiseItTicketModal({ open, onClose }) {
                     <label className='text-sm flex flex-col gap-1'>Asset (optional)
                         <input value={form.assetId} onChange={set('assetId')} placeholder='AST-2026-0142' className={inputClass} />
                     </label>
-                    <label className='text-sm flex flex-col gap-1'>Attachment name
-                        <input value={form.attachmentName} onChange={set('attachmentName')} placeholder='screenshot.png' className={inputClass} />
+                    <label className='text-sm flex flex-col gap-1'>Attachment
+                        <input
+                            type='file'
+                            accept='image/png,image/jpeg,image/*,.png,.jpg,.jpeg,.pdf,application/pdf'
+                            className={inputClass}
+                            onChange={(event) => {
+                                const file = event.target.files?.[0]
+                                setForm((prev) => ({ ...prev, attachmentName: file?.name || '' }))
+                            }}
+                        />
+                        {form.attachmentName ? (
+                            <span className='text-xs text-[#667085]'>Selected: {form.attachmentName}</span>
+                        ) : null}
                     </label>
                 </div>
                 <div className='flex justify-end gap-3 mt-5'>

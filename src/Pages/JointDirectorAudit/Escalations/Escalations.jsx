@@ -188,7 +188,14 @@ const Escalations = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="jd-audit-escalations"
+                title="Joint Director Audit Escalations"
+                rows={ESCALATIONS}
+                exportDescription={<>You are exporting {ESCALATIONS.length} escalation record(s).</>}
+            />
         </section>
     )
 }

@@ -17,6 +17,7 @@ import MaintenanceInventory from '../Pages/ITSupportManager/MaintenanceInventory
 import DataImport from '../Pages/ITSupportManager/DataImport/DataImport'
 import { ProcurementBoard } from '../Common/demoDomain/WorkflowScreens'
 import { IT_PROCUREMENT_KEY } from '../Common/demoDomain/procurement'
+import RequestProductFromStore from '../Common/Store/RequestProductFromStore'
 
 const ITSupportManagerRoutes = () => {
     return (
@@ -37,6 +38,16 @@ const ITSupportManagerRoutes = () => {
             <Route path="/it-support-manager/broadcast/add-broadcast" element={<AddAnnouncement />} />
             <Route path="/it-support-manager/data-import" element={<DataImport />} />
             <Route path="/it-support-manager/purchase-workflow" element={<ProcurementBoard department="IT Support" requestedBy="IT Support Manager" storageKey={IT_PROCUREMENT_KEY} />} />
+            <Route
+                path="/it-support-manager/store-product-request"
+                element={(
+                    <RequestProductFromStore
+                        department="IT Support"
+                        requestedBy="IT Support Manager"
+                        title="Request Product from Store"
+                    />
+                )}
+            />
             <Route path="*" element={<Navigate to="/it-support-manager/dashboard" replace />} />
         </ReactRoutes>
     )

@@ -411,7 +411,14 @@ const ReceiptManagementTab = ({ exportModal, setExportModal }) => {
                 </Panel>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="receipt-management"
+                title="Receipt Management"
+                rows={[...liveRows, ...RECEIPTS_REGISTER]}
+                exportDescription={<>You are exporting {[...liveRows, ...RECEIPTS_REGISTER].length} receipt record(s).</>}
+            />
         </div>
     )
 }

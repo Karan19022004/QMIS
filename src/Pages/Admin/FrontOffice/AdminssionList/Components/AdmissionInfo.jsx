@@ -3,6 +3,7 @@ import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar } from 'lucide-react'
 import { CLASS_LEVEL_OPTIONS } from '../../../Class/ClassDetails/classDetailsOptions'
+import { REGISTRATION_FEE_STATUSES } from '../admissionListData'
 
 const inputClass = 'text-sm font-normal text-[#1E1E1E] border border-[#D9D9D9] rounded-md px-2 py-3 w-full'
 const invalidClass = 'text-sm font-normal text-[#1E1E1E] border border-[#F44336] rounded-md px-2 py-3 w-full'
@@ -54,6 +55,20 @@ const AdmissionInfo = ({ form, onChange, missing = new Set() }) => {
                     onChange={(e) => update('registrationFees', e.target.value)}
                     className={inputClass}
                 />
+            </div>
+            <div className='flex flex-col gap-y-2'>
+                <label htmlFor='registrationFeeStatus' className='text-base font-medium text-[#1E1E1E]'>Registration Fee Status:</label>
+                <select
+                    id='registrationFeeStatus'
+                    value={form.registrationFeeStatus || 'Pending'}
+                    onChange={(e) => update('registrationFeeStatus', e.target.value)}
+                    className={inputClass}
+                >
+                    {REGISTRATION_FEE_STATUSES.map((item) => (
+                        <option key={item} value={item}>{item}</option>
+                    ))}
+                </select>
+                <p className='text-xs text-[#667085]'>Student stays pending until Paid/Waived (or zero fee / matching Admission Fee receipt), then Enroll.</p>
             </div>
             <div className='flex flex-col gap-y-2'>
                 <label htmlFor='batchStartYear' className='text-base font-medium text-[#1E1E1E]'>Batch Start Year:</label>

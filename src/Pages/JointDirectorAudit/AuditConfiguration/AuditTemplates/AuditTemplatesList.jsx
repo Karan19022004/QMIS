@@ -424,7 +424,14 @@ const AuditTemplatesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='audittemplateslist'
+                title='AuditTemplatesList'
+                rows={Array.isArray(filteredTemplates) ? filteredTemplates : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredTemplates) ? filteredTemplates.length : 0} record(s).</>}
+            />
             <AuditTemplateFormModal
                 isOpen={formModal.open}
                 mode={formModal.mode}

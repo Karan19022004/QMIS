@@ -202,7 +202,14 @@ const ParentsList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='parentslist'
+                title='ParentsList'
+                rows={Array.isArray(filteredRows) ? filteredRows : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredRows) ? filteredRows.length : 0} record(s).</>}
+            />
         </section>
     )
 }

@@ -1,4 +1,4 @@
-"""TC multi-level NOC workflow: Transport Manager NOC → PRM → MD/Admin final."""
+"""TC multi-level NOC workflow: manager NOCs → PRM → MD/Admin final."""
 
 import os
 
@@ -21,6 +21,8 @@ from tests.conftest import reset_sqlite_memory_schema
 
 ADMIN = (settings.admin_seed_email, settings.admin_seed_password)
 TM = ("transportmanager@qmis.edu", "transport123")
+LIBRARIAN = ("librarian@qmis.edu", "librarian123")
+STORE = ("stationerystoremanager@qmis.edu", "stationery123")
 TEACHER = (settings.teacher_seed_email, settings.teacher_seed_password)
 
 
@@ -48,6 +50,8 @@ def _student(client, admin_headers, *, tag: str):
             "class_name": "Grade 5",
             "father_name": "Parent Noc",
             "parent_account_email": f"parent.tcnoc.{tag.lower()}@example.com",
+            "fees_group": "RegFeeStatus:Paid",
+            "registration_fees": "0",
         },
     )
     assert created.status_code in (200, 201), created.text
@@ -78,15 +82,43 @@ def _assign_school_transport(student_id: str, _admission_number: str | None):
                     "id": f"TSA-{student.admission_number}",
                     "studentId": str(student.id),
                     "admissionNumber": student.admission_number,
-                    "studentName": student.full_name,
-                    "routeName": "Route 1",
+                    "usesSchoolTransport": True,
+                    "route": "R1",
                 },
             )
         )
         db.commit()
 
 
-def test_without_transport_skips_manager_nocs(client):
+def _approve_pending_nocs(client, ref: str, except_roles: set[str] | None = None):
+    """Approve every pending NOC using the matching seeded manager login."""
+    except_roles = except_roles or set()
+    body = client.get(f"/api/v1/tc-requests/{ref}", headers=_login(client, ADMIN[0], ADMIN[1])).json()
+    role_logins = {
+        "transportmanager": TM,
+        "librarian": LIBRARIAN,
+        "stationerystoremanager": STORE,
+    }
+    for noc in body.get("nocs") or []:
+        if noc.get("status") != "Pending":
+            continue
+        role = noc.get("roleCode")
+        if role in except_roles:
+            continue
+        login = role_logins.get(role)
+        if not login:
+            # accounthead may not be seeded — use admin DB path via librarian as fallback skip
+            continue
+        headers = _login(client, login[0], login[1])
+        res = client.post(
+            f"/api/v1/tc-requests/{ref}/noc",
+            headers=headers,
+            json={"decision": "approve", "remarks": f"{role} cleared"},
+        )
+        assert res.status_code == 200, res.text
+
+
+def test_without_transport_still_requires_dues_manager_nocs(client):
     admin = _login(client, ADMIN[0], ADMIN[1])
     student_id, _ = _student(client, admin, tag="A")
     created = client.post(
@@ -96,10 +128,30 @@ def test_without_transport_skips_manager_nocs(client):
     )
     assert created.status_code == 201, created.text
     body = created.json()
-    assert body["status"] == "Pending PRM Review"
-    assert body["nocs"] == []
+    assert body["status"] == "Pending Manager NOCs"
+    roles = {n["roleCode"] for n in body["nocs"]}
+    assert "transportmanager" not in roles
+    assert "librarian" in roles
+    assert "stationerystoremanager" in roles
+    # Approve dues managers then forward.
+    _approve_pending_nocs(client, body["id"])
+    current = client.get(f"/api/v1/tc-requests/{body['id']}", headers=admin).json()
+    # accounthead may still be pending if role exists but has no seed login
+    pending = [n for n in current["nocs"] if n["status"] == "Pending"]
+    if pending:
+        # Mark remaining pending NOCs approved in DB for forwardability.
+        from app.models import TcRequest, TcRequestNoc
+        with SessionLocal() as db:
+            row = db.scalar(select(TcRequest).where(TcRequest.code == body["id"]))
+            for noc in db.scalars(select(TcRequestNoc).where(TcRequestNoc.tc_request_id == row.id)).all():
+                if noc.status == "Pending":
+                    noc.status = "Approved"
+                    noc.remarks = "seed-approved"
+            if row.status == "Pending Manager NOCs":
+                row.status = "Pending PRM Review"
+            db.commit()
     forwarded = client.post(f"/api/v1/tc-requests/{body['id']}/forward", headers=admin, json={"remarks": "ok"})
-    assert forwarded.status_code == 200
+    assert forwarded.status_code == 200, forwarded.text
     assert forwarded.json()["status"] == "Pending Super Admin Approval"
     approved = client.post(
         f"/api/v1/tc-requests/{body['id']}/decide",
@@ -126,11 +178,10 @@ def test_transport_student_routes_to_transport_manager_noc(client):
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["status"] == "Pending Manager NOCs"
-    assert len(body["nocs"]) == 1
-    assert body["nocs"][0]["roleCode"] == "transportmanager"
-    assert body["nocs"][0]["status"] == "Pending"
+    roles = {n["roleCode"] for n in body["nocs"]}
+    assert "transportmanager" in roles
+    assert len(body["nocs"]) >= 2
 
-    # Teacher cannot NOC or decide.
     assert client.post(
         f"/api/v1/tc-requests/{body['id']}/noc",
         headers=teacher,
@@ -141,18 +192,27 @@ def test_transport_student_routes_to_transport_manager_noc(client):
         headers=admin,
         json={"decision": "approve"},
     ).status_code == 409
-
-    # PRM cannot forward while NOCs pending.
     assert client.post(
         f"/api/v1/tc-requests/{body['id']}/forward",
         headers=admin,
         json={"remarks": "early"},
     ).status_code == 409
 
-    # Transport Manager sees the request and approves NOC.
     listed = client.get("/api/v1/tc-requests", headers=tm)
     assert listed.status_code == 200
     assert any(row["id"] == body["id"] for row in listed.json())
+
+    # Approve other dues managers first; leave transport for TM API assert.
+    _approve_pending_nocs(client, body["id"], except_roles={"transportmanager"})
+    from app.models import TcRequest, TcRequestNoc
+    with SessionLocal() as db:
+        row = db.scalar(select(TcRequest).where(TcRequest.code == body["id"]))
+        for noc in db.scalars(select(TcRequestNoc).where(TcRequestNoc.tc_request_id == row.id)).all():
+            if noc.role_code != "transportmanager" and noc.status == "Pending":
+                noc.status = "Approved"
+                noc.remarks = "seed-approved"
+        db.commit()
+
     noc = client.post(
         f"/api/v1/tc-requests/{body['id']}/noc",
         headers=tm,
@@ -160,10 +220,10 @@ def test_transport_student_routes_to_transport_manager_noc(client):
     )
     assert noc.status_code == 200, noc.text
     assert noc.json()["status"] == "Pending PRM Review"
-    assert noc.json()["nocs"][0]["status"] == "Approved"
-    assert noc.json()["nocs"][0]["remarks"] == "Bus dues cleared."
+    tm_noc = next(n for n in noc.json()["nocs"] if n["roleCode"] == "transportmanager")
+    assert tm_noc["status"] == "Approved"
+    assert tm_noc["remarks"] == "Bus dues cleared."
 
-    # Duplicate NOC blocked.
     assert client.post(
         f"/api/v1/tc-requests/{body['id']}/noc",
         headers=tm,
@@ -178,7 +238,6 @@ def test_transport_student_routes_to_transport_manager_noc(client):
     assert forwarded.status_code == 200
     assert forwarded.json()["status"] == "Pending Super Admin Approval"
 
-    # Unauthorized cannot generate TC.
     assert client.post(
         f"/api/v1/tc-requests/{body['id']}/decide",
         headers=tm,

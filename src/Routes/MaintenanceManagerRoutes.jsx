@@ -13,10 +13,12 @@ import AddAnnouncement from '../Pages/MaintenanceManager/Announcement/AddAnnounc
 import ViewAnnouncement from '../Pages/MaintenanceManager/Announcement/ViewAnnouncement'
 import DepartmentTicketsPage from '../Common/Tickets/DepartmentTicketsPage'
 import ViewSupportTicket from '../Pages/ITSupportManager/SupportTickets/ViewSupportTicket'
+import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 
 const MaintenanceManagerRoutes = () => (
     <ReactRoutes>
         <Route path="/maintenance-manager/dashboard" element={<Dashboard />} />
+        {TaskManagementRoutes({ basePath: '/maintenance-manager' })}
         <Route
             path="/maintenance-manager/tickets"
             element={(

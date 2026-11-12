@@ -40,6 +40,11 @@ def test_coordinator_shared_reads_and_exams_write(client):
     assert client.get("/api/v1/exams", headers=headers).status_code == 200
     assert client.get("/api/v1/attendance?date=2026-10-15", headers=headers).status_code == 200
 
+    admin = _login(client, settings.admin_seed_email, settings.admin_seed_password)
+    classes = client.get("/api/v1/masters/classes", headers=admin).json()
+    if not any(c.get("name") == "Grade 6" for c in classes):
+        made = client.post("/api/v1/masters/classes", json={"name": "Grade 6"}, headers=admin)
+        assert made.status_code == 201, made.text
     created = client.post(
         "/api/v1/exams",
         headers=headers,

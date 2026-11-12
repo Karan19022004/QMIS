@@ -3,6 +3,7 @@ import os
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
 os.environ["OTP_DEBUG"] = "true"
 os.environ["JWT_SECRET"] = "test-secret-qmis-erp-finance-actions"
+os.environ["ENVIRONMENT"] = "development"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,7 +12,11 @@ from app.main import app
 
 
 @pytest.fixture()
-def client():
+def client(monkeypatch):
+    # Scoped to this fixture only — do not set PAYMENT_PROVIDER at module import time
+    # (that would leak into demo/Razorpay integration suites in the same process).
+    monkeypatch.setenv("PAYMENT_PROVIDER", "stub")
+    monkeypatch.setenv("ENVIRONMENT", "development")
     with TestClient(app) as test_client:
         yield test_client
 

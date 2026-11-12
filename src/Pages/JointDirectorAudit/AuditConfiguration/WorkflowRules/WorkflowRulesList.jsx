@@ -327,7 +327,14 @@ const WorkflowRulesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='workflowruleslist'
+                title='WorkflowRulesList'
+                rows={Array.isArray(filteredWorkflows) ? filteredWorkflows : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredWorkflows) ? filteredWorkflows.length : 0} record(s).</>}
+            />
             <WorkflowRuleFormModal
                 isOpen={formModal.open}
                 mode={formModal.mode}

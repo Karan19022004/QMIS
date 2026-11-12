@@ -115,7 +115,10 @@ const ChatPanel = ({
         )
     }
 
-    const participant = conversation.participant
+    const participant = conversation.participant || {}
+    const participantName = participant.name || 'Unknown participant'
+    const participantId = participant.employeeId || participant.id || '—'
+    const participantRole = participant.role || ''
 
     const handleCopy = async (content) => {
         try {
@@ -150,11 +153,11 @@ const ChatPanel = ({
                         <ArrowLeft size={18} />
                     </button>
                 )}
-                <UserAvatar name={participant.name} color={participant.avatarColor} size="lg" />
+                <UserAvatar name={participantName} color={participant.avatarColor} size="lg" />
                 <div className="min-w-0">
-                    <p className="truncate font-semibold text-[#101828]">{participant.name}</p>
+                    <p className="truncate font-semibold text-[#101828]">{participantName}</p>
                     <p className="truncate text-xs text-[#667085]">
-                        {participant.employeeId} · {participant.role}
+                        {participantId}{participantRole ? ` · ${participantRole}` : ''}
                     </p>
                 </div>
             </header>

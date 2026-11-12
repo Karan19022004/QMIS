@@ -387,7 +387,14 @@ const StarRatings = ({ view = 'som' }) => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='starratings'
+                title='StarRatings'
+                rows={Array.isArray(filteredSoyRatings) ? filteredSoyRatings : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredSoyRatings) ? filteredSoyRatings.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>

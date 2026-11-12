@@ -134,7 +134,7 @@ def test_admin_can_create_update_and_list_hostel_gate_pass(client):
             "returnTime": "18:00",
             "status": "Pending",
             "parentApproval": "Pending",
-            "wardenApproval": "Pending",
+            "principalApproval": "Pending",
         },
     )
     assert created.status_code == 201, created.text
@@ -145,7 +145,7 @@ def test_admin_can_create_update_and_list_hostel_gate_pass(client):
     updated = client.put(
         f"/api/v1/front-office/hostel-gate-passes/{body['id']}",
         headers=headers,
-        json={**body, "status": "Checked Out", "wardenApproval": "Approved"},
+        json={**body, "status": "Checked Out", "principalApproval": "Approved"},
     )
     assert updated.status_code == 200, updated.text
     assert updated.json()["status"] == "Checked Out"

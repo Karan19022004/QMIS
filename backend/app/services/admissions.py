@@ -6,10 +6,23 @@ from sqlalchemy.orm import Session
 
 from app.core.passwords import password_policy_message
 from app.core.security import hash_password
-from app.models import Admission, AdmissionEnquiry, AdmissionReferral, Guardian, Role, Student, User
+from app.models import Admission, AdmissionEnquiry, AdmissionReferral, FinanceRecord, Guardian, Role, Student, User
 from app.schemas.admissions import AdmissionCreate, EnrollAdmissionIn, EnquiryCreate
 from app.services.audit import write_audit
 from app.services.errors import fail
+
+_FINANCE_SNAPSHOT = "snapshot"
+_FINANCE_SNAPSHOT_ID = "current"
+_REJECTED_RECEIPT_STATUSES = {
+    "held",
+    "cancelled",
+    "canceled",
+    "void",
+    "failed",
+    "pending",
+    "pending_clearance",
+    "rejected",
+}
 
 
 def _utcnow() -> datetime:
@@ -718,10 +731,109 @@ def _ensure_student_user(
     )
 
 
+def _registration_fee_amount_clear(row: Admission) -> bool:
+    raw = str(row.registration_fees or "").strip()
+    if not raw:
+        return True
+    normalized = raw.replace("₹", "").replace(",", "").replace(" ", "").lower()
+    return normalized in {"0", "0.0", "0.00", "free", "waived", "nil", "n/a", "na", "-"}
+
+
+def _registration_fee_status_token(row: Admission) -> str:
+    fees_group = str(row.fees_group or "")
+    for token in [part.strip() for part in fees_group.split(",") if part.strip()]:
+        if token.startswith("RegFeeStatus:"):
+            return token.split(":", 1)[1].strip()
+    return ""
+
+
+def _has_verified_admission_fee_receipt(db: Session, campus_id, row: Admission) -> bool:
+    """Match a posted Finance receipt to this admission (not frontend status)."""
+    snap = db.scalar(
+        select(FinanceRecord).where(
+            FinanceRecord.campus_id == campus_id,
+            FinanceRecord.collection == _FINANCE_SNAPSHOT,
+            FinanceRecord.public_id == _FINANCE_SNAPSHOT_ID,
+        )
+    )
+    if snap is None:
+        return False
+    body = dict(snap.body or {})
+    receipts = body.get("receipts") or []
+    students = body.get("students") or []
+    if not isinstance(receipts, list):
+        return False
+
+    admission_code = (row.admission_code or "").strip().lower()
+    full_name = _full_name(row).strip().lower()
+    matching_student_ids = {
+        str(student.get("id") or "").strip()
+        for student in students
+        if isinstance(student, dict)
+        and admission_code
+        and str(student.get("admissionNo") or student.get("admissionNumber") or "").strip().lower() == admission_code
+    }
+
+    for receipt in receipts:
+        if not isinstance(receipt, dict):
+            continue
+        status = str(receipt.get("status") or "").strip().lower().replace(" ", "_")
+        if status in _REJECTED_RECEIPT_STATUSES:
+            continue
+        try:
+            amount = float(receipt.get("amountPaid") or 0)
+        except (TypeError, ValueError):
+            continue
+        if amount <= 0:
+            continue
+        heads = " ".join(str(head) for head in (receipt.get("feeHeads") or [])).lower()
+        category = str(receipt.get("category") or "").lower()
+        if not (
+            "admission" in heads
+            or "registration" in heads
+            or "admission" in category
+            or "registration" in category
+        ):
+            continue
+
+        receipt_student_id = str(receipt.get("studentId") or "").strip()
+        receipt_admission = str(
+            receipt.get("admissionNo") or receipt.get("admissionNumber") or ""
+        ).strip().lower()
+        receipt_name = str(
+            receipt.get("studentName") or receipt.get("participantName") or ""
+        ).strip().lower()
+
+        if admission_code and receipt_admission and receipt_admission == admission_code:
+            return True
+        if receipt_student_id and receipt_student_id in matching_student_ids:
+            return True
+        if admission_code and receipt_student_id.lower() == admission_code:
+            return True
+        if full_name and receipt_name and (full_name in receipt_name or receipt_name in full_name):
+            return True
+    return False
+
+
+def _registration_fee_cleared(db: Session, actor: User, row: Admission) -> bool:
+    """Zero/waived fee, or a verified Finance admission/registration receipt. Do not trust Paid alone."""
+    if _registration_fee_amount_clear(row):
+        return True
+    if _registration_fee_status_token(row) == "Waived":
+        return True
+    return _has_verified_admission_fee_receipt(db, actor.campus_id, row)
+
+
 def enroll_admission(db: Session, actor: User, admission_id: UUID, payload: EnrollAdmissionIn) -> dict:
     row = _get_admission(db, actor, admission_id)
     if row.status == "Enrolled" and row.enrolled_student_id:
         fail(409, "already_enrolled", "This admission is already enrolled.")
+    if not _registration_fee_cleared(db, actor, row):
+        fail(
+            409,
+            "fee_pending",
+            "Registration / admission fee must be Waived, zero, or backed by a verified Finance receipt before enrolment.",
+        )
 
     parent_email = payload.parent_account_email or row.parent_account_email
     raw_student_email = payload.student_account_email or row.student_account_email

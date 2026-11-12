@@ -213,7 +213,7 @@ export const superAdminSidebarLinks = [
     },
     {
         id: 18,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/super-admin/escalation-management",
         icon: ShieldAlert,
     },
@@ -324,6 +324,12 @@ export const adminSidebarLinks = [
         icon: Cctv,
     },
     {
+        id: "admin-lost-found",
+        title: "Lost & Found",
+        to: "/admin/lost-found",
+        icon: Package,
+    },
+    {
         id: 8,
         title: "Task Management",
         to: "#0",
@@ -375,7 +381,7 @@ export const adminSidebarLinks = [
     },
     {
         id: 15,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/admin/escalation-management",
         icon: ShieldAlert,
     },
@@ -499,7 +505,7 @@ export const studentSidebarLinks = [
     },
     {
         id: 14,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/student/escalation-management",
         icon: ShieldAlert,
     },
@@ -566,9 +572,13 @@ export const parentSidebarLinks = [
     },
     {
         id: 7,
-        title: "Hostel Details",
-        to: "/parent/hostel/hostel-details",
+        title: "Hostel",
+        to: "#0",
         icon: Bed,
+        subLinks: [
+            { icon: Bed, title: "Hostel Details", to: "/parent/hostel/hostel-details" },
+            { icon: ClipboardCheck, title: "Outing Approvals", to: "/parent/hostel/outing-approvals" },
+        ],
     },
     {
         id: 8,
@@ -613,7 +623,7 @@ export const parentSidebarLinks = [
     },
     {
         id: 14,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/parent/escalation-management",
         icon: ShieldAlert,
     },
@@ -690,6 +700,12 @@ export const prmSidebarLinks = [
         ],
     },
     {
+        id: "fo-lost-found",
+        title: "Lost & Found",
+        to: "/front-office/lost-found",
+        icon: Package,
+    },
+    {
         id: 9,
         title: "Leave Request",
         to: "#0",
@@ -731,7 +747,7 @@ export const prmSidebarLinks = [
     },
     {
         id: 15,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/front-office/escalation-management",
         icon: ShieldAlert,
     },
@@ -739,12 +755,19 @@ export const prmSidebarLinks = [
 
 export const librarianSidebarLinks = [
     {
+        id: "lib-dashboard",
+        title: "Dashboard",
+        to: "/librarian/dashboard",
+        icon: LayoutDashboard,
+    },
+    {
         id: 1,
         title: "Book Management",
         to: "#0",
         icon: Library,
         subLinks: [
             { icon: BookOpenCheck, title: "Book List", to: "/librarian/book-management/book-list" },
+            { icon: BookMarked, title: "Request Book", to: "/librarian/book-requests" },
         ],
     },
     {
@@ -758,6 +781,12 @@ export const librarianSidebarLinks = [
         title: "Members",
         to: "/librarian/members/member-list",
         icon: UsersRound,
+    },
+    {
+        id: "lib-tc-noc",
+        title: "TC NOC Clearance",
+        to: "/librarian/tc-noc",
+        icon: ClipboardCheck,
     },
     {
         id: 4,
@@ -797,7 +826,7 @@ export const librarianSidebarLinks = [
     },
     {
         id: 10,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/librarian/escalation-management",
         icon: ShieldAlert,
     },
@@ -872,7 +901,7 @@ export const gateKeeperSidebarLinks = [
     },
     {
         id: 12,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/gate-keeper/escalation-management",
         icon: ShieldAlert,
     },
@@ -977,7 +1006,7 @@ export const gateKeeperManagerSidebarLinks = [
     },
     {
         id: 10,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/gatekeeper-manager/escalation-management",
         icon: ShieldAlert,
     },
@@ -1031,6 +1060,12 @@ export const canteenManagerSidebarLinks = [
         title: "Announcement",
         to: "/canteen-manager/broadcast",
         icon: Rss,
+    },
+    {
+        id: "canteen-store-product",
+        title: "Request Product from Store",
+        to: "/canteen-manager/store-product-request",
+        icon: Package,
     },
 ];
 
@@ -1088,6 +1123,12 @@ export const itSupportManagerSidebarLinks = [
         title: "Purchase Workflow",
         to: "/it-support-manager/purchase-workflow",
         icon: ClipboardCheck,
+    },
+    {
+        id: "it-store-product",
+        title: "Request Product from Store",
+        to: "/it-support-manager/store-product-request",
+        icon: Package,
     },
 ];
 
@@ -1170,6 +1211,28 @@ export const stationeryStoreManagerSidebarLinks = [
         to: "/stationery-store-manager/purchase-workflow?stage=receive",
         icon: Package,
     },
+    {
+        id: "stationery-fo-grn",
+        title: "Goods Received Pass",
+        to: "/stationery-store-manager/goods-received-pass",
+        icon: ClipboardList,
+    },
+    {
+        id: "stationery-tc-noc",
+        title: "TC NOC Clearance",
+        to: "/stationery-store-manager/tc-noc",
+        icon: ClipboardCheck,
+    },
+    {
+        id: "stationery-tasks",
+        title: "Task Management",
+        to: "#0",
+        icon: ClipboardList,
+        subLinks: [
+            { icon: UserPlus, title: "Assign Tasks", to: "/stationery-store-manager/task-management/assign-tasks" },
+            { icon: ListChecks, title: "My Tasks", to: "/stationery-store-manager/task-management/my-tasks" },
+        ],
+    },
 ];
 
 export const maintenanceManagerSidebarLinks = [
@@ -1178,6 +1241,16 @@ export const maintenanceManagerSidebarLinks = [
         title: "Dashboard",
         to: "/maintenance-manager/dashboard",
         icon: LayoutDashboard,
+    },
+    {
+        id: "maint-tasks",
+        title: "Task Management",
+        to: "#0",
+        icon: ClipboardList,
+        subLinks: [
+            { icon: UserPlus, title: "Assign Tasks", to: "/maintenance-manager/task-management/assign-tasks" },
+            { icon: ListChecks, title: "My Tasks", to: "/maintenance-manager/task-management/my-tasks" },
+        ],
     },
     {
         id: 2,
@@ -1211,9 +1284,9 @@ export const maintenanceManagerSidebarLinks = [
     },
     {
         id: 7,
-        title: "Store Requests",
+        title: "Request Product from Store",
         to: "/maintenance-manager/store-requests",
-        icon: ClipboardCheck,
+        icon: Package,
     },
     {
         id: 8,
@@ -1245,8 +1318,12 @@ export const housekeepingManagerSidebarLinks = [
     {
         id: 2,
         title: "Task Management",
-        to: "/housekeeping-manager/task-management/my-tasks",
+        to: "#0",
         icon: ClipboardList,
+        subLinks: [
+            { icon: UserPlus, title: "Assign Tasks", to: "/housekeeping-manager/task-management/assign-tasks" },
+            { icon: ListChecks, title: "My Tasks", to: "/housekeeping-manager/task-management/my-tasks" },
+        ],
     },
     {
         id: 3,
@@ -1326,6 +1403,12 @@ export const housekeepingManagerSidebarLinks = [
         to: "/housekeeping-manager/purchase-workflow",
         icon: ClipboardCheck,
     },
+    {
+        id: "hk-store-product",
+        title: "Request Product from Store",
+        to: "/housekeeping-manager/store-product-request",
+        icon: Package,
+    },
 ];
 
 export const teacherSidebarLinks = [
@@ -1372,8 +1455,7 @@ export const teacherSidebarLinks = [
             { icon: GraduationCap, title: "Students List", to: "/teacher/user-management/students-list" },
             { icon: UsersRound, title: "Parents List", to: "/teacher/user-management/parents-list" },
             { icon: FileText, title: "CA / RCT", to: "/teacher/unit-tests" },
-            { icon: CalendarCheck, title: "Exam", to: "/teacher/student-evaluation/exam" },
-            { icon: CalendarDays, title: "Exam Schedule", to: "/teacher/student-evaluation/exam" },
+            { icon: CalendarCheck, title: "Exam Schedule", to: "/teacher/student-evaluation/exam" },
             { icon: CircleHelp, title: "Question Bank", to: "/teacher/student-deliverables/sample-questions" },
             { icon: ClipboardPen, title: "Mark Entry", to: "/teacher/student-evaluation/mark-entry" },
             { icon: BarChart3, title: "Result Summary", to: "/teacher/student-evaluation/result-summary" },
@@ -1394,6 +1476,7 @@ export const teacherSidebarLinks = [
             { icon: CalendarCheck, title: "My Attendance", to: "/teacher/attendance/my-attendance" },
             { icon: FileText, title: "My Leave Requests", to: "/teacher/leave-request/my-requests" },
             { icon: ListChecks, title: "Received Leave Requests", to: "/teacher/leave-request/received" },
+            { icon: DoorOpen, title: "Apply for Relieving", to: "/teacher/relieving-application" },
             { icon: BookMarked, title: "Books Borrowed", to: "/teacher/library/books-borrowed" },
         ],
     },
@@ -1423,7 +1506,7 @@ export const teacherSidebarLinks = [
     },
     {
         id: 18,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/teacher/escalation-management",
         icon: ShieldAlert,
     },
@@ -1527,7 +1610,7 @@ export const coordinatorSidebarLinks = [
     },
     {
         id: 18,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/coordinator/escalation-management",
         icon: ShieldAlert,
     },
@@ -1619,10 +1702,26 @@ export const transportManagerSidebarLinks = [
         icon: FileX,
     },
     {
+        id: "transport-tasks",
+        title: "Task Management",
+        to: "#0",
+        icon: ClipboardList,
+        subLinks: [
+            { icon: UserPlus, title: "Assign Tasks", to: "/transport-manager/task-management/assign-tasks" },
+            { icon: ListChecks, title: "My Tasks", to: "/transport-manager/task-management/my-tasks" },
+        ],
+    },
+    {
         id: 13,
         title: "Building Maintenance",
         to: "/transport-manager/building-maintenance",
         icon: Landmark,
+    },
+    {
+        id: "transport-store-product",
+        title: "Request Product from Store",
+        to: "/transport-manager/store-product-request",
+        icon: Package,
     },
     {
         id: 14,
@@ -1893,8 +1992,7 @@ export const processAuditorSidebarLinks = [
         to: "#0",
         icon: ShieldCheck,
         subLinks: [
-            { icon: ShieldAlert, title: "Escalations", to: "/process-auditor/corrective-actions/escalations" },
-            { icon: CircleHelp, title: "Root Cause Analysis", to: "/process-auditor/corrective-actions/root-cause-analysis" },
+            // Escalation + RCA are on the observation itself (Recipient); ATR remains the follow-up record.
             { icon: FileText, title: "Action Taken Reports", to: "/process-auditor/corrective-actions/action-taken-reports" },
         ],
     },
@@ -1926,6 +2024,16 @@ export const processAuditorSidebarLinks = [
         title: "Shared Deviations",
         to: "/process-auditor/shared-deviations",
         icon: ShieldAlert,
+    },
+    {
+        id: "pa-tasks",
+        title: "Task Management",
+        to: "#0",
+        icon: ClipboardList,
+        subLinks: [
+            { icon: UserPlus, title: "Assign Tasks", to: "/process-auditor/task-management/assign-tasks" },
+            { icon: ListChecks, title: "My Tasks", to: "/process-auditor/task-management/my-tasks" },
+        ],
     },
 ];
 
@@ -1963,8 +2071,7 @@ export const qualityAuditorSidebarLinks = [
         to: "#0",
         icon: ShieldCheck,
         subLinks: [
-            { icon: ShieldAlert, title: "Escalations", to: "/quality-auditor/corrective-actions/escalations" },
-            { icon: CircleHelp, title: "Root Cause Analysis", to: "/quality-auditor/corrective-actions/root-cause-analysis" },
+            // Escalation + RCA live on the observation Recipient field; ATR is the follow-up record.
             { icon: FileText, title: "Action Taken Reports", to: "/quality-auditor/corrective-actions/action-taken-reports" },
         ],
     },
@@ -1996,6 +2103,16 @@ export const qualityAuditorSidebarLinks = [
         title: "Shared Deviations",
         to: "/quality-auditor/shared-deviations",
         icon: ShieldAlert,
+    },
+    {
+        id: "qa-tasks",
+        title: "Task Management",
+        to: "#0",
+        icon: ClipboardList,
+        subLinks: [
+            { icon: UserPlus, title: "Assign Tasks", to: "/quality-auditor/task-management/assign-tasks" },
+            { icon: ListChecks, title: "My Tasks", to: "/quality-auditor/task-management/my-tasks" },
+        ],
     },
 ];
 
@@ -2068,6 +2185,7 @@ export const hrSidebarLinks = [
     },
     { id: 9, title: "Disciplinary Action", to: "/hr/disciplinary", icon: ShieldAlert },
     { id: 10, title: "Exit Formalities", to: "/hr/exit", icon: DoorOpen },
+    { id: "hr-relieving-app", title: "Staff Relieving Applications", to: "/hr/relieving-application", icon: FileText },
     { id: 11, title: "Reports", to: "/hr/reports", icon: BarChart3 },
     {
         id: 12, title: "Notifications / Announcements", to: "#0", icon: BellDot,
@@ -2084,6 +2202,12 @@ export const accountHeadSidebarLinks = [
         title: "Dashboard",
         to: "/account-head/dashboard",
         icon: LayoutDashboard,
+    },
+    {
+        id: "account-tc-noc",
+        title: "TC NOC Clearance",
+        to: "/account-head/tc-noc",
+        icon: ClipboardCheck,
     },
     {
         id: 2,
@@ -2551,7 +2675,7 @@ export const directorSidebarLinks = [
     },
     {
         id: 17,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/director/escalation-management",
         icon: ShieldAlert,
     },
@@ -2615,6 +2739,18 @@ export const principalSidebarLinks = [
         title: "Student Gate Pass Approvals",
         to: "/principal/gate-pass/student-approvals",
         icon: DoorOpen,
+    },
+    {
+        id: "principal-hostel-gate-pass",
+        title: "Hostel Outing Approvals",
+        to: "/principal/gate-pass/hostel-approvals",
+        icon: Bed,
+    },
+    {
+        id: "principal-lost-found",
+        title: "Lost & Found",
+        to: "/principal/lost-found",
+        icon: Package,
     },
     {
         id: 4,
@@ -2720,7 +2856,7 @@ export const principalSidebarLinks = [
     },
     {
         id: 15,
-        title: "Escalation Management",
+        title: "Report Issue / Escalation",
         to: "/principal/escalation-management",
         icon: ShieldAlert,
     },

@@ -51,7 +51,10 @@ const summaryFromDepartments = (rows) => {
 /** Normalize API/local payloads: array of dept rows OR { summary, departments }. */
 export const normalizeComplianceData = (stored) => {
     if (Array.isArray(stored)) {
-        const departments = stored.filter((row) => row && typeof row === 'object')
+        if (stored.length === 1 && stored[0] && Array.isArray(stored[0].departments)) {
+            return normalizeComplianceData(stored[0])
+        }
+        const departments = stored.filter((row) => row && typeof row === 'object' && (row.department || row.label))
         return {
             summary: summaryFromDepartments(departments),
             departments: departments.length ? departments : DEFAULT_DEPARTMENT_ROWS,
@@ -78,7 +81,8 @@ export const normalizeComplianceData = (stored) => {
 }
 
 export const saveComplianceData = (data) => {
-    saveCampusJson(STORAGE_KEY, normalizeComplianceData(data))
+    const normalized = normalizeComplianceData(data)
+    saveCampusJson(STORAGE_KEY, normalized.departments)
 }
 
 export const getComplianceData = () => {

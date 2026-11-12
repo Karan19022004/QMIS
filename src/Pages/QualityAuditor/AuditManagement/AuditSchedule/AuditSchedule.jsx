@@ -8,6 +8,7 @@ import AuditScheduleCalendar from './AuditScheduleCalendar'
 import {
     getAuditSchedules,
     addAuditSchedule,
+    hydrateFromApi,
     DEPARTMENTS,
     FREQUENCIES,
     SCHEDULE_STATUSES,
@@ -15,6 +16,8 @@ import {
     statusBadgeColor,
     parseDisplayDate,
 } from './auditScheduleData'
+import { AUDIT_COMPONENTS_KEY, COMPONENT_SEED } from '../../../../Common/demoDomain/auditSeeds'
+import { ensureSeed } from '../../../../Common/demoDomain/storage'
 
 const AuditSchedule = () => {
     const location = useLocation()
@@ -30,12 +33,15 @@ const AuditSchedule = () => {
     const [exportModal, setExportModal] = useState(false)
     const [recurring, setRecurring] = useState(false)
     const [recurrenceType, setRecurrenceType] = useState('Weekly')
+    const [componentId, setComponentId] = useState('')
+    const components = useMemo(() => ensureSeed(AUDIT_COMPONENTS_KEY, COMPONENT_SEED), [])
 
     const createSchedule = (event) => {
         event.preventDefault()
         const data = new FormData(event.currentTarget)
         const iso = String(data.get('startDate') || '')
         const [year, month, day] = iso.split('-')
+        const selected = components.find((row) => row.id === componentId)
         addAuditSchedule({
             auditName: data.get('auditName'),
             department: data.get('department'),
@@ -45,10 +51,17 @@ const AuditSchedule = () => {
             dayOfMonth: Number(data.get('dayOfMonth')),
             startDate: day && month && year ? `${day}-${month}-${year}` : iso,
             endDate: '',
+            componentId: selected?.id || '',
+            componentName: selected?.component || '',
+            rubric1: selected?.rubric1 || '',
+            rubric2: selected?.rubric2 || '',
+            rubric3: selected?.rubric3 || '',
+            rubric4: selected?.rubric4 || '',
         })
         setSchedules(getAuditSchedules())
         event.currentTarget.reset()
         setRecurring(false)
+        setComponentId('')
     }
 
     const clearFilters = () => {
@@ -64,14 +77,19 @@ const AuditSchedule = () => {
     const applySearch = () => setAppliedSearch(searchInput.trim())
 
     useEffect(() => {
-        setSchedules(getAuditSchedules())
+        let active = true
+        hydrateFromApi().finally(() => {
+            if (active) setSchedules(getAuditSchedules())
+        })
+        return () => { active = false }
     }, [location.pathname])
 
     const filtered = useMemo(() => {
         const query = appliedSearch.toLowerCase()
+        const norm = (value) => String(value || '').toUpperCase().replace(/[\s_-]/g, '')
         return schedules.filter((record) => {
             if (department && record.department !== department) return false
-            if (frequency && record.frequency !== frequency) return false
+            if (frequency && norm(record.frequency) !== norm(frequency)) return false
             if (status && record.status !== status) return false
             if (fromDate || toDate) {
                 const due = parseDisplayDate(record.dueDate || record.assignedDate)
@@ -209,9 +227,18 @@ const AuditSchedule = () => {
 
             <form onSubmit={createSchedule} className='bg-white rounded-2xl shadow-md p-4 mt-8 grid md:grid-cols-3 gap-3'>
                 <h2 className='md:col-span-3 text-lg font-medium'>Create schedule</h2>
+                <p className='md:col-span-3 text-xs text-[#667085]'>Attach component + Rubric-1..4 with the schedule so observations can use them together.</p>
                 <input name='auditName' required placeholder='Schedule name' className='border rounded-md px-2 py-2 text-sm' />
                 <select name='department' className='border rounded-md px-2 py-2 text-sm'>{DEPARTMENTS.map((item) => <option key={item}>{item}</option>)}</select>
                 <input name='startDate' type='date' required className='border rounded-md px-2 py-2 text-sm' />
+                <select value={componentId} onChange={(event) => setComponentId(event.target.value)} className='border rounded-md px-2 py-2 text-sm md:col-span-2'>
+                    <option value=''>Select component (with rubrics)</option>
+                    {components.map((row) => (
+                        <option key={row.id} value={row.id}>
+                            {row.component}{row.subComponent ? ` / ${row.subComponent}` : ''}
+                        </option>
+                    ))}
+                </select>
                 <select name='isRecurring' value={recurring ? 'yes' : 'no'} onChange={(event) => setRecurring(event.target.value === 'yes')} className='border rounded-md px-2 py-2 text-sm'>
                     <option value='no'>One-time</option>
                     <option value='yes'>Recurring</option>

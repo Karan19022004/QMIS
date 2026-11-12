@@ -143,7 +143,14 @@ const RequestsApprovalsList = ({ readOnly = false }) => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='requestsapprovalslist'
+                title='RequestsApprovalsList'
+                rows={Array.isArray(requests) ? requests : []}
+                exportDescription={<>You are exporting {Array.isArray(requests) ? requests.length : 0} record(s).</>}
+            />
         </section>
     )
 }

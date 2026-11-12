@@ -265,7 +265,14 @@ const ResponseTypesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='responsetypeslist'
+                title='ResponseTypesList'
+                rows={Array.isArray(filteredTypes) ? filteredTypes : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredTypes) ? filteredTypes.length : 0} record(s).</>}
+            />
             <ResponseTypeFormModal
                 isOpen={formModal.open}
                 mode={formModal.mode}

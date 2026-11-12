@@ -17,12 +17,14 @@ from sqlalchemy import func, select
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.main import app
-from app.models import Activity, AuditLog, CalendarEvent, Campus, Conversation, Message, Student, TcRequest, User
+from app.models import Activity, AuditLog, CalendarEvent, Campus, Conversation, Message, Student, TcRequest, TcRequestNoc, User
 
 ADMIN = (settings.admin_seed_email, settings.admin_seed_password)
 TEACHER = (settings.teacher_seed_email, settings.teacher_seed_password)
 HR = (settings.hr_seed_email, settings.hr_seed_password)
 ACCOUNT_HEAD = (settings.accounthead_seed_email, settings.accounthead_seed_password)
+LIBRARIAN = ("librarian@qmis.edu", "librarian123")
+STORE = ("stationerystoremanager@qmis.edu", "stationery123")
 PDF = b"%PDF-1.4\n% note\n"
 
 
@@ -53,6 +55,39 @@ def _student():
 def _user_id(email):
     with SessionLocal() as db:
         return str(db.scalar(select(User.id).where(User.email == email)))
+
+
+def _complete_manager_nocs(client, ref: str) -> None:
+    """Approve every pending NOC so the request reaches Pending PRM Review."""
+    role_logins = {
+        "accounthead": ACCOUNT_HEAD,
+        "librarian": LIBRARIAN,
+        "stationerystoremanager": STORE,
+        "transportmanager": ("transportmanager@qmis.edu", "transport123"),
+    }
+    detail = client.get(f"/api/v1/tc-requests/{ref}", headers=_login(client, ADMIN)).json()
+    for noc in detail.get("nocs") or []:
+        if noc.get("status") != "Pending":
+            continue
+        login = role_logins.get(noc.get("roleCode"))
+        if login:
+            res = client.post(
+                f"/api/v1/tc-requests/{ref}/noc",
+                headers=_login(client, login),
+                json={"decision": "approve", "remarks": f"{noc.get('roleCode')} cleared"},
+            )
+            assert res.status_code == 200, res.text
+    # Any remaining pending NOCs (missing seed login) are cleared in DB for forwardability.
+    with SessionLocal() as db:
+        row = db.scalar(select(TcRequest).where(TcRequest.code == ref))
+        assert row is not None
+        for noc in db.scalars(select(TcRequestNoc).where(TcRequestNoc.tc_request_id == row.id)).all():
+            if noc.status == "Pending":
+                noc.status = "Approved"
+                noc.remarks = "test-approved"
+        if row.status == "Pending Manager NOCs":
+            row.status = "Pending PRM Review"
+        db.commit()
 
 
 # --- calendar ------------------------------------------------------------------------------------
@@ -122,9 +157,10 @@ def test_tc_request_lifecycle_and_role_gates(client):
     )
     assert created.status_code == 201, created.text
     body = created.json()
-    assert body["status"] == "Pending PRM Review" and body["studentName"] == name and body["id"].startswith("TC-REQ-")
+    assert body["status"] == "Pending Manager NOCs" and body["studentName"] == name and body["id"].startswith("TC-REQ-")
     ref = body["id"]
     assert client.post(f"/api/v1/tc-requests/{ref}/decide", json={"decision": "approve"}, headers=admin).status_code == 409
+    _complete_manager_nocs(client, ref)
     forwarded = client.post(f"/api/v1/tc-requests/{ref}/forward", json={"remarks": "Dues cleared."}, headers=admin)
     assert forwarded.status_code == 200 and forwarded.json()["status"] == "Pending Super Admin Approval"
     assert client.post(f"/api/v1/tc-requests/{ref}/decide", json={"decision": "approve"}, headers=teacher).status_code == 403
@@ -150,11 +186,11 @@ def test_tc_rejects_a_second_open_request_and_a_reject_needs_a_remark(client):
     )
     assert second.status_code == 409 and second.json()["detail"]["code"] == "already_open"
     ref = first.json()["id"]
-    client.post(f"/api/v1/tc-requests/{ref}/forward", json={"remarks": "ok"}, headers=admin)
-    refused = client.post(f"/api/v1/tc-requests/{ref}/decide", json={"decision": "reject"}, headers=admin)
+    _complete_manager_nocs(client, ref)
+    refused = client.post(f"/api/v1/tc-requests/{ref}/reject-prm", json={"remarks": ""}, headers=admin)
     assert refused.status_code == 422 and refused.json()["detail"]["code"] == "remarks_required"
     rejected = client.post(
-        f"/api/v1/tc-requests/{ref}/decide", json={"decision": "reject", "remarks": "Dues outstanding."}, headers=admin
+        f"/api/v1/tc-requests/{ref}/reject-prm", json={"remarks": "Dues outstanding."}, headers=admin
     )
     assert rejected.status_code == 200 and rejected.json()["status"] == "Rejected"
 
@@ -262,7 +298,11 @@ def test_admin_dashboard_counts_live_rows_and_other_roles_are_refused(client):
         json={"studentRef": admission, "reason": "Moving city.", "transferTo": "KV"},
         headers=admin,
     )
-    client.post(f"/api/v1/tc-requests/{filed.json()['id']}/forward", json={"remarks": "ok"}, headers=admin)
+    assert filed.status_code == 201, filed.text
+    ref = filed.json()["id"]
+    _complete_manager_nocs(client, ref)
+    forwarded = client.post(f"/api/v1/tc-requests/{ref}/forward", json={"remarks": "ok"}, headers=admin)
+    assert forwarded.status_code == 200, forwarded.text
     after = client.get("/api/v1/admin/dashboard", headers=admin).json()
     assert after["pendingTc"] == snap["pendingTc"] + 1
     assert after["students"] == snap["students"] + 1

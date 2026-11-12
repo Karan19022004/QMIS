@@ -185,6 +185,13 @@ export const saveAuditSchedules = (records) => {
     saveCampusJson(STORAGE_KEY, records)
 }
 
+const frequencyFromPayload = (payload) => {
+    if (!payload?.isRecurring) return 'Ad-hoc'
+    if (payload.recurrenceType === 'Weekly') return 'WEEKLY'
+    if (payload.recurrenceType === 'Monthly') return 'MONTHLY'
+    return payload.recurrenceType || 'Ad-hoc'
+}
+
 export const addAuditSchedule = (payload) => {
     const current = getAuditSchedules()
     const scheduleId = `SCH-PA-${Date.now()}`
@@ -193,7 +200,7 @@ export const addAuditSchedule = (payload) => {
         auditId: payload.auditId || `AUD-PA-${Date.now()}`,
         auditName: payload.auditName,
         department: payload.department || 'Academic',
-        frequency: payload.recurrenceType === 'Weekly' ? 'WEEKLY' : payload.recurrenceType === 'Monthly' ? 'MONTHLY' : 'Ad-hoc',
+        frequency: frequencyFromPayload(payload),
         assignedDate: payload.startDate,
         dueDate: payload.startDate,
         assignedBy: payload.assignedBy || 'Process Audit Manager',
@@ -209,6 +216,12 @@ export const addAuditSchedule = (payload) => {
             dayOfMonth: payload.dayOfMonth,
             startDate: payload.startDate,
             endDate: payload.endDate || '',
+            componentId: payload.componentId || '',
+            componentName: payload.componentName || '',
+            rubric1: payload.rubric1 || '',
+            rubric2: payload.rubric2 || '',
+            rubric3: payload.rubric3 || '',
+            rubric4: payload.rubric4 || '',
         },
     ]
     saveAuditSchedules(next)
@@ -231,11 +244,17 @@ const coerceScheduleRecords = (stored) => {
 export const getAuditSchedules = () => {
     try {
         const stored = coerceScheduleRecords(loadCampusJson(STORAGE_KEY, null))
-        if (stored?.length) return migrateSchedules(stored)
+        // Any array (including empty) is authoritative once hydrated / after a save.
+        // Never reseed+replace on [] — that wiped newly saved schedules in API mode.
+        if (Array.isArray(stored)) {
+            if (usesCampusApiForKey(STORAGE_KEY) || stored.length) return migrateSchedules(stored)
+        }
     } catch {
         /* ignore */
     }
-    saveAuditSchedules(DEFAULT_AUDIT_SCHEDULES)
+    if (!usesCampusApiForKey(STORAGE_KEY)) {
+        saveAuditSchedules(DEFAULT_AUDIT_SCHEDULES)
+    }
     return DEFAULT_AUDIT_SCHEDULES
 }
 

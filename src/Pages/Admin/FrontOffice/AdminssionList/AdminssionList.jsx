@@ -8,6 +8,7 @@ import Dropdown from '../../../../Common/CommonComponents/Dropdown'
 import ExportModal from '../../../../Common/CommonComponents/ExportModal'
 import EditRequestModal from '../../../../Common/CommonComponents/EditRequestModal'
 import {
+    admissionFinanceBlockReason,
     deleteAdmission,
     enrollAdmissionAsStudent,
     filterAdmissions,
@@ -64,6 +65,11 @@ const AdminssionList = () => {
     }
 
     const handleEnroll = async (record) => {
+        const financeBlock = admissionFinanceBlockReason(record)
+        if (financeBlock) {
+            toast.error(financeBlock)
+            return
+        }
         const email = record.parentAccountEmail || ''
         if (!email) {
             toast.error('Set Parent Username / Email on the admission before enrolling.')

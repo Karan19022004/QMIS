@@ -37,11 +37,14 @@ import TcNocList from '../Pages/TransportManager/TcNoc/TcNocList'
 import ViewTcNoc from '../Pages/TransportManager/TcNoc/ViewTcNoc'
 import DepartmentTicketsPage from '../Common/Tickets/DepartmentTicketsPage'
 import ViewSupportTicket from '../Pages/ITSupportManager/SupportTickets/ViewSupportTicket'
+import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
+import RequestProductFromStore from '../Common/Store/RequestProductFromStore'
 
 const TransportManagerRoutes = () => {
     return (
         <ReactRoutes>
             <Route path="/transport-manager/dashboard" element={<Dashboard />} />
+            {TaskManagementRoutes({ basePath: '/transport-manager' })}
             <Route
                 path="/transport-manager/tickets"
                 element={(
@@ -90,6 +93,16 @@ const TransportManagerRoutes = () => {
             <Route path="/transport-manager/leave-request" element={<LeaveRequest />} />
             <Route path="/transport-manager/leave-request/view/:id" element={<ViewLeaveRequest />} />
             <Route path="/transport-manager/building-maintenance" element={<BuildingMaintenance />} />
+            <Route
+                path="/transport-manager/store-product-request"
+                element={(
+                    <RequestProductFromStore
+                        department="Transport"
+                        requestedBy="Transport Manager"
+                        title="Request Product from Store"
+                    />
+                )}
+            />
             <Route path="*" element={<Navigate to="/transport-manager/dashboard" replace />} />
         </ReactRoutes>
     )

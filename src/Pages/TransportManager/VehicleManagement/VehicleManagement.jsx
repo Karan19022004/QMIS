@@ -202,7 +202,14 @@ const VehicleManagement = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='vehiclemanagement'
+                title='VehicleManagement'
+                rows={Array.isArray(VEHICLES) ? VEHICLES : []}
+                exportDescription={<>You are exporting {Array.isArray(VEHICLES) ? VEHICLES.length : 0} record(s).</>}
+            />
             <DeleteRequestModal
                 deleteRequestModal={deleteModal}
                 setDeleteRequestModal={setDeleteModal}

@@ -19,6 +19,7 @@ import Payroll from '../Pages/HR/Payroll/Payroll'
 import ChildConcession from '../Pages/HR/Payroll/ChildConcession'
 import Disciplinary from '../Pages/HR/Relations/Disciplinary'
 import ExitFormalities from '../Pages/HR/Exit/ExitFormalities'
+import StaffRelievingApply from '../Common/HR/StaffRelievingApply'
 import Reports from '../Pages/HR/Reports/Reports'
 import Notifications from '../Pages/HR/Notifications/Notifications'
 import Announcements from '../Pages/HR/Announcements/Announcements'
@@ -79,6 +80,7 @@ const HRRoutes = () => {
             <Route path="/hr/payroll" element={<Navigate to="/hr/payroll/salary-statement" replace />} />
             <Route path="/hr/disciplinary" element={<Disciplinary />} />
             <Route path="/hr/exit" element={<ExitFormalities />} />
+            <Route path="/hr/relieving-application" element={<StaffRelievingApply />} />
             <Route path="/hr/reports" element={<Reports />} />
             <Route path="/hr/notifications" element={<Notifications />} />
             <Route path="/hr/announcements/add" element={<AddAnnouncement />} />

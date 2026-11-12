@@ -317,7 +317,14 @@ const FeeStructureTab = ({
             </div>
         </div>
 
-        <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+        <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='feesmanagement'
+                title='FeesManagement'
+                rows={Array.isArray(filteredStructures) ? filteredStructures : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredStructures) ? filteredStructures.length : 0} record(s).</>}
+            />
     </div>
     )
 }

@@ -23,9 +23,13 @@ import {
     TASK_STATUSES,
 } from './taskManagementConfig'
 import { useTaskRole } from './useTaskRole'
+import { canShowDeleteOption } from '../CommonComponents/approvalGates'
+import { useAuth } from '../../context/AuthContext'
 
 const AssignTasksPage = () => {
     const roleKey = useTaskRole()
+    const { role } = useAuth() || {}
+    const showDelete = canShowDeleteOption(role || roleKey)
     const paths = getTaskManagementPaths(roleKey)
     const assignableRoles = getAssignableRoles(roleKey)
 
@@ -212,7 +216,9 @@ const AssignTasksPage = () => {
                                         <td className='px-2 py-4 text-center rounded-e-lg'>
                                             <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
                                                 <button type='button' onClick={() => setEditRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Edit</button>
-                                                <button type='button' onClick={() => setDeleteRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Delete</button>
+                                                {showDelete ? (
+                                                    <button type='button' onClick={() => setDeleteRequestModal(true)} className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'>Delete</button>
+                                                ) : null}
                                             </Dropdown>
                                         </td>
                                     </tr>

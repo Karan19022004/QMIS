@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+import os
 from uuid import uuid4
 
 import httpx
@@ -37,7 +38,20 @@ def _key_secret() -> str:
 
 def create_payment_intent(*, amount: float, reference: str, student_id: str | None) -> dict:
     """Return gateway intent fields for storage on the finance payment link."""
-    if not settings.razorpay_configured or settings.payment_provider.lower() != "razorpay":
+    # Prefer process env so pytest can force stub after Settings was already constructed.
+    provider = str(os.environ.get("PAYMENT_PROVIDER") or settings.payment_provider or "").strip().lower()
+    # Explicit stub provider (local/pytest): open intent without live merchant keys.
+    if provider == "stub":
+        return {
+            "gateway": "stub",
+            "status": OPEN,
+            "providerConfigured": True,
+            "liveVerified": False,
+            "providerOrderId": None,
+            "url": f"/student/payment/fees-payment?ref={reference}",
+            "message": "Stub payment intent (local / test)",
+        }
+    if not settings.razorpay_configured or provider != "razorpay":
         return {
             "gateway": "stub",
             "status": NOT_CONFIGURED,

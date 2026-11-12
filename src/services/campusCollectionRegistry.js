@@ -40,6 +40,7 @@ export const CAMPUS_COLLECTION_BY_STORAGE_KEY = {
     'schoolerp-library-books-v1': { kind: 'ops', collection: 'library-books' },
     'schoolerp-library-issues-v1': { kind: 'ops', collection: 'library-issues' },
     'schoolerp-library-members-v1': { kind: 'ops', collection: 'library-members' },
+    'schoolerp-library-book-requests-v1': { kind: 'ops', collection: 'library-book-requests' },
     // Transport
     'schoolerp-transport-vehicles-v1': { kind: 'ops', collection: 'transport-vehicles' },
     'schoolerp-transport-vehicle-health-v1': { kind: 'ops', collection: 'transport-vehicle-health' },

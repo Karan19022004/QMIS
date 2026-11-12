@@ -95,6 +95,7 @@ const ViewAdmission = () => {
                     <Field label='Admission Date' value={record.admissionDate} />
                     <Field label='Class' value={record.className} />
                     <Field label='Registration Fees' value={record.registrationFees} />
+                    <Field label='Registration Fee Status' value={record.registrationFeeStatus || 'Pending'} />
                     <Field label='Batch Start Year' value={record.batchStartYear} />
                     <Field label='Batch End Year' value={record.batchEndYear} />
                     <Field label='Created Date' value={record.createdDate} />

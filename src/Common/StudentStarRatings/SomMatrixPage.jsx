@@ -604,7 +604,7 @@ const MatrixDocuments = ({ context, meta, onChange, resourceId }) => {
                 Browse
                 <input
                     type='file'
-                    accept='.pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,image/png,image/*,application/pdf'
+                    accept='.pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx,image/png,image/jpeg,image/*,application/pdf'
                     disabled={uploading}
                     onChange={onUpload}
                     className='sr-only'

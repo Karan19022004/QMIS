@@ -1,10 +1,14 @@
 import React from 'react'
 import { Navigate, Route, Routes as ReactRoutes } from 'react-router-dom'
+import Dashboard from '../Pages/Librarian/Dashboard/Dashboard'
 import BookList from '../Pages/Librarian/BookManagement/BookList/BookList'
 import AddBooks from '../Pages/Librarian/BookManagement/BookList/AddBooks'
 import IssuedBooks from '../Pages/Librarian/IssuedBooks/IssuedBooks'
 import AddIssueBook from '../Pages/Librarian/IssuedBooks/AddIssueBook'
+import BookRequests from '../Pages/Librarian/BookRequests/BookRequests'
 import MembersList from '../Pages/Librarian/Members/MembersList'
+import TcNocList from '../Pages/TransportManager/TcNoc/TcNocList'
+import ViewTcNoc from '../Pages/TransportManager/TcNoc/ViewTcNoc'
 import ReminderList from '../Pages/Librarian/Notification/ReminderList'
 import EscalationList from '../Pages/Librarian/EscalationManagement/EscalationList'
 import AddEscalation from '../Pages/Librarian/EscalationManagement/AddEscalation'
@@ -20,12 +24,13 @@ import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRou
 const LibrarianRoutes = () => {
     return (
         <ReactRoutes>
-            <Route path="/librarian/dashboard" element={<div>Librarian Dashboard</div>} />
+            <Route path="/librarian/dashboard" element={<Dashboard />} />
 
             {/* Book Management */}
             <Route path="/librarian/book-management/book-list" element={<BookList />} />
             <Route path="/librarian/book-management/add-book" element={<AddBooks />} />
             <Route path="/librarian/book-management/add-books" element={<AddBooks />} />
+            <Route path="/librarian/book-requests" element={<BookRequests />} />
 
             {/* Issued Books */}
             <Route path="/librarian/issued-books/issued-book-list" element={<IssuedBooks />} />
@@ -34,6 +39,10 @@ const LibrarianRoutes = () => {
 
             {/* Members */}
             <Route path="/librarian/members/member-list" element={<MembersList />} />
+
+            {/* TC NOC (library dues clearance) */}
+            <Route path="/librarian/tc-noc" element={<TcNocList />} />
+            <Route path="/librarian/tc-noc/view/:id" element={<ViewTcNoc />} />
 
             {/* Notification */}
             <Route path="/librarian/notifications" element={<ReminderList />} />
@@ -64,7 +73,7 @@ const LibrarianRoutes = () => {
             <Route path="/librarian/escalation-management/add-escalation" element={<AddEscalation />} />
             <Route path="/librarian/escalation-management/view/:id" element={<ViewEscalation />} />
 
-            <Route path="*" element={<div>Librarian Dashboard</div>} />
+            <Route path="*" element={<Navigate to="/librarian/dashboard" replace />} />
         </ReactRoutes>
     )
 }

@@ -324,7 +324,14 @@ const VisibilityRulesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='visibilityruleslist'
+                title='VisibilityRulesList'
+                rows={Array.isArray(filteredRules) ? filteredRules : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredRules) ? filteredRules.length : 0} record(s).</>}
+            />
             <VisibilityRuleFormModal
                 isOpen={formModal.open}
                 mode={formModal.mode}

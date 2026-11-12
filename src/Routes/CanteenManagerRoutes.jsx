@@ -17,6 +17,7 @@ import AddAnnouncement from '../Pages/CanteenManager/Announcement/AddAnnouncemen
 import ViewAnnouncement from '../Pages/CanteenManager/Announcement/ViewAnnouncement'
 import DepartmentTicketsPage from '../Common/Tickets/DepartmentTicketsPage'
 import ViewSupportTicket from '../Pages/ITSupportManager/SupportTickets/ViewSupportTicket'
+import RequestProductFromStore from '../Common/Store/RequestProductFromStore'
 
 const CanteenManagerRoutes = () => {
     return (
@@ -47,6 +48,16 @@ const CanteenManagerRoutes = () => {
             <Route path="/canteen-manager/broadcast" element={<AnnouncementList />} />
             <Route path="/canteen-manager/broadcast/add-broadcast" element={<AddAnnouncement />} />
             <Route path="/canteen-manager/broadcast/view-broadcast/:id" element={<ViewAnnouncement />} />
+            <Route
+                path="/canteen-manager/store-product-request"
+                element={(
+                    <RequestProductFromStore
+                        department="Canteen"
+                        requestedBy="Canteen Manager"
+                        title="Request Product from Store"
+                    />
+                )}
+            />
             <Route path="*" element={<Navigate to="/canteen-manager/dashboard" replace />} />
         </ReactRoutes>
     )

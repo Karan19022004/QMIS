@@ -12,12 +12,14 @@ from fastapi.testclient import TestClient
 
 from app.core.config import settings
 from app.main import app
+from tests.conftest import reset_sqlite_memory_schema
 
 TEACHER = (settings.teacher_seed_email, settings.teacher_seed_password)
 
 
 @pytest.fixture()
 def client():
+    reset_sqlite_memory_schema()
     with TestClient(app) as test_client:
         yield test_client
 
@@ -32,8 +34,32 @@ def _principal_headers(client):
     return _login(client, settings.principal_seed_email, settings.principal_seed_password)
 
 
+def _ensure_class_section(client, class_name: str, section: str = "A") -> None:
+    admin = _login(client, settings.admin_seed_email, settings.admin_seed_password)
+    classes = client.get("/api/v1/masters/classes", headers=admin).json()
+    row = next((c for c in classes if c.get("name") == class_name), None)
+    if row is None:
+        created = client.post("/api/v1/masters/classes", json={"name": class_name}, headers=admin)
+        assert created.status_code == 201, created.text
+        row = created.json()
+    sections = client.get("/api/v1/masters/sections", headers=admin).json()
+    if not any(
+        s.get("classId") == row["id"] and str(s.get("name") or "").upper() == section.upper()
+        for s in sections
+    ):
+        made = client.post(
+            "/api/v1/masters/sections",
+            json={"class_id": row["id"], "name": section},
+            headers=admin,
+        )
+        # Concurrent/enroll paths may create the same section first.
+        assert made.status_code in (201, 409), made.text
+
+
 def test_class_timetables_replace_and_list(client):
     headers = _principal_headers(client)
+    _ensure_class_section(client, "Grade 9", "A")
+    _ensure_campus_subject(client, name="English", code="ENG")
     payload = [
         {
             "id": "CTT100",
@@ -67,6 +93,8 @@ def test_class_timetables_replace_and_list(client):
 
 def test_teacher_allocations_replace(client):
     headers = _principal_headers(client)
+    _ensure_class_section(client, "Grade 10", "A")
+    _ensure_campus_subject(client, name="Mathematics", code="MAT")
     payload = [
         {
             "employeeId": "TEA-1001",
@@ -539,6 +567,33 @@ def test_class_timetable_allocation_and_subject_rules(client):
 
 
 def test_unit_tests_and_deliverables_collections(client):
+    admin = _login(client, settings.admin_seed_email, settings.admin_seed_password)
+    principal = _principal_headers(client)
+    _ensure_class_section(client, "Grade 5", "A")
+    _ensure_campus_subject(client, name="Mathematics", code="MAT")
+    options = client.get("/api/v1/masters/class-teacher-options", headers=admin).json()
+    teacher_id = next(o["user_id"] for o in options if o["email"] == TEACHER[0])
+    alloc = client.put(
+        "/api/v1/academics/teacher-allocations",
+        headers=principal,
+        json=[
+            {
+                "employeeId": "TEA-UT-1",
+                "email": TEACHER[0],
+                "status": "Active",
+                "mappings": [
+                    {
+                        "id": "MAP-UT-1",
+                        "className": "Grade 5",
+                        "section": "A",
+                        "subject": "Mathematics",
+                        "teacherUserId": teacher_id,
+                    }
+                ],
+            }
+        ],
+    )
+    assert alloc.status_code == 200, alloc.text
     headers = _login(client, TEACHER[0], TEACHER[1])
     for collection, item_id in (
         ("unit-tests", "UT-2001"),
@@ -548,7 +603,15 @@ def test_unit_tests_and_deliverables_collections(client):
     ):
         put = client.put(
             f"/api/v1/academics/{collection}",
-            json=[{"id": item_id, "title": "Demo", "subject": "Math"}],
+            json=[
+                {
+                    "id": item_id,
+                    "title": "Demo",
+                    "subject": "Mathematics",
+                    "className": "Grade 5",
+                    "section": "A",
+                }
+            ],
             headers=headers,
         )
         assert put.status_code == 200, put.text

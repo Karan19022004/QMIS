@@ -187,7 +187,14 @@ const AuditMonitoringList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='auditmonitoringlist'
+                title='AuditMonitoringList'
+                rows={Array.isArray(auditMonitoring) ? auditMonitoring : []}
+                exportDescription={<>You are exporting {Array.isArray(auditMonitoring) ? auditMonitoring.length : 0} record(s).</>}
+            />
         </section>
     )
 }

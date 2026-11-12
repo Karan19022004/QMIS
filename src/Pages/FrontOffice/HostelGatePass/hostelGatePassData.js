@@ -124,7 +124,7 @@ const buildRecordPayload = (payload, existing = null) => {
             gender: payload.gender || '',
             mobileNumber: payload.mobileNumber || '',
             city: payload.city || '',
-            profile: payload.profileImage || noProfile,
+            profile: payload.profileImage || payload.profile || noProfile,
             hostel: payload.hostel,
             leaveType: payload.leaveType,
             reason,
@@ -133,10 +133,57 @@ const buildRecordPayload = (payload, existing = null) => {
             returnDate,
             returnTime,
             status: payload.status,
-            parentApproval: existing?.parentApproval || 'Pending',
-            wardenApproval: existing?.wardenApproval || 'Pending',
+            parentApproval: payload.parentApproval || existing?.parentApproval || 'Pending',
+            // Parent OR Principal only — warden is not part of the required chain (#45).
+            principalApproval:
+                payload.principalApproval
+                || existing?.principalApproval
+                || (existing?.wardenApproval && existing.wardenApproval !== 'Pending' ? existing.wardenApproval : null)
+                || 'Pending',
         },
     }
+}
+
+/** Effective principal column (legacy rows may still carry wardenApproval only). */
+export const getHostelPrincipalApproval = (record) =>
+    record?.principalApproval
+    || (record?.wardenApproval && record.wardenApproval !== 'Pending' ? record.wardenApproval : null)
+    || 'Pending'
+
+/** Outing is cleared for gate when Parent OR Principal has approved. */
+export const isHostelOutingApproved = (record) =>
+    record?.parentApproval === 'Approved' || getHostelPrincipalApproval(record) === 'Approved'
+
+/**
+ * Parent or Principal decision on hostel leave/outing / gate pass.
+ * Either approval alone is sufficient; the other field may stay Pending.
+ */
+export const decideHostelGatePassApproval = async (id, { actor = 'principal', status } = {}) => {
+    if (!APPROVAL_STATUSES.includes(status) || status === 'Pending') {
+        return { success: false, message: 'Choose Approved or Rejected.' }
+    }
+    const existing = getHostelGatePassById(id)
+    if (!existing) return { success: false, message: 'Hostel gate pass not found.' }
+
+    const field = actor === 'parent' ? 'parentApproval' : 'principalApproval'
+    const current = field === 'parentApproval'
+        ? (existing.parentApproval || 'Pending')
+        : getHostelPrincipalApproval(existing)
+    if (current !== 'Pending') {
+        return { success: false, message: `${field === 'parentApproval' ? 'Parent' : 'Principal'} already decided (${current}).` }
+    }
+
+    const next = {
+        ...existing,
+        parentApproval: existing.parentApproval || 'Pending',
+        principalApproval: getHostelPrincipalApproval(existing),
+        [field]: status,
+        [`${field}DecidedAt`]: new Date().toISOString(),
+    }
+    // Drop orphan warden field from the write payload so UI stops requiring it.
+    delete next.wardenApproval
+
+    return updateHostelGatePass(id, next)
 }
 
 export const addHostelGatePass = async (payload) => {

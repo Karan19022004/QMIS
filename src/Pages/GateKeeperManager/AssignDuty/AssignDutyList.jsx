@@ -176,7 +176,14 @@ const AssignDutyList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='assigndutylist'
+                title='AssignDutyList'
+                rows={Array.isArray(rows) ? rows : []}
+                exportDescription={<>You are exporting {Array.isArray(rows) ? rows.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>

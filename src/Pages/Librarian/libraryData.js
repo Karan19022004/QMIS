@@ -116,18 +116,43 @@ export const hydrateLibraryFromApi = async () => {
     return true
 }
 
-export const issueLibraryBook = ({ bookId, memberName, issueDate, dueDate }) => {
+const borrowLimitForRole = (role) => {
+    const value = String(role || '').toLowerCase()
+    if (value.includes('student')) return 1
+    return 5 // Staff / Teacher
+}
+
+export const issueLibraryBook = ({ bookId, memberId, memberName, memberRole, issueDate, dueDate }) => {
     const books = getLibraryBooks()
     const book = books.find((row) => row.id === bookId)
     if (!book) return { success: false, message: 'Choose a book from the catalogue.' }
     if (Number(book.available) <= 0) return { success: false, message: 'No copies are available to issue.' }
-    const member = String(memberName || '').trim()
-    if (!member) return { success: false, message: 'Member name is required.' }
+    const members = getLibraryMembers()
+    const memberRow = members.find((row) => row.id === memberId)
+        || members.find((row) => String(row.name || '').toLowerCase() === String(memberName || '').trim().toLowerCase())
+    const member = String(memberRow?.name || memberName || '').trim()
+    if (!member) return { success: false, message: 'Select a library member.' }
+    const role = memberRow?.role || memberRole || 'Student'
+    const openCount = getLibraryIssues().filter(
+        (row) => row.status === 'Issued' && (
+            (memberRow && row.memberId === memberRow.id)
+            || String(row.memberName || '').toLowerCase() === member.toLowerCase()
+        ),
+    ).length
+    const limit = borrowLimitForRole(role)
+    if (openCount >= limit) {
+        return {
+            success: false,
+            message: `${role} borrowing limit is ${limit}. ${member} already has ${openCount} open loan(s).`,
+        }
+    }
     const issue = {
         id: `LIS-${Date.now()}`,
         bookId: book.id,
         bookTitle: book.title,
+        memberId: memberRow?.id || '',
         memberName: member,
+        memberRole: role,
         issueDate: issueDate || '',
         dueDate: dueDate || '',
         status: 'Issued',
@@ -137,7 +162,13 @@ export const issueLibraryBook = ({ bookId, memberName, issueDate, dueDate }) => 
         const available = Math.max(0, Number(row.available || 0) - 1)
         return { ...row, available, status: available > 0 ? 'Available' : 'Issued Out' }
     })
+    const nextMembers = members.map((row) => (
+        row.id === memberRow?.id
+            ? { ...row, booksIssued: Number(row.booksIssued || 0) + 1 }
+            : row
+    ))
     saveLibraryBooks(nextBooks)
+    if (memberRow) saveLibraryMembers(nextMembers)
     saveLibraryIssues([issue, ...getLibraryIssues()])
     return { success: true, issue }
 }

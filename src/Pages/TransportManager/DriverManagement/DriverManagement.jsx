@@ -165,7 +165,14 @@ const DriverManagement = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='drivermanagement'
+                title='DriverManagement'
+                rows={Array.isArray(DRIVERS) ? DRIVERS : []}
+                exportDescription={<>You are exporting {Array.isArray(DRIVERS) ? DRIVERS.length : 0} record(s).</>}
+            />
         </section>
     )
 }

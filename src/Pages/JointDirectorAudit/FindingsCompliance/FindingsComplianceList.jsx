@@ -204,7 +204,14 @@ const FindingsComplianceList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='findingscompliancelist'
+                title='FindingsComplianceList'
+                rows={Array.isArray(findings) ? findings : []}
+                exportDescription={<>You are exporting {Array.isArray(findings) ? findings.length : 0} record(s).</>}
+            />
         </section>
     )
 }

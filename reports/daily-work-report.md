@@ -8,6 +8,104 @@ New days go at the top. Older days stay below so the history is in one file.
 
 ---
 
+## 12 November 2026 — Full Regression Triage and Release Readiness
+
+**Status:** Local verification only. No commit/push/deploy.
+
+### Done
+- Reproduced full suite from **790 passed / 22 failed / 8 errors**; classified by auth, attendance, finance, academics, stationery, static guards, fixtures.
+- Fixed regressions and fixture drift (TC Manager NOCs, stationery item upsert, enrol receipt gate, payment stub, class masters, attendance/SQLite reset, static guards, staff recon counts). Flaky teacher-allocation sync fixed with schema reset in academics client fixture.
+- Full suite now **820 passed / 0 failed / 0 errors** (35 skipped).
+- Deeper browser+API UAT: Store GRN/issue, HK product request, library, TC, relieving UI, enrol gate, HK/Maint isolation — **8/8 API, 28/28 flows**.
+- Export backlog: wired fee tabs + Director/JD Audit/HK/IT reports; **18** deferred multi-tab/shell pages documented.
+- Frontend `npm run build` PASS. Report: `docs/QMIS_FULL_REGRESSION_TRIAGE_RELEASE_READINESS.md`.
+
+### Still open
+- 18 deferred ExportModal shells (documented required datasets). Relieving has no dedicated REST (campus FE). No production deploy.
+
+---
+
+## 12 November 2026 — Final Operational Completion (Finance / Store / Exports / UAT)
+
+**Status:** Local verification only. No commit/push/deploy.
+
+### Done
+- Enrol: Finance snapshot receipt matching before enrol; Paid token alone rejected; Waived/zero/receipt paths tested.
+- Request Product: routes + sidebar for HK, Maint, Transport, IT, Canteen; backend writers + item upsert for `stationery-requests`.
+- ExportModal: 72 bare sites wired to filtered/list rows; unresolved list recorded; Receipt Management + Stationery Reports wired.
+- Browser UAT (local seeds): Store/Library/TC/Relieving/Admissions/HK/Maint/Admin/Super Admin smoke + persistence check.
+- Docs: updated `docs/QMIS_STORE_LIBRARY_TC_SLICE_IMPLEMENTATION_REPORT.md`.
+
+### Tests / build
+- Focused ops/enrol/TC/FO suite — **60 passed**; `npm run build` — **PASS**.
+- Full `pytest tests/` — 790 passed / 22 failed / 8 errors (pre-existing outside slice).
+
+### Still open
+- 25 unresolved ExportModal shells; full-suite failures to triage separately; deeper Store GRN/issue click-through optional.
+
+---
+
+## 12 November 2026 — Store / Library / TC / Relieving / Enrol gate slice
+
+**Status:** Local implementation only. No commit/push/deploy.
+
+### Done
+- Store: GRN quantity + offline receive; Issue/Given/Return/Receiving; Request Product from Store (shared + HK); FO Goods Received Pass on Store; TC NOC on Store.
+- Library: Dashboard from persisted data; Request Book collection; Issue Book member dropdown + Staff 5 / Student 1 limits.
+- TC: Manager NOCs for Transport (when applicable) + Accounts + Librarian + Store; shared NOC UI by path; permissions + tests updated.
+- Relieving: Staff apply page → HR exits store; Teacher + HR routes.
+- Enrol: Backend rejects unpaid/pending fee before enroll; focused pytest.
+- Docs: `docs/QMIS_STORE_LIBRARY_TC_SLICE_IMPLEMENTATION_REPORT.md` + Create/Receive matrix.
+
+### Tests
+- `test_enroll_fee_gate.py` + `test_admissions.py` + `test_tc_noc_workflow.py` — **25 passed**.
+
+### Still open
+- Closed in Final Operational Completion pass above.
+
+---
+
+## 12 November 2026 — Client Audit + platform open-bug pass
+
+**Status:** Local fixes only. No commit/push.
+
+### Audit (client WhatsApp list)
+- Schedule: no empty-array reseed wipe; hydrate on load; case-insensitive frequency filter; Search kept; component+rubrics attached on create (PA/QA).
+- Components: PA/QA can write `audit-components` (backend writers); RegisterPage local fallback if API 403; Rubric-1..4 already on form.
+- Observations: PA form parity with QA (schedule refs, blank Grade/Section/Subject, file attach, recipient escalate, editable reference); title derived from component/description.
+- Escalation/RCA removed from PA/QA sidebar — escalate via observation Recipient; ATR kept.
+- Compliance report: hydrate + null-safe summary; persist dept rows only; export with real rows (PA/QA).
+- Communication: null-safe chat header; filter self from directory by id/employeeId.
+
+### Platform / ops (same day)
+- Escalation Management renamed Report Issue / Escalation; Lost & Found + Task create expanded; Warden removed (Parent/Principal); Delete gated on several lists; Export PDF/Excel + date range; PNG/file uploads; enroll gated on Finance fee Paid/Waived.
+
+### Still open / partial
+- TC manager NOC, Store Goods Receive link, Audit quantity Receiving, Request Product from Store all roles, staff relieving apply, Library dashboard/request book, systemic Create/Receive matrix, remaining bare ExportModals, backend enroll fee enforcement, full non-academic nav consistency UAT.
+
+### Tests
+- `tests/test_ops_and_audit_collections.py` — 10 passed; `audit-components` writers include processauditor + qualityauditor.
+
+---
+
+## 12 November 2026 — Export / uploads / enroll gate / search fixes
+
+**Status:** Local bug fixes only. No commit/push.
+
+### Done
+- ExportModal: PDF + Excel only; date range resets empty (no 7-day/today default); Audit + Observation + Actions reports pass real rows.
+- File uploads: EvidenceUploader / Raise IT ticket / JD AssignAudits / SOM accept include `image/png` + `.png`; RegisterPage supports `type: 'file'`.
+- PRM/Admin enroll gated until registration fee Paid/Waived (or zero fee / matching Admission Fee receipt); status on Admission form via existing `fees_group` token.
+- RegisterPage dead Search button removed (filter already live). Audit Schedule search already present for QA/PA.
+
+### Still open
+- Many non-audit `ExportModal` call sites still bare (no rows).
+- Legacy per-page ExportModal copies still show CSV / “Due in 7 Days”.
+- Backend enroll does not yet enforce fee clearance server-side; token lives in `fees_group`.
+- Other auditor list pages (My Audits, History, Escalations) still need filtered export wiring.
+
+---
+
 ## 12 November 2026 — Audit module P0 draft persistence + workflow
 
 **Status:** Local Audit Execute fixes complete (Process + Quality). No commit/push/prod.

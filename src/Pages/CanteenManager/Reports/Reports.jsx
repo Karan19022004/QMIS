@@ -255,7 +255,14 @@ const Reports = () => {
                 </ReportTableSection>
             )}
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='reports'
+                title='Reports'
+                rows={Array.isArray(filteredSales) ? filteredSales : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredSales) ? filteredSales.length : 0} record(s).</>}
+            />
         </section>
     )
 }

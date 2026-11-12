@@ -21,7 +21,8 @@ const ObservationForm = ({ form, onChange, readOnly = false }) => {
     const componentOptions = useMemo(() => {
         const rows = ensureSeed(AUDIT_COMPONENTS_KEY, COMPONENT_SEED)
         const names = rows.map((row) => row.component).filter(Boolean)
-        return [...new Set([...names, ...CATEGORIES])]
+        const fromSchedules = getAuditSchedules().map((item) => item.componentName).filter(Boolean)
+        return [...new Set([...names, ...fromSchedules, ...CATEGORIES])]
     }, [])
 
     const auditReferences = useMemo(() => {

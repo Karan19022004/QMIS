@@ -16,7 +16,9 @@ import { HousekeepingDutyPage, MovementTable, SimpleRegister } from '../Common/d
 import { getMovements } from '../Common/demoDomain/inventory'
 import InventoryRequirement from '../Pages/HousekeepingManager/InventoryRequirement/InventoryRequirement'
 import PurchaseWorkflow from '../Pages/HousekeepingManager/PurchaseWorkflow/PurchaseWorkflow'
-import { LOST_SEED, RO_SEED, SCHEDULE_SEED, SOM_SEED } from '../Common/demoDomain/housekeeping'
+import RequestProductFromStore from '../Common/Store/RequestProductFromStore'
+import { RO_SEED, SCHEDULE_SEED, SOM_SEED } from '../Common/demoDomain/housekeeping'
+import LostFoundRegister from '../Common/demoDomain/LostFoundRegister'
 import DepartmentTicketsPage from '../Common/Tickets/DepartmentTicketsPage'
 import ViewSupportTicket from '../Pages/ITSupportManager/SupportTickets/ViewSupportTicket'
 
@@ -51,10 +53,20 @@ const HousekeepingManagerRoutes = () => {
             <Route path="/housekeeping-manager/checklists" element={<SimpleRegister title="Housekeeping Checklists" description="Cleaning checklist completion register. Head creates and verifies; staff complete (PDF §4.7). Separate from Maintenance checklists." storageKey="schoolerp-housekeeping-checklists-v1" seed={[{ id: 'HCL-2026-0001', title: 'Washroom morning checklist', frequency: 'DAILY', area: 'Block A Washrooms', staff: 'Lakshmi P.', dueDate: '2026-09-23', completedDate: '', checklistItems: 'Floors mopped\nSoap refilled\nBins emptied\nMirrors cleaned', pendingItems: 'Mirrors cleaned', verifiedBy: '', status: 'Pending', remarks: '' }]} idPrefix="HCL-2026-" columns={[{ key: 'title', label: 'Checklist' }, { key: 'frequency', label: 'Frequency' }, { key: 'area', label: 'Area' }, { key: 'staff', label: 'Staff' }, { key: 'dueDate', label: 'Due' }, { key: 'status', label: 'Status' }]} fields={[{ key: 'title', label: 'Title', required: true }, { key: 'frequency', label: 'Frequency', type: 'select', options: ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'] }, { key: 'area', label: 'Area', required: true }, { key: 'staff', label: 'Responsible Staff', required: true }, { key: 'dueDate', label: 'Due Date', type: 'date' }, { key: 'completedDate', label: 'Completed Date', type: 'date' }, { key: 'checklistItems', label: 'Checklist items (one per line)', type: 'textarea', required: true }, { key: 'pendingItems', label: 'Pending / missed items', type: 'textarea' }, { key: 'verifiedBy', label: 'Verified By' }, { key: 'status', label: 'Status', type: 'select', options: ['Pending', 'In Progress', 'Completed', 'Verified'] }, { key: 'remarks', label: 'Remarks', type: 'textarea' }]} />} />
             <Route path="/housekeeping-manager/star-of-the-month" element={<SimpleRegister title="Star of the Month" storageKey="schoolerp-housekeeping-som-v1" seed={SOM_SEED} idPrefix="SOM-HK-2026-" statusKey="" columns={[{ key: 'employee', label: 'Employee' }, { key: 'month', label: 'Month' }, { key: 'criteria', label: 'Criteria' }, { key: 'score', label: 'Score' }, { key: 'ratedBy', label: 'Rated By' }]} fields={[{ key: 'employee', label: 'Employee', required: true }, { key: 'month', label: 'Month', required: true }, { key: 'criteria', label: 'Criteria' }, { key: 'score', label: 'Score', type: 'number' }, { key: 'remarks', label: 'Remarks' }, { key: 'ratedBy', label: 'Rated By' }]} />} />
             <Route path="/housekeeping-manager/ro-testing" element={<SimpleRegister title="RO Testing" description="Generic register. No laboratory limits were supplied." storageKey="schoolerp-housekeeping-ro-testing-v1" seed={RO_SEED} idPrefix="RO-2026-" columns={[{ key: 'date', label: 'Date' }, { key: 'location', label: 'RO Unit' }, { key: 'test', label: 'Test' }, { key: 'result', label: 'Result' }, { key: 'status', label: 'Status' }]} fields={[{ key: 'date', label: 'Date', type: 'date', required: true }, { key: 'location', label: 'Location / RO Unit', required: true }, { key: 'test', label: 'Test' }, { key: 'result', label: 'Result' }, { key: 'status', label: 'Status', type: 'select', options: ['Recorded', 'Follow-up'] }, { key: 'remarks', label: 'Remarks' }, { key: 'recordedBy', label: 'Recorded By' }]} />} />
-            <Route path="/housekeeping-manager/lost-found" element={<SimpleRegister title="Lost & Found" storageKey="schoolerp-housekeeping-lost-found-v1" seed={LOST_SEED} idPrefix="LF-2026-" columns={[{ key: 'date', label: 'Date' }, { key: 'item', label: 'Item' }, { key: 'foundLocation', label: 'Found Location' }, { key: 'claimStatus', label: 'Claim Status' }]} fields={[{ key: 'date', label: 'Date', type: 'date' }, { key: 'item', label: 'Item', required: true }, { key: 'foundLocation', label: 'Found Location' }, { key: 'reportedBy', label: 'Reported By' }, { key: 'description', label: 'Description', type: 'textarea' }, { key: 'claimStatus', label: 'Claim Status', type: 'select', options: ['Unclaimed', 'Claimed'] }, { key: 'claimedBy', label: 'Claimed By' }, { key: 'claimedDate', label: 'Claimed Date', type: 'date' }, { key: 'remarks', label: 'Remarks' }]} />} />
+            <Route path="/housekeeping-manager/lost-found" element={<LostFoundRegister />} />
             <Route path="/housekeeping-manager/inventory-requirement" element={<InventoryRequirement />} />
             <Route path="/housekeeping-manager/movements" element={<MovementTable rows={getMovements()} department="Housekeeping" />} />
             <Route path="/housekeeping-manager/purchase-workflow" element={<PurchaseWorkflow />} />
+            <Route
+                path="/housekeeping-manager/store-product-request"
+                element={(
+                    <RequestProductFromStore
+                        department="Housekeeping"
+                        requestedBy="Housekeeping Manager"
+                        title="Request Product from Store"
+                    />
+                )}
+            />
             <Route path="*" element={<Navigate to="/housekeeping-manager/dashboard" replace />} />
         </ReactRoutes>
     )

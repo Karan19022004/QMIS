@@ -12,6 +12,8 @@ import ReportsAnalytics from '../Pages/AccountHead/ReportsAnalytics/ReportsAnaly
 import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 import { BookFeePage, BudgetPage, FeeProjectionPanel, MfpPlaceholder } from '../Common/demoDomain/DemoScreens'
 import PaymentVouchers from '../Pages/AccountHead/PaymentVouchers/PaymentVouchers'
+import TcNocList from '../Pages/TransportManager/TcNoc/TcNocList'
+import ViewTcNoc from '../Pages/TransportManager/TcNoc/ViewTcNoc'
 import { useAuth } from '../context/AuthContext'
 import { ROLES } from '../constants/roles'
 import { isFinanceHeadOnlyPath } from '../Pages/AccountHead/financeDomain/financeRoleAccess'
@@ -48,6 +50,8 @@ const AccountHeadRoutes = () => {
             <Route path="/account-head/mfp" element={<HeadOnlyOr><MfpPlaceholder /></HeadOnlyOr>} />
             <Route path="/account-head/fee-projection" element={<HeadOnlyOr><FeeProjectionPanel /></HeadOnlyOr>} />
             {TaskManagementRoutes({ basePath: '/account-head' })}
+            <Route path="/account-head/tc-noc" element={<TcNocList />} />
+            <Route path="/account-head/tc-noc/view/:id" element={<ViewTcNoc />} />
             <Route path="*" element={<Navigate to="/account-head/dashboard" replace />} />
         </ReactRoutes>
     )

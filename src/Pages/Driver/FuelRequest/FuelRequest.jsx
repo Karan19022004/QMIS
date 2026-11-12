@@ -6,6 +6,8 @@ import { Calendar, ChevronLeft, ChevronRight, Download, EllipsisIcon, Plus } fro
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
 import DeleteRequestModal from '../../../Common/CommonComponents/DeleteRequestModal'
 import ExportModal from '../../../Common/CommonComponents/ExportModal'
+import { canShowDeleteOption } from '../../../Common/CommonComponents/approvalGates'
+import { useAuth } from '../../../context/AuthContext'
 import {
     APPROVAL_STATUSES,
     getDriverFuelRequests, hydrateDriverFuelRequestsFromApi,
@@ -17,6 +19,8 @@ const thClass = 'px-2 py-3.5 text-[#0C1E5B] font-medium uppercase'
 const tdClass = 'px-2 py-4 text-[#667085]'
 
 const FuelRequest = () => {
+    const { role } = useAuth() || {}
+    const showDelete = canShowDeleteOption(role)
     const [fuelRequests, setFuelRequests] = useState(() => getDriverFuelRequests())
     useEffect(() => {
         hydrateDriverFuelRequestsFromApi().finally(() => setFuelRequests(getDriverFuelRequests()))
@@ -217,13 +221,15 @@ const FuelRequest = () => {
                                                 >
                                                     Edit
                                                 </NavLink>
-                                                <button
-                                                    type='button'
-                                                    onClick={() => setDeleteRequestModal(true)}
-                                                    className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                >
-                                                    Delete
-                                                </button>
+                                                {showDelete ? (
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => setDeleteRequestModal(true)}
+                                                        className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                ) : null}
                                             </Dropdown>
                                         </td>
                                     </tr>
@@ -255,7 +261,14 @@ const FuelRequest = () => {
                 deleteRequestModal={deleteRequestModal}
                 setDeleteRequestModal={setDeleteRequestModal}
             />
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='fuelrequest'
+                title='FuelRequest'
+                rows={Array.isArray(filteredRecords) ? filteredRecords : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredRecords) ? filteredRecords.length : 0} record(s).</>}
+            />
         </section>
     )
 }

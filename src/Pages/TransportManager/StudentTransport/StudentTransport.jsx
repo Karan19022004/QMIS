@@ -223,7 +223,14 @@ const StudentTransport = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='studenttransport'
+                title='StudentTransport'
+                rows={Array.isArray(studentTransports) ? studentTransports : []}
+                exportDescription={<>You are exporting {Array.isArray(studentTransports) ? studentTransports.length : 0} record(s).</>}
+            />
             <DeleteRequestModal
                 deleteRequestModal={deleteModal}
                 setDeleteRequestModal={setDeleteModal}

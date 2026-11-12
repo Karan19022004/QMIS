@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { EllipsisIcon } from 'lucide-react'
 import Dropdown from '../../../Common/CommonComponents/Dropdown'
+import { resolveTcNocManager } from '../../../Common/TcRequest/managerNocConfig'
 import {
     getPendingManagerNocCount,
     hydrateTcRequestsFromApi,
@@ -10,6 +11,8 @@ import {
 import { canUseTcApi } from '../../../services/tcApi'
 
 const TcNocList = () => {
+    const location = useLocation()
+    const manager = resolveTcNocManager(location.pathname)
     const [rows, setRows] = useState([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState('')
@@ -41,8 +44,11 @@ const TcNocList = () => {
     }, [])
 
     const pendingCount = useMemo(
-        () => rows.filter((row) => row.status === 'Pending Manager NOCs' && (row.pendingNocCount || 0) > 0).length,
-        [rows],
+        () => rows.filter((row) => {
+            const mine = (row.nocs || []).find((n) => n.roleCode === manager.roleCode)
+            return row.status === 'Pending Manager NOCs' && mine?.status === 'Pending'
+        }).length,
+        [rows, manager.roleCode],
     )
 
     return (
@@ -50,7 +56,7 @@ const TcNocList = () => {
             <div className='bg-white rounded-2xl shadow-md p-4'>
                 <h1 className='text-2xl font-semibold text-black'>TC NOC Clearance</h1>
                 <p className='text-sm text-[#667085] mt-1'>
-                    Transport Manager NOC for students on school transport (per Non-Academics TC workflow).
+                    {manager.label} NOC for Transfer Certificate dues / clearance.
                 </p>
             </div>
 
@@ -66,7 +72,10 @@ const TcNocList = () => {
                 <div className='bg-white rounded-2xl shadow-md p-4'>
                     <p className='text-sm font-medium text-[#808080]'>Completed / closed</p>
                     <p className='text-2xl font-semibold text-[#4CAF50] mt-2'>
-                        {rows.filter((row) => row.status !== 'Pending Manager NOCs').length}
+                        {rows.filter((row) => {
+                            const mine = (row.nocs || []).find((n) => n.roleCode === manager.roleCode)
+                            return mine && mine.status !== 'Pending'
+                        }).length}
                     </p>
                 </div>
             </div>
@@ -75,7 +84,7 @@ const TcNocList = () => {
             {error ? <p className='text-sm text-[#B42318]'>{error}</p> : null}
 
             <div className='bg-white rounded-2xl shadow-md p-4'>
-                <h2 className='text-xl font-medium text-black mb-4'>TC requests needing Transport NOC</h2>
+                <h2 className='text-xl font-medium text-black mb-4'>TC requests needing {manager.label} NOC</h2>
                 <div className='overflow-x-auto'>
                     <table className='w-full text-sm text-left'>
                         <thead className='text-xs bg-[#EDEEF5]'>
@@ -97,7 +106,7 @@ const TcNocList = () => {
                                 </tr>
                             ) : (
                                 rows.map((row) => {
-                                    const mine = (row.nocs || []).find((n) => n.roleCode === 'transportmanager')
+                                    const mine = (row.nocs || []).find((n) => n.roleCode === manager.roleCode)
                                     return (
                                         <tr key={row.id} className='border-b border-[#f2f4f7] text-[#667085] hover:bg-[#f2f4f7]'>
                                             <td className='px-2 py-4'>{row.requestId || row.id}</td>
@@ -116,7 +125,7 @@ const TcNocList = () => {
                                             <td className='px-2 py-4'>
                                                 <Dropdown buttonContent={<EllipsisIcon size={16} className='text-black' />}>
                                                     <NavLink
-                                                        to={`/transport-manager/tc-noc/view/${row.id}`}
+                                                        to={`${manager.basePath}/view/${row.id}`}
                                                         className='block w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
                                                     >
                                                         View / Decide

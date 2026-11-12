@@ -18,6 +18,7 @@ COLLECTIONS: dict[str, str] = {
     "library-books": "LBK",
     "library-issues": "LIS",
     "library-members": "LMB",
+    "library-book-requests": "LBR",
     # Gate
     "gate-visitors": "GVS",
     "gate-registers": "GRG",
@@ -139,6 +140,14 @@ _TRANSPORT_FINANCE_WRITE = {
 _CANTEEN = {"canteenmanager"} | _ADMINS
 _IT = {"itsupportmanager"} | _ADMINS
 _STATIONERY = {"stationerystoremanager"} | _ADMINS
+# Department managers may create/track product requests; Store still decides/issues.
+_STATIONERY_REQUESTORS = {
+    "housekeepingmanager",
+    "maintenancemanager",
+    "transportmanager",
+    "itsupportmanager",
+    "canteenmanager",
+} | _ADMINS
 _HK = {"housekeepingmanager"} | _ADMINS
 _MAINT = {"maintenancemanager"} | _ADMINS
 # Multi-department ticket inbox roles (shared it-support-tickets collection).
@@ -179,6 +188,8 @@ def _writers_for(collection: str) -> set[str]:
         return _IT | _TICKET_DEPT_ROLES
     if collection.startswith("it-"):
         return _IT
+    if collection == "stationery-requests":
+        return _STATIONERY | _STATIONERY_REQUESTORS
     if collection.startswith("stationery-"):
         return _STATIONERY
     if collection.startswith("hk-"):
@@ -229,6 +240,8 @@ def _readers_for(collection: str) -> set[str]:
     # Teachers/coordinators need library issues/members to show Books Borrowed.
     if collection.startswith("library-"):
         return writers | {"principal", "director", "jointdirector", "teacher", "coordinator"}
+    if collection == "stationery-requests":
+        return writers | _STATIONERY_REQUESTORS | {"principal", "director", "jointdirector"}
     # CCTV Room portal: camera register + footage/status collections.
     if collection == "security-cameras" or collection.startswith("cctv-"):
         return writers | {"principal", "director", "jointdirector", "cctv", "gatekeepermanager"}
@@ -627,6 +640,8 @@ _ITEM_UPSERT_COLLECTIONS = {
     "gate-vendors",
     "gate-incidents",
     "gate-duty-assignments",
+    # Concurrent department product requests must not overwrite each other.
+    "stationery-requests",
 }
 CAMERA_STATUSES = {"Active", "Offline", "Under Maintenance", "Removed"}
 VISITOR_EXITED = "Exited"

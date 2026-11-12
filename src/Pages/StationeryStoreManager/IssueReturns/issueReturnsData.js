@@ -1,5 +1,6 @@
 import { ensureCampusSeed, saveCampusJson, hydrateCampusKey, usesCampusApiForKey } from '../../../services/campusJsonStore'
-export const ACTIVITY_TYPES = ['Issue', 'Return']
+/** Issue/Given = outbound; Return/Receiving = inbound stock (Receiving covers audit/dept inbound). */
+export const ACTIVITY_TYPES = ['Issue', 'Given', 'Return', 'Receiving']
 
 export const DEPARTMENTS = [
     'Mathematics',

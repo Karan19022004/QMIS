@@ -95,7 +95,9 @@ def test_employee_list_reads_rows_from_directory_records():
 def test_teacher_roster_never_shows_demo_teachers_in_server_mode():
     code = _code("Pages/Principal/TeacherAllocation/teacherAllocationData.js")
     getter = code[code.index("export const getTeachers") : code.index("export const setTeacherRoster")]
-    assert "if (canUseEmployeeDirectoryApi()) return []" in getter
+    # Empty roster until HR directory hydrate — never DEMO_TEACHERS.
+    assert "return []" in getter
+    assert "DEMO_TEACHERS" not in getter
     assert "director" in code[code.index("export const isAllocatableTeacherRecord") : code.index("export const mapDirectoryRecordToTeacher")]
 
 
@@ -121,13 +123,11 @@ def test_teacher_allocation_api_mode_does_not_use_demo_allocations():
     """CA-03: live API mode never returns DEMO_ALLOCATIONS as real saved rows."""
     code = _code("Pages/Principal/TeacherAllocation/teacherAllocationData.js")
     getter = code[code.index("export const getAllocations") : code.index("export const isUsingDemoAllocations")]
-    api_branch = getter[getter.index("if (usesApiMemory())") : getter.index("try {")]
+    api_branch = getter[getter.index("if (usesApiMemory()") : getter.index("try {")]
     assert "DEMO_ALLOCATIONS" not in api_branch
     assert "return []" in api_branch
     assert "isUsingDemoAllocations" in code
-    assert "Demo mode: allocation rows are local sample data only" in _code(
-        "Pages/Principal/TeacherAllocation/TeacherAllocationList.jsx"
-    )
+    assert "isUsingDemoAllocations = () => false" in code or "export const isUsingDemoAllocations = () => false" in code
 
 
 def test_class_timetable_save_awaits_api_and_blocks_on_failed_hydrate():

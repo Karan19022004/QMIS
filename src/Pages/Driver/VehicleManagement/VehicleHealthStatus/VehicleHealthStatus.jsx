@@ -7,6 +7,7 @@ import Dropdown from '../../../../Common/CommonComponents/Dropdown'
 import DeleteRequestModal from '../../../../Common/CommonComponents/DeleteRequestModal'
 import ExportModal from '../../../../Common/CommonComponents/ExportModal'
 import { useAuth } from '../../../../context/AuthContext'
+import { canShowDeleteOption } from '../../../../Common/CommonComponents/approvalGates'
 import { hydrateDriverProfileSources, resolveDriverProfile } from '../../driverProfileData'
 import {
     CONDITION_OPTIONS,
@@ -21,7 +22,8 @@ const tdClass = 'px-2 py-4 text-[#667085]'
 const plateKey = (value) => String(value || '').replace(/[\s-]/g, '').toUpperCase()
 
 const VehicleHealthStatus = () => {
-    const { email } = useAuth()
+    const { email, role } = useAuth() || {}
+    const showDelete = canShowDeleteOption(role)
     const [deleteRequestModal, setDeleteRequestModal] = useState(false)
     const [exportModal, setExportModal] = useState(false)
     const [search, setSearch] = useState('')
@@ -273,13 +275,15 @@ const VehicleHealthStatus = () => {
                                                 >
                                                     Edit
                                                 </NavLink>
-                                                <button
-                                                    type='button'
-                                                    onClick={() => setDeleteRequestModal(true)}
-                                                    className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
-                                                >
-                                                    Delete
-                                                </button>
+                                                {showDelete ? (
+                                                    <button
+                                                        type='button'
+                                                        onClick={() => setDeleteRequestModal(true)}
+                                                        className='w-full text-left p-2 hover:bg-[#515DEF] hover:text-white rounded cursor-pointer'
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                ) : null}
                                             </Dropdown>
                                         </td>
                                     </tr>
@@ -311,7 +315,14 @@ const VehicleHealthStatus = () => {
                 deleteRequestModal={deleteRequestModal}
                 setDeleteRequestModal={setDeleteRequestModal}
             />
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='vehiclehealthstatus'
+                title='VehicleHealthStatus'
+                rows={Array.isArray(filteredRecords) ? filteredRecords : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredRecords) ? filteredRecords.length : 0} record(s).</>}
+            />
         </section>
     )
 }

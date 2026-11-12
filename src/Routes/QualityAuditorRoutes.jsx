@@ -27,11 +27,13 @@ import ClosedActionsReport from '../Pages/QualityAuditor/Reports/ActionsReports/
 import { AuditComponentsPage, SharedDeviationsPage } from '../Common/demoDomain/WorkflowScreens'
 
 import CommunicationPage from '../Common/Communication/CommunicationPage'
+import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 
 const QualityAuditorRoutes = () => {
     return (
         <ReactRoutes>
             <Route path="/quality-auditor/dashboard" element={<Dashboard />} />
+            {TaskManagementRoutes({ basePath: '/quality-auditor' })}
 
             <Route path="/quality-auditor/audit-management/my-audits" element={<MyAudits />} />
             <Route path="/quality-auditor/audit-management/my-audits/view/:id" element={<ViewMyAudit />} />

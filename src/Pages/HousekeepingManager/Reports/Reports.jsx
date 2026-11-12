@@ -198,7 +198,19 @@ const Reports = () => {
                 </ReportTableSection>
             )}
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="housekeeping-reports"
+                title="Housekeeping Reports"
+                rows={[
+                    ...reports.taskCompletion,
+                    ...reports.supplyUsage,
+                    ...reports.zoneCleaning,
+                    ...reports.lowStock,
+                ]}
+                exportDescription={<>You are exporting housekeeping report rows for the selected filters.</>}
+            />
         </section>
     )
 }

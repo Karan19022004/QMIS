@@ -2,7 +2,10 @@ import React, { useMemo } from 'react'
 import { FEES_GROUP_OPTIONS, formatFeesGroups, parseFeesGroups } from '../admissionListData'
 
 const FeesTimeLine = ({ form, onChange }) => {
-    const selected = useMemo(() => parseFeesGroups(form?.feesGroup), [form?.feesGroup])
+    const selected = useMemo(
+        () => parseFeesGroups(form?.feesGroup).filter((item) => !item.startsWith('RegFeeStatus:')),
+        [form?.feesGroup],
+    )
 
     const toggle = (option) => {
         const next = selected.includes(option)

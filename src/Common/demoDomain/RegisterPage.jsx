@@ -104,8 +104,21 @@ export default function RegisterPage({
             if (apiMode) {
                 const result = await persistCampusJsonItem(storageKey, record)
                 if (result?.success === false) {
-                    toast.error(result.message || 'Could not save. Check your connection and try again.')
-                    return false
+                    // Offline / 403 / flag mismatch: keep working in localStorage so Create/Save is not blocked.
+                    const id = record[idField]
+                    const next = action === 'CREATE'
+                        ? [record, ...items.filter((row) => row[idField] !== id)]
+                        : items.map((row) => (row[idField] === id ? record : row))
+                    try {
+                        localStorage.setItem(storageKey, JSON.stringify(next))
+                    } catch {
+                        toast.error(result.message || 'Could not save. Check your connection and try again.')
+                        return false
+                    }
+                    setItems(next)
+                    logActivity({ action, module: title, recordId: id, details: `${details || ''} (local fallback)` })
+                    toast.warn(result.message || 'Saved locally — campus API write was unavailable.')
+                    return true
                 }
                 const saved = result.record || record
                 const id = saved[idField]
@@ -225,12 +238,12 @@ export default function RegisterPage({
                 <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6'>
                     <label className='flex flex-col gap-y-2 text-sm text-[#808080]'>
                         Search
-                        <div className='flex gap-2'>
-                            <input value={search} onChange={(event) => setSearch(event.target.value)} className={inputClass} placeholder='Search records' />
-                            <button type='button' className='shrink-0 bg-[#515DEF] text-white text-sm px-3 py-2 rounded-md cursor-pointer'>
-                                Search
-                            </button>
-                        </div>
+                        <input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            className={inputClass}
+                            placeholder='Search records'
+                        />
                     </label>
                     {statusKey && (
                         <label className='flex flex-col gap-y-2 text-sm text-[#808080]'>
@@ -346,6 +359,21 @@ export default function RegisterPage({
                                         </select>
                                     ) : field.type === 'textarea' ? (
                                         <textarea rows={3} value={draft[field.key] || ''} onChange={(event) => setDraft((prev) => ({ ...prev, [field.key]: event.target.value }))} className={inputClass} />
+                                    ) : field.type === 'file' ? (
+                                        <>
+                                            <input
+                                                type='file'
+                                                accept={field.accept || 'image/png,image/jpeg,image/*,.png,.jpg,.jpeg,.pdf,application/pdf'}
+                                                onChange={(event) => {
+                                                    const file = event.target.files?.[0]
+                                                    setDraft((prev) => ({ ...prev, [field.key]: file?.name || '' }))
+                                                }}
+                                                className={inputClass}
+                                            />
+                                            {draft[field.key] ? (
+                                                <span className='text-xs text-[#667085]'>Selected: {draft[field.key]}</span>
+                                            ) : null}
+                                        </>
                                     ) : (
                                         <input type={field.type || 'text'} value={draft[field.key] || ''} onChange={(event) => setDraft((prev) => ({ ...prev, [field.key]: event.target.value }))} className={inputClass} />
                                     )}

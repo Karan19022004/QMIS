@@ -1,20 +1,43 @@
 # Testing report
 
-Latest regression for Audit module P0 draft persistence + workflow (12 November 2026).
+Latest regression for Full Regression Triage / Release Readiness (12 November 2026).
 
-## Focused suites
+## Full suite
 
 ```bash
-node backend/scripts/_tmp_test_execute_audit_draft_store.mjs
 cd backend
-python -m pytest tests/test_audit_execute_draft_persistence.py tests/test_p1_security_isolation.py tests/test_ops_and_audit_collections.py -q
+python -m pytest tests/ -q --tb=line
 ```
 
-**Node draft-store result:** all assertions passed (object wrap, array upsert, legacy object load, double-parse bug documented).
+**Result:** **820 passed**, 35 skipped, **0 failed**, **0 errors**  
+Artifact: `docs/_audit_extracts/_full_pytest_final.txt`
 
-**Pytest result:** **24 passed**, 1 warning (Starlette TestClient deprecation).
+### Before (triage reproduce)
 
-Covers process execute-draft persist/reload, non-array body 422, Process≠Quality draft isolation, teacher denied, observations + ATR CAPA + history writes, plus existing P1 security and ops/audit collection gates.
+**790 passed**, 35 skipped, **22 failed**, **8 errors**  
+Artifact: `docs/_audit_extracts/_full_pytest_triage_out.txt`
+
+## Focused regression (ops / enrol / TC / academics / finance)
+
+```bash
+cd backend
+python -m pytest tests/test_enroll_fee_gate.py tests/test_admissions.py tests/test_tc_noc_workflow.py tests/test_maintenance_housekeeping_isolation.py tests/test_stationery_gate_workflows.py tests/test_academics_collections.py::test_teacher_allocation_syncs_section_class_teacher tests/test_finance_actions.py::test_gateway_intent_and_approval -q
+```
+
+**Result:** **45 passed**
+
+Covers:
+- Enrol fee gate (receipt / Waived / Paid-token blocked)
+- TC Manager NOC workflow
+- HK/Maint isolation
+- Stationery GRN / issue-return / request decide
+- Teacher allocation sync (isolation fixture)
+- Payment gateway stub intent path
+
+## Browser / API UAT
+
+- `docs/_audit_extracts/_deeper_ops_browser_uat_results.json` — **8/8 API**, **28/28 flows**
+- Prior smoke: `_final_ops_browser_uat_results.json`
 
 ## Frontend
 
@@ -22,10 +45,4 @@ Covers process execute-draft persist/reload, non-array body 422, Process≠Quali
 npm run build
 ```
 
-**Result:** PASS
-
-## Browser
-
-Not re-run in this session for the full Execute Audit UAT checklist (manual steps listed in implementation report).
-
-Production data / deploy / commit: **not tested** (prohibited this prompt).
+**Result:** **PASS** (chunk-size warnings only)

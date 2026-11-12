@@ -352,7 +352,14 @@ const DefaultersTab = ({ exportModal, setExportModal }) => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="fee-defaulters"
+                title="Fee Defaulters"
+                rows={[...liveDefaulters, ...DEFAULTERS_REGISTER]}
+                exportDescription={<>You are exporting {[...liveDefaulters, ...DEFAULTERS_REGISTER].length} defaulter record(s).</>}
+            />
         </div>
     )
 }

@@ -150,7 +150,14 @@ const AssetManagement = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='assetmanagement'
+                title='AssetManagement'
+                rows={Array.isArray(assets) ? assets : []}
+                exportDescription={<>You are exporting {Array.isArray(assets) ? assets.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
         </section>
     )

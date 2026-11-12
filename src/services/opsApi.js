@@ -21,6 +21,7 @@ export const OPS_ITEM_UPSERT_COLLECTIONS = new Set([
     'gate-vendors',
     'gate-incidents',
     'gate-duty-assignments',
+    'stationery-requests',
 ])
 
 export const listOpsCollectionApi = (collection) => apiRequest(`/ops/${enc(collection)}`)

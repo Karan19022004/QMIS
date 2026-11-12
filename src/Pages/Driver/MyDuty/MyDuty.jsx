@@ -280,7 +280,14 @@ const MyDuty = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='myduty'
+                title='MyDuty'
+                rows={Array.isArray(filteredDuties) ? filteredDuties : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredDuties) ? filteredDuties.length : 0} record(s).</>}
+            />
         </section>
     )
 }

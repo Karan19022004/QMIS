@@ -17,8 +17,10 @@ import {
     mapAdmissionFromApi,
     updateAdmissionApi,
 } from '../../../../services/admissionsApi'
+import { loadFinanceState } from '../../../AccountHead/financeDomain/financeStorage'
 
 const STORAGE_KEY = 'schoolerp-admin-admissions'
+const REG_FEE_STATUS_PREFIX = 'RegFeeStatus:'
 const apiAdmissionsEnabled = () => isApiAdmissionsEnabled()
 
 export const FEES_GROUP_OPTIONS = [
@@ -26,7 +28,10 @@ export const FEES_GROUP_OPTIONS = [
     'Tuition Fees',
     'Transport Fees',
     'Activity Fees',
+    'Admission Fee',
 ]
+
+export const REGISTRATION_FEE_STATUSES = ['Pending', 'Paid', 'Waived']
 
 /** Parse stored fees_group (single value or comma-separated) into a list. */
 export const parseFeesGroups = (value) => {
@@ -48,6 +53,72 @@ export const formatFeesGroups = (list) => {
     return unique.join(', ')
 }
 
+/** Strip / attach RegFeeStatus:* tokens so fee status rides on existing fees_group without a schema change. */
+export const stripRegFeeStatusToken = (feesGroup) => (
+    formatFeesGroups(parseFeesGroups(feesGroup).filter((item) => !item.startsWith(REG_FEE_STATUS_PREFIX)))
+)
+
+export const encodeFeesGroupWithRegStatus = (feesGroup, status) => {
+    const groups = parseFeesGroups(feesGroup).filter((item) => !item.startsWith(REG_FEE_STATUS_PREFIX))
+    const normalized = String(status || 'Pending').trim() || 'Pending'
+    if (normalized !== 'Pending') groups.push(`${REG_FEE_STATUS_PREFIX}${normalized}`)
+    return formatFeesGroups(groups)
+}
+
+export const decodeRegFeeStatus = (feesGroup, explicit) => {
+    if (explicit && REGISTRATION_FEE_STATUSES.includes(explicit)) return explicit
+    const found = parseFeesGroups(feesGroup).find((item) => item.startsWith(REG_FEE_STATUS_PREFIX))
+    if (!found) return 'Pending'
+    const status = found.slice(REG_FEE_STATUS_PREFIX.length)
+    return REGISTRATION_FEE_STATUSES.includes(status) ? status : 'Pending'
+}
+
+const registrationFeeAmountIsClear = (registrationFees) => {
+    const raw = String(registrationFees || '').trim()
+    if (!raw) return true
+    const normalized = raw.replace(/[₹,\s]/g, '').toLowerCase()
+    if (!normalized || /^(0+|0\.0+|free|waived|nil|n\/?a|na|-)$/i.test(normalized)) return true
+    return false
+}
+
+const hasAdmissionFeeReceipt = (admission) => {
+    const saved = loadFinanceState()
+    const receipts = Array.isArray(saved?.data?.receipts) ? saved.data.receipts : []
+    if (!receipts.length) return false
+    const admissionNo = String(admission?.admissionNumber || '').trim().toLowerCase()
+    const studentName = [admission?.firstName, admission?.middleName, admission?.lastName]
+        .filter(Boolean)
+        .join(' ')
+        .trim()
+        .toLowerCase()
+    return receipts.some((receipt) => {
+        if (!receipt || Number(receipt.amountPaid) <= 0) return false
+        const heads = (receipt.feeHeads || []).join(' ').toLowerCase()
+        const looksLikeAdmission = /admission|registration/.test(heads)
+        if (!looksLikeAdmission) return false
+        const receiptAdmission = String(receipt.admissionNo || receipt.studentId || '').trim().toLowerCase()
+        const receiptName = String(receipt.studentName || receipt.participantName || '').trim().toLowerCase()
+        if (admissionNo && receiptAdmission && receiptAdmission === admissionNo) return true
+        if (studentName && receiptName && (receiptName.includes(studentName) || studentName.includes(receiptName))) return true
+        return false
+    })
+}
+
+/** True when registration/admission fee is paid, waived, zero, or matched by a finance receipt. */
+export const isAdmissionFinanceCleared = (admission) => {
+    if (!admission || admission.status === 'Enrolled') return true
+    const status = decodeRegFeeStatus(admission.feesGroup, admission.registrationFeeStatus)
+    if (status === 'Paid' || status === 'Waived') return true
+    if (registrationFeeAmountIsClear(admission.registrationFees)) return true
+    if (hasAdmissionFeeReceipt(admission)) return true
+    return false
+}
+
+export const admissionFinanceBlockReason = (admission) => {
+    if (isAdmissionFinanceCleared(admission)) return ''
+    return 'Registration / admission fee is still pending. Enrolment requires Waived/zero fee or a verified Finance Admission/Registration receipt (Paid alone is not enough).'
+}
+
 export const ADMISSION_STATUS_OPTIONS = ['Active', 'Enrolled', 'In Active']
 
 export const DEFAULT_ADMISSION_FORM = {
@@ -55,6 +126,7 @@ export const DEFAULT_ADMISSION_FORM = {
     admissionDate: null,
     className: '',
     registrationFees: '',
+    registrationFeeStatus: 'Pending',
     batchStartYear: null,
     batchEndYear: null,
     firstName: '',
@@ -246,6 +318,10 @@ const buildAdmissionRecord = (payload, existing = null) => {
             admissionDate: formatDate(payload.admissionDate || existing?.admissionDate || new Date()),
             className: payload.className || '',
             registrationFees: String(payload.registrationFees || '').trim(),
+            registrationFeeStatus: decodeRegFeeStatus(
+                payload.feesGroup,
+                payload.registrationFeeStatus || existing?.registrationFeeStatus || 'Pending',
+            ),
             batchStartYear: payload.batchStartYear
                 ? String(payload.batchStartYear instanceof Date ? payload.batchStartYear.getFullYear() : payload.batchStartYear)
                 : '',
@@ -295,7 +371,10 @@ const buildAdmissionRecord = (payload, existing = null) => {
             parentAccountPassword: String(payload.parentAccountPassword || '').trim()
                 || existing?.parentAccountPassword
                 || '',
-            feesGroup: formatFeesGroups(payload.feesGroup),
+            feesGroup: encodeFeesGroupWithRegStatus(
+                payload.feesGroup,
+                payload.registrationFeeStatus || existing?.registrationFeeStatus || 'Pending',
+            ),
             status: existing?.status || 'Active',
             enrolledStudentId: existing?.enrolledStudentId || '',
             createdDate: existing?.createdDate || formatDate(new Date()),
@@ -374,6 +453,8 @@ export const enrollAdmissionAsStudent = async (id, extra = {}) => {
     if (apiAdmissionsEnabled()) {
         try {
             const current = await getAdmissionApi(id)
+            const blockReason = admissionFinanceBlockReason(current)
+            if (blockReason) return { success: false, message: blockReason }
             const parentEmail = extra.parentAccountEmail || current.parentAccountEmail
             const parentPassword = extra.parentAccountPassword
             if (parentEmail && (!parentPassword || String(parentPassword).trim().length < 10)) {
@@ -406,6 +487,8 @@ export const enrollAdmissionAsStudent = async (id, extra = {}) => {
     if (records[index].status === 'Enrolled') {
         return { success: false, message: 'Student is already enrolled.' }
     }
+    const blockReason = admissionFinanceBlockReason(records[index])
+    if (blockReason) return { success: false, message: blockReason }
 
     const enrollResult = createEnrolledStudentFromAdmission(records[index])
     if (!enrollResult.success) return enrollResult
@@ -439,6 +522,8 @@ export const enrollAdmissionAsStudent = async (id, extra = {}) => {
 export const toAdmissionFormState = (record) => ({
     ...DEFAULT_ADMISSION_FORM,
     ...record,
+    registrationFeeStatus: decodeRegFeeStatus(record?.feesGroup, record?.registrationFeeStatus),
+    feesGroup: stripRegFeeStatusToken(record?.feesGroup),
     admissionDate: parseStoredDate(record?.admissionDate) || new Date(),
     dateOfBirth: parseStoredDate(record?.dateOfBirth),
     batchStartYear: parseStoredYear(record?.batchStartYear) || new Date(),

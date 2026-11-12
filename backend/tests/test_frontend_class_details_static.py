@@ -24,6 +24,7 @@ def test_service_uses_only_masters_routes_and_never_touches_storage():
         "/masters/class-teacher-options",
         "/masters/classes",
         "/masters/sections",
+        "/masters/subjects",
     }
     # edit and deactivate are PATCH, permanent delete is DELETE; nothing else is used
     assert "method: 'PATCH'" in source and "method: 'DELETE'" in source
@@ -75,7 +76,9 @@ def test_mirror_removes_only_api_sourced_classes_and_keeps_local_ones():
     # teacher, capacity and room now come from the server, not from the browser
     assert "classTeacher: taught?.classTeacherName" in body and "classRoomNumber: roomed?.roomNumber" in body
     assert "splice" not in body
-    assert "if (JSON.stringify(catalog) !== before) saveCatalog(catalog)" in body
+    assert "if (JSON.stringify(catalog) !== before)" in body
+    assert "saveCatalog(catalog)" in body
+    assert "emitClassCatalogUpdated()" in body
     assert "password" not in body.lower()
 
 

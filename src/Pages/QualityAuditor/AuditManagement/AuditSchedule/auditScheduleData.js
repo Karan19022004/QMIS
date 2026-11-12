@@ -285,7 +285,13 @@ export const addAuditSchedule = (payload) => {
         auditId: payload.auditId || `AUD-QA-${Date.now()}`,
         auditName: payload.auditName,
         department: payload.department || 'Academic',
-        frequency: payload.recurrenceType === 'Weekly' ? 'WEEKLY' : payload.recurrenceType === 'Monthly' ? 'MONTHLY' : 'Ad-hoc',
+        frequency: !payload.isRecurring
+            ? 'Ad-hoc'
+            : payload.recurrenceType === 'Weekly'
+                ? 'WEEKLY'
+                : payload.recurrenceType === 'Monthly'
+                    ? 'MONTHLY'
+                    : (payload.recurrenceType || 'Ad-hoc'),
         assignedDate: payload.startDate,
         dueDate: payload.startDate,
         assignedBy: payload.assignedBy || 'Quality Audit Manager',
@@ -299,6 +305,12 @@ export const addAuditSchedule = (payload) => {
         dayOfMonth: payload.dayOfMonth,
         startDate: payload.startDate,
         endDate: payload.endDate || '',
+        componentId: payload.componentId || '',
+        componentName: payload.componentName || '',
+        rubric1: payload.rubric1 || '',
+        rubric2: payload.rubric2 || '',
+        rubric3: payload.rubric3 || '',
+        rubric4: payload.rubric4 || '',
     }]
     const materialized = materializeOccurrences(next)
     saveAuditSchedules(materialized)
@@ -320,19 +332,29 @@ const coerceScheduleRecords = (stored) => {
 
 export const getAuditSchedules = () => {
     let records = DEFAULT_AUDIT_SCHEDULES
+    let fromStore = false
     try {
         const stored = coerceScheduleRecords(loadCampusJson(STORAGE_KEY, null))
-        if (stored?.length) records = stored
+        // Any array (including empty) is authoritative once hydrated / after a save.
+        if (Array.isArray(stored) && (usesCampusApiForKey(STORAGE_KEY) || stored.length)) {
+            records = stored
+            fromStore = true
+        }
     } catch {
         records = DEFAULT_AUDIT_SCHEDULES
     }
     records = migrateSchedules(records)
-    const ids = new Set(records.map((item) => item.scheduleId))
-    const missing = DEFAULT_AUDIT_SCHEDULES.filter((item) => !ids.has(item.scheduleId))
-    if (missing.length) records = [...records, ...missing]
-    records = migrateSchedules(records)
+    // Only backfill demo defaults when running purely offline — never overwrite API SoT.
+    if (!usesCampusApiForKey(STORAGE_KEY) && !fromStore) {
+        const ids = new Set(records.map((item) => item.scheduleId))
+        const missing = DEFAULT_AUDIT_SCHEDULES.filter((item) => !ids.has(item.scheduleId))
+        if (missing.length) records = [...records, ...missing]
+        records = migrateSchedules(records)
+    }
     const materialized = materializeOccurrences(records)
-    if (materialized.length !== records.length || missing.length) saveAuditSchedules(materialized)
+    if (!usesCampusApiForKey(STORAGE_KEY) && (materialized.length !== records.length || !fromStore)) {
+        saveAuditSchedules(materialized)
+    }
     return materialized
 }
 

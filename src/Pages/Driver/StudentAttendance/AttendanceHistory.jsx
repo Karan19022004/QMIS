@@ -284,7 +284,14 @@ const AttendanceHistory = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='attendancehistory'
+                title='AttendanceHistory'
+                rows={Array.isArray(filteredRecords) ? filteredRecords : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredRecords) ? filteredRecords.length : 0} record(s).</>}
+            />
         </section>
     )
 }

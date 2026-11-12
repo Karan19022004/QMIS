@@ -3,18 +3,24 @@ import { useLocation } from 'react-router-dom'
 import { Download } from 'lucide-react'
 import ExportModal from '../../../../Common/CommonComponents/ExportModal'
 import { StatCard } from '../AuditReports/Components/AuditReportSections'
-import { getComplianceData, getComplianceColor } from './complianceReportsData'
+import { getComplianceData, getComplianceColor, hydrateFromApi, normalizeComplianceData } from './complianceReportsData'
 
 const ComplianceReports = () => {
     const location = useLocation()
-    const [data, setData] = useState(() => getComplianceData())
+    const [data, setData] = useState(() => normalizeComplianceData(getComplianceData()))
     const [exportModal, setExportModal] = useState(false)
 
     useEffect(() => {
-        setData(getComplianceData())
+        let active = true
+        hydrateFromApi().finally(() => {
+            if (active) setData(normalizeComplianceData(getComplianceData()))
+        })
+        return () => { active = false }
     }, [location.pathname])
 
-    const { summary, departments } = data
+    const summary = data?.summary || { overall: 0, departments: [] }
+    const departments = Array.isArray(data?.departments) ? data.departments : []
+    const summaryDepartments = Array.isArray(summary.departments) ? summary.departments : []
 
     return (
         <section>
@@ -25,10 +31,10 @@ const ComplianceReports = () => {
                 <div className='grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3'>
                     <StatCard
                         label='Overall Compliance'
-                        value={`${summary.overall}%`}
-                        accent={getComplianceColor(summary.overall)}
+                        value={`${summary.overall ?? 0}%`}
+                        accent={getComplianceColor(summary.overall ?? 0)}
                     />
-                    {summary.departments.map((item) => (
+                    {summaryDepartments.map((item) => (
                         <StatCard
                             key={item.label}
                             label={item.label}
@@ -63,7 +69,11 @@ const ComplianceReports = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {departments.map((row) => (
+                            {departments.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className='px-3 py-8 text-center text-[#667085]'>No compliance rows for this stream yet.</td>
+                                </tr>
+                            ) : departments.map((row) => (
                                 <tr key={row.department} className='border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7]'>
                                     <td className='px-3 py-4 font-medium text-[#1E1E1E] rounded-s-lg'>{row.department}</td>
                                     <td className='px-3 py-4 text-center'>{row.totalAudits}</td>
@@ -84,7 +94,21 @@ const ComplianceReports = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                rows={departments}
+                columns={[
+                    { key: 'department', label: 'Department' },
+                    { key: 'totalAudits', label: 'Total Audits' },
+                    { key: 'compliance', label: 'Compliance %' },
+                    { key: 'pendingFindings', label: 'Pending Findings' },
+                    { key: 'closedFindings', label: 'Closed Findings' },
+                ]}
+                filename='compliance-report'
+                title='Compliance Report'
+                enableDateRange
+            />
         </section>
     )
 }

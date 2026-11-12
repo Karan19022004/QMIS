@@ -106,9 +106,14 @@ def test_create_logs_initial_values(w):
     assert e["action"] == "ATTENDANCE_CREATED" and e["entity_id"] == created["id"]
     assert e["actor_id"] == w["uid"]["teacher@qmis.edu"] and e["created_at"] is not None
     assert e["previous"] is None
-    assert e["new"] == {"status": "Present", "inOutStatus": None, "className": "Grade 6", "section": "A",
-                        "markedBy": w["uid"]["teacher@qmis.edu"]}
-    assert e["changed"] == ["className", "inOutStatus", "markedBy", "section", "status"]
+    assert e["new"]["status"] == "Present"
+    assert e["new"]["inOutStatus"] is None
+    assert e["new"]["className"] == "Grade 6"
+    assert e["new"]["section"] == "A"
+    assert e["new"]["markedBy"] == w["uid"]["teacher@qmis.edu"]
+    assert e["new"].get("session") == "FN"
+    for key in ("className", "inOutStatus", "markedBy", "section", "status"):
+        assert key in e["changed"]
     assert e["accessBasis"] == "assignment"
     assert "Xavier" not in json.dumps(e, default=str)
 

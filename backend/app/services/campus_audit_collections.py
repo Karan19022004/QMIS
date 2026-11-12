@@ -76,6 +76,10 @@ def _writers_for(collection: str) -> set[str]:
         return _PROCESS | _JD_AUDIT
     if collection.startswith("quality-"):
         return _QUALITY | _JD_AUDIT
+    # Shared component master is maintained by JD Audit and both auditor streams
+    # (PA/QA Create Observation Component dropdown + Components & Rubrics pages).
+    if collection == "audit-components":
+        return _JD_AUDIT | _PROCESS | _QUALITY
     if collection.startswith("audit-"):
         return _JD_AUDIT
     return _ADMINS

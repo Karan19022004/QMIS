@@ -350,7 +350,12 @@ for _code, _perms in ROLE_PERMISSIONS.items():
 # Super Admin / Managing Director already hold every permission via _ADMIN.
 _TC_FILERS = {"parent", "student", "prm", "pro", "admin"}
 _TC_FORWARDERS = {"prm", "pro", "admin"}
-_TC_NOC_ROLES = {"transportmanager"}  # matches TC_NOC_AUTHORITIES in tc_requests service
+_TC_NOC_ROLES = {
+    "transportmanager",
+    "accounthead",
+    "librarian",
+    "stationerystoremanager",
+}  # matches TC_NOC_AUTHORITIES in tc_requests service
 _TC_DECIDERS = {"admin", "superadmin", "managing_director"}
 for _code, _perms in ROLE_PERMISSIONS.items():
     if (

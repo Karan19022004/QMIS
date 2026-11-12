@@ -164,7 +164,14 @@ const TcRequestList = () => {
                 </div>
             ) : null}
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='tcrequestlist'
+                title='TcRequestList'
+                rows={Array.isArray(requests) ? requests : []}
+                exportDescription={<>You are exporting {Array.isArray(requests) ? requests.length : 0} record(s).</>}
+            />
         </section>
     )
 }

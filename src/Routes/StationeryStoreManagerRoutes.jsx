@@ -17,17 +17,23 @@ import Requirements from '../Pages/StationeryStoreManager/Requirements/Requireme
 import StockIssue from '../Pages/StationeryStoreManager/StockIssue/StockIssue'
 import CriticalAlerts from '../Pages/StationeryStoreManager/CriticalAlerts/CriticalAlerts'
 import PurchaseWorkflow from '../Pages/StationeryStoreManager/PurchaseWorkflow/PurchaseWorkflow'
+import GoodsReceivedPassList from '../Pages/FrontOffice/GoodsReceivedPass/GoodsReceivedPassList'
+import ViewGoodsReceivedPass from '../Pages/FrontOffice/GoodsReceivedPass/ViewGoodsReceivedPass'
+import TcNocList from '../Pages/TransportManager/TcNoc/TcNocList'
+import ViewTcNoc from '../Pages/TransportManager/TcNoc/ViewTcNoc'
 import MaterialGatePassList from '../Pages/FrontOffice/MaterialGatePass/MaterialGatePassList'
 import AddMaterialGatePass from '../Pages/FrontOffice/MaterialGatePass/AddMaterialGatePass'
 import EditMaterialGatePass from '../Pages/FrontOffice/MaterialGatePass/EditMaterialGatePass'
 import ViewMaterialGatePass from '../Pages/FrontOffice/MaterialGatePass/ViewMaterialGatePass'
 import DepartmentTicketsPage from '../Common/Tickets/DepartmentTicketsPage'
 import ViewSupportTicket from '../Pages/ITSupportManager/SupportTickets/ViewSupportTicket'
+import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
 
 const StationeryStoreManagerRoutes = () => {
     return (
         <ReactRoutes>
             <Route path="/stationery-store-manager/dashboard" element={<Dashboard />} />
+            {TaskManagementRoutes({ basePath: '/stationery-store-manager' })}
             <Route
                 path="/stationery-store-manager/tickets"
                 element={(
@@ -59,6 +65,10 @@ const StationeryStoreManagerRoutes = () => {
             <Route path="/stationery-store-manager/stock-issue" element={<StockIssue />} />
             <Route path="/stationery-store-manager/critical-alerts" element={<CriticalAlerts />} />
             <Route path="/stationery-store-manager/purchase-workflow" element={<PurchaseWorkflow />} />
+            <Route path="/stationery-store-manager/goods-received-pass" element={<GoodsReceivedPassList />} />
+            <Route path="/stationery-store-manager/goods-received-pass/view/:id" element={<ViewGoodsReceivedPass />} />
+            <Route path="/stationery-store-manager/tc-noc" element={<TcNocList />} />
+            <Route path="/stationery-store-manager/tc-noc/view/:id" element={<ViewTcNoc />} />
             <Route path="*" element={<Navigate to="/stationery-store-manager/dashboard" replace />} />
         </ReactRoutes>
     )

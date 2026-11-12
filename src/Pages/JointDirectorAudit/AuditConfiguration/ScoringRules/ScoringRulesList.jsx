@@ -313,7 +313,14 @@ const ScoringRulesList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='scoringruleslist'
+                title='ScoringRulesList'
+                rows={Array.isArray(filteredRules) ? filteredRules : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredRules) ? filteredRules.length : 0} record(s).</>}
+            />
             <ScoringRuleFormModal
                 isOpen={formModal.open}
                 mode={formModal.mode}

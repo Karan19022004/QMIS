@@ -120,7 +120,14 @@ const RouteStops = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='routestops'
+                title='RouteStops'
+                rows={Array.isArray(filteredStops) ? filteredStops : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredStops) ? filteredStops.length : 0} record(s).</>}
+            />
         </section>
     )
 }

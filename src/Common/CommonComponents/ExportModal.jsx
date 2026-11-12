@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { Calendar, X } from 'lucide-react'
@@ -24,8 +24,17 @@ const ExportModal = ({
 }) => {
     const [format, setFormat] = useState('excel')
     const [exporting, setExporting] = useState(false)
+    // Date range starts empty — never hard-code a 7-day (or today) window.
     const [fromDate, setFromDate] = useState(null)
     const [toDate, setToDate] = useState(null)
+
+    useEffect(() => {
+        if (!exportModal) return
+        setFormat('excel')
+        setFromDate(null)
+        setToDate(null)
+        setExporting(false)
+    }, [exportModal])
 
     const sourceRows = Array.isArray(rows) ? rows : []
     const exportRows = useMemo(() => {
@@ -41,7 +50,7 @@ const ExportModal = ({
         if (exporting) return
         setExporting(true)
         try {
-            const exportFormat = format === 'csv' ? 'excel' : format
+            const exportFormat = format === 'pdf' ? 'pdf' : 'excel'
             if (typeof onExport === 'function') {
                 onExport(exportFormat, {
                     fromDate,

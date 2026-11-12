@@ -50,7 +50,7 @@ export const ADMIN_PERMISSION_MODULES = [
     { key: 'communication', label: 'Communication', sidebarId: 12 },
     { key: 'calendar', label: 'Calendar', sidebarId: 13 },
     { key: 'notifications', label: 'Notifications', sidebarId: 14 },
-    { key: 'escalationManagement', label: 'Escalation Management', sidebarId: 15 },
+    { key: 'escalationManagement', label: 'Report Issue / Escalation', sidebarId: 15 },
     { key: 'rbac', label: 'RBAC', sidebarId: 16 },
 ]
 

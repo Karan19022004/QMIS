@@ -181,7 +181,7 @@ const HosteGatePass = () => {
                                 <th className="px-2 py-3.5 text-[#0C1E5B] font-medium uppercase">Out Date</th>
                                 <th className="px-2 py-3.5 text-[#0C1E5B] font-medium uppercase">Return Date</th>
                                 <th className="px-2 py-3.5 text-[#0C1E5B] font-medium uppercase">Parent Approval</th>
-                                <th className="px-2 py-3.5 text-[#0C1E5B] font-medium uppercase">Warden Approval</th>
+                                <th className="px-2 py-3.5 text-[#0C1E5B] font-medium uppercase">Principal Approval</th>
                                 <th className="px-2 py-3.5 text-[#0C1E5B] font-medium uppercase">Gate Keeper</th>
                                 <th className="px-2 py-3.5 text-[#0C1E5B] font-medium uppercase rounded-e-lg">Final Status</th>
                             </tr>
@@ -199,7 +199,7 @@ const HosteGatePass = () => {
                                 const passId = pass.id || pass.gatePassId
                                 const gateKeeperStatus = pass.gateKeeperStatus || 'Pending'
                                 const parentApproval = pass.parentApproval || 'Pending'
-                                const wardenApproval = pass.wardenApproval || 'Pending'
+                                const principalApproval = pass.principalApproval || pass.wardenApproval || 'Pending'
                                 const finalStatus = pass.status || 'Pending'
                                 return (
                                     <tr key={passId} className="border-b text-[#667085] border-[#f2f4f7] hover:bg-[#f2f4f7] rounded-lg">
@@ -219,8 +219,8 @@ const HosteGatePass = () => {
                                             </span>
                                         </td>
                                         <td className="px-2 py-4">
-                                            <span className={`font-medium whitespace-nowrap ${statusColor[wardenApproval] || ''}`}>
-                                                {wardenApproval}
+                                            <span className={`font-medium whitespace-nowrap ${statusColor[principalApproval] || ''}`}>
+                                                {principalApproval}
                                             </span>
                                         </td>
                                         <td className="px-2 py-4">
@@ -275,7 +275,14 @@ const HosteGatePass = () => {
             </div>
 
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='hostegatepass'
+                title='HosteGatePass'
+                rows={Array.isArray(passes) ? passes : []}
+                exportDescription={<>You are exporting {Array.isArray(passes) ? passes.length : 0} record(s).</>}
+            />
 
         </section>
     )

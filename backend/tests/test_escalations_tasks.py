@@ -448,7 +448,8 @@ def test_task_assignees_are_limited_to_the_callers_direct_reports(client):
     assert roles("principal", "?role=director")[0] == 403
     assert roles("principal", "?role=admin")[0] == 403
     status, found = roles("director")
-    assert status == 200 and found and found <= {"principal", "prm"}
+    # Director may assign to Principal, PRM, and PRO (mirrors TASK_HIERARCHY / FE config).
+    assert status == 200 and found and found <= {"principal", "prm", "pro"} and {"principal", "prm"} <= found
     assert roles("director", "?role=teacher")[0] == 403
     assert roles("admin") == (200, {"director"})
     assert roles("admin", "?role=principal")[0] == 403

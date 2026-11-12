@@ -28,9 +28,12 @@ def test_asa04_activity_decisions_use_activities_approval_api():
 
 def test_asa04_list_hides_demo_categories_when_seeds_excluded():
     listing = _read("Pages/SuperAdmin/Approvals/ApprovalsList.jsx")
+    data = _read("Pages/SuperAdmin/Approvals/approvalsData.js")
     assert "liveApprovalCategories" in listing
-    assert "includeDemoApprovalSeeds" in listing
-    assert "DEMO_APPROVAL_SEEDS_NOTICE" in listing
+    # Category filtering lives in approvalsData (includeDemoApprovalSeeds gate).
+    assert "includeDemoApprovalSeeds" in data
+    assert "DEMO_APPROVAL_SEEDS_NOTICE" in data
+    assert "liveApprovalCategories = ()" in data or "export const liveApprovalCategories" in data
 
 
 def test_activities_api_exposes_approval_endpoint():

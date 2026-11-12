@@ -65,6 +65,14 @@ export const mapAdmissionFromApi = (row) => ({
     admissionDate: row.admission_date || '',
     className: row.class_name || '',
     registrationFees: row.registration_fees || '',
+    registrationFeeStatus: (() => {
+        const token = String(row.fees_group || '')
+            .split(',')
+            .map((part) => part.trim())
+            .find((part) => part.startsWith('RegFeeStatus:'))
+        const status = token ? token.slice('RegFeeStatus:'.length) : 'Pending'
+        return ['Pending', 'Paid', 'Waived'].includes(status) ? status : 'Pending'
+    })(),
     batchStartYear: row.batch_start_year || '',
     batchEndYear: row.batch_end_year || '',
     firstName: row.first_name || '',
@@ -111,7 +119,11 @@ export const mapAdmissionFromApi = (row) => ({
     hasParentAccountPassword: Boolean(row.has_parent_account_password),
     studentAccountEmail: row.student_account_email || '',
     hasStudentAccountPassword: Boolean(row.has_student_account_password),
-    feesGroup: row.fees_group || '',
+    feesGroup: String(row.fees_group || '')
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => part && !part.startsWith('RegFeeStatus:'))
+        .join(', '),
     referralType: row.referral_type || 'Parent',
     referralName: row.referral_name || '',
     referralContact: row.referral_contact || '',
@@ -205,7 +217,15 @@ export const admissionFormToApi = (form) => ({
         ? form.referralStudentAdmissionNo || null
         : null,
     referral_notes: form.referralNotes || null,
-    fees_group: (form.feesGroup && String(form.feesGroup).trim()) || null,
+    fees_group: (() => {
+        const groups = String(form.feesGroup || '')
+            .split(',')
+            .map((part) => part.trim())
+            .filter((part) => part && !part.startsWith('RegFeeStatus:'))
+        const status = String(form.registrationFeeStatus || 'Pending').trim() || 'Pending'
+        if (status !== 'Pending') groups.push(`RegFeeStatus:${status}`)
+        return groups.length ? groups.join(', ') : null
+    })(),
     profile_image_file_id: form.profileImageFileId ?? null,
     status: form.status || 'Active',
 })

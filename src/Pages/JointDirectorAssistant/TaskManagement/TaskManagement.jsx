@@ -165,7 +165,14 @@ const TaskManagement = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='taskmanagement'
+                title='TaskManagement'
+                rows={Array.isArray(tasks) ? tasks : []}
+                exportDescription={<>You are exporting {Array.isArray(tasks) ? tasks.length : 0} record(s).</>}
+            />
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
             <DeleteRequestModal deleteRequestModal={deleteRequestModal} setDeleteRequestModal={setDeleteRequestModal} />
         </section>

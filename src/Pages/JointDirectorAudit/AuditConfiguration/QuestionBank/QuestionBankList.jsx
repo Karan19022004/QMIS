@@ -438,7 +438,14 @@ const QuestionBankList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='questionbanklist'
+                title='QuestionBankList'
+                rows={Array.isArray(filteredQuestions) ? filteredQuestions : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredQuestions) ? filteredQuestions.length : 0} record(s).</>}
+            />
             <QuestionFormModal
                 isOpen={formModal.open}
                 mode={formModal.mode}

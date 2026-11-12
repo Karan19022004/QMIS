@@ -57,6 +57,22 @@ TC_NOC_AUTHORITIES: tuple[dict, ...] = (
         "label": "Transport Manager",
         "required_when": "school_transport",
     },
+    # Dues clearance managers (always when the role exists in the campus catalogue).
+    {
+        "role_code": "accounthead",
+        "label": "Accounts / Finance",
+        "required_when": "always",
+    },
+    {
+        "role_code": "librarian",
+        "label": "Librarian",
+        "required_when": "always",
+    },
+    {
+        "role_code": "stationerystoremanager",
+        "label": "Store Manager",
+        "required_when": "always",
+    },
 )
 
 

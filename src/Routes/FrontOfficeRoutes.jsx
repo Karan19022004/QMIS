@@ -50,6 +50,7 @@ import MyAttendance from '../Pages/FrontOffice/Attendance/MyAttendance'
 import TcRequestList from '../Pages/FrontOffice/TcRequest/TcRequestList'
 import ViewTcRequest from '../Pages/FrontOffice/TcRequest/ViewTcRequest'
 import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
+import LostFoundRegister from '../Common/demoDomain/LostFoundRegister'
 import AnnouncementList from '../Pages/FrontOffice/Announcement/AnnouncementList'
 import ViewAnnouncement from '../Pages/FrontOffice/Announcement/ViewAnnouncement'
 import Dashboard from '../Pages/FrontOffice/Dashboard/Dashboard'
@@ -119,6 +120,7 @@ const FrontOfficeRoutes = () => {
             <Route path="/front-office/communication/direct-messages" element={<RedirectLegacyDirectMessages inboxBase="/front-office/communication/inbox" />} />
             <Route path="/front-office/communication/direct-messages/:conversationId" element={<RedirectLegacyDirectMessages inboxBase="/front-office/communication/inbox" />} />
             {TaskManagementRoutes({ basePath: '/front-office' })}
+            <Route path="/front-office/lost-found" element={<LostFoundRegister />} />
             <Route path="/front-office/escalation-management" element={<EscalationList />} />
             <Route path="/front-office/escalation-management/add-escalation" element={<AddEscalation />} />
             <Route path="/front-office/escalation-management/view/:id" element={<ViewEscalation />} />

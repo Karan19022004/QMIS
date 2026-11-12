@@ -198,7 +198,14 @@ const GatePassList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='gatepasslist'
+                title='GatePassList'
+                rows={Array.isArray(passes) ? passes : []}
+                exportDescription={<>You are exporting {Array.isArray(passes) ? passes.length : 0} record(s).</>}
+            />
 
             <EditRequestModal editRequestModal={editRequestModal} setEditRequestModal={setEditRequestModal} />
 

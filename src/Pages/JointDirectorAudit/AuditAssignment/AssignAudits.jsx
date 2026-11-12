@@ -116,7 +116,19 @@ const AssignAudits = ({ mode = 'assign' }) => {
                         <option value='processauditor'>Process auditor</option>
                         <option value='qualityauditor'>Quality auditor</option>
                     </select>
-                    <input className='border border-[#D9D9D9] rounded-md px-3 py-2 md:col-span-2' placeholder='Resolution evidence (optional)' value={draft.evidence} onChange={(event) => setDraft({ ...draft, evidence: event.target.value })} />
+                    <label className='md:col-span-2 flex flex-col gap-1 text-sm text-[#667085]'>
+                        Resolution evidence (optional)
+                        <input
+                            type='file'
+                            accept='image/png,image/jpeg,image/*,.png,.jpg,.jpeg,.pdf,application/pdf'
+                            className='border border-[#D9D9D9] rounded-md px-3 py-2'
+                            onChange={(event) => {
+                                const file = event.target.files?.[0]
+                                setDraft({ ...draft, evidence: file?.name || '' })
+                            }}
+                        />
+                        {draft.evidence ? <span className='text-xs'>Selected: {draft.evidence}</span> : null}
+                    </label>
                     <button type='submit' className='bg-[#515DEF] text-white rounded-md px-4 py-2 md:col-span-2 cursor-pointer'>Save assignment</button>
                 </form>
             )}

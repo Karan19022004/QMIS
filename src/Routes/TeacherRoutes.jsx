@@ -2,6 +2,7 @@ import React from 'react'
 import { Route, Routes as ReactRoutes, Navigate } from 'react-router-dom'
 import Dashboard from '../Pages/Teacher/Dashboard/Dashboard'
 import MyAttendance from '../Pages/Teacher/Attendance/MyAttendance'
+import StaffRelievingApply from '../Common/HR/StaffRelievingApply'
 import ClassAttendance from '../Pages/Teacher/Attendance/ClassAttendance'
 import ClassRoutine from '../Pages/Teacher/ClassRoutine/ClassRoutine'
 import ClassTimetableList from '../Pages/Principal/ClassTimetable/ClassTimetableList'
@@ -63,6 +64,7 @@ const TeacherRoutes = () => {
             <Route path="/teacher/attendance" element={<Navigate to="/teacher/attendance/my-attendance" replace />} />
             <Route path="/teacher/attendance-history" element={<Navigate to="/teacher/attendance/my-attendance" replace />} />
             <Route path="/teacher/attendance/my-attendance" element={<MyAttendance />} />
+            <Route path="/teacher/relieving-application" element={<StaffRelievingApply />} />
             <Route path="/teacher/attendance/class-attendance" element={<ClassAttendance canOverrideBiometric />} />
             <Route path="/teacher/class/class-routine" element={<ClassRoutine />} />
             <Route path="/teacher/class/class-timetable" element={<ClassTimetableList />} />

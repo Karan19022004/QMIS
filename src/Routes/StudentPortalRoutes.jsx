@@ -13,6 +13,7 @@ import BorrowedBooksList from '../Pages/Student/Library/BorrowedBooksList'
 import BusRouteDetails from '../Pages/Student/Transport/BusRouteDetails'
 import TrackBus from '../Pages/Student/Transport/TrackBus'
 import HostelDetails from '../Pages/Student/Hostel/HostelDetails'
+import HostelOutingApprovals from '../Pages/Parent/Hostel/HostelOutingApprovals'
 import FeesPayemnt from '../Pages/Student/PaymentDetails/FeesPayemnt'
 import HostelPayment from '../Pages/Student/PaymentDetails/HostelPayment'
 import TransportPayment from '../Pages/Student/PaymentDetails/TransportPayment'
@@ -87,6 +88,9 @@ const StudentPortalRoutes = ({
             )}
             <Route path={`${routePrefix}/transport/track-bus`} element={<TrackBus showRouteDetails={trackBusWithRouteDetails} />} />
             <Route path={`${routePrefix}/hostel/hostel-details`} element={<HostelDetails />} />
+            {roleKey === 'parent' ? (
+                <Route path={`${routePrefix}/hostel/outing-approvals`} element={<HostelOutingApprovals />} />
+            ) : null}
             <Route path={`${routePrefix}/payment/fees-payment`} element={<FeesPayemnt />} />
             <Route path={`${routePrefix}/payment/hostel-payment`} element={<HostelPayment />} />
             <Route path={`${routePrefix}/payment/transport-payment`} element={<TransportPayment />} />

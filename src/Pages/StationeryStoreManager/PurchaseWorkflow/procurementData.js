@@ -154,16 +154,35 @@ export async function decideStationeryProcurement(id, action, comment = '') {
 }
 
 export async function receiveStationeryGoods(id, payload = {}) {
-    if (!canUseOpsApi()) {
-        return { success: false, message: 'Goods receipt requires live API mode.' }
+    const quantity = Math.max(1, Number(payload.quantity) || 1)
+    if (canUseOpsApi()) {
+        try {
+            const result = await stationeryReceiveGoodsApi(id, { ...payload, quantity })
+            await hydrateStationeryProcurementFromApi()
+            return { success: true, api: true, ...result }
+        } catch (err) {
+            return { success: false, message: err?.message || 'Goods receipt failed.' }
+        }
     }
-    try {
-        const result = await stationeryReceiveGoodsApi(id, payload)
-        await hydrateStationeryProcurementFromApi()
-        return { success: true, api: true, ...result }
-    } catch (err) {
-        return { success: false, message: err?.message || 'Goods receipt failed.' }
-    }
+    // Offline / local persist: mark GRN received with quantity for list visibility.
+    const rows = getStationeryProcurement()
+    const current = rows.find((item) => item.id === id)
+    if (!current) return { success: false, message: 'Request not found.' }
+    const next = rows.map((item) => (
+        item.id === id
+            ? {
+                ...item,
+                status: 'COMPLETED',
+                grnId: payload.grnId || `GRN-${id}`,
+                grnReceived: true,
+                grnQuantity: quantity,
+                grnReceivedAt: new Date().toISOString(),
+                itemName: payload.itemName || item.title,
+            }
+            : item
+    ))
+    const result = await saveStationeryProcurement(next)
+    return { ...result, record: next.find((item) => item.id === id) }
 }
 
 export function downloadQuotationTemplate() {

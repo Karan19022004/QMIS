@@ -106,7 +106,7 @@ const HostelGatePassView = ({ record }) => (
                 <Field label='Return date' value={record.returnDate} />
                 <Field label='Return time' value={record.returnTime} />
                 <Field label='Parent approval' value={record.parentApproval} />
-                <Field label='Warden approval' value={record.wardenApproval} />
+                <Field label='Principal approval' value={record.principalApproval || record.wardenApproval} />
             </div>
         </Section>
     </>

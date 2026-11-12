@@ -67,6 +67,7 @@ import AnnouncementList from '../Pages/Admin/Announcement/AnnouncementList'
 import AddAnnouncement from '../Pages/Admin/Announcement/AddAnnouncement'
 import ViewAnnouncement from '../Pages/Admin/Announcement/ViewAnnouncement'
 import { TaskManagementRoutes } from '../Common/TaskManagement/TaskManagementRoutes'
+import LostFoundRegister from '../Common/demoDomain/LostFoundRegister'
 import MyLeaveRequests from '../Pages/Admin/LeaveRequest/MyLeaveRequests'
 import AddLeaveRequest from '../Pages/Admin/LeaveRequest/AddLeaveRequest'
 import ViewMyLeaveRequest from '../Pages/Admin/LeaveRequest/ViewMyLeaveRequest'
@@ -255,6 +256,7 @@ const AdminRoutes = () => {
 
             {/* Task Management */}
             {TaskManagementRoutes({ basePath: '/admin' })}
+            <Route path='/admin/lost-found' element={<LostFoundRegister />} />
 
             {/* Leave Request */}
             <Route path='/admin/leave-request/my-requests' element={<MyLeaveRequests />} />

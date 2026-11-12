@@ -349,7 +349,14 @@ const ConcessionsWaiversTab = ({ exportModal, setExportModal }) => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="concessions-waivers"
+                title="Concessions & Waivers"
+                rows={concessionRows}
+                exportDescription={<>You are exporting {concessionRows.length} concession record(s).</>}
+            />
 
             <ConcessionDetailsOffcanvas
                 isOpen={detailsOpen}

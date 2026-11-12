@@ -242,7 +242,14 @@ const Reports = () => {
                 </ReportTableSection>
             )}
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename="it-support-reports"
+                title="IT Support Reports"
+                rows={[...ticketRows, ...utilizationRows, ...damagedRows, ...licenseRows]}
+                exportDescription={<>You are exporting IT support report rows for the selected filters.</>}
+            />
         </section>
     )
 }

@@ -58,6 +58,13 @@ TASK_HIERARCHY = {
     "prm": ("gatekeepermanager",),
     "pro": ("gatekeepermanager",),
     "gatekeepermanager": ("gatekeeper",),
+    # Ops / audit managers with Task Management create/assign (#51)
+    "housekeepingmanager": ("gatekeeper",),
+    "maintenancemanager": ("gatekeeper",),
+    "transportmanager": ("driver",),
+    "stationerystoremanager": ("prm",),
+    "processauditor": ("teacher",),
+    "qualityauditor": ("teacher",),
 }
 TASK_PRIORITIES = ["High", "Medium", "Low"]
 TASK_STATUSES = ["Incomplete", "In Progress", "Completed"]

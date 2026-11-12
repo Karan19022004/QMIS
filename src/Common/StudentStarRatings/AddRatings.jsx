@@ -267,7 +267,7 @@ const AddRatings = () => {
                         <input
                             id='som-attachment'
                             type='file'
-                            accept='.pdf,.png,.jpg,.jpeg,.doc,.docx,image/*,application/pdf'
+                            accept='.pdf,.png,.jpg,.jpeg,.doc,.docx,image/png,image/*,application/pdf'
                             onChange={(e) => setAttachment(e.target.files?.[0] || null)}
                             className={inputClass}
                         />

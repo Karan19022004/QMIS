@@ -257,7 +257,14 @@ const MyAudits = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='myaudits'
+                title='MyAudits'
+                rows={Array.isArray(audits) ? audits : []}
+                exportDescription={<>You are exporting {Array.isArray(audits) ? audits.length : 0} record(s).</>}
+            />
         </section>
     )
 }

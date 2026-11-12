@@ -239,7 +239,14 @@ const Inventory = () => {
                 </div>
             )}
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='inventory'
+                title='Inventory'
+                rows={Array.isArray(items) ? items : []}
+                exportDescription={<>You are exporting {Array.isArray(items) ? items.length : 0} record(s).</>}
+            />
         </section>
     )
 }

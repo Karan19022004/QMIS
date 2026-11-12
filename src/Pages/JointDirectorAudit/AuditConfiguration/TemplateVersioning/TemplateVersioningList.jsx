@@ -259,7 +259,14 @@ const TemplateVersioningList = () => {
                 </div>
             </div>
 
-            <ExportModal exportModal={exportModal} setExportModal={setExportModal} />
+            <ExportModal
+                exportModal={exportModal}
+                setExportModal={setExportModal}
+                filename='templateversioninglist'
+                title='TemplateVersioningList'
+                rows={Array.isArray(filteredVersions) ? filteredVersions : []}
+                exportDescription={<>You are exporting {Array.isArray(filteredVersions) ? filteredVersions.length : 0} record(s).</>}
+            />
             <TemplateVersionViewModal
                 isOpen={viewModal.open}
                 version={viewModal.version}
